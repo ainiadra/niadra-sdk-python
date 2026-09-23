@@ -29,7 +29,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://niadra.com"
-Documentation = "https://niadra.com/en/docs"
+Documentation = "https://docs.niadra.com/en"
 Source = "https://github.com/ainiadra/niadra-sdk-python"
 
 [project.scripts]
