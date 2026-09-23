@@ -1,0 +1,691 @@
+from __future__ import annotations
+
+import atexit
+import logging
+import time
+import weakref
+from collections.abc import Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from types import TracebackType
+from typing import Any
+
+import httpx
+from pydantic import BaseModel
+
+from niadra._base import (
+    ClientCore,
+    ClosesLike,
+    HandleLike,
+    HandoffMode,
+    HandoffTarget,
+    ItemLike,
+    ObjectLike,
+    StampLike,
+    TargetLike,
+    VerificationLike,
+    error_code,
+    logger,
+)
+from niadra._cache import ContextCache, cache_key
+from niadra._queue import SyncFlusher, is_retryable
+from niadra._transport import SyncTransport
+from niadra.conversation import Conversation, Task
+from niadra.models.context import ContextRequest, HistoryFilters, ObjectState, OpenedItem
+from niadra.models.events import BatchResponse, FeedbackAction, MediaUploadResponse, VerifyMethod
+from niadra.models.objects import ObjectTimeline
+from niadra.models.results import Context, MediaUpload, SearchResult, TimelinePage
+from niadra.models.tokens import SubjectToken
+from niadra.options import CacheOptions, QueueOptions, Timeouts
+from niadra.tools import BUILTIN_DEFINITIONS, ToolKit
+from niadra.vocabulary import AssertionMethod, Speaker, SubjectKind, Verification
+
+
+class Niadra:
+    """The synchronous Niadra client.
+
+    ```python
+    niadra = Niadra()  # reads NIADRA_API_KEY
+    context = niadra.context(subject=phone("+5511912345678"), conversation_id=thread_id)
+    ```
+
+    The client never takes your agent down with it. Without a key it is a no-op that warns
+    once. Every public method catches and logs its own failures and returns a safe value:
+    an empty `Context`, an empty `SearchResult`, `False`, `None`. Pass `strict=True` to get
+    exceptions instead, which is what you want in tests.
+
+    One instance per process is enough; it is thread-safe. `track()` and friends only queue:
+    a background thread sends batches. Call `close()`, or use the client as a context manager,
+    to flush before exit; an `atexit` hook also flushes for up to two seconds.
+
+    Args:
+        api_key: A source key. Defaults to `NIADRA_API_KEY`.
+        base_url: Overrides the address derived from the key, e.g. `http://127.0.0.1:8765`
+            for `niadra-mock`. Defaults to `NIADRA_BASE_URL`.
+        channel: The default `channel` for events that do not name one, e.g. `"whatsapp"`.
+        strict: Raise instead of logging and returning a fallback.
+        timeouts: Per-method time budgets.
+        cache: The per-conversation context cache.
+        queue: Batching of `track()`.
+        http_client: An `httpx.Client` to send requests with (proxies, custom transports).
+    """
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        *,
+        base_url: str | None = None,
+        channel: str | None = None,
+        strict: bool = False,
+        timeouts: Timeouts | None = None,
+        cache: CacheOptions | None = None,
+        queue: QueueOptions | None = None,
+        http_client: httpx.Client | None = None,
+    ) -> None:
+        self._core = ClientCore(
+            api_key, base_url, channel=channel, strict=strict, timeouts=timeouts, cache=cache, queue=queue
+        )
+        self._cache = ContextCache(self._core.cache_options)
+        self._transport = SyncTransport(self._core.base_url, self._core.api_key, http_client)
+        self._flusher = SyncFlusher(self._core.buffer, self._send_batch, self._core.queue_options)
+        self._refresher: ThreadPoolExecutor | None = None
+        self._closed = False
+        if self._core.enabled:
+            atexit.register(_flush_at_exit, weakref.ref(self))
+
+    @property
+    def enabled(self) -> bool:
+        """False when the client has no usable key and every call is a no-op."""
+        return self._core.enabled
+
+    @property
+    def base_url(self) -> str:
+        return self._core.base_url
+
+    @property
+    def mcp_url(self) -> str:
+        """The remote MCP endpoint of this space. Connect with the source key and a subject token."""
+        return f"{self._core.base_url}/mcp"
+
+    def context(
+        self,
+        subject: HandleLike | None = None,
+        object: ObjectLike | None = None,
+        *,
+        about: HandleLike | None = None,
+        view: str = "chat",
+        verification: VerificationLike = Verification.V0,
+        conversation_id: str | None = None,
+        task_id: str | None = None,
+        query: str | None = None,
+        delta: bool = False,
+        target: TargetLike | None = None,
+        timeout: float | None = None,
+        use_cache: bool = True,
+    ) -> Context:
+        """The context pack for a subject (a person, account or partner) or a business object.
+
+        Pass exactly one of `subject` (a handle) or `object` (`"invoice:erp:0823"` or an
+        `ObjectRef`). `about` adds what an organization the person acts for has that matters
+        here. With a `conversation_id` or `task_id` the server pins the pack to the same bytes
+        across turns and the SDK caches it (see `CacheOptions`).
+
+        `target`, e.g. `"openai/gpt-4.1"`, lets the server aim the pack at that model's
+        prompt-cache floor. `delta=True` asks for what changed since this agent last looked,
+        and is never served from the cache.
+
+        Never raises (unless `strict`): on failure it returns the last good pack for the same
+        key or an empty one. A 401 or 403 also wipes what the cache held for that key.
+        """
+        requested = Verification.V0
+        try:
+            requested = Verification(verification)
+            request = self._core.context_request(
+                subject, object, about, view, verification, conversation_id, task_id, query, delta, target
+            )
+        except (TypeError, ValueError) as exc:
+            return self._core.fail(
+                "context", exc, Context.empty(requested=requested, error="invalid_arguments")
+            )
+        if not self._core.enabled:
+            return Context.empty(requested=requested, error="disabled")
+        budget = self._core.context_budget(view, timeout)
+        if not self._core.cacheable(request, use_cache):
+            try:
+                return self._fetch_context(request, budget, None)
+            except Exception as exc:
+                return self._core.fail(
+                    "context", exc, Context.empty(requested=requested, error=error_code(exc))
+                )
+
+        key = cache_key(request)
+        scope = self._core.scope_of(conversation_id, task_id)
+        hit = self._cache.get(key)
+        if hit is not None and hit.freshness == "fresh":
+            return hit.context
+        if hit is not None and hit.freshness == "stale":
+            self._refresh_later(key, scope, request, budget)
+            return hit.context
+        try:
+            fetched = self._fetch_context(request, budget, self._cache.etag(key))
+            return self._cache.absorb(key, scope, fetched)
+        except Exception as exc:
+            fallback = self._cache.fallback(key, exc)
+            if fallback is not None and not self._core.strict:
+                logger.warning("niadra: context failed, serving the last good pack (%s)", error_code(exc))
+                return fallback
+            return self._core.fail("context", exc, Context.empty(requested=requested, error=error_code(exc)))
+
+    def search(
+        self,
+        subject: HandleLike,
+        query: str,
+        *,
+        about: HandleLike | None = None,
+        filters: HistoryFilters | Mapping[str, Any] | None = None,
+        max_tokens: int = 800,
+        verification: VerificationLike = Verification.V0,
+        conversation_id: str | None = None,
+        task_id: str | None = None,
+        voice: bool = False,
+        timeout: float | None = None,
+    ) -> SearchResult:
+        """Searches the subject's whole history by keyword and meaning.
+
+        Returns items (facts, episodes, actions, system events, objects), a `recurrence`
+        count when the query matches a category, and `withheld`, the number of items the
+        policy held back at this verification level. `voice=True` uses the shorter voice budget.
+        """
+        if not self._core.enabled:
+            return SearchResult(error="disabled")
+        try:
+            budget = self._core.navigation_budget(voice, timeout)
+            request = self._core.search_http(
+                subject, query, about, filters, max_tokens, verification, conversation_id, task_id, budget
+            )
+            return SearchResult.model_validate(self._transport.request(request))
+        except Exception as exc:
+            return self._core.fail("search", exc, SearchResult(error=error_code(exc)))
+
+    def timeline(
+        self,
+        subject: HandleLike,
+        *,
+        about: HandleLike | None = None,
+        filters: HistoryFilters | Mapping[str, Any] | None = None,
+        cursor: str | None = None,
+        limit: int = 20,
+        verification: VerificationLike = Verification.V0,
+        conversation_id: str | None = None,
+        voice: bool = False,
+        timeout: float | None = None,
+    ) -> TimelinePage:
+        """One page of the subject's history, most recent first. Pass `next_cursor` to go on."""
+        if not self._core.enabled:
+            return TimelinePage(error="disabled")
+        try:
+            budget = self._core.navigation_budget(voice, timeout)
+            request = self._core.timeline_http(
+                subject, about, filters, cursor, limit, verification, conversation_id, budget
+            )
+            return TimelinePage.model_validate(self._transport.request(request))
+        except Exception as exc:
+            return self._core.fail("timeline", exc, TimelinePage(error=error_code(exc)))
+
+    def open(
+        self,
+        item_id: str,
+        *,
+        verification: VerificationLike = Verification.V0,
+        conversation_id: str | None = None,
+        task_id: str | None = None,
+        voice: bool = False,
+        timeout: float | None = None,
+    ) -> OpenedItem | None:
+        """Opens an episode or object found by `search()` or `timeline()`. None when unavailable."""
+        if not self._core.enabled:
+            return None
+        try:
+            budget = self._core.navigation_budget(voice, timeout)
+            request = self._core.open_http(item_id, verification, conversation_id, task_id, budget)
+            return OpenedItem.model_validate(self._transport.request(request))
+        except Exception as exc:
+            return self._core.fail("open", exc, None)
+
+    def object_state(
+        self, object: ObjectLike, *, voice: bool = False, timeout: float | None = None
+    ) -> ObjectState | None:
+        """The derived state of a business object, e.g. `object_state("invoice:erp:0823")`.
+
+        What its systems of record reported last, `as_of` when, and its open items, under this
+        source's purpose. None when unavailable.
+        """
+        if not self._core.enabled:
+            return None
+        try:
+            request = self._core.object_http(object, voice, timeout)
+            return ObjectState.model_validate(self._transport.request(request))
+        except Exception as exc:
+            return self._core.fail("object_state", exc, None)
+
+    def object_timeline(
+        self,
+        object: ObjectLike,
+        *,
+        cursor: str | None = None,
+        limit: int = 20,
+        voice: bool = False,
+        timeout: float | None = None,
+    ) -> ObjectTimeline | None:
+        """System events and agent actions about one object, newest first. Pass `next_cursor` to go on.
+
+        One line per item, never conversation content. None when unavailable.
+        """
+        if not self._core.enabled:
+            return None
+        try:
+            request = self._core.object_timeline_http(object, cursor, limit, voice, timeout)
+            return ObjectTimeline.model_validate(self._transport.request(request))
+        except Exception as exc:
+            return self._core.fail("object_timeline", exc, None)
+
+    def track(self, item: ItemLike) -> bool:
+        """Queues a message, system event or action (or any other batch item) and returns at once.
+
+        Accepts an `EventItem` or a mapping of its fields; a mapping without `channel` gets
+        the client's default. Returns False when the item was dropped: invalid, unserializable,
+        the queue is full, or the client is disabled.
+        """
+        if not self._core.enabled:
+            return False
+        try:
+            if isinstance(item, Mapping) and item.get("type", "event") == "event" and "channel" not in item:
+                item = {**item, "channel": self._core.default_channel(None)}
+            queued = self._core.enqueue(item)
+        except Exception as exc:
+            return self._core.fail("track", exc, False)
+        if queued:
+            self._flusher.notify()
+        return queued
+
+    def action(
+        self,
+        operation: str,
+        *,
+        subject: HandleLike | None = None,
+        object: ObjectLike | None = None,
+        result: str | None = None,
+        purpose: str | None = None,
+        closes: ClosesLike | None = None,
+        conversation_id: str | None = None,
+        task_id: str | None = None,
+        channel: str | None = None,
+        speaker: Speaker | str = Speaker.AI_AGENT,
+        speaker_id: str | None = None,
+        corrects_action_id: str | None = None,
+        occurred_at: datetime | None = None,
+        idempotency_key: str | None = None,
+        context_stamp: StampLike | None = None,
+    ) -> bool:
+        """Records what an agent did in a system of record: `action("credit", object="invoice:erp:0823")`.
+
+        `closes` names the open item the action fulfils, by id (a string) or as
+        `{"object": ..., "operation": ...}`. The action stays `declared` until the system
+        of record confirms it with its own event. `context_stamp` says which context the
+        agent acted on; conversations and tasks set it for you.
+        """
+        if not self._core.enabled:
+            return False
+        try:
+            item = self._core.action_item(
+                operation,
+                subject=subject,
+                object=object,
+                result=result,
+                purpose=purpose,
+                closes=closes,
+                conversation_id=conversation_id,
+                task_id=task_id,
+                channel=channel,
+                speaker=speaker,
+                speaker_id=speaker_id,
+                corrects_action_id=corrects_action_id,
+                occurred_at=occurred_at,
+                idempotency_key=idempotency_key,
+                context_stamp=context_stamp,
+            )
+        except Exception as exc:
+            return self._core.fail("action", exc, False)
+        return self.track(item)
+
+    def identify(
+        self,
+        handles: Sequence[HandleLike],
+        *,
+        method: AssertionMethod | str = AssertionMethod.EXPLICIT_IDENTIFY,
+        subject_kind: SubjectKind | str = SubjectKind.PERSON,
+        conversation_id: str | None = None,
+    ) -> BatchResponse | None:
+        """States that two or more handles belong to the same subject.
+
+        Sent right away rather than queued, so a `context()` call that follows sees it. If
+        the request fails, the assertion is queued for the background sender and None is returned.
+        """
+        if not self._core.enabled:
+            return None
+        try:
+            item = self._core.identify_item(handles, method, subject_kind, conversation_id)
+        except Exception as exc:
+            return self._core.fail("identify", exc, None)
+        return self._send_now("identify", item, conversation_id, None)
+
+    def verify(
+        self,
+        method: VerifyMethod,
+        level: VerificationLike,
+        *,
+        handle: HandleLike,
+        conversation_id: str | None = None,
+        task_id: str | None = None,
+        valid_until: datetime | None = None,
+    ) -> BatchResponse | None:
+        """Raises the verification level of one conversation or task, after you proved it.
+
+        `method` is how: `otp_whatsapp`, `otp_sms`, `login`, `kba`, `network_attestation` or
+        `human_agent`. Sent right away, and the cached pack of that conversation is dropped,
+        so the next `context()` reflects the new level.
+        """
+        if not self._core.enabled:
+            return None
+        try:
+            item = self._core.verify_item(method, level, handle, conversation_id, task_id, valid_until)
+        except Exception as exc:
+            return self._core.fail("verify", exc, None)
+        return self._send_now("verify", item, conversation_id, task_id)
+
+    def feedback(
+        self,
+        action: FeedbackAction,
+        subject: HandleLike,
+        *,
+        fact_id: str | None = None,
+        open_item_id: str | None = None,
+        conversation_id: str | None = None,
+        value: str | None = None,
+        reason: str | None = None,
+        idempotency_key: str | None = None,
+    ) -> BatchResponse | None:
+        """Corrects what Niadra derived about a subject.
+
+        `action` is `retract_fact` or `correct_fact` (with `fact_id`, and `value` for the right
+        one), `resolve_open_item` (with `open_item_id`) or `conversation_outcome` (with
+        `conversation_id` and `value`). The server records the correction as an event, so it is
+        audited like any other. Sent right away; None when it could not be delivered.
+        """
+        if not self._core.enabled:
+            return None
+        try:
+            body = self._core.feedback_request(
+                action, subject, fact_id, open_item_id, conversation_id, value, reason, idempotency_key
+            )
+            return BatchResponse.model_validate(self._transport.request(self._core.feedback_http(body)))
+        except Exception as exc:
+            return self._core.fail("feedback", exc, None)
+
+    def upload_media(
+        self, data: bytes | bytearray | memoryview, content_type: str, *, subject: HandleLike | None = None
+    ) -> MediaUpload | None:
+        """Hands a file to Niadra, such as a call recording, and returns the reference for its event.
+
+        Media never travels inside an event. This reserves an upload, sends the bytes straight
+        to storage over a short-lived signed URL, and returns `media_ref` and `media_sha256`
+        for the event's `content`. Pass the `subject` it belongs to whenever you know it: the
+        file is then stored under that person, so erasing them erases it, even if no event ever
+        references it. None when the upload failed.
+        """
+        if not self._core.enabled:
+            return None
+        try:
+            payload = bytes(data)
+            request, digest = self._core.media_upload_http(payload, content_type, subject)
+            reserved = MediaUploadResponse.model_validate(self._transport.request(request))
+            if reserved.upload_url:
+                self._core.check_upload_url(reserved.upload_url)
+                self._transport.upload(
+                    reserved.upload_url,
+                    payload,
+                    self._core.upload_headers(reserved, content_type),
+                    self._core.timeouts.upload,
+                )
+            return MediaUpload(
+                media_ref=reserved.media_ref,
+                media_sha256=digest,
+                content_type=content_type,
+                size_bytes=len(payload),
+                expires_at=reserved.expires_at,
+            )
+        except Exception as exc:
+            return self._core.fail("upload_media", exc, None)
+
+    def handoff(
+        self,
+        conversation_id: str,
+        target: HandoffTarget,
+        *,
+        target_source: str | None = None,
+        reason: str | None = None,
+        mode: HandoffMode = "warm",
+    ) -> bool:
+        """Records a transfer to a human (`"human"`) or another agent (`"agent"`). Queued."""
+        if not self._core.enabled:
+            return False
+        try:
+            item = self._core.handoff_item(conversation_id, target, target_source, reason, mode)
+        except Exception as exc:
+            return self._core.fail("handoff", exc, False)
+        return self.track(item)
+
+    def conversation(
+        self,
+        conversation_id: str | None = None,
+        *,
+        subject: HandleLike | None = None,
+        object: ObjectLike | None = None,
+        about: HandleLike | None = None,
+        channel: str | None = None,
+        view: str = "chat",
+        verification: VerificationLike = Verification.V0,
+        target: TargetLike | None = None,
+        agent_id: str | None = None,
+    ) -> Conversation:
+        """A conversation with one customer. Use it as a context manager; see `niadra.conversation`.
+
+        Without a `conversation_id` the SDK mints one. `agent_id` identifies your agent
+        within the source, and is stamped on its turns and actions.
+        """
+        return Conversation(
+            self,
+            conversation_id,
+            subject=subject,
+            object=object,
+            about=about,
+            channel=channel or self._core.channel,
+            view=view,
+            verification=verification,
+            target=target,
+            agent_id=agent_id,
+        )
+
+    def task(
+        self,
+        task_id: str | None = None,
+        *,
+        subject: HandleLike | None = None,
+        object: ObjectLike | None = None,
+        about: HandleLike | None = None,
+        channel: str | None = None,
+        view: str = "brief",
+        verification: VerificationLike = Verification.V0,
+        target: TargetLike | None = None,
+        agent_id: str | None = None,
+    ) -> Task:
+        """A unit of work of an internal agent (billing, orders, tickets). Emits `task.ended` on exit.
+
+        With an `object`, the pack is centered on it; use a task view such as `"task:billing"`.
+        """
+        return Task(
+            self,
+            task_id,
+            subject=subject,
+            object=object,
+            about=about,
+            channel=channel or self._core.channel,
+            view=view,
+            verification=verification,
+            target=target,
+            agent_id=agent_id,
+        )
+
+    def tools(
+        self,
+        subject: HandleLike,
+        *,
+        about: HandleLike | None = None,
+        conversation_id: str | None = None,
+        task_id: str | None = None,
+        verification: VerificationLike = Verification.V0,
+        voice: bool = False,
+    ) -> ToolKit:
+        """The history navigation kit as function-calling tools, bound to one customer.
+
+        The customer is bound here, outside the model's reach: the model picks the query,
+        never the profile, which is what stops a prompt injection from switching customers.
+        Hand `toolkit.definitions` to your model and route its tool calls to `toolkit.call()`.
+        """
+        return ToolKit(
+            self,
+            BUILTIN_DEFINITIONS,
+            subject=subject,
+            about=about,
+            conversation_id=conversation_id,
+            task_id=task_id,
+            verification=verification,
+            voice=voice,
+        )
+
+    def subject_token(
+        self,
+        subject: HandleLike,
+        *,
+        about: HandleLike | None = None,
+        conversation_id: str | None = None,
+        task_id: str | None = None,
+        verification: VerificationLike = Verification.V0,
+    ) -> SubjectToken | None:
+        """Mints a signed, 15-minute token that binds an MCP connection to one customer.
+
+        Call it from your backend and pass `token.headers` when your agent opens its MCP
+        connection to `mcp_url`. None when the token could not be minted.
+        """
+        if not self._core.enabled:
+            return None
+        try:
+            request = self._core.subject_token_http(subject, about, conversation_id, task_id, verification)
+            return SubjectToken.model_validate(self._transport.request(request))
+        except Exception as exc:
+            return self._core.fail("subject_token", exc, None)
+
+    def flush(self, timeout: float | None = None) -> bool:
+        """Sends everything queued, from the calling thread. True when nothing is left."""
+        if not self._core.enabled:
+            return True
+        try:
+            return self._flusher.flush(timeout)
+        except Exception as exc:
+            return self._core.fail("flush", exc, False)
+
+    def close(self, timeout: float | None = 5.0) -> None:
+        """Flushes the queue (for up to `timeout` seconds) and releases connections."""
+        if self._closed:
+            return
+        self._closed = True
+        try:
+            if self._core.enabled:
+                self._flusher.stop(timeout)
+            if self._refresher is not None:
+                self._refresher.shutdown(wait=True)  # refreshes are bounded by the context budget
+            self._transport.close()
+        except Exception as exc:
+            self._core.fail("close", exc, None)
+
+    def __enter__(self) -> Niadra:
+        return self
+
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: TracebackType | None
+    ) -> None:
+        self.close()
+
+    @property
+    def pending(self) -> int:
+        """Items waiting in the local queue."""
+        return len(self._core.buffer)
+
+    @property
+    def dropped(self) -> int:
+        """Items dropped so far: queue full, rejected by the API, or unserializable."""
+        return self._core.buffer.dropped
+
+    def _fetch_context(self, request: ContextRequest, budget: float, known_etag: str | None) -> Context:
+        started = time.monotonic()
+        data = self._transport.request(self._core.context_http(request, budget, known_etag))
+        return self._core.parse_context(data, started)
+
+    def _refresh_later(self, key: str, scope: str, request: ContextRequest, budget: float) -> None:
+        if not self._cache.begin_refresh(key):
+            return
+        if self._refresher is None:
+            self._refresher = ThreadPoolExecutor(max_workers=2, thread_name_prefix="niadra-refresh")
+        try:
+            self._refresher.submit(self._refresh, key, scope, request, budget)
+        except RuntimeError:
+            self._cache.end_refresh(key)  # the executor is shutting down
+
+    def _refresh(self, key: str, scope: str, request: ContextRequest, budget: float) -> None:
+        try:
+            fetched = self._fetch_context(request, budget, self._cache.etag(key))
+            self._cache.absorb(key, scope, fetched, deliver=False)
+        except Exception as exc:
+            self._cache.drop_on_auth_error(key, exc)
+            logger.info("niadra: background context refresh failed (%s)", error_code(exc))
+        finally:
+            self._cache.end_refresh(key)
+
+    def _send_batch(self, payloads: list[dict[str, Any]]) -> Any:
+        return self._transport.request(self._core.batch_http(payloads))
+
+    def _send_now(
+        self, method: str, item: BaseModel, conversation_id: str | None, task_id: str | None
+    ) -> BatchResponse | None:
+        scope = self._core.scope_of(conversation_id, task_id)
+        if scope:
+            self._cache.purge_scope(scope)
+        payload = item.model_dump(mode="json", exclude_none=True)
+        try:
+            return BatchResponse.model_validate(self._send_batch([payload]))
+        except Exception as exc:
+            if self._core.strict or not is_retryable(exc):
+                return self._core.fail(method, exc, None)
+            self._core.buffer.put(payload)
+            self._flusher.notify()
+            logger.warning("niadra: %s could not be sent now, queued for retry (%s)", method, error_code(exc))
+            return None
+
+
+def _flush_at_exit(ref: weakref.ref[Niadra]) -> None:
+    client = ref()
+    if client is not None and not client._closed:
+        try:
+            client.close(timeout=2.0)
+        except Exception:
+            logging.getLogger("niadra").debug("niadra: flush at exit failed", exc_info=True)
