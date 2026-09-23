@@ -1,22 +1,97 @@
-# niadra
+# Niadra Python SDK
 
-The Python SDK for [Niadra](https://niadra.com), the shared memory of every AI agent in a company.
-Your agents read what the customer already told any other agent, on any channel, before they answer,
-and write back what they said and did.
+[![PyPI](https://img.shields.io/pypi/v/niadra)](https://pypi.org/project/niadra/)
+[![Python](https://img.shields.io/pypi/pyversions/niadra)](https://pypi.org/project/niadra/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+
+**Niadra is the shared customer memory for every AI agent in a company.** The WhatsApp agent, the
+voice agent, the billing agent and the human team read the same memory before they act and write
+back what they said and did. This package connects a Python agent to it.
+
+[Website](https://niadra.com/en) · [Documentation](https://niadra.com/en/docs) ·
+[Talk to us](https://niadra.com/en/enterprise) · [TypeScript SDK](https://github.com/ainiadra/niadra-sdk-ts)
+
+```
+pip install niadra
+```
+
+## The problem it solves
+
+A customer tells your WhatsApp agent that order 4471 arrived with a broken lid and that she needs a
+replacement by Friday. An hour later she calls. Without shared memory, the voice agent asks her to
+explain everything again, and nobody remembers the Friday promise. With Niadra, the voice agent
+starts the call knowing about the open replacement and its deadline, and when the billing agent
+credits her invoice, the other agents see it within seconds.
+
+Niadra does the remembering for you:
+
+- it turns conversations and system events into facts, open items and promises, each with the
+  turns that prove it;
+- it ties them to the right person across phone numbers, e-mails, WhatsApp ids and CRM ids, and to
+  the companies and partners that person acts for;
+- it compiles a short context for each agent, holding back what the customer's verification level
+  does not allow, and records a receipt of every read.
+
+Your agents keep their own models, prompts and vendors. Niadra is the memory layer they share.
+
+## Quickstart
 
 ```python
 from niadra import Niadra, phone
 
 niadra = Niadra(channel="whatsapp")  # reads NIADRA_API_KEY
-context = niadra.context(phone("+5511912345678"), conversation_id="thread-81")
-prompt = instructions + "\n\n" + context.system_block
+customer = phone("+5511912345678")
+
+with niadra.conversation("thread-81", subject=customer) as conversation:
+    conversation.customer(incoming_text)  # what the customer wrote
+    context = conversation.context()  # what this agent needs to know now
+    prompt = instructions + "\n\n" + context.system_block + "\n\n" + context.turn_block
+    conversation.mark_injected(context)
+    reply = your_model(prompt)
+    conversation.agent(reply)  # what the agent answered
 ```
 
-Requires Python 3.10+. Depends on `httpx` and `pydantic` only. Apache 2.0.
+Three moments cover most agents: read the context before the model call, record the turns after
+it, and record an `action()` when the agent does something in a system (a refund, a new delivery
+date). `wrap()` does the reading and recording for you around an OpenAI-compatible client.
 
-```
-pip install niadra
-```
+Requires Python 3.10+. Depends on `httpx` and `pydantic` only.
+
+## What your agent gets
+
+| Call | What it returns |
+|---|---|
+| `context()` | a few lines about this customer, compiled from every channel and agent, pinned for the conversation |
+| `search()`, `timeline()`, `open()` | the full history on demand, with how often a problem happened before |
+| `tools()` | the same history as function-calling tools bound to one customer, for any model provider |
+| `subject_token()` | a token that binds an MCP connection to one customer |
+| `track()`, `action()` | messages, system events and actions, sent in the background, never blocking the agent |
+| `identify()`, `verify()` | which ids belong to the same person, and what the conversation proved about who is there |
+| `object_state()`, `object_timeline()` | a business object (an order, an invoice, a ticket) as the systems of record reported it |
+| `feedback()` | a correction of what Niadra derived, audited like any other event |
+
+## Questions people ask
+
+**How do I give my AI agent memory of past conversations on other channels?** Record the turns
+with `track()` or `conversation()` in every agent, and read `context()` before each model call.
+Niadra ties the turns to the person, whichever id each channel uses.
+
+**How is this different from keeping chat history in my database or in a vector store?** Stored
+history is raw text for one channel. Niadra keeps derived facts and open items with evidence,
+resolves identity across channels and systems, closes items when a system of record confirms an
+action, and filters what each agent may read by the verification level of the conversation.
+
+**What happens if Niadra is slow or down?** The agent keeps answering without the memory. Every
+call has its own time budget (150 ms for voice context, 300 ms otherwise) and returns an empty
+value instead of raising, unless you ask for `strict=True`.
+
+**What about privacy and LGPD or GDPR?** Items carry a verification level and a purpose, and the
+policy decides what each agent sees. Every read leaves a receipt, and a person can be erased or
+exported on request. The SDK never logs handles or message text.
+
+**Which models and frameworks does it work with?** Any. The context is text you place in your
+prompt, the tools follow the common function-calling format (and the Anthropic one), and
+`wrap()` covers OpenAI-compatible clients.
 
 ## The client
 
@@ -283,6 +358,15 @@ Recent turns become a small pack, deltas are sent once per change, search matche
 verification only rises through `verify()`, objects take their state from system events, feedback
 becomes a `feedback.*` event, and media uploads land in `mock.cell.media`. `mock.cell` also lets
 you inspect events or inject failures (`fail_next`, `revoke`, `cut`, `put_in_holdout`). From a shell, `niadra-mock --port 8765` serves it over HTTP.
+
+## Em português
+
+A Niadra é a memória de clientes compartilhada por todos os agentes de IA de uma empresa: o agente
+do WhatsApp, o de voz, o de cobrança e o time humano leem a mesma memória antes de agir e registram
+o que disseram e fizeram. Este pacote conecta um agente em Python a essa memória: `context()` antes
+de chamar o modelo, `track()` depois, e `action()` quando o agente faz algo num sistema.
+Documentação em [niadra.com/docs](https://niadra.com/docs) e contato em
+[niadra.com/enterprise](https://niadra.com/enterprise).
 
 ## License
 

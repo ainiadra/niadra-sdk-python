@@ -1,13 +1,16 @@
 [project]
 name = "niadra"
 version = "0.1.0"
-description = "Python SDK for Niadra, the shared memory of every AI agent in a company."
+description = "Python SDK for Niadra, the shared customer memory for every AI agent in a company: context before the model call, history, tools and MCP."
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [{ name = "Niadra" }]
-keywords = ["ai-agents", "memory", "context", "llm", "customer-context"]
+keywords = [
+  "niadra", "ai-agents", "agent-memory", "llm", "customer-context", "context-engineering", "mcp",
+  "function-calling", "whatsapp", "voice-ai", "customer-support", "lgpd", "gdpr",
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -26,7 +29,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://niadra.com"
-Documentation = "https://docs.niadra.com/sdk/python"
+Documentation = "https://niadra.com/en/docs"
 Source = "https://github.com/ainiadra/niadra-sdk-python"
 
 [project.scripts]
