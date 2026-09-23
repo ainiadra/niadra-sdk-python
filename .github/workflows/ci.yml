@@ -1,0 +1,30 @@
+# Checks every push and pull request on every supported Python.
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      - run: uv sync --frozen
+      - run: uv run ruff check . && uv run ruff format --check .
+      - run: uv run mypy src
+      - run: uv run pytest -q

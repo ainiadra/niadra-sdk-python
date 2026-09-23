@@ -1,0 +1,27 @@
+# Publishes to PyPI when a tag vX.Y.Z is pushed, through PyPI's trusted publishing: no token is
+# stored anywhere. Once, on pypi.org: project niadra > Settings > Publishing > add a GitHub
+# publisher (owner ainiadra, repository niadra-sdk-python, workflow release.yml, environment pypi).
+#   git tag v0.1.1 && git push origin v0.1.1      (the tag must match the version in pyproject.toml)
+name: Release
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - name: The tag matches the package version
+        run: |
+          version="$(uv version --short)"
+          [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME, package $version"; exit 1; }
+      - run: uv sync --frozen && uv run pytest -q
+      - run: uv build
+      - uses: pypa/gh-action-pypi-publish@release/v1
