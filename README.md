@@ -82,8 +82,8 @@ resolves identity across channels and systems, closes items when a system of rec
 action, and filters what each agent may read by the verification level of the conversation.
 
 **What happens if Niadra is slow or down?** The agent keeps answering without the memory. Every
-call has its own time budget (150 ms for voice context, 300 ms otherwise) and returns an empty
-value instead of raising, unless you ask for `strict=True`.
+call has its own time budget for the whole call, retries included (150 ms for voice context,
+300 ms otherwise), and returns an empty value instead of raising, unless you ask for `strict=True`.
 
 **What about privacy and LGPD or GDPR?** Items carry a verification level and a purpose, and the
 policy decides what each agent sees. Every read leaves a receipt, and a person can be erased or
@@ -327,10 +327,12 @@ Niadra must never take your agent down.
 - **No key:** the client is a no-op and warns once.
 - **Every public method** catches and logs its own failures and returns a safe value: an empty
   `Context` (check `context.error`), an empty result, `False` or `None`.
-- **Own time budgets:** `context()` gives up after 150 ms for voice views and 300 ms otherwise;
-  search, timeline, open and the object reads after 300 ms (voice) or 600 ms; writes sent at
-  once after 5 s per attempt, and each attempt of a media transfer after 60 s. Adjust them with
-  `Timeouts`.
+- **Own time budgets, for the whole call:** `context()` gives up after 150 ms for voice views and
+  300 ms otherwise; search, timeline, open and the object reads after 300 ms (voice) or 600 ms;
+  the writes you wait for (`identify`, `verify`, `feedback`, `subject_token`) after 5 s; a media
+  upload after 60 s. Retries and backoff happen inside the budget, and an answer that arrives
+  late is dropped rather than waited for. An `identify` or `verify` that runs out of time stays
+  queued for the background sender. `track()` never waits. Adjust them with `Timeouts`.
 - **Retries:** 5xx, 429 and network errors are retried with backoff; 421 (the space is moving
   between cells) is retried at once on a fresh connection; other 4xx are final.
 - **Logs** carry method names, status codes, error codes and request ids, never handles or text.

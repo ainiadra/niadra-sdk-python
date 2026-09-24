@@ -12,7 +12,11 @@ The rules:
 - 429 waits for `Retry-After` when it fits the budget; 500, 502, 503, 504 and network
   errors back off exponentially with jitter.
 - Any other 4xx is final.
-- Reads carry a total budget (`deadline`): no attempt starts, and no backoff sleeps, past it.
+- Reads, and the writes a caller waits for, carry a total budget (`deadline`): no attempt
+  starts, no backoff sleeps and no attempt runs past it. httpx times each phase of a request
+  apart (pool, connect, write, every read), so a budgeted attempt is also bounded as a whole:
+  on a worker thread in the sync transport, by cancellation in the async one. Batches of the
+  background queue carry no budget and keep httpx's per-phase timeouts.
 
 Media bytes go to a pre-signed storage URL through `upload()`, under the same retry rules but
 without the source key: the URL itself is the credential, and the key must never leave for a
@@ -23,10 +27,13 @@ the signature covers (content type, and the digest the store checks the body aga
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
+import functools
 import json
 import random
 import threading
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -38,6 +45,9 @@ from niadra.models.common import Problem
 
 RETRY_STATUSES = frozenset({421, 429, 500, 502, 503, 504})
 USER_AGENT = f"niadra-python/{__version__}"
+# Threads that carry budgeted attempts in the sync transport. They start on demand, and an
+# attempt that outlives its budget holds one only until httpx's own phase timeouts end it.
+ATTEMPT_WORKERS = 64
 
 
 @dataclass(frozen=True)
@@ -151,8 +161,13 @@ def _decode(response: httpx.Response) -> Any:
 
 
 def _upload_request(timeout: float) -> Request:
-    # The URL carries a signature, so errors and logs name the step, never the URL.
-    return Request("PUT", "(media upload URL)", timeout=timeout)
+    # The URL carries a signature, so errors and logs name the step, never the URL. The
+    # timeout is the budget of the whole upload, every attempt included.
+    return Request("PUT", "(media upload URL)", timeout=timeout, budget=timeout)
+
+
+def _overrun() -> httpx.TimeoutException:
+    return httpx.TimeoutException("the attempt ran past its time budget")
 
 
 def _headers(api_key: str, request: Request) -> dict[str, str]:
@@ -174,6 +189,7 @@ class SyncTransport:
         self._client = http_client or httpx.Client()
         self._retired: list[httpx.Client] = []
         self._lock = threading.Lock()
+        self._workers: concurrent.futures.ThreadPoolExecutor | None = None
 
     def request(self, request: Request) -> Any:
         state = RetryState(request)
@@ -181,15 +197,17 @@ class SyncTransport:
             timeout = state.attempt_timeout()
             if timeout is None:
                 raise state.budget_error()
+            send = functools.partial(
+                self._client.request,
+                request.method,
+                self._base_url + request.path,
+                json=request.json,
+                params=request.params,
+                headers=_headers(self._api_key, request),
+                timeout=timeout,
+            )
             try:
-                response = self._client.request(
-                    request.method,
-                    self._base_url + request.path,
-                    json=request.json,
-                    params=request.params,
-                    headers=_headers(self._api_key, request),
-                    timeout=timeout,
-                )
+                response = self._bounded(request, timeout, send)
             except httpx.HTTPError as exc:
                 decision = state.on_exception(exc)
             else:
@@ -206,13 +224,17 @@ class SyncTransport:
                 time.sleep(decision.delay)
 
     def upload(self, url: str, data: bytes, headers: dict[str, str], timeout: float) -> None:
-        state = RetryState(_upload_request(timeout))
+        request = _upload_request(timeout)
+        state = RetryState(request)
         while True:
             attempt_timeout = state.attempt_timeout()
             if attempt_timeout is None:
                 raise state.budget_error()
+            send = functools.partial(
+                self._client.put, url, content=data, headers=headers, timeout=attempt_timeout
+            )
             try:
-                response = self._client.put(url, content=data, headers=headers, timeout=attempt_timeout)
+                response = self._bounded(request, attempt_timeout, send)
             except httpx.HTTPError as exc:
                 decision = state.on_exception(exc)
             else:
@@ -226,6 +248,34 @@ class SyncTransport:
             if decision.delay:
                 time.sleep(decision.delay)
 
+    def _bounded(
+        self, request: Request, timeout: float, send: Callable[[], httpx.Response]
+    ) -> httpx.Response:
+        """One attempt; with a budget, the caller stops waiting for it at `timeout`.
+
+        The attempt runs on a worker thread, and an abandoned one ends on its own when httpx's
+        phase timeouts fire. Requests without a budget run on the calling thread.
+        """
+        if request.budget is None:
+            return send()
+        future = self._pool().submit(send)
+        try:
+            return future.result(timeout=timeout)
+        except concurrent.futures.TimeoutError:
+            future.cancel()
+            raise _overrun() from None
+
+    def _pool(self) -> concurrent.futures.ThreadPoolExecutor:
+        workers = self._workers
+        if workers is not None:
+            return workers
+        with self._lock:
+            if self._workers is None:
+                self._workers = concurrent.futures.ThreadPoolExecutor(
+                    max_workers=ATTEMPT_WORKERS, thread_name_prefix="niadra-http"
+                )
+            return self._workers
+
     def _reconnect(self) -> None:
         # Other threads may still be mid-request on the old pool, so it is retired, not closed.
         if not self._owns_client:
@@ -235,6 +285,10 @@ class SyncTransport:
             self._client = httpx.Client()
 
     def close(self) -> None:
+        with self._lock:
+            workers, self._workers = self._workers, None
+        if workers is not None:
+            workers.shutdown(wait=False, cancel_futures=True)
         if not self._owns_client:
             return
         with self._lock:
@@ -257,15 +311,16 @@ class AsyncTransport:
             timeout = state.attempt_timeout()
             if timeout is None:
                 raise state.budget_error()
+            sending = self._client.request(
+                request.method,
+                self._base_url + request.path,
+                json=request.json,
+                params=request.params,
+                headers=_headers(self._api_key, request),
+                timeout=timeout,
+            )
             try:
-                response = await self._client.request(
-                    request.method,
-                    self._base_url + request.path,
-                    json=request.json,
-                    params=request.params,
-                    headers=_headers(self._api_key, request),
-                    timeout=timeout,
-                )
+                response = await self._bounded(request, timeout, sending)
             except httpx.HTTPError as exc:
                 decision = state.on_exception(exc)
             else:
@@ -282,13 +337,15 @@ class AsyncTransport:
                 await asyncio.sleep(decision.delay)
 
     async def upload(self, url: str, data: bytes, headers: dict[str, str], timeout: float) -> None:
-        state = RetryState(_upload_request(timeout))
+        request = _upload_request(timeout)
+        state = RetryState(request)
         while True:
             attempt_timeout = state.attempt_timeout()
             if attempt_timeout is None:
                 raise state.budget_error()
+            sending = self._client.put(url, content=data, headers=headers, timeout=attempt_timeout)
             try:
-                response = await self._client.put(url, content=data, headers=headers, timeout=attempt_timeout)
+                response = await self._bounded(request, attempt_timeout, sending)
             except httpx.HTTPError as exc:
                 decision = state.on_exception(exc)
             else:
@@ -301,6 +358,18 @@ class AsyncTransport:
                 raise decision.error
             if decision.delay:
                 await asyncio.sleep(decision.delay)
+
+    @staticmethod
+    async def _bounded(
+        request: Request, timeout: float, sending: Awaitable[httpx.Response]
+    ) -> httpx.Response:
+        """One attempt; with a budget, it is cancelled at `timeout`."""
+        if request.budget is None:
+            return await sending
+        try:
+            return await asyncio.wait_for(sending, timeout)
+        except asyncio.TimeoutError:
+            raise _overrun() from None
 
     async def _reconnect(self) -> None:
         # Other tasks may still be mid-request on the old pool, so it is retired, not closed.

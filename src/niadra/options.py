@@ -10,8 +10,11 @@ class Timeouts:
     """Total time budgets in seconds, per method, independent of any platform timeout.
 
     Managed agent platforms give a turn 7 to 10 seconds and self-hosted frameworks give it
-    none, so the SDK keeps its own: a missing context is better than a silent caller.
-    `upload` bounds each attempt of sending media bytes to storage, off the hot path.
+    none, so the SDK keeps its own: a missing context is better than a silent caller. Each
+    budget covers the whole call, retries and waits included. `write` is the budget of the
+    writes a caller waits for (`identify`, `verify`, `feedback`, `subject_token` and the
+    reservation of an upload) and the timeout of each attempt of the background queue, which
+    never holds a caller. `upload` bounds sending media bytes to storage.
     """
 
     context: float = 0.30

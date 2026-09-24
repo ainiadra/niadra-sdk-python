@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-09-24
+
+### Fixed
+
+- A time budget now bounds the whole call. httpx times each phase of a request apart, so a slow
+  answer could hold `context()` past its 300 ms; a budgeted attempt now ends at the budget, on a
+  worker thread in `Niadra` and by cancellation in `AsyncNiadra`.
+- The writes a caller waits for (`identify`, `verify`, `feedback`, `subject_token` and the upload
+  reservation) stop at `Timeouts.write` (5 s) in total instead of 5 s per attempt, three attempts
+  and backoff. An `identify` or `verify` that runs out of time stays queued for the background
+  sender.
+- `Timeouts.upload` (60 s) bounds a media upload in total instead of each attempt.
+
 ## [0.1.0] - 2026-09-23
 
 First public release, against the `/v1` API and the v0 open specs.

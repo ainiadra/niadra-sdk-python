@@ -1,6 +1,6 @@
 [project]
 name = "niadra"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python SDK for Niadra, the shared customer memory for every AI agent in a company: context before the model call, history, tools and MCP."
 readme = "README.md"
 license = "Apache-2.0"

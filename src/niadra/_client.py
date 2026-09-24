@@ -672,7 +672,8 @@ class Niadra:
             self._cache.purge_scope(scope)
         payload = item.model_dump(mode="json", exclude_none=True)
         try:
-            return BatchResponse.model_validate(self._send_batch([payload]))
+            request = self._core.batch_http([payload], budget=self._core.timeouts.write)
+            return BatchResponse.model_validate(self._transport.request(request))
         except Exception as exc:
             if self._core.strict or not is_retryable(exc):
                 return self._core.fail(method, exc, None)

@@ -354,12 +354,14 @@ class ClientCore:
             params["task_id"] = task_id
         return Request("GET", f"/v1/history/items/{item_id}", params=params, timeout=budget, budget=budget)
 
-    def batch_http(self, payloads: list[dict[str, Any]]) -> Request:
+    def batch_http(self, payloads: list[dict[str, Any]], budget: float | None = None) -> Request:
+        """A batch. The background queue sends it without a budget; a caller waiting on it, with one."""
         return Request(
             "POST",
             "/v1/batch",
             json={"items": payloads},
             timeout=self.timeouts.write,
+            budget=budget,
             idempotency_key=new_key(),
         )
 
@@ -383,6 +385,7 @@ class ClientCore:
             "/v1/subject-tokens",
             json=_body(body),
             timeout=self.timeouts.write,
+            budget=self.timeouts.write,
             idempotency_key=new_key(),
         )
 
@@ -494,6 +497,7 @@ class ClientCore:
             "/v1/feedback",
             json=_body(request),
             timeout=self.timeouts.write,
+            budget=self.timeouts.write,
             idempotency_key=request.idempotency_key,
         )
 
@@ -538,6 +542,7 @@ class ClientCore:
             "/v1/media/uploads",
             json=_body(body),
             timeout=self.timeouts.write,
+            budget=self.timeouts.write,
             idempotency_key=new_key(),
         )
         return request, digest
