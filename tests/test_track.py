@@ -70,20 +70,25 @@ def test_items_carry_sdk_minted_keys_and_the_default_channel(
 def test_a_batch_leaves_when_batch_size_is_reached(respx_mock: respx.MockRouter) -> None:
     route = respx_mock.post(URL).respond(200, json=batch_ok(3))
     niadra = Niadra(KEY, channel="chat", queue=QueueOptions(batch_size=3, interval=3600))
-    for i in range(3):
-        niadra.track(message(f"m{i}"))
-    wait_for(lambda: route.called)
-    assert len(sent_items(route)) == 3
-    niadra.close()
+    try:
+        for i in range(3):
+            niadra.track(message(f"m{i}"))
+        wait_for(lambda: route.called)
+        assert len(sent_items(route)) == 3
+    finally:
+        niadra.close()
 
 
 def test_a_batch_leaves_after_the_interval(respx_mock: respx.MockRouter) -> None:
     route = respx_mock.post(URL).respond(200, json=batch_ok())
     niadra = Niadra(KEY, channel="chat", queue=QueueOptions(batch_size=100, interval=0.05))
-    niadra.track(message())
-    wait_for(lambda: route.called)
-    assert niadra.pending == 0
-    niadra.close()
+    try:
+        niadra.track(message())
+        # The route counts the request when it arrives; the queue lets the item go once the answer is back.
+        wait_for(lambda: route.called and niadra.pending == 0)
+        assert len(sent_items(route)) == 1
+    finally:
+        niadra.close()
 
 
 def test_one_request_carries_at_most_500_items(respx_mock: respx.MockRouter, client: Niadra) -> None:
