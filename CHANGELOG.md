@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.4] - 2026-09-24
+
+### Changed
+
+- A conversation turn (a message with a `conversation_id`) leaves the queue at most 0.2 s after it
+  was queued, taking whatever else is waiting along, instead of up to a second: it is what the other
+  agents read in `live`. `QueueOptions.turn_interval` sets it; other items still wait for `interval`
+  (1 s) or `batch_size` (15). A queued turn wakes the background sender when it would otherwise
+  sleep past it.
+- The timeline tool says the history comes newest first, as the server returns it, instead of
+  "in chronological order".
+
 ## [0.1.3] - 2026-09-24
 
 ### Added

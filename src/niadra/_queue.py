@@ -12,6 +12,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import math
 import threading
 import time
 from collections import deque
@@ -52,14 +53,28 @@ def is_retryable(error: Exception) -> bool:
     return isinstance(error, (APIConnectionError, ServerError, RateLimitError, WrongCellError))
 
 
+def is_turn(payload: Payload) -> bool:
+    """A message of a conversation: what the other agents read in `live` while it goes on."""
+    return (
+        payload.get("type", "event") == "event"
+        and payload.get("kind", "message") == "message"
+        and bool(payload.get("conversation_id"))
+    )
+
+
 class EventBuffer:
-    """A bounded, thread-safe FIFO of serialized batch items."""
+    """A bounded, thread-safe FIFO of serialized batch items.
+
+    It is due `interval` seconds after its oldest item arrived, `turn_interval` seconds after
+    its oldest conversation turn arrived, or at once with `batch_size` items waiting.
+    """
 
     def __init__(self, options: QueueOptions) -> None:
         self._options = options
         self._items: deque[Payload] = deque()
         self._lock = threading.Lock()
         self._first_at: float | None = None
+        self._first_turn_at: float | None = None
         self.dropped = 0
 
     def put(self, payload: Payload) -> bool:
@@ -69,8 +84,11 @@ class EventBuffer:
                 if self.dropped == 1 or self.dropped % 1000 == 0:
                     logger.warning("niadra: event queue full, %d events dropped so far", self.dropped)
                 return False
+            now = time.monotonic()
             if not self._items:
-                self._first_at = time.monotonic()
+                self._first_at = now
+            if self._first_turn_at is None and is_turn(payload):
+                self._first_turn_at = now
             self._items.append(payload)
             return True
 
@@ -81,30 +99,46 @@ class EventBuffer:
             keep = payloads[: max(room, 0)]
             self.dropped += len(payloads) - len(keep)
             self._items.extendleft(reversed(keep))
+            now = time.monotonic()
             if self._items and self._first_at is None:
-                self._first_at = time.monotonic()
+                self._first_at = now
+            if self._first_turn_at is None and any(is_turn(payload) for payload in keep):
+                self._first_turn_at = now
 
     def take(self, limit: int = MAX_BATCH_ITEMS) -> list[Payload]:
         with self._lock:
             count = min(limit, len(self._items))
             batch = [self._items.popleft() for _ in range(count)]
-            self._first_at = time.monotonic() if self._items else None
+            now = time.monotonic()
+            self._first_at = now if self._items else None
+            self._first_turn_at = now if any(is_turn(payload) for payload in self._items) else None
             return batch
 
-    def due(self) -> bool:
+    def next_due(self) -> float | None:
+        """The monotonic time at which what is waiting should leave, or None when nothing is."""
         with self._lock:
-            if not self._items:
-                return False
-            if len(self._items) >= self._options.batch_size:
-                return True
-            return self._first_at is not None and time.monotonic() - self._first_at >= self._options.interval
+            return self._next_due()
+
+    def _next_due(self) -> float | None:
+        if not self._items or self._first_at is None:
+            return None
+        if len(self._items) >= self._options.batch_size:
+            return self._first_at
+        at = self._first_at + self._options.interval
+        if self._first_turn_at is not None:
+            at = min(at, self._first_turn_at + self._options.turn_interval)
+        return at
+
+    def due(self) -> bool:
+        at = self.next_due()
+        return at is not None and time.monotonic() >= at
 
     def wait_hint(self) -> float:
-        """Seconds until the oldest item is due, for the flusher to sleep on."""
-        with self._lock:
-            if self._first_at is None:
-                return self._options.interval
-            return max(0.0, self._options.interval - (time.monotonic() - self._first_at))
+        """Seconds until what is waiting is due, for the flusher to sleep on."""
+        at = self.next_due()
+        if at is None:
+            return self._options.interval
+        return max(0.0, at - time.monotonic())
 
     def __len__(self) -> int:
         with self._lock:
@@ -206,14 +240,19 @@ class SyncFlusher:
         self._heartbeat = Heartbeat(options.heartbeat_interval)
         self._pacing = _Pacing(options.interval)
         self._wake = threading.Condition()
+        self._sleep_until = math.inf
         self._stopping = False
         self._thread: threading.Thread | None = None
         self._start_lock = threading.Lock()
 
     def notify(self) -> None:
+        """Wakes the sender when what is waiting became due before the time it sleeps until."""
         self._ensure_started()
-        if self._buffer.due():
-            with self._wake:
+        at = self._buffer.next_due()
+        if at is None:
+            return
+        with self._wake:
+            if at < self._sleep_until:
                 self._wake.notify()
 
     def flush(self, timeout: float | None = None) -> bool:
@@ -247,8 +286,9 @@ class SyncFlusher:
             with self._wake:
                 if self._stopping:
                     return
-                wait = max(self._pacing.remaining(), self._buffer.wait_hint())
-                self._wake.wait(timeout=max(wait, 0.01))
+                wait = max(self._pacing.remaining(), self._buffer.wait_hint(), 0.01)
+                self._sleep_until = time.monotonic() + wait
+                self._wake.wait(timeout=wait)
                 if self._stopping:
                     return
             if self._buffer.due() and not self._pacing.remaining():
@@ -287,10 +327,12 @@ class AsyncFlusher:
         self._pacing = _Pacing(options.interval)
         self._task: asyncio.Task[None] | None = None
         self._wake: asyncio.Event | None = None
+        self._sleep_until = math.inf
         self._stopping = False
 
     def notify(self) -> None:
-        """Starts the flush task on the running loop, if there is one, and wakes it when a batch is due.
+        """Starts the flush task on the running loop, if there is one, and wakes it when what is
+        waiting became due before the time it sleeps until.
 
         Outside a running loop items simply wait for the next `flush()`.
         """
@@ -302,8 +344,10 @@ class AsyncFlusher:
             return
         if self._task is None or self._task.done() or self._task.get_loop() is not loop:
             self._wake = asyncio.Event()
+            self._sleep_until = math.inf
             self._task = loop.create_task(self._run(), name="niadra-flush")
-        if self._buffer.due() and self._wake is not None:
+        at = self._buffer.next_due()
+        if at is not None and at < self._sleep_until and self._wake is not None:
             self._wake.set()
 
     async def flush(self, timeout: float | None = None) -> bool:
@@ -327,9 +371,10 @@ class AsyncFlusher:
         wake = self._wake
         assert wake is not None
         while not self._stopping:
-            wait = max(self._pacing.remaining(), self._buffer.wait_hint())
+            wait = max(self._pacing.remaining(), self._buffer.wait_hint(), 0.01)
+            self._sleep_until = time.monotonic() + wait
             with contextlib.suppress(asyncio.TimeoutError):
-                await asyncio.wait_for(wake.wait(), timeout=max(wait, 0.01))
+                await asyncio.wait_for(wake.wait(), timeout=wait)
             wake.clear()
             if self._buffer.due() and not self._pacing.remaining():
                 await self._send_one()

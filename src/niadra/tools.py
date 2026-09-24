@@ -100,8 +100,8 @@ BUILTIN_DEFINITIONS: list[dict[str, Any]] = [
         "function": {
             "name": TIMELINE,
             "description": (
-                "List this customer's history in chronological order, one line per item. Use it when you "
-                "need the sequence of events, for example what happened since a given date. Prefer "
+                "List this customer's history, newest first, one line per item. Use it when you need "
+                "the sequence of events, for example what happened since a given date. Prefer "
                 "search_customer_history when you are looking for something specific."
             ),
             "parameters": {

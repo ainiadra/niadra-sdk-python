@@ -88,7 +88,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture
 def quiet_queue() -> QueueOptions:
     """A queue that never flushes on its own within a test, so tests drive `flush()`."""
-    return QueueOptions(batch_size=10_000, interval=3600)
+    return QueueOptions(batch_size=10_000, interval=3600, turn_interval=3600)
 
 
 @pytest.fixture

@@ -11,6 +11,7 @@ import pytest
 import respx
 
 from niadra import EventItem, Niadra, SpeakerRef, email
+from niadra._queue import EventBuffer, is_turn
 from niadra.models import Content
 from niadra.options import QueueOptions
 from tests.conftest import BASE, KEY, batch_ok
@@ -89,6 +90,50 @@ def test_a_batch_leaves_after_the_interval(respx_mock: respx.MockRouter) -> None
         assert len(sent_items(route)) == 1
     finally:
         niadra.close()
+
+
+def test_a_conversation_turn_leaves_after_the_turn_interval_not_the_interval(
+    respx_mock: respx.MockRouter,
+) -> None:
+    route = respx_mock.post(URL).respond(200, json=batch_ok(2))
+    queue = QueueOptions(batch_size=100, interval=3600, turn_interval=0.05)
+    niadra = Niadra(KEY, channel="chat", queue=queue)
+    try:
+        niadra.track(message("outside any conversation"))
+        time.sleep(0.2)
+        assert not route.called, "an item outside a conversation waits for the interval"
+        # The sender sleeps toward the interval; the turn wakes it for its own, shorter wait.
+        niadra.track(message("I was charged twice", conversation_id="wa-1"))
+        wait_for(lambda: route.called and niadra.pending == 0)
+        assert [item["content"]["text"] for item in sent_items(route)] == [
+            "outside any conversation",
+            "I was charged twice",
+        ]
+    finally:
+        niadra.close()
+
+
+def test_only_messages_of_a_conversation_are_turns() -> None:
+    turn = message(conversation_id="wa-1", type="event", kind="message")
+    assert is_turn(turn)
+    assert not is_turn(message())
+    assert not is_turn({**turn, "kind": "action"})
+    assert not is_turn({**turn, "kind": "system_event"})
+    assert not is_turn({"type": "conversation.ended", "conversation_id": "wa-1"})
+
+
+def test_by_default_a_turn_is_due_well_inside_a_second_and_other_items_in_one() -> None:
+    options = QueueOptions()
+    assert options.turn_interval == 0.2 and options.interval == 1.0
+    other = EventBuffer(options)
+    other.put(message())
+    assert 0.9 < other.wait_hint() <= 1.0
+    turns = EventBuffer(options)
+    turns.put(message())
+    turns.put(message(conversation_id="wa-1"))
+    assert turns.wait_hint() <= 0.2
+    turns.take()
+    assert turns.next_due() is None
 
 
 def test_one_request_carries_at_most_500_items(respx_mock: respx.MockRouter, client: Niadra) -> None:

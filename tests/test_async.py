@@ -64,6 +64,29 @@ async def test_track_batches_on_a_background_task(respx_mock: respx.MockRouter) 
     await client.close()
 
 
+async def test_a_conversation_turn_wakes_the_background_task(respx_mock: respx.MockRouter) -> None:
+    route = respx_mock.post(f"{BASE}/v1/batch").respond(200, json=batch_ok())
+    queue = QueueOptions(batch_size=100, interval=3600, turn_interval=0.05)
+    client = AsyncNiadra(KEY, channel="chat", queue=queue)
+    client.track({"speaker": {"role": "customer"}, "handles": [MARINA], "content": {"text": "a"}})
+    await asyncio.sleep(0.2)
+    assert not route.called, "an item outside a conversation waits for the interval"
+    client.track(
+        {
+            "conversation_id": "wa-1",
+            "speaker": {"role": "customer"},
+            "handles": [MARINA],
+            "content": {"text": "b"},
+        }
+    )
+    for _ in range(200):
+        if route.called and client.pending == 0:
+            break
+        await asyncio.sleep(0.01)
+    assert len(json.loads(route.calls.last.request.content)["items"]) == 2
+    await client.close()
+
+
 async def test_track_outside_a_loop_waits_for_flush(respx_mock: respx.MockRouter) -> None:
     route = respx_mock.post(f"{BASE}/v1/batch").respond(200, json=batch_ok())
     client = AsyncNiadra(KEY, channel="chat", queue=QueueOptions(batch_size=1, interval=3600))

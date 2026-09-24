@@ -159,7 +159,9 @@ item = niadra.open(found.items[0].id)  # what was asked, promised and by whom, t
 
 `track()` records a message, a system event or an action. It never blocks: items go to a bounded
 local queue and a background thread (a task, with `AsyncNiadra`) sends them in batches of 15 or
-every second, whichever comes first, with three attempts and backoff.
+every second, whichever comes first, with three attempts and backoff. A message with a
+`conversation_id` is a turn the other agents read in `live`, so it leaves within 0.2 s
+(`QueueOptions.turn_interval`), taking whatever else is waiting along.
 
 ```python
 niadra.track(

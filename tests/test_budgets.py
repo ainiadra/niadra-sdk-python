@@ -21,7 +21,7 @@ from tests.conftest import KEY, batch_ok, context_payload
 
 MARINA = phone("+5511912345678")
 UPLOAD_URL = "https://media.example-bucket.s3.amazonaws.com/sp/med_1?X-Amz-Signature=abc"
-QUIET = QueueOptions(batch_size=10_000, interval=3600)
+QUIET = QueueOptions(batch_size=10_000, interval=3600, turn_interval=3600)
 # Its own address: an attempt these tests abandon, or a retry of the background queue, may still
 # be in flight when the next test mocks the API, and must never match that test's routes.
 BASE = "https://budgets.example.test"

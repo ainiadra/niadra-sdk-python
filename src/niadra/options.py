@@ -47,12 +47,15 @@ class CacheOptions:
 class QueueOptions:
     """The local queue behind `track()`.
 
-    A batch goes out when `batch_size` items are waiting or `interval` seconds after the
-    first one arrived, whichever comes first. When `capacity` is reached new items are
-    dropped and counted, so a long outage costs events, never memory.
+    A batch goes out when `batch_size` items are waiting, `interval` seconds after the first
+    one arrived, or `turn_interval` seconds after the first conversation turn arrived (a
+    message with a `conversation_id`), whichever comes first. A turn is what the other
+    agents read in `live`, so it does not wait the full interval. When `capacity` is reached
+    new items are dropped and counted, so a long outage costs events, never memory.
     """
 
     capacity: int = 10_000
     batch_size: int = 15
     interval: float = 1.0
+    turn_interval: float = 0.2
     heartbeat_interval: float = 60.0
