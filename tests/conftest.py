@@ -55,6 +55,31 @@ def _fast_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def _nothing_leaves_after_the_test(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Stops the background sender and refreshes of every sync client once its test ends.
+
+    A client left open keeps a thread that retries its queue: a request it starts after its test
+    would take an answer from the next test's mock. Nothing queued is sent at this point.
+    """
+    created: list[Niadra] = []
+    init = Niadra.__init__
+
+    def recording_init(self: Niadra, *args: Any, **kwargs: Any) -> None:
+        init(self, *args, **kwargs)
+        created.append(self)
+
+    monkeypatch.setattr(Niadra, "__init__", recording_init)
+    yield
+    for client in created:
+        client._flusher.stop(timeout=0)  # joins the thread; a spent timeout sends nothing
+        thread = client._flusher._thread
+        if thread is not None:
+            thread.join(timeout=10)
+        if client._refresher is not None:
+            client._refresher.shutdown(wait=True)
+
+
+@pytest.fixture(autouse=True)
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("NIADRA_API_KEY", raising=False)
     monkeypatch.delenv("NIADRA_BASE_URL", raising=False)
