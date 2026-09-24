@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.3] - 2026-09-24
+
+### Added
+
+- The agent's turn carries the usage the model provider reported for the call behind it, as
+  `usage` (`ModelUsage`: provider, model, prompt tokens with the cached ones included, cached
+  tokens, tokens written to the cache). `wrap()` reads it from every OpenAI-compatible response
+  and from the last chunk of a stream that asked for it (`stream_options={"include_usage": True}`),
+  and never changes the request. Niadra sums it per agent, vendor and model, and the Console shows
+  the prompt cache's hit rate and estimated savings.
+- `agent(text, usage=...)` on conversations and tasks takes the provider's response (OpenAI
+  chat completions or Responses, Anthropic messages) or a `ModelUsage`, for agents that do not
+  use `wrap()`. `ModelUsage.from_response()` reads one yourself. A response without usage is
+  left out; the turn is recorded either way.
+
 ## [0.1.2] - 2026-09-24
 
 ### Changed

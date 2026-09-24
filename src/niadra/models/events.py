@@ -17,6 +17,7 @@ from pydantic import Field, StringConstraints, field_validator, model_validator
 from niadra._ids import new_key
 from niadra.models._base import IdStr, Model, ResponseModel, ShortStr
 from niadra.models.common import Handle, ObjectRef, Subject
+from niadra.usage import usage_fields
 from niadra.vocabulary import AssertionMethod, EventKind, Speaker, SubjectKind, Verification, Visibility
 
 MAX_EVENT_TEXT = 200_000
@@ -95,6 +96,47 @@ class ContextStamp(Model):
     injected_at: datetime
 
 
+class ModelUsage(Model):
+    """What the model provider reported for the call behind an agent's turn.
+
+    `wrap()` reads it from every call it sees; without `wrap()`, pass it with the turn:
+    `conversation.agent(text, usage=response)` takes the provider's response (OpenAI or
+    Anthropic) or a `ModelUsage`. Niadra sums it per agent, vendor and model and shows the
+    prompt cache's hit rate and estimated savings in the Console.
+    """
+
+    provider: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9_.-]{0,63}$")] = Field(
+        description="Who served the call, lowercase: `openai`, `anthropic`, a router or a cloud."
+    )
+    model: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:/@-]{0,127}$")] = Field(
+        description="The model the provider says answered, e.g. `gpt-4.1-2025-04-14`."
+    )
+    prompt_tokens: int = Field(ge=0, le=100_000_000, description="Every input token, cached ones included.")
+    cached_tokens: int = Field(default=0, ge=0, description="Input tokens read from the provider's cache.")
+    cache_write_tokens: int = Field(
+        default=0, ge=0, description="Input tokens written to the cache (Anthropic's cache creation)."
+    )
+
+    @model_validator(mode="after")
+    def _parts_fit(self) -> ModelUsage:
+        if self.cached_tokens + self.cache_write_tokens > self.prompt_tokens:
+            raise ValueError("cached and written tokens are part of prompt_tokens")
+        return self
+
+    @classmethod
+    def from_response(
+        cls, response: Any, *, provider: str | None = None, model: str | None = None
+    ) -> ModelUsage | None:
+        """Reads an OpenAI or Anthropic response, or its bare `usage` with `model=`. None without usage."""
+        fields = usage_fields(response, provider=provider, model=model)
+        if fields is None:
+            return None
+        try:
+            return cls(**fields)
+        except ValueError:
+            return None
+
+
 class EventItem(Model):
     """A message, a system event or an agent action."""
 
@@ -124,6 +166,9 @@ class EventItem(Model):
     corrects_event_id: str | None = None
     voice: VoiceInfo | None = None
     context_stamp: ContextStamp | None = None
+    usage: ModelUsage | None = Field(
+        default=None, description="The model call behind an `ai_agent` message: tokens and prompt cache."
+    )
 
     @field_validator("object_refs", mode="before")
     @classmethod
@@ -147,6 +192,10 @@ class EventItem(Model):
             raise ValueError("a message needs text, a transcript or a media reference")
         if not self.handles and not self.subjects and not self.object_refs:
             raise ValueError("an event needs at least one handle, subject or object")
+        if self.usage is not None and (
+            self.kind is not EventKind.MESSAGE or self.speaker.role is not Speaker.AI_AGENT
+        ):
+            raise ValueError("`usage` is only valid on a message of the `ai_agent`")
         return self
 
 

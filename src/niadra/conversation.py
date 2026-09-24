@@ -20,7 +20,7 @@ calls it for you; without it, call it when you build the prompt.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from contextvars import ContextVar, Token
 from datetime import datetime, timezone
 from types import TracebackType
@@ -34,6 +34,7 @@ from niadra.models.events import (
     ContextStamp,
     ConversationEndedItem,
     EventItem,
+    ModelUsage,
     SpeakerRef,
     TaskEndedItem,
     VerifyMethod,
@@ -59,6 +60,22 @@ class _Fail(Protocol):
 
 # Bounds the turn block of a very long conversation; the oldest deltas go first.
 MAX_DELTAS = 20
+
+
+def _as_usage(value: Any) -> ModelUsage | None:
+    """A `ModelUsage`, or one given as a mapping of its fields, as it is; anything else is read like a
+    provider's response. Never raises: a turn is recorded whatever its usage looks like."""
+    if isinstance(value, ModelUsage):
+        return value
+    if isinstance(value, Mapping) and {"provider", "model", "prompt_tokens"} <= value.keys():
+        try:
+            return ModelUsage(**value)
+        except (TypeError, ValueError):
+            pass
+    try:
+        return ModelUsage.from_response(value)
+    except Exception:
+        return None
 
 
 def current_session() -> AnySession | None:
@@ -116,12 +133,19 @@ class _Session:
         """Records something the customer said. Extra keyword arguments go to the `EventItem`."""
         return self._turn(Speaker.CUSTOMER, "inbound", text, event)
 
-    def agent(self, text: str, **event: Any) -> bool:
-        """Records the AI agent's answer, stamped with the context its prompt carried."""
+    def agent(self, text: str, *, usage: Any = None, **event: Any) -> bool:
+        """Records the AI agent's answer, stamped with the context its prompt carried.
+
+        `usage` is what the model provider reported for the call behind the answer: the
+        provider's response (OpenAI or Anthropic) or a `ModelUsage`. `wrap()` passes it for you.
+        A response without usage is left out; the turn is recorded either way.
+        """
         if self.first_agent_turn_at is None:
             self.first_agent_turn_at = datetime.now(timezone.utc)
         if self.context_stamp is not None:
             event.setdefault("context_stamp", self.context_stamp)
+        if usage is not None and (reported := _as_usage(usage)) is not None:
+            event["usage"] = reported
         return self._turn(Speaker.AI_AGENT, "outbound", text, event)
 
     def human_agent(self, text: str, **event: Any) -> bool:

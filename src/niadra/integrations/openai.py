@@ -16,8 +16,11 @@ Inside a conversation or task block, `chat.completions.create` and `chat.complet
 (sync or async, streaming or not, and through `with_raw_response`) get the pinned pack as a
 system message right after your own leading system messages, and the turn block (deltas and
 live turns from other channels) as a system message at the end. The injection is stamped on
-the session, and the model's answer is recorded as an `ai_agent` turn carrying that stamp.
-Outside a block, calls pass through untouched.
+the session, and the model's answer is recorded as an `ai_agent` turn carrying that stamp and
+the usage the provider reported for the call: the prompt's tokens, the ones read from the
+provider's prompt cache and the ones written to it (see `niadra.usage`). A stream reports its
+usage only when you ask for it (`stream_options={"include_usage": True}`); the wrapper never
+changes your request to get it. Outside a block, calls pass through untouched.
 
 The pack goes after your instructions, not before them, because your instructions are the
 same for every customer: kept first, they stay the cacheable prefix of the prompt.
@@ -41,6 +44,7 @@ from typing import Any, TypeVar, cast
 from niadra.conversation import AnySession, current_session
 from niadra.conversation import _AsyncSession as AsyncSession
 from niadra.conversation import _SyncSession as SyncSession
+from niadra.models.events import ModelUsage
 from niadra.models.results import Context
 
 logger = logging.getLogger("niadra")
@@ -205,18 +209,18 @@ class _Answer:
 
     def parsed(self, result: Any) -> Any:
         if not self._stream:
-            self.record(_answer(result))
+            self.record(_answer(result), _usage(result))
             return result
         if self._streams_async:
             return _AsyncStream(result, self)
         return _SyncStream(result, self)
 
-    def record(self, text: str | None) -> None:
+    def record(self, text: str | None, usage: ModelUsage | None = None) -> None:
         if self._recorded or not text:
             return
         self._recorded = True
         try:
-            self._session.agent(text)
+            self._session.agent(text, usage=usage)
         except Exception as exc:
             logger.warning("niadra: could not record the model's answer (%s)", type(exc).__name__)
 
@@ -262,6 +266,35 @@ def _answer(response: Any) -> str | None:
     return content if isinstance(content, str) and content else None
 
 
+def _usage(response: Any, model: str | None = None) -> ModelUsage | None:
+    try:
+        return ModelUsage.from_response(response, model=model)
+    except Exception:
+        return None
+
+
+class _StreamUsage:
+    """The usage of a stream: its last chunk carries it, when the caller asked for it."""
+
+    def __init__(self) -> None:
+        self.usage: Any = None
+        self.model: str | None = None
+
+    def observe(self, chunk: Any) -> None:
+        try:
+            usage = getattr(chunk, "usage", None)
+            if usage is not None:
+                self.usage = usage
+            model = getattr(chunk, "model", None)
+            if isinstance(model, str) and model:
+                self.model = model
+        except Exception:
+            return
+
+    def reported(self) -> ModelUsage | None:
+        return _usage(self.usage, self.model) if self.usage is not None else None
+
+
 def _delta_text(chunk: Any) -> str:
     try:
         content = getattr(getattr(_first_choice(chunk), "delta", None), "content", None)
@@ -277,6 +310,7 @@ class _SyncStream:
         self._stream = stream
         self._answer = answer
         self._parts: list[str] = []
+        self._usage = _StreamUsage()
         self._chunks: Iterator[Any] | None = None
 
     def __iter__(self) -> Iterator[Any]:
@@ -292,6 +326,7 @@ class _SyncStream:
         try:
             for chunk in self._stream:
                 self._parts.append(_delta_text(chunk))
+                self._usage.observe(chunk)
                 yield chunk
         finally:
             self._finish()
@@ -312,7 +347,7 @@ class _SyncStream:
         return getattr(self._stream, name)
 
     def _finish(self) -> None:
-        self._answer.record("".join(self._parts))
+        self._answer.record("".join(self._parts), self._usage.reported())
 
 
 class _AsyncStream:
@@ -322,6 +357,7 @@ class _AsyncStream:
         self._stream = stream
         self._answer = answer
         self._parts: list[str] = []
+        self._usage = _StreamUsage()
         self._chunks: AsyncIterator[Any] | None = None
 
     def __aiter__(self) -> AsyncIterator[Any]:
@@ -336,6 +372,7 @@ class _AsyncStream:
         try:
             async for chunk in self._stream:
                 self._parts.append(_delta_text(chunk))
+                self._usage.observe(chunk)
                 yield chunk
         finally:
             self._finish()
@@ -356,4 +393,4 @@ class _AsyncStream:
         return getattr(self._stream, name)
 
     def _finish(self) -> None:
-        self._answer.record("".join(self._parts))
+        self._answer.record("".join(self._parts), self._usage.reported())
