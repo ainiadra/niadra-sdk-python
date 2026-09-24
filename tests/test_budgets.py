@@ -17,11 +17,14 @@ import respx
 from niadra import APITimeoutError, AsyncNiadra, Niadra, phone
 from niadra._transport import AsyncTransport, Request, SyncTransport
 from niadra.options import QueueOptions, Timeouts
-from tests.conftest import BASE, KEY, batch_ok, context_payload
+from tests.conftest import KEY, batch_ok, context_payload
 
 MARINA = phone("+5511912345678")
 UPLOAD_URL = "https://media.example-bucket.s3.amazonaws.com/sp/med_1?X-Amz-Signature=abc"
 QUIET = QueueOptions(batch_size=10_000, interval=3600)
+# Its own address: an attempt these tests abandon, or a retry of the background queue, may still
+# be in flight when the next test mocks the API, and must never match that test's routes.
+BASE = "https://budgets.example.test"
 
 
 def late(seconds: float, response: httpx.Response) -> Callable[[httpx.Request], httpx.Response]:
@@ -77,7 +80,7 @@ def test_context_returns_empty_on_time_when_the_answer_is_late(respx_mock: respx
     respx_mock.post(f"{BASE}/v1/context").mock(
         side_effect=late(0.8, httpx.Response(200, json=context_payload()))
     )
-    niadra = Niadra(KEY, timeouts=Timeouts(context=0.2), queue=QUIET)
+    niadra = Niadra(KEY, base_url=BASE, timeouts=Timeouts(context=0.2), queue=QUIET)
     niadra._closed = True
     started = time.monotonic()
     context = niadra.context(MARINA, conversation_id="c-1")
@@ -87,7 +90,7 @@ def test_context_returns_empty_on_time_when_the_answer_is_late(respx_mock: respx
 
 def test_identify_stops_waiting_at_the_write_budget_and_keeps_the_item(respx_mock: respx.MockRouter) -> None:
     respx_mock.post(f"{BASE}/v1/batch").mock(side_effect=late(0.5, httpx.Response(503)))
-    niadra = Niadra(KEY, channel="whatsapp", timeouts=Timeouts(write=0.3), queue=QUIET)
+    niadra = Niadra(KEY, base_url=BASE, channel="whatsapp", timeouts=Timeouts(write=0.3), queue=QUIET)
     niadra._closed = True
     started = time.monotonic()
     result = niadra.identify([MARINA, phone("+5511987654321")], conversation_id="c-1")
@@ -105,7 +108,7 @@ def test_feedback_stops_waiting_at_the_write_budget(respx_mock: respx.MockRouter
         return httpx.Response(503)
 
     respx_mock.post(f"{BASE}/v1/feedback").mock(side_effect=unavailable)
-    niadra = Niadra(KEY, timeouts=Timeouts(write=0.4), queue=QUIET)
+    niadra = Niadra(KEY, base_url=BASE, timeouts=Timeouts(write=0.4), queue=QUIET)
     niadra._closed = True
     started = time.monotonic()
     assert niadra.feedback("retract_fact", MARINA, fact_id="f-1") is None
@@ -117,7 +120,7 @@ def test_the_background_queue_keeps_per_attempt_timeouts(respx_mock: respx.MockR
     route = respx_mock.post(f"{BASE}/v1/batch").mock(
         side_effect=late(0.3, httpx.Response(200, json=batch_ok()))
     )
-    niadra = Niadra(KEY, channel="whatsapp", timeouts=Timeouts(write=0.2), queue=QUIET)
+    niadra = Niadra(KEY, base_url=BASE, channel="whatsapp", timeouts=Timeouts(write=0.2), queue=QUIET)
     niadra._closed = True
     niadra.track(
         {
@@ -135,7 +138,7 @@ def test_an_upload_ends_within_its_budget(respx_mock: respx.MockRouter) -> None:
         201, json={"media_ref": "med_1", "upload_url": UPLOAD_URL, "expires_at": "2026-09-22T14:22:00Z"}
     )
     respx_mock.put(UPLOAD_URL).mock(side_effect=late(0.4, httpx.Response(200)))
-    niadra = Niadra(KEY, timeouts=Timeouts(upload=0.2), queue=QUIET)
+    niadra = Niadra(KEY, base_url=BASE, timeouts=Timeouts(upload=0.2), queue=QUIET)
     niadra._closed = True
     started = time.monotonic()
     assert niadra.upload_media(b"RIFF....WAVEfmt ", "audio/wav", subject=MARINA) is None
@@ -146,7 +149,7 @@ async def test_async_identify_stops_waiting_at_the_write_budget(respx_mock: resp
     respx_mock.post(f"{BASE}/v1/batch").mock(
         side_effect=late_async(1.0, httpx.Response(200, json=batch_ok()))
     )
-    niadra = AsyncNiadra(KEY, channel="whatsapp", timeouts=Timeouts(write=0.2), queue=QUIET)
+    niadra = AsyncNiadra(KEY, base_url=BASE, channel="whatsapp", timeouts=Timeouts(write=0.2), queue=QUIET)
     started = time.monotonic()
     result = await niadra.identify([MARINA, phone("+5511987654321")], conversation_id="c-1")
     assert time.monotonic() - started < 0.45
