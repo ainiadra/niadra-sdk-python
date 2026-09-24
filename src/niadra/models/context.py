@@ -14,7 +14,8 @@ from niadra.vocabulary import DeliveryPath, EventKind, Verification
 VIEW_PATTERN = r"^(voice|chat|brief|full|custom|account|partner|task:[a-z0-9_]{1,40})$"
 View = Annotated[str, StringConstraints(pattern=VIEW_PATTERN)]
 
-HistoryItemKind = Literal["episode", "fact", "open_item", "action", "system_event", "object", "trait"]
+# What navigation returns. A system event is never an item: it changes its object, so search `object`.
+HistoryItemKind = Literal["episode", "fact", "open_item", "action", "object", "trait"]
 HISTORY_ITEM_KINDS: tuple[str, ...] = get_args(HistoryItemKind)
 
 

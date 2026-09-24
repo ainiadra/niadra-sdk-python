@@ -192,7 +192,7 @@ class Niadra:
     ) -> SearchResult:
         """Searches the subject's whole history by keyword and meaning.
 
-        Returns items (facts, episodes, actions, system events, objects), a `recurrence`
+        Returns items (facts, episodes, actions, objects), a `recurrence`
         count when the query matches a category, and `withheld`, the number of items the
         policy held back at this verification level. `voice=True` uses the shorter voice budget.
         """

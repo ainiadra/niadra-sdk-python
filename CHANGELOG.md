@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] - 2026-09-24
+
+### Changed
+
+- The search tool no longer offers the model a `system_event` item kind, and its description names
+  business objects instead of system events: a system event is never an item, it changes its object,
+  so the filter is `object`. The server still reads `system_event` from 0.1.1 and older as `object`.
+- The emulator files a system event found by search under its object, as the cell does.
+
 ## [0.1.1] - 2026-09-24
 
 ### Fixed

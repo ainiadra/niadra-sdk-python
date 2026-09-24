@@ -11,7 +11,8 @@ The behavior is simple on purpose, so tests can predict it:
   delta holds what this profile's readers have not been sent yet, as the server's does.
 - The verification level of a conversation only rises through `verify` items. Events whose
   `verification_hint` is above the effective level are withheld and counted.
-- Search is keyword matching over conversations (episodes), actions and system events.
+- Search is keyword matching over conversations (episodes), actions and system events, which come
+  back as their object, the way the cell files them.
 - An object's state is the merged `fields` of the system events about it; its timeline is
   those events and the actions on it. Feedback is stored as a `feedback.<action>` system event.
 - Media uploads get a URL on the emulator itself; `media` holds the bytes once they arrive.
@@ -448,7 +449,7 @@ class MockCell:
             if item.kind is EventKind.MESSAGE:
                 episodes.setdefault(item.conversation_id or event.id, []).append(event)
             else:
-                kind = "action" if item.kind is EventKind.ACTION else "system_event"
+                kind = "action" if item.kind is EventKind.ACTION else "object"
                 items.append(
                     HistoryItem(
                         id=event.id,

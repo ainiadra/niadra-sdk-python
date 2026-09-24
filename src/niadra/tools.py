@@ -66,7 +66,7 @@ BUILTIN_DEFINITIONS: list[dict[str, Any]] = [
         "function": {
             "name": SEARCH,
             "description": (
-                "Search this customer's past conversations, actions and system events by meaning and "
+                "Search this customer's past conversations, actions and business objects by meaning and "
                 "keywords. Use it when the customer refers to something that happened before and the "
                 "details are not in the customer context you already have. Do not use it for facts already "
                 "listed there. The result also says how often the same kind of issue came back. To read one"
