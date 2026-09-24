@@ -97,8 +97,8 @@ prompt, the tools follow the common function-calling format (and the Anthropic o
 
 `Niadra` is synchronous and thread-safe; `AsyncNiadra` has the same methods, awaited. One instance
 per process is enough. The key names its region and space, and the SDK derives the address from it:
-`nia_sk_live_br1_acme_...` talks to `https://acme.br1.api.niadra.com`. Pass `base_url=` (or set
-`NIADRA_BASE_URL`) to point it elsewhere, such as the local emulator.
+`nia_sk_live_us-east-2_acme-prod_...` talks to `https://acme-prod.us-east-2.api.niadra.com`.
+Pass `base_url=` (or set `NIADRA_BASE_URL`) to point it elsewhere, such as the local emulator.
 
 ## Context
 
