@@ -28,6 +28,9 @@ spec:
             - {name: NIADRA_BOOTSTRAP, value: /bootstrap/bootstrap.json}
             - {name: NIADRA_CLUSTER_URL, value: "http://read.niadra.svc:8000"}
             - {name: NIADRA_CLUSTER_INGEST_URL, value: "http://ingest.niadra.svc:8000"}
+            # The billing agent's own source, declaring its operations, is created through the control API
+            # with the bootstrap's admin account (src/niadra_bench/sources.py).
+            - {name: NIADRA_CONTROL_URL, value: "http://control.niadra.svc:8000"}
             - {name: MEM0_URL, value: "http://bench-mem0:8000"}
             - {name: MEM0_SERVER_VERSION, value: v2.2.0}
             - {name: MEM0_METER_URL, value: "http://bench-meter:8081"}

@@ -54,6 +54,18 @@ what a Niadra buyer buys.
   `search()` per turn. No parameter tuned for this dataset. The rerank column (`mem0_oss_rerank`)
   builds `mem0.Memory` in-process on the same store with an LLM reranker on the same model, because
   the REST server's `/search` has no rerank parameter.
+- **Niadra as documented.** The SDK is the current release on PyPI (`niadra==0.3.0`; the first run
+  installed 0.1.5, whose read path is the same). Each exchange is a batch of `message` events with its
+  `occurred_at` and a `conversation.ended`, system records are `system_event`s, the billing agent's
+  records are `action`s, and every probe verifies the call or chat before `context()`, as the voice
+  and WhatsApp guides show; the question goes in `query`, which only ranks the pack's items by its words. The billing agent has a source of its own that
+  declares the operations it records (`credit`, `refund`, `refund_fee`, `reimburse`, `redeliver`), the
+  way the internal agents guide tells a company to set it up: the harness creates it once through the
+  control API with the sandbox's admin account and issues a key per run, revoked at the end
+  (`src/niadra_bench/sources.py`). The first run wrote those actions with the sandbox's starter billing
+  source, which trusts `credit` only, so Niadra refused 26 of the 32 promise cases' actions while Mem0
+  stored them. Nothing else about Niadra is configured: starter policy and extraction schema, the space's
+  language and time zone, no predicate added for the dataset.
 - **Identity in two scenarios.** Mem0 does not resolve identity, so it runs with the same user id on
   every channel (`known_id`, its best case) and with each channel's own id (`per_channel_id`). Niadra
   receives the same handles in both.
@@ -191,6 +203,15 @@ counts and OpenRouter's public prices on 2026-09-24:
 | History navigation and ingestion acknowledgement (about 1,100 `add()` with `infer` on Mem0; Niadra extracts the conversations the writes open, in the background) | 13 to 16 min | about $2 (almost all Mem0's `add_infer`) |
 | **Total per repetition** | **about 1 h 15 to 1 h 35** | **about $6.50** |
 
+Since niadra-back bb4ecaa (2026-09-25) the extraction gate sends to the model the short exchanges that
+settle a value, so Niadra extracts about 980 of the 986 conversation sessions of a repetition instead of
+about 174, several times the spend above. Before a run, make sure the sandbox space's daily extraction
+ceiling covers three repetitions (it is $0.50 a day unless the tenant's contract sets
+`llm_daily_micros:extraction`; the operator sets it with `PUT /v1/quotas`). Past the ceiling, extraction
+waits for the next day and the settle step sees nothing change, so the accuracy pass would read
+half-built memory. A prompt change also re-extracts up to 1,000 recent sessions per space after the
+deploy, from the same ceiling.
+
 Three repetitions: about 4 h to 4 h 45 and about $20 (budget $30 for retries). No AWS resource is
 created beyond Kubernetes objects and two small databases on the existing RDS instance; the machine
 and the database are the ones already running.
@@ -236,11 +257,16 @@ every metric) with fake LLM and embedding servers, so it needs no key. It proves
 - Mem0's ingestion lines are the open source server's two synchronous modes. The hosted Platform's
   asynchronous `add()` (`async_mode`, the answer before the extraction) is the closest to Niadra's
   acknowledgement, but the Platform runs outside the region, so it is not measured.
-- The sandbox tenant's billing source (the one key with the `act` scope) declares a closed list of
-  operations, `credit` only, so Niadra refuses the agent actions of the dataset that record `refund`,
-  `refund_fee`, `reimburse` or `redeliver` (26 of the 32 promise cases). The harness writes the rest of
-  each history, including the system event that confirms the action, and lists every refused action
-  under `seed.niadra.refused_actions` of each repetition. Mem0 receives those actions as raw memories.
+- The billing agent's source is created with the bootstrap's admin account only when the run pod has
+  `NIADRA_CONTROL_URL` (the region Job sets it). Without it (a local run, niadra-mock) the actions go
+  through the sandbox's starter billing source; any refused action is still listed under
+  `seed.niadra.refused_actions`, and `seed.niadra.declared_operations` says which setup the run used.
+- The agent answers from one read, with no tools. Niadra's voice guide also gives the agent
+  `search_customer_history` for older matters; the benchmark measures the pack alone, as it measures one
+  `search()` for Mem0.
+- E-mail and app sessions are written with the WhatsApp source's key and their own `channel`, because
+  the sandbox has no e-mail or app source; the memory records the event's channel, so the packs are the
+  same, but a company would give each channel its own source and key.
 - Niadra's freshness read verifies the voice call at V1 before the clock starts, as every accuracy probe
   does: an unproven call reads at V0, where the starter policy withholds order numbers.
 - The third Mem0 column of the plan (its own defaults, `gpt-4o-mini` and `text-embedding-3-small`)

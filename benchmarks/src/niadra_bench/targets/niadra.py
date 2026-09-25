@@ -5,13 +5,16 @@ Seeding posts each session to `POST /v1/batch` with the SDK's own item models, t
 background queue. Reading uses `AsyncNiadra.context()`, what an agent calls before its model.
 
 Keys: `NIADRA_BOOTSTRAP` (the sandbox tenant's bootstrap.json, one key per source) or `NIADRA_API_KEY`
-(one key for every channel). `NIADRA_BASE_URL` overrides the address the SDK derives from the key.
+(one key for every channel). `NIADRA_BASE_URL` overrides the address the SDK derives from the key. With
+`NIADRA_CONTROL_URL` and the bootstrap's admin account, the billing agent gets a source of its own that
+declares the dataset's operations, as the docs tell a customer to set it up (see `sources.py`).
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import time
 from collections.abc import Callable
@@ -35,6 +38,7 @@ from niadra.models.events import ActionInfo, ConversationEndedItem
 
 from niadra_bench.dataset.model import Case, Session
 from niadra_bench.identity import Identities
+from niadra_bench.sources import ControlPlane, IssuedKey, wait_until_served
 from niadra_bench.targets.base import Retrieved, Stopwatch, Target
 
 # The source key each channel writes and reads with, when the bootstrap has one per source.
@@ -50,19 +54,22 @@ OBJECT_NAMESPACE = {"ticket": "crm", "claim": "core", "dispute": "core", "order"
 TURN_SPACING_S = 40
 RETRIEVE_TIMEOUT_S = 5.0
 
+log = logging.getLogger(__name__)
+
 
 class Keys:
-    def __init__(self, by_source: dict[str, str]) -> None:
+    def __init__(self, by_source: dict[str, str], document: dict[str, Any] | None = None) -> None:
         if not by_source:
             raise ValueError("no Niadra key: set NIADRA_BOOTSTRAP or NIADRA_API_KEY")
         self.by_source = by_source
+        self.document = document
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> Keys:
         source = os.environ if env is None else env
         if path := source.get("NIADRA_BOOTSTRAP"):
             document = json.loads(Path(path).read_text())
-            return cls({str(k): str(v) for k, v in document["keys"].items()})
+            return cls({str(k): str(v) for k, v in document["keys"].items()}, document)
         if key := source.get("NIADRA_API_KEY"):
             return cls({"whatsapp": key})
         return cls({})
@@ -155,6 +162,8 @@ class NiadraTarget(Target):
         settle_quiet_s: float = 20.0,
         settle_timeout_s: float = 1200.0,
         concurrency: int = 8,
+        control_url: str | None = None,
+        operations: list[str] | None = None,
     ) -> None:
         self.keys = keys
         self.base_url = base_url or os.environ.get("NIADRA_BASE_URL") or None
@@ -167,6 +176,10 @@ class NiadraTarget(Target):
         self.settle_timeout_s = settle_timeout_s
         self._limit = asyncio.Semaphore(concurrency)
         self.refused: list[str] = []
+        self.control_url = control_url
+        self.operations = operations or []
+        self._billing: IssuedKey | None = None
+        self._control: ControlPlane | None = None
 
     def _new_http(self, timeout: float = 30.0) -> httpx.AsyncClient:
         transport = self._transport_factory() if self._transport_factory else None
@@ -186,6 +199,12 @@ class NiadraTarget(Target):
 
     async def start(self) -> None:
         self._http = self._new_http()
+        if self.control_url and self.operations and self.keys.document:
+            self._control = ControlPlane(self.control_url, self.keys.document, self._http)
+            self._billing = await self._control.billing_key(self.operations)
+            self.keys.by_source["billing"] = self._billing.secret
+            self._clients.pop("billing", None)
+            await wait_until_served(self._http, self.client("erp").base_url, self._billing.secret)
 
     async def _post_batch(self, channel: str, items: list[dict[str, Any]]) -> None:
         assert self._http is not None
@@ -219,7 +238,8 @@ class NiadraTarget(Target):
 
     def seed_report(self) -> dict[str, Any]:
         refused, self.refused = self.refused, []
-        return {"refused_actions": sorted(refused)}
+        declared = self.operations if self._billing else None
+        return {"refused_actions": sorted(refused), "declared_operations": declared}
 
     async def seed(self, case: Case, ids: Identities) -> None:
         now = self._now()
@@ -299,6 +319,12 @@ class NiadraTarget(Target):
         for client in self._clients.values():
             await client.close(timeout=2.0)
         self._clients.clear()
+        if self._control is not None and self._billing is not None:
+            try:
+                await self._control.revoke(self._billing)
+            except (httpx.HTTPError, RuntimeError) as exc:
+                log.warning("the run's billing key was not revoked: %s", exc)
+            self._billing = None
         if self._http is not None:
             await self._http.aclose()
 

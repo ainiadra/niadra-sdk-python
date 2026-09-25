@@ -6,7 +6,9 @@ import pytest
 from niadra.models.events import BatchItem
 from pydantic import TypeAdapter
 
+from niadra_bench import sources
 from niadra_bench.identity import Identities
+from niadra_bench.sources import ControlPlane, dataset_operations, source_name
 from niadra_bench.targets.mem0 import add_payloads, exchanges, render
 from niadra_bench.targets.niadra import Keys, NiadraTarget, session_items
 
@@ -106,7 +108,7 @@ async def test_an_operation_the_source_did_not_declare_is_counted_and_the_histor
     assert len(posted) == len(case.sessions)
     report = target.seed_report()
     assert len(report["refused_actions"]) == 1 and report["refused_actions"][0].endswith(case_operation(case))
-    assert target.seed_report() == {"refused_actions": []}
+    assert target.seed_report() == {"refused_actions": [], "declared_operations": None}
 
 
 async def test_other_rejections_still_fail_the_case(cases) -> None:
@@ -130,3 +132,80 @@ async def test_other_rejections_still_fail_the_case(cases) -> None:
 
 def case_operation(case) -> str:
     return next(s.record.operation for s in case.sessions if s.record and s.record.kind == "action")
+
+
+def test_the_billing_source_declares_the_operations_the_dataset_records(cases) -> None:
+    operations = dataset_operations(cases)
+    assert operations == ["credit", "redeliver", "refund", "refund_fee", "reimburse"]
+    assert source_name(operations) == source_name(reversed(operations))
+
+
+async def test_the_billing_agent_gets_its_own_source_and_key_for_the_run(cases, monkeypatch) -> None:
+    """As a customer sets it up: a source declaring the agent's operations, created once through the
+    control API with the sandbox's admin, a key per run that the cell serves before seeding starts, and
+    revoked at the end."""
+    monkeypatch.setattr(sources.asyncio, "sleep", _no_wait)
+    case = next(c for c in cases if c.category == "promise_action")
+    calls: list[tuple[str, str, str | None]] = []
+    served = iter([401, 200])
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        path, auth = request.url.path, request.headers.get("authorization")
+        calls.append((request.method, path, auth))
+        if path == "/v1/auth/login":
+            body = json.loads(request.content)
+            assert body["totp"].isdigit() and body["space_id"] == "space-1"
+            return httpx.Response(200, json={"access_token": "person"})
+        if path == "/v1/sources" and request.method == "GET":
+            return httpx.Response(200, json=[])
+        if path == "/v1/sources":
+            body = json.loads(request.content)
+            assert body["trusted_action_ops"] == dataset_operations(cases)
+            assert (body["audience"], body["channel"], body["purposes"]) == (
+                "internal_agent",
+                "erp",
+                ["billing"],
+            )
+            return httpx.Response(201, json={"source_id": "src-9", **body})
+        if path == "/v1/sources/src-9/keys":
+            return httpx.Response(201, json={"key": {"key_id": "key-9"}, "secret": "k-bench-billing"})
+        if path == "/v1/sources/src-9/keys/key-9/revoke":
+            return httpx.Response(200, json={})
+        if path == "/v1/context":
+            return httpx.Response(next(served), json={})
+        return httpx.Response(200, json={"accepted": len(json.loads(request.content)["items"]), "errors": []})
+
+    document = {
+        "admin_email": "a@b.c",
+        "password": "p",
+        "space_id": "space-1",
+        "totp_secret": "JBSWY3DPEHPK3PXP",
+    }
+    target = NiadraTarget(
+        Keys({"whatsapp": "k-wa", "voice": "k-voice", "billing": "k-bill"}, document),
+        base_url="http://niadra.test",
+        transport_factory=lambda: httpx.MockTransport(answer),
+        now=lambda: NOW,
+        control_url=ControlPlane.available(document, {"NIADRA_CONTROL_URL": "http://control.test"}),
+        operations=dataset_operations(cases),
+    )
+    await target.start()
+    await target.seed(case, Identities.for_case(case, "t1"))
+    assert target.seed_report() == {"refused_actions": [], "declared_operations": dataset_operations(cases)}
+    await target.close()
+    batches = [auth for method, path, auth in calls if path == "/v1/batch"]
+    erp = [s for s in case.chronological() if s.channel in ("erp", "crm")]
+    assert batches.count("Bearer k-bench-billing") == len(erp)
+    assert "Bearer k-bill" not in batches
+    assert calls[-1][1] == "/v1/sources/src-9/keys/key-9/revoke"
+
+
+def test_without_the_admin_account_or_the_control_plane_nothing_is_provisioned() -> None:
+    document = {"keys": {"whatsapp": "k"}}
+    assert ControlPlane.available(document, {"NIADRA_CONTROL_URL": "http://control.test"}) is None
+    full = {"admin_email": "a@b.c", "password": "p", "space_id": "s"}
+    assert ControlPlane.available(full, {}) is None
+
+
+async def _no_wait(seconds: float) -> None:
+    return None

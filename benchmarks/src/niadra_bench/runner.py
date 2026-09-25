@@ -35,6 +35,7 @@ from niadra_bench.dataset import generate
 from niadra_bench.dataset.model import Case
 from niadra_bench.identity import SCENARIOS, Identities
 from niadra_bench.metrics import accuracy, cost, freshness, history, ingest, latency, operations, resilience
+from niadra_bench.sources import ControlPlane, dataset_operations
 from niadra_bench.targets.base import Target
 from niadra_bench.targets.mem0 import Mem0LibTarget, Mem0PlatformTarget, Mem0RestTarget
 from niadra_bench.targets.niadra import Keys, NiadraTarget
@@ -140,6 +141,8 @@ class Run:
             settle_quiet_s=0 if self.options.dry_run else self.config.run.settle_quiet_s,
             settle_timeout_s=self.config.run.settle_timeout_s,
             concurrency=self.config.run.concurrency,
+            control_url=ControlPlane.available(keys.document),
+            operations=dataset_operations(self.cases),
         )
 
     def build_targets(self) -> list[Target]:
