@@ -187,6 +187,16 @@ def test_tools_run_against_the_mock(on_mock: Niadra) -> None:
         kit.call("open_history_item", {"id": "ep_missing"})
 
 
+def test_a_kit_opens_only_the_bound_customers_items(on_mock: Niadra) -> None:
+    say(on_mock, "Refund for order 77 please", minute=1, conversation="wa-1")
+    on_mock.flush()
+    item = on_mock.search(MARINA, "refund").items[0].id
+    assert on_mock.open(item) is not None
+    other = on_mock.tools(phone("+5511900000077"))
+    with pytest.raises(NotFoundError):
+        other.call("open_history_item", {"id": item})
+
+
 def test_tools_tell_the_model_when_an_item_is_missing(mock_app: MockApp) -> None:
     http = httpx.Client(transport=httpx.WSGITransport(app=mock_app.wsgi))
     lenient = Niadra(MOCK_KEY, base_url="http://mock", http_client=http)

@@ -251,7 +251,8 @@ class _ToolKitBase:
             item_id = str(args.get("id") or "").strip()
             if not item_id:
                 return _error("id is required")
-            return _Plan("open", (item_id,), {**common, "task_id": self.task_id})
+            # The bound customer goes along, so the server opens only an item of theirs.
+            return _Plan("open", (item_id,), {**common, "subject": self.subject})
         return _error(f"unknown tool {name}")
 
 

@@ -20,7 +20,7 @@ from urllib.parse import parse_qs, unquote
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from niadra.models.common import ObjectRef
-from niadra.models.context import ContextRequest, SearchRequest, TimelineRequest
+from niadra.models.context import ContextRequest, OpenItemRequest, SearchRequest, TimelineRequest
 from niadra.models.events import (
     MAX_BATCH_ITEMS,
     BatchItem,
@@ -154,6 +154,7 @@ class MockApp:
             ("POST", "/v1/context"): self._context,
             ("POST", "/v1/history/search"): self._search,
             ("POST", "/v1/history/timeline"): self._timeline,
+            ("POST", "/v1/history/open"): self._open,
             ("POST", "/v1/subject-tokens"): self._subject_token,
             ("POST", "/v1/feedback"): self._feedback,
         }
@@ -235,6 +236,10 @@ class MockApp:
 
     def _timeline(self, body: bytes) -> Response:
         return _model(self.cell.timeline(TimelineRequest.model_validate_json(body)))
+
+    def _open(self, body: bytes) -> Response:
+        request = OpenItemRequest.model_validate_json(body)
+        return _model(self.cell.open(request.item_id, request.verification, request.subject))
 
     def _subject_token(self, body: bytes) -> Response:
         return _model(self.cell.subject_token(SubjectTokenRequest.model_validate_json(body)))

@@ -538,11 +538,19 @@ class MockCell:
                 as_of=max((i.at for i in items), default=None),
             )
 
-    def open(self, item_id: str, level: Verification) -> OpenedItem:
+    def open(self, item_id: str, level: Verification, subject: Handle | None = None) -> OpenedItem:
+        """With `subject`, only an item of that customer opens: any other answers 404, as the cell does."""
         with self._lock:
+            root = self._find(_key(subject)) if subject is not None else None
+
+            def theirs(event: StoredEvent) -> bool:
+                return root is None or any(self._find(k) == root for k in self._event_keys(event))
+
             if item_id.startswith("ev_"):
                 event = next((e for e in self.events if e.id == item_id), None)
                 if event is None or not event.item.object_refs or not self._visible(event, level):
+                    raise ItemNotFoundError(item_id)
+                if not theirs(event):
                     raise ItemNotFoundError(item_id)
                 ref = _object_key(event.item.object_refs[0])
                 related = [e for e in self.events if ref in map(_object_key, e.item.object_refs)]
@@ -556,6 +564,8 @@ class MockCell:
             for event in self.events:
                 conversation = event.item.conversation_id or event.id
                 if f"ep_{_digest(conversation)}" == item_id and event.item.kind is EventKind.MESSAGE:
+                    if not theirs(event):
+                        raise ItemNotFoundError(item_id)
                     turns = [
                         e
                         for e in self.events

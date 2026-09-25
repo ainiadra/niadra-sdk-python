@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.5] - 2026-09-24
+
+### Changed
+
+- `open()` sends `POST /v1/history/open` with the item id, the level and the conversation id in the
+  body, instead of `GET /v1/history/items/{id}` with the conversation id in the query: a
+  conversation id may be a phone number or an e-mail, and a URL reaches access logs.
+- `open()` takes `subject=`, the customer the item must belong to; the server opens any other item
+  as 404. The tool kit passes its bound customer, so `open_history_item` opens only that
+  customer's items.
+- `task_id=` on `open()` is no longer sent: the server never read it on this route. The argument
+  stays for code written against 0.1.4.
+- `niadra-mock` answers `POST /v1/history/open`, with the same customer check.
+- The `excerpt` field of an opened item says the server no longer sends it.
+
 ## [0.1.4] - 2026-09-24
 
 ### Changed

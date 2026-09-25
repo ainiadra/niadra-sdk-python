@@ -116,7 +116,7 @@ async def test_navigation_and_tools(respx_mock: respx.MockRouter) -> None:
     item = {"id": "ep_1", "kind": "episode", "text": "missed visit", "at": "2026-09-22T14:02:00Z"}
     respx_mock.post(f"{BASE}/v1/history/search").respond(200, json={"items": [item], "tokens_used": 3})
     respx_mock.post(f"{BASE}/v1/history/timeline").respond(200, json={"items": [item]})
-    respx_mock.get(f"{BASE}/v1/history/items/ep_1").respond(
+    opened_route = respx_mock.post(f"{BASE}/v1/history/open").respond(
         200, json={"id": "ep_1", "kind": "episode", "summary": "missed visit"}
     )
     async with AsyncNiadra(KEY, strict=True) as client:
@@ -127,6 +127,12 @@ async def test_navigation_and_tools(respx_mock: respx.MockRouter) -> None:
         kit = client.tools(MARINA)
         assert json.loads(await kit.call("get_customer_timeline", {"limit": 5}))["items"][0]["id"] == "ep_1"
         assert json.loads(await kit.call("open_history_item", {"id": "ep_1"}))["kind"] == "episode"
+    sent = json.loads(opened_route.calls.last.request.content)
+    assert sent == {
+        "item_id": "ep_1",
+        "subject": {"type": "phone_e164", "value": "+5511912345678"},
+        "verification": "V0",
+    }
 
 
 async def test_async_conversation(respx_mock: respx.MockRouter) -> None:

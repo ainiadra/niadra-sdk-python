@@ -155,6 +155,10 @@ page = niadra.timeline(customer, limit=20)  # most recent first; pass page.next_
 item = niadra.open(found.items[0].id)  # what was asked, promised and by whom, the outcome
 ```
 
+The handle, the search and the conversation id go in request bodies, never in a URL: a
+conversation id may be a phone number or an e-mail. `open()` sends `POST /v1/history/open`, and the
+tool kit adds the bound customer to it, so the server opens only that customer's items.
+
 ## Track
 
 `track()` records a message, a system event or an action. It never blocks: items go to a bounded

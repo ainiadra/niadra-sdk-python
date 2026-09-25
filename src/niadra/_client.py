@@ -238,16 +238,23 @@ class Niadra:
         *,
         verification: VerificationLike = Verification.V0,
         conversation_id: str | None = None,
-        task_id: str | None = None,
+        task_id: str | None = None,  # noqa: ARG002 - kept for 0.1.4 callers; the server never read it here
+        subject: HandleLike | None = None,
         voice: bool = False,
         timeout: float | None = None,
     ) -> OpenedItem | None:
-        """Opens an episode or object found by `search()` or `timeline()`. None when unavailable."""
+        """Opens an episode or object found by `search()` or `timeline()`. None when unavailable.
+
+        Sent as `POST /v1/history/open`: the conversation id and `subject` go in the body, never in a
+        URL. With `subject`, the server opens the item only when it belongs to that customer, which
+        is how `tools()` keeps the model on the bound customer. `task_id` is accepted for
+        compatibility; the server scopes opening by conversation only.
+        """
         if not self._core.enabled:
             return None
         try:
             budget = self._core.navigation_budget(voice, timeout)
-            request = self._core.open_http(item_id, verification, conversation_id, task_id, budget)
+            request = self._core.open_http(item_id, verification, conversation_id, subject, budget)
             return OpenedItem.model_validate(self._transport.request(request))
         except Exception as exc:
             return self._core.fail("open", exc, None)

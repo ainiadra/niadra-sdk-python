@@ -25,6 +25,7 @@ from niadra.models.common import Handle, ObjectRef
 from niadra.models.context import (
     ContextRequest,
     HistoryFilters,
+    OpenItemRequest,
     SearchRequest,
     TargetModel,
     TimelineRequest,
@@ -342,17 +343,20 @@ class ClientCore:
         item_id: str,
         verification: VerificationLike,
         conversation_id: str | None,
-        task_id: str | None,
+        subject: HandleLike | None,
         budget: float,
     ) -> Request:
-        if not item_id or "/" in item_id:
-            raise ValueError("item_id must be a non-empty id without slashes")
-        params = {"verification": Verification(verification).value}
-        if conversation_id:
-            params["conversation_id"] = conversation_id
-        if task_id:
-            params["task_id"] = task_id
-        return Request("GET", f"/v1/history/items/{item_id}", params=params, timeout=budget, budget=budget)
+        # POST rather than GET: a conversation id may be a phone number or an e-mail, and the customer
+        # is personal data; both go in the body, never in a URL.
+        if not item_id:
+            raise ValueError("item_id must not be empty")
+        body = OpenItemRequest(
+            item_id=item_id,
+            subject=as_handle(subject) if subject is not None else None,
+            verification=Verification(verification),
+            conversation_id=conversation_id,
+        )
+        return Request("POST", "/v1/history/open", json=_body(body), timeout=budget, budget=budget)
 
     def batch_http(self, payloads: list[dict[str, Any]], budget: float | None = None) -> Request:
         """A batch. The background queue sends it without a budget; a caller waiting on it, with one."""

@@ -172,6 +172,18 @@ class TimelineRequest(Model):
     conversation_id: IdStr | None = None
 
 
+class OpenItemRequest(Model):
+    """Body of `POST /v1/history/open`: the conversation id may be a phone number or an e-mail, and the
+    customer is personal data, so neither goes in a URL."""
+
+    item_id: IdStr
+    subject: Handle | None = Field(
+        default=None, description="The customer the item must belong to; any other item answers 404."
+    )
+    verification: Verification = Verification.V0
+    conversation_id: IdStr | None = None
+
+
 class TimelineResponse(ResponseModel):
     items: list[HistoryItem] = Field(default_factory=list)
     next_cursor: str | None = None
@@ -197,7 +209,7 @@ class OpenedItem(ResponseModel):
     derived: list[HistoryItem] = Field(default_factory=list)
     timeline: list[HistoryItem] = Field(default_factory=list)
     excerpt: str | None = Field(
-        default=None, description="Literal transcript excerpt; needs an elevated scope."
+        default=None, description="The server no longer sends a transcript excerpt; kept for code reading it."
     )
     as_of: datetime | None = None
 

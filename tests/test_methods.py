@@ -81,8 +81,8 @@ def test_timeline_keeps_the_handle_out_of_the_url(respx_mock: respx.MockRouter, 
     assert page.next_cursor == "20"
 
 
-def test_open(respx_mock: respx.MockRouter, client: Niadra) -> None:
-    route = respx_mock.get(f"{BASE}/v1/history/items/ep_1").respond(
+def test_open_keeps_the_conversation_id_out_of_the_url(respx_mock: respx.MockRouter, client: Niadra) -> None:
+    route = respx_mock.post(f"{BASE}/v1/history/open").respond(
         200,
         json={
             "id": "ep_1",
@@ -91,13 +91,30 @@ def test_open(respx_mock: respx.MockRouter, client: Niadra) -> None:
             "promises": [{"by": "company", "what": "visit on 23/09", "status": "open"}],
         },
     )
-    item = client.open("ep_1", verification="V2", conversation_id="c-1")
+    # A conversation id may be a phone number: it travels in the body of POST /v1/history/open.
+    item = client.open("ep_1", verification="V2", conversation_id="+5511912345678")
     assert item is not None and item.promises[0].by == "company"
-    assert dict(route.calls.last.request.url.params) == {"verification": "V2", "conversation_id": "c-1"}
+    sent = route.calls.last.request
+    assert str(sent.url) == f"{BASE}/v1/history/open"
+    assert body(route) == {"item_id": "ep_1", "verification": "V2", "conversation_id": "+5511912345678"}
+    client.open("ep_1", subject=MARINA, task_id="t-1")
+    # The customer goes along when given; a task id never did reach this route on the server.
+    assert body(route) == {
+        "item_id": "ep_1",
+        "subject": MARINA.model_dump(mode="json", exclude_none=True),
+        "verification": "V0",
+    }
 
 
-def test_open_refuses_ids_that_would_change_the_path(lenient: Niadra) -> None:
+def test_open_sends_an_id_with_slashes_in_the_body_and_refuses_an_empty_one(
+    respx_mock: respx.MockRouter, lenient: Niadra
+) -> None:
+    route = respx_mock.post(f"{BASE}/v1/history/open").respond(404, json={"code": "not_found"})
     assert lenient.open("../profiles/1") is None
+    assert str(route.calls.last.request.url) == f"{BASE}/v1/history/open"
+    assert body(route)["item_id"] == "../profiles/1"
+    assert lenient.open("") is None
+    assert route.call_count == 1
 
 
 def test_identify_is_sent_at_once(respx_mock: respx.MockRouter, client: Niadra) -> None:
@@ -170,6 +187,19 @@ def test_tools_bind_the_customer_outside_the_model(respx_mock: respx.MockRouter,
     assert sent["filters"]["outcome"] == "resolved"
     assert (sent["max_tokens"], sent["verification"], sent["conversation_id"]) == (300, "V1", "c-1")
     assert json.loads(output)["items"][0]["id"] == "ep_1"
+
+    opened = respx_mock.post(f"{BASE}/v1/history/open").respond(
+        200, json={"id": "ep_1", "kind": "episode", "summary": "missed visit"}
+    )
+    assert json.loads(kit.call("open_history_item", {"id": "ep_1"}))["kind"] == "episode"
+    # The bound customer goes in the body, so the server opens only an item of theirs.
+    assert body(opened) == {
+        "item_id": "ep_1",
+        "subject": {"type": "phone_e164", "value": "+5511912345678"},
+        "verification": "V1",
+        "conversation_id": "c-1",
+    }
+    assert "c-1" not in str(opened.calls.last.request.url)
 
 
 def test_tools_make_no_request_until_the_model_calls_one(
