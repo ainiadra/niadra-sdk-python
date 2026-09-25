@@ -4,6 +4,31 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - Unreleased
+
+### Added
+
+- Six integrations under `niadra.integrations`, each an optional extra with the same wiring as
+  the others (the context after the agent's instructions and the turn block at the end, the turns
+  with the provider's usage, the kit's tools bound to the customer, `agent_memory=`, handoffs) and
+  never failing the agent:
+  - `retell` (Retell AI): `RetellWebhooks` answers the signed inbound call webhook with the
+    context as dynamic variables (`outbound()` gives them for `create_phone_call`), runs the
+    history tools as custom functions for the call's customer (`tool_configs()`), and records a
+    `call_ended` event's transcript, transfer and end, idempotently;
+  - `semantic-kernel`: `NiadraKernel` with a `ChatCompletionAgent` thread (`NiadraThread`), a
+    prompt rendering and a function invocation filter for prompt functions, and the history tools
+    as a `KernelPlugin`;
+  - `haystack` (Haystack 3): `NiadraContext` and `NiadraReply` pipeline components,
+    `NiadraAgentHooks` for an `Agent`, and the history tools as Haystack `Tool`s;
+  - `camel` (CAMEL-AI): `NiadraMemory`, an `AgentMemory` around the agent's chat memory, and
+    `NiadraToolkit`;
+  - `dspy`: `niadra_adapter()` (the pack placed by the adapter's `format()`), `NiadraModule` to
+    run a program with it and record the turn, and the history tools as `dspy.Tool`s;
+  - `ag2` (AG2 1.x, AutoGen's community line): `NiadraAG2` middleware and tools.
+- A Dify plugin in `integrations-extras/dify/`: a tool provider with Get context, Record reply and
+  the kit's history and agent memory tools, the customer set by the app and never by the model.
+
 ## [0.2.1] - 2026-09-25
 
 ### Fixed

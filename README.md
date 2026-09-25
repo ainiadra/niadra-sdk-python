@@ -87,6 +87,7 @@ tools. None of them can fail your agent: Niadra slow or down means no context, n
 | Pipecat | `niadra[pipecat]` | `niadra.integrations.pipecat` | `NiadraMemoryProcessor` between the user aggregator and the LLM |
 | ElevenLabs Agents | `niadra[elevenlabs]` | `niadra.integrations.elevenlabs` | initiation, server tool and post-call webhooks |
 | Vapi | `niadra[vapi]` | `niadra.integrations.vapi` | `VapiServer.handle()` for the server URL |
+| Retell AI | `niadra[retell]` | `niadra.integrations.retell` | signed inbound webhook (dynamic variables), custom functions, call events |
 | WhatsApp Cloud API | `niadra[whatsapp]` | `niadra.integrations.whatsapp` | signed webhook to turns, `sent()` for replies |
 | Twilio | `niadra[twilio]` | `niadra.integrations.twilio` | voice (`StirVerstat` as proof) and SMS or WhatsApp webhooks |
 | OpenAI Agents SDK | `niadra[openai-agents]` | `niadra.integrations.openai_agents` | `call_model_input_filter`, `RunHooks`, `FunctionTool`s |
@@ -103,8 +104,14 @@ tools. None of them can fail your agent: Niadra slow or down means no context, n
 | CrewAI | `niadra[crewai]` | `niadra.integrations.crewai` | kickoff callbacks (`{niadra_context}`) and tools |
 | Agno | `niadra[agno]` | `niadra.integrations.agno` | dynamic instructions, `Function`s, run hooks |
 | Microsoft Agent Framework | `niadra[agent-framework]` | `niadra.integrations.agent_framework` | `NiadraContextProvider` |
+| Semantic Kernel | `niadra[semantic-kernel]` | `niadra.integrations.semantic_kernel` | `NiadraKernel`: agent thread, prompt filters, plugin |
+| Haystack | `niadra[haystack]` | `niadra.integrations.haystack` | `NiadraContext` and `NiadraReply` components, `NiadraAgentHooks`, `Tool`s |
+| CAMEL-AI | `niadra[camel]` | `niadra.integrations.camel` | `NiadraMemory` (an `AgentMemory`), `NiadraToolkit` |
+| DSPy | `niadra[dspy]` | `niadra.integrations.dspy` | `niadra_adapter()`, `NiadraModule`, `dspy.Tool`s |
+| AG2 (AutoGen) | `niadra[ag2]` | `niadra.integrations.ag2` | `NiadraAG2`: middleware and tools |
 | OpenAI and Azure OpenAI | `niadra[openai]` | `niadra.wrap` | `wrap()` of `chat.completions` |
 | Langflow | copy the file | [`integrations-extras/langflow`](integrations-extras/langflow) | three components: context, reply, history search |
+| Dify | install the plugin | [`integrations-extras/dify`](integrations-extras/dify) | tool provider: context, reply, history and agent memory tools |
 
 Each module's docstring is its guide, and [`examples/`](examples) has one script per integration.
 The versions tested are pinned in `uv.lock`; CI runs each integration against the framework's
@@ -215,11 +222,12 @@ policy decides what each agent sees. Every read leaves a receipt, and a person c
 exported on request. The SDK never logs handles or message text.
 
 **Which models and frameworks does it work with?** Any. The context is text you place in your
-prompt and the tools follow the common function-calling format. Twenty integrations do the
+prompt and the tools follow the common function-calling format. The integrations do the
 wiring for you (see [Integrations](#integrations)): voice (LiveKit, Pipecat, ElevenLabs, Vapi,
-Twilio), WhatsApp, agent frameworks (OpenAI Agents, LangChain, LangGraph, Google ADK, Strands,
-Pydantic AI, LlamaIndex, CrewAI, Agno, Microsoft Agent Framework), model SDKs (OpenAI, Azure
-OpenAI, Anthropic, Bedrock, Google GenAI, LiteLLM) and Langflow.
+Retell, Twilio), WhatsApp, agent frameworks (OpenAI Agents, LangChain, LangGraph, Google ADK,
+Strands, Pydantic AI, LlamaIndex, CrewAI, Agno, Microsoft Agent Framework, Semantic Kernel,
+Haystack, CAMEL-AI, DSPy, AG2), model SDKs (OpenAI, Azure OpenAI, Anthropic, Bedrock, Google
+GenAI, LiteLLM), Langflow and Dify.
 
 ## The client
 
