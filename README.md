@@ -55,7 +55,8 @@ Three moments cover most agents: read the context before the model call, record 
 it, and record an `action()` when the agent does something in a system (a refund, a new delivery
 date). `wrap()` does the reading and recording for you around an OpenAI-compatible client.
 
-Requires Python 3.10+. Depends on `httpx` and `pydantic` only.
+Requires Python 3.10+. Depends on `httpx` and `pydantic` only; each integration's framework comes
+with its extra, such as `pip install 'niadra[livekit]'`.
 
 ## What your agent gets
 
@@ -69,6 +70,130 @@ Requires Python 3.10+. Depends on `httpx` and `pydantic` only.
 | `identify()`, `verify()` | which ids belong to the same person, and what the conversation proved about who is there |
 | `object_state()`, `object_timeline()` | a business object (an order, an invoice, a ticket) as the systems of record reported it |
 | `feedback()` | a correction of what Niadra derived, audited like any other event |
+
+## Integrations
+
+Every integration wires the same five things into the framework's own extension points: the
+context before the model call (right after your instructions, the news of other channels at the
+end), the turns (the customer's and the agent's, with the provider's usage), the history tools
+bound to the customer (never a parameter the model sees), what the platform proves about who is
+there (`verify()` before the first context), and handoffs. With `agent_memory=True` the agent's
+own notes go before the customer's context and `search_agent_memory` (and `remember`) join the
+tools. None of them can fail your agent: Niadra slow or down means no context, never an error.
+
+| Integration | Install | Module | How it plugs in |
+|---|---|---|---|
+| LiveKit Agents | `niadra[livekit]` | `niadra.integrations.livekit` | `NiadraAgent` / `NiadraMemory` mixin: `llm_node`, `on_user_turn_completed`, session events |
+| Pipecat | `niadra[pipecat]` | `niadra.integrations.pipecat` | `NiadraMemoryProcessor` between the user aggregator and the LLM |
+| ElevenLabs Agents | `niadra[elevenlabs]` | `niadra.integrations.elevenlabs` | initiation, server tool and post-call webhooks |
+| Vapi | `niadra[vapi]` | `niadra.integrations.vapi` | `VapiServer.handle()` for the server URL |
+| WhatsApp Cloud API | `niadra[whatsapp]` | `niadra.integrations.whatsapp` | signed webhook to turns, `sent()` for replies |
+| Twilio | `niadra[twilio]` | `niadra.integrations.twilio` | voice (`StirVerstat` as proof) and SMS or WhatsApp webhooks |
+| OpenAI Agents SDK | `niadra[openai-agents]` | `niadra.integrations.openai_agents` | `call_model_input_filter`, `RunHooks`, `FunctionTool`s |
+| LangChain | `niadra[langchain]` | `niadra.integrations.langchain` | `context_runnable()`, `NiadraCallbackHandler`, `StructuredTool`s |
+| LangGraph | `niadra[langgraph]` | `niadra.integrations.langgraph` | `NiadraMiddleware` for `create_agent`, `pre_model_hook` |
+| Anthropic | `niadra[anthropic]` | `niadra.integrations.anthropic` | `wrap()` of `messages.create` and `messages.stream` |
+| Amazon Bedrock | `niadra[bedrock]` | `niadra.integrations.bedrock` | `wrap()` of `converse` and `converse_stream` |
+| Google GenAI | `niadra[google-genai]` | `niadra.integrations.google_genai` | `wrap()` of `generate_content` and its stream |
+| LiteLLM | `niadra[litellm]` | `niadra.integrations.litellm` | `completion()`, `acompletion()`, `NiadraLogger` |
+| Google ADK | `niadra[google-adk]` | `niadra.integrations.google_adk` | `before_model` and `after_model` callbacks, `BaseTool`s |
+| Strands Agents | `niadra[strands]` | `niadra.integrations.strands` | `NiadraHooks` (a `HookProvider`) and tools |
+| Pydantic AI | `niadra[pydantic-ai]` | `niadra.integrations.pydantic_ai` | `NiadraCapability` |
+| LlamaIndex | `niadra[llamaindex]` | `niadra.integrations.llamaindex` | `NiadraMemory` and tools |
+| CrewAI | `niadra[crewai]` | `niadra.integrations.crewai` | kickoff callbacks (`{niadra_context}`) and tools |
+| Agno | `niadra[agno]` | `niadra.integrations.agno` | dynamic instructions, `Function`s, run hooks |
+| Microsoft Agent Framework | `niadra[agent-framework]` | `niadra.integrations.agent_framework` | `NiadraContextProvider` |
+| OpenAI and Azure OpenAI | `niadra[openai]` | `niadra.wrap` | `wrap()` of `chat.completions` |
+| Langflow | copy the file | [`integrations-extras/langflow`](integrations-extras/langflow) | three components: context, reply, history search |
+
+Each module's docstring is its guide, and [`examples/`](examples) has one script per integration.
+The versions tested are pinned in `uv.lock`; CI runs each integration against the framework's
+real types, on the lowest and highest Python it supports.
+
+### Voice
+
+```python
+from niadra import AsyncNiadra
+from niadra.integrations.livekit import NiadraAgent, conversation_for
+
+niadra = AsyncNiadra(channel="voice")
+
+
+async def entrypoint(ctx):
+    caller = await ctx.wait_for_participant()
+    conversation = conversation_for(niadra, caller, room=ctx.room)  # SIP number and call id
+    await session.start(
+        NiadraAgent(conversation, instructions=INSTRUCTIONS, attestation=level), room=ctx.room
+    )
+```
+
+Pipecat takes `NiadraMemoryProcessor(conversation)` between `aggregators.user()` and the LLM, plus
+`memory.observe(aggregators)` for the turns. For hosted platforms the SDK answers their webhooks:
+`ElevenLabsWebhooks` (the context as the `niadra_context` dynamic variable, server tools whose
+caller comes from ElevenLabs' system variables, and a signed post-call transcript recorded turn by
+turn) and `VapiServer` (`assistant-request`, `tool-calls`, `end-of-call-report` and transfers).
+Every handler is a plain function of the body and the headers, for any web framework. A carrier's
+STIR/SHAKEN attestation proves V2 at level A and V1 at B or C; Twilio's `StirVerstat` is read as is.
+
+### Channels
+
+```python
+from niadra.integrations.whatsapp import parse_webhook, sent
+
+for message in parse_webhook(body, headers, APP_SECRET) or []:
+    with niadra.conversation(f"wa-{message.wa_id}", subject=message.subject) as chat:
+        message.record(chat)  # the wamid as idempotency key, verification_hint V1
+        ...
+        sent(chat, reply, graph_response)
+```
+
+### Agent frameworks
+
+```python
+from niadra.integrations.openai_agents import NiadraAgentsMemory
+
+memory = NiadraAgentsMemory(conversation, agent_memory=True)
+agent = Agent(name="Support", instructions=INSTRUCTIONS, tools=memory.tools)
+await Runner.run(agent, text, hooks=memory.hooks, run_config=memory.run_config())
+```
+
+The other frameworks follow the same pattern in their own terms: middleware for LangGraph's
+`create_agent`, a callback handler and a runnable for LangChain, callbacks for Google ADK, a hook
+provider for Strands, a capability for Pydantic AI, a memory for LlamaIndex, kickoff callbacks
+for CrewAI, instructions and hooks for Agno, and a context provider for the Microsoft Agent
+Framework.
+
+### Model SDKs
+
+```python
+from niadra.integrations.anthropic import wrap
+
+claude = wrap(Anthropic())  # also niadra.integrations.bedrock.wrap and google_genai.wrap
+with niadra.conversation(thread_id, subject=customer):
+    claude.messages.create(model="claude-sonnet-4-5", max_tokens=512, system=INSTRUCTIONS, messages=history)
+```
+
+Each `wrap()` places the context where the provider expects instructions (Anthropic's `system`
+blocks, Bedrock's `system`, Gemini's `system_instruction`), keeps a prompt cache you set up (a
+`cache_control` or `cachePoint` you already use covers the pack too), and records the answer with
+the provider's usage. LiteLLM gets `completion()` and `acompletion()`; Azure OpenAI works with the
+OpenAI `wrap()` as it is.
+
+## Agent memory
+
+The agent's own working notes: procedures, how the company's tools behave, pitfalls. Never about a
+customer: a note with personal data is refused.
+
+```python
+notes = conversation.agent_memory()  # the block for the prompt: after your instructions, before the context
+niadra.remember("pitfall", "Scheduling API", "Dates without a time zone are refused.", tags=["scheduling"])
+niadra.search_agent_memory("reschedule a visit")
+kit = conversation.tools(agent_memory=True, write_agent_memory=True)  # adds search_agent_memory and remember
+```
+
+The block is cached like the context and revalidated by ETag. With the agent memory off in the
+space, `agent_memory()` answers `enabled=False` and empty text. Writing needs a key with the
+`agent_memory:write` scope; a refused note tells the model exactly why, so it can rewrite it.
 
 ## Questions people ask
 
@@ -90,9 +215,11 @@ policy decides what each agent sees. Every read leaves a receipt, and a person c
 exported on request. The SDK never logs handles or message text.
 
 **Which models and frameworks does it work with?** Any. The context is text you place in your
-prompt, the tools follow the common function-calling format (and the Anthropic one), and
-`wrap()` covers OpenAI-compatible clients, and `agent(usage=...)` takes the usage of an OpenAI or
-Anthropic response.
+prompt and the tools follow the common function-calling format. Twenty integrations do the
+wiring for you (see [Integrations](#integrations)): voice (LiveKit, Pipecat, ElevenLabs, Vapi,
+Twilio), WhatsApp, agent frameworks (OpenAI Agents, LangChain, LangGraph, Google ADK, Strands,
+Pydantic AI, LlamaIndex, CrewAI, Agno, Microsoft Agent Framework), model SDKs (OpenAI, Azure
+OpenAI, Anthropic, Bedrock, Google GenAI, LiteLLM) and Langflow.
 
 ## The client
 
@@ -118,6 +245,9 @@ context.system_block  # the pinned pack: place it after your own instructions
 context.turn_block  # live turns from other channels and the delta: place it at the end
 context.withheld  # items the policy held back at this verification level
 ```
+
+With `format="json"`, `context.pack` also carries the pack as data (`context-pack.v0`: typed
+sections with stable names, the preamble and the stamp), for programs that build their own prompt.
 
 Pass `object="invoice:erp:0823"` instead of a subject to center the pack on a business object, and
 `about=` to add what the organization the person acts for has that matters here.
@@ -154,6 +284,11 @@ found.recurrence  # occurrences=3, window_days=90: "this happened before"
 page = niadra.timeline(customer, limit=20)  # most recent first; pass page.next_cursor to go on
 item = niadra.open(found.items[0].id)  # what was asked, promised and by whom, the outcome
 ```
+
+Filters take `when`, a time phrase in the customer's own words (`last week`, `semana passada`,
+`en marzo`); the answer's `window` says the period read and `ignored` lists what the server could
+not read. What an event states can expire (`valid_until` on the event): expired items leave the
+context and the search unless `show_expired=True`. An opened object lists its `versions`.
 
 The handle, the search and the conversation id go in request bodies, never in a URL: a
 conversation id may be a phone number or an e-mail. `open()` sends `POST /v1/history/open`, and the

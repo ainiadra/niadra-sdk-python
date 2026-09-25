@@ -4,6 +4,54 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-09-25
+
+### Added
+
+- Twenty integrations under `niadra.integrations`, each an optional extra that wires the context
+  (after the agent's instructions, the turn block at the end), the turns (with the provider's
+  usage), the history tools bound to the customer, the proof a platform gives about who is there
+  (`verify()` before the first context) and handoffs into the framework's own extension points,
+  and never fails the agent:
+  - voice: `livekit` (`NiadraAgent`, `NiadraMemory`), `pipecat` (`NiadraMemoryProcessor`),
+    `elevenlabs` (initiation, server tool and signed post-call webhooks), `vapi` (`VapiServer`);
+  - channels: `whatsapp` (signed Cloud API webhooks to turns, `sent()`), `twilio` (voice with
+    `StirVerstat` as proof, SMS and WhatsApp through Twilio);
+  - agent frameworks: `openai_agents`, `langchain`, `langgraph` (middleware for `create_agent`),
+    `google_adk`, `strands`, `pydantic_ai`, `llamaindex`, `crewai`, `agno`, `agent_framework`;
+  - model SDKs: `anthropic`, `bedrock` and `google_genai` `wrap()`s, `litellm`; Azure OpenAI through
+    the OpenAI `wrap()`, now tested with the real clients;
+  - Langflow components in `integrations-extras/langflow`.
+  Extras: `livekit`, `pipecat`, `elevenlabs`, `vapi`, `whatsapp`, `twilio`, `openai`,
+  `openai-agents`, `langchain`, `langgraph`, `anthropic`, `bedrock`, `google-genai`, `litellm`,
+  `google-adk`, `strands`, `pydantic-ai`, `llamaindex`, `crewai` (Python 3.11 or later), `agno`,
+  `agent-framework`. Every adapter takes `agent_memory=` to put the agent's own notes before the
+  customer's context and add the agent memory tools.
+- Agent memory: `agent_memory()` (the notes as one block for the prompt, cached and revalidated
+  by ETag; empty with `enabled=False` when the space has it off), `search_agent_memory()` and
+  `remember()`, also on conversations and tasks (with their view, and their id as evidence).
+  `tools(agent_memory=True)` adds `search_agent_memory`, and `write_agent_memory=True` adds
+  `remember`, for keys with the `agent_memory:write` scope. A note with personal data is refused,
+  and the tool tells the model so in a fixed error.
+- `context(format="json")` returns the pack as data in `context.pack` (`context-pack.v0`).
+- History filters take `when` (a time phrase in Portuguese, English or Spanish) and
+  `show_expired`; search and timeline answers carry `window` and `ignored`. Events take
+  `valid_until`; history items carry it and opened items carry `versions`.
+- `customer()` takes `stt_confidence`; `customer()` and `agent()` take more `handles=` of the same
+  person and a `content=` (media by reference).
+- `niadra-mock` answers every `/v1/agent-memory` route with the API's rules (off until
+  `enable_agent_memory()`, writes only with the scope, personal data refused, versions,
+  proposals), the tools listing, the pack as data, time phrases, expiry, object versions, and the
+  channel proof of an inbound customer turn with `verification_hint`.
+
+### Changed
+
+- The tool definitions are the API's own, byte for byte (`tool_definitions.json`, the same file as
+  the TypeScript SDK's): the history tools take a `filters` object, and the kit still reads the
+  flat filter fields of 0.1. `item_kinds: ["system_event"]` is read as `object`.
+- New request fields (`format`, `show_expired`) are sent only when used, so a cell that does not
+  know them still takes the request.
+
 ## [0.1.5] - 2026-09-24
 
 ### Changed

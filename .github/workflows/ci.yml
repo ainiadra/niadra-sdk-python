@@ -28,6 +28,8 @@ jobs:
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run mypy src
       - run: uv run pytest -q
+      - name: The examples and the Langflow components compile
+        run: uv run python -m compileall -q examples integrations-extras
 
   # One job per framework extra, on the lowest and highest Python it supports: installs only that
   # framework, and fails if its tests were skipped (the framework did not import).
