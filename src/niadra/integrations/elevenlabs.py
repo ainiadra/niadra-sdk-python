@@ -5,7 +5,9 @@ A call to an ElevenLabs agent reaches your server three ways, and this module an
 1. **Conversation initiation** ("Fetch initiation client data from a webhook"): before the agent
    speaks, `conversation_initiation()` verifies the carrier's attestation when you pass one, reads
    `context(view="voice")` for the caller and answers the dynamic variable `niadra_context`. Put
-   `{{niadra_context}}` in the agent's system prompt, after your instructions.
+   `{{niadra_context}}` in the agent's system prompt, after your instructions. With
+   `agent_memory=True`, the agent's own notes come as `niadra_agent_memory`: put
+   `{{niadra_agent_memory}}` right before `{{niadra_context}}`.
 2. **Server tools**: `tool_configs(url)` gives the three history tools as ElevenLabs webhook tools,
    with the same names, descriptions and parameters as every Niadra kit. The call's identifiers
    (`system__call_sid`, `system__conversation_id`, `system__caller_id`) are filled by ElevenLabs
@@ -56,14 +58,19 @@ from typing import Any
 from niadra._async_client import AsyncNiadra
 from niadra._client import Niadra
 from niadra.integrations._common import (
+    AgentMemoryLike,
+    AgentMemoryOption,
     blocks,
     call_tool,
     end,
     handoff,
     join_instructions,
     maybe_await,
+    memory_kit_of,
+    memory_option,
     model_usage,
     phone_or_none,
+    read_agent_memory,
     read_context,
     record,
     run_sync,
@@ -87,7 +94,7 @@ from niadra.integrations._webhooks import (
     text,
 )
 from niadra.models.common import Handle
-from niadra.tools import BUILTIN_DEFINITIONS
+from niadra.tools import definitions
 from niadra.vocabulary import Verification
 
 __all__ = ["CallVariables", "ElevenLabsWebhooks", "tool_configs", "verify_signature"]
@@ -97,6 +104,7 @@ SECRET_HEADER = "X-Niadra-Secret"  # noqa: S105 - a header name
 TOLERANCE = 30 * 60
 
 CONTEXT_VARIABLE = "niadra_context"
+MEMORY_VARIABLE = "niadra_agent_memory"
 ETAG_VARIABLE = "niadra_context_etag"
 INJECTED_VARIABLE = "niadra_injected_at"
 
@@ -163,7 +171,9 @@ def _property(schema: Mapping[str, Any]) -> dict[str, Any]:
     return prop
 
 
-def tool_configs(url: str, *, secret: str | None = None) -> list[dict[str, Any]]:
+def tool_configs(
+    url: str, *, secret: str | None = None, agent_memory: AgentMemoryLike = None
+) -> list[dict[str, Any]]:
     """The history tools as ElevenLabs webhook tool configurations, one `POST {url}/{name}` each.
 
     Names, descriptions and parameters are the kit's. Three more body fields carry the call's
@@ -171,7 +181,7 @@ def tool_configs(url: str, *, secret: str | None = None) -> list[dict[str, Any]]
     `X-Niadra-Secret` (store it as an ElevenLabs secret in production).
     """
     configs: list[dict[str, Any]] = []
-    for spec in tool_specs(BUILTIN_DEFINITIONS):
+    for spec in tool_specs(_definitions(memory_option(agent_memory))):
         properties = {name: _property(prop) for name, prop in spec.parameters.get("properties", {}).items()}
         for variable in _SYSTEM:
             properties[variable] = {"type": "string", "description": "", "dynamic_variable": variable}
@@ -214,9 +224,11 @@ class ElevenLabsWebhooks:
         view: str = "voice",
         agent_id: str | None = None,
         tool_verification: Verification | str = Verification.V2,
+        agent_memory: AgentMemoryLike = None,
         clock: Callable[[], float] | None = None,
     ) -> None:
         self.niadra = niadra
+        self.agent_memory = memory_option(agent_memory)
         self.webhook_secret = webhook_secret
         self.shared_secret = shared_secret
         self.subject = subject or (lambda call: phone_or_none(call.caller_id))
@@ -266,7 +278,7 @@ class ElevenLabsWebhooks:
             called_number=text(payload.get("called_number")),
             agent_id=text(payload.get("agent_id")),
         )
-        variables: dict[str, str] = {CONTEXT_VARIABLE: "", ETAG_VARIABLE: "", INJECTED_VARIABLE: ""}
+        variables = {CONTEXT_VARIABLE: "", MEMORY_VARIABLE: "", ETAG_VARIABLE: "", INJECTED_VARIABLE: ""}
         session = self._session(call)
         if session is not None:
             if self.attestation is not None:
@@ -276,6 +288,7 @@ class ElevenLabsWebhooks:
                     warn("read the attestation", exc)
                     level = None
                 await verify_attestation(session, level)
+            variables[MEMORY_VARIABLE] = await read_agent_memory(session, self.agent_memory)
             context = await read_context(session)
             if context is not None:
                 variables[CONTEXT_VARIABLE] = join_instructions(*blocks(context))
@@ -294,12 +307,12 @@ class ElevenLabsWebhooks:
         payload = parse(body)
         if payload is None:
             return BAD_REQUEST
-        known = {spec.name for spec in tool_specs(BUILTIN_DEFINITIONS)}
+        known = {spec.name for spec in tool_specs(_definitions(self.agent_memory))}
         if name not in known:
             return WebhookResponse(404, {"error": f"unknown tool {name}"})
         identifiers = {field: text(payload.pop(variable, None)) for variable, field in _SYSTEM.items()}
         session = self._session(CallVariables(**identifiers), self.tool_verification)
-        kit = session.tools() if session is not None else None
+        kit = memory_kit_of(session, self.agent_memory)
         if kit is None:
             return WebhookResponse(200, {"error": "no customer on this call; answer without the history"})
         return WebhookResponse(200, json.loads(await call_tool(kit, name, payload)))
@@ -387,6 +400,10 @@ class ElevenLabsWebhooks:
     def post_call_sync(self, body: Body, headers: Mapping[str, str] | None) -> WebhookResponse:
         """`post_call()` for a sync `Niadra` client."""
         return run_sync(self._sync().post_call(body, headers))
+
+
+def _definitions(option: AgentMemoryOption | None) -> list[dict[str, Any]]:
+    return definitions(agent_memory=option is not None, write_agent_memory=bool(option and option.write))
 
 
 def _moment(started: Any, offset: Any) -> datetime | None:

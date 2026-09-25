@@ -28,6 +28,9 @@ What `NiadraAgent` (or the `NiadraMemory` mixin on your own `Agent` class) does:
   The session's `close` ends the conversation.
 - **Tools.** The three history tools, as raw function tools with the kit's own schemas, bound to
   the caller. Pass `history_tools=False` to leave them out.
+- **Agent memory.** With `agent_memory=True` (or `{"write": True, "max_tokens": 300, "tags": [...]}`)
+  the agent's own notes go right before the customer's context, in the same system message, and
+  `search_agent_memory` (and `remember`, with `write`) join the tools.
 - **Verification.** `attestation=` is the carrier's STIR/SHAKEN level (`A`, `B` or `C`), which
   LiveKit does not read itself: map the SIP header to a participant attribute and pass it. It is
   verified once, before the first context.
@@ -60,24 +63,26 @@ from niadra.conversation import AsyncConversation
 from niadra.handles import app_user
 from niadra.integrations._common import (
     MARK,
+    AgentMemoryLike,
+    Prompt,
     agent_turn,
     call_tool,
     customer_turn,
     end,
     handoff,
     instruction_count,
-    kit_of,
     mark_injected,
+    memory_kit_of,
+    memory_option,
     model_usage,
     phone_or_none,
-    read_context,
+    read_prompt,
     tool_specs,
     verify_attestation,
     warn,
 )
 from niadra.models.common import Handle
 from niadra.models.events import ModelUsage
-from niadra.models.results import Context
 
 __all__ = ["NiadraAgent", "NiadraMemory", "conversation_for", "history_tools"]
 
@@ -117,9 +122,10 @@ def conversation_for(
     return niadra.conversation(call_id, subject=handle, channel=channel, view=view, agent_id=agent_id)
 
 
-def history_tools(conversation: AsyncConversation) -> list[Any]:
-    """The history tools as LiveKit raw function tools bound to the conversation's customer."""
-    kit = kit_of(conversation)
+def history_tools(conversation: AsyncConversation, agent_memory: AgentMemoryLike = None) -> list[Any]:
+    """The history tools as LiveKit raw function tools bound to the conversation's customer, with
+    the agent memory tools when `agent_memory` asks for them."""
+    kit = memory_kit_of(conversation, memory_option(agent_memory))
     if kit is None:
         return []
     tools: list[Any] = []
@@ -171,26 +177,28 @@ def _role(item: Any) -> Any:
     return getattr(item, "role", None) if getattr(item, "type", None) == "message" else None
 
 
-def _place(chat_ctx: Any, context: Context) -> None:
-    """Puts the pack after the leading instructions and the turn block at the end of `chat_ctx`."""
+def _place(chat_ctx: Any, prompt: Prompt) -> bool:
+    """Puts the notes and the pack after the leading instructions and the turn block at the end of
+    `chat_ctx`. False when there was nothing to place."""
     items = chat_ctx.items
-    if context.system_block:
+    if prompt.system:
         message = llm.ChatMessage(
-            id=_message_id("context", context.system_block),
+            id=_message_id("context", prompt.system),
             role="system",
-            content=[context.system_block],
+            content=[prompt.system],
             extra={MARK: "context"},
         )
         items.insert(instruction_count(items, role=_role), message)
-    if context.turn_block:
+    if prompt.turn:
         items.append(
             llm.ChatMessage(
-                id=_message_id("turn", context.turn_block),
+                id=_message_id("turn", prompt.turn),
                 role="system",
-                content=[context.turn_block],
+                content=[prompt.turn],
                 extra={MARK: "turn"},
             )
         )
+    return bool(prompt.system or prompt.turn)
 
 
 class NiadraMemory:
@@ -207,14 +215,16 @@ class NiadraMemory:
         conversation: AsyncConversation,
         attestation: str | None = None,
         history_tools: bool = True,
+        agent_memory: AgentMemoryLike = None,
         **kwargs: Any,
     ) -> None:
         tools = list(kwargs.pop("tools", None) or [])
         if history_tools:
-            tools.extend(_history_tools(conversation))
+            tools.extend(_history_tools(conversation, agent_memory))
         super().__init__(*args, tools=tools, **kwargs)  # type: ignore[call-arg]
         self.niadra = conversation
         self._niadra_call = _call(conversation, attestation)
+        self._niadra_memory = memory_option(agent_memory)
 
     def transferred_to_human(self, reason: str | None = None) -> None:
         """Records that the call went to a person. Call it where your code transfers the call."""
@@ -228,21 +238,17 @@ class NiadraMemory:
         # A pipeline agent gets the context in `llm_node`; changing this context would also make
         # LiveKit throw away a preemptive generation. A realtime model has no `llm_node`.
         if self._niadra_realtime() and not _is_marked(turn_ctx):
-            context = await self._niadra_context()
-            if context is not None:
-                _place(turn_ctx, context)
-                mark_injected(self.niadra, context)
+            self._niadra_stamp(_place(turn_ctx, await self._niadra_prompt()))
         await super().on_user_turn_completed(turn_ctx, new_message)  # type: ignore[misc]
 
     async def llm_node(
         self, chat_ctx: Any, tools: list[Any], model_settings: ModelSettings
     ) -> AsyncIterator[Any]:
         if not _is_marked(chat_ctx):
-            context = await self._niadra_context()
-            if context is not None:
+            prompt = await self._niadra_prompt()
+            if prompt.system or prompt.turn:
                 chat_ctx = chat_ctx.copy()
-                _place(chat_ctx, context)
-                mark_injected(self.niadra, context)
+                self._niadra_stamp(_place(chat_ctx, prompt))
         output = super().llm_node(chat_ctx, tools, model_settings)  # type: ignore[misc]
         if inspect.isawaitable(output):
             output = await output
@@ -256,12 +262,19 @@ class NiadraMemory:
                 self._niadra_usage(chunk.usage)
             yield chunk
 
-    async def _niadra_context(self) -> Context | None:
+    async def _niadra_prompt(self) -> Prompt:
         call = self._niadra_call
         if not call.verified:
             call.verified = True
             await verify_attestation(self.niadra, call.attestation)
-        return await read_context(self.niadra)
+        prompt = await read_prompt(self.niadra, self._niadra_memory)
+        self._niadra_last = prompt
+        return prompt
+
+    def _niadra_stamp(self, placed: bool) -> None:
+        prompt = getattr(self, "_niadra_last", None)
+        if placed and prompt is not None and prompt.context is not None:
+            mark_injected(self.niadra, prompt.context)
 
     def _niadra_session(self) -> Any:
         try:
@@ -317,9 +330,9 @@ class NiadraMemory:
         session.on("close", lambda _event: end(conversation))
 
 
-def _history_tools(conversation: AsyncConversation) -> list[Any]:
+def _history_tools(conversation: AsyncConversation, agent_memory: AgentMemoryLike) -> list[Any]:
     try:
-        return history_tools(conversation)
+        return history_tools(conversation, agent_memory)
     except Exception as exc:
         warn("build the history tools", exc)
         return []

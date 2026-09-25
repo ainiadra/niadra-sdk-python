@@ -202,3 +202,29 @@ def test_verify_signature_windows() -> None:
     assert not verify_signature(body, header, SECRET, now=NOW + 31 * 60)
     assert not verify_signature(body, "t=abc,v0=00", SECRET, now=NOW)
     assert not verify_signature(body, header, None, now=NOW)
+
+
+async def test_the_agents_notes_as_a_dynamic_variable_and_the_memory_tools(
+    on_mock_async: AsyncNiadra, mock_app: MockApp
+) -> None:
+    await seed_async(on_mock_async)
+    await on_mock_async.remember("pitfall", "Transfers", "Say the queue name before a warm transfer.")
+    webhooks = hooks(on_mock_async, agent_memory={"write": True})
+    variables = (await webhooks.conversation_initiation(payload("initiation"), AUTH)).body[
+        "dynamic_variables"
+    ]
+    assert "warm transfer" in variables["niadra_agent_memory"] and EARLIER in variables["niadra_context"]
+    names = [c["name"] for c in tool_configs("https://a.example.com/t", agent_memory={"write": True})]
+    assert names[-2:] == ["search_agent_memory", "remember"]
+    body = {"query": "warm transfer", "system__call_sid": CALL, "system__caller_id": "+5511912345678"}
+    found = await webhooks.server_tool("search_agent_memory", json.dumps(body), AUTH)
+    assert found.body["notes"][0]["title"] == "Transfers"
+    refused = await webhooks.server_tool(
+        "remember",
+        json.dumps({"kind": "pitfall", "title": "x", "body": "call +55 11 91234-5678", **body}),
+        AUTH,
+    )
+    assert refused.body["error"] == "personal_data"
+    off = await hooks(on_mock_async).conversation_initiation(payload("initiation"), AUTH)
+    assert off.body["dynamic_variables"]["niadra_agent_memory"] == ""
+    assert (await hooks(on_mock_async).server_tool("remember", json.dumps(body), AUTH)).status == 404

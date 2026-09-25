@@ -6,7 +6,8 @@ Vapi posts server messages to one URL; `VapiServer.handle()` answers the ones th
   `context(view="voice")` for the caller and answers the assistant. With `assistant=` (a transient
   assistant), the pack goes into `model.messages` right after its system messages; with
   `assistant_id=`, it goes in `assistantOverrides.variableValues.niadra_context`, for a prompt that
-  says `{{niadra_context}}` after its instructions.
+  says `{{niadra_context}}` after its instructions. With `agent_memory=True`, the agent's own notes
+  come first in the same system message, or as `niadra_agent_memory` for a saved assistant.
 - **`tool-calls`**: runs the history tools for the caller of the call. `tool_definitions(url)` gives
   them as Vapi function tools with the kit's definitions, word for word; the caller comes from the
   call, never from the model's arguments.
@@ -51,6 +52,8 @@ from typing import Any
 from niadra._async_client import AsyncNiadra
 from niadra._client import Niadra
 from niadra.integrations._common import (
+    AgentMemoryLike,
+    AgentMemoryOption,
     blocks,
     call_tool,
     end,
@@ -58,7 +61,10 @@ from niadra.integrations._common import (
     instruction_count,
     join_instructions,
     maybe_await,
+    memory_kit_of,
+    memory_option,
     phone_or_none,
+    read_agent_memory,
     read_context,
     record,
     run_sync,
@@ -80,19 +86,21 @@ from niadra.integrations._webhooks import (
     text,
 )
 from niadra.models.common import Handle
-from niadra.tools import BUILTIN_DEFINITIONS
+from niadra.tools import definitions
 from niadra.vocabulary import Verification
 
 __all__ = ["VapiServer", "tool_definitions"]
 
 SECRET_HEADER = "x-vapi-secret"  # noqa: S105 - a header name
 CONTEXT_VARIABLE = "niadra_context"
+MEMORY_VARIABLE = "niadra_agent_memory"
 ETAG_VARIABLE = "niadra_context_etag"
 INJECTED_VARIABLE = "niadra_injected_at"
-_NAMES = frozenset(spec.name for spec in tool_specs(BUILTIN_DEFINITIONS))
 
 
-def tool_definitions(url: str, *, secret: str | None = None) -> list[dict[str, Any]]:
+def tool_definitions(
+    url: str, *, secret: str | None = None, agent_memory: AgentMemoryLike = None
+) -> list[dict[str, Any]]:
     """The history tools as Vapi function tools that call your server URL.
 
     The `function` part is the kit's definition as it is: the same names, descriptions and JSON
@@ -103,8 +111,12 @@ def tool_definitions(url: str, *, secret: str | None = None) -> list[dict[str, A
         server["secret"] = secret
     return [
         {"type": "function", "function": copy.deepcopy(d["function"]), "server": server}
-        for d in BUILTIN_DEFINITIONS
+        for d in _definitions(memory_option(agent_memory))
     ]
+
+
+def _definitions(option: AgentMemoryOption | None) -> list[dict[str, Any]]:
+    return definitions(agent_memory=option is not None, write_agent_memory=bool(option and option.write))
 
 
 def _customer_number(message: Mapping[str, Any]) -> str | None:
@@ -129,8 +141,11 @@ class VapiServer:
         view: str = "voice",
         agent_id: str | None = None,
         tool_verification: Verification | str = Verification.V2,
+        agent_memory: AgentMemoryLike = None,
     ) -> None:
         self.niadra = niadra
+        self.agent_memory = memory_option(agent_memory)
+        self._names = frozenset(spec.name for spec in tool_specs(_definitions(self.agent_memory)))
         self.secret = secret
         self.assistant_id = assistant_id
         self.assistant = assistant
@@ -188,7 +203,10 @@ class VapiServer:
 
     async def _assistant(self, message: Mapping[str, Any]) -> WebhookResponse:
         session = self._session(message)
-        pack, variables = "", {CONTEXT_VARIABLE: "", ETAG_VARIABLE: "", INJECTED_VARIABLE: ""}
+        pack, variables = (
+            "",
+            {CONTEXT_VARIABLE: "", MEMORY_VARIABLE: "", ETAG_VARIABLE: "", INJECTED_VARIABLE: ""},
+        )
         if session is not None:
             if self.attestation is not None:
                 try:
@@ -197,14 +215,16 @@ class VapiServer:
                     warn("read the attestation", exc)
                     level = None
                 await verify_attestation(session, level)
+            notes = await read_agent_memory(session, self.agent_memory)
+            variables[MEMORY_VARIABLE] = notes
             context = await read_context(session)
+            customer = join_instructions(*blocks(context)) if context is not None else ""
             if context is not None:
-                pack = join_instructions(*blocks(context))
-                variables = {
-                    CONTEXT_VARIABLE: pack,
-                    ETAG_VARIABLE: context.etag,
-                    INJECTED_VARIABLE: datetime.now(timezone.utc).isoformat(),
-                }
+                variables[CONTEXT_VARIABLE] = customer
+                variables[ETAG_VARIABLE] = context.etag
+                variables[INJECTED_VARIABLE] = datetime.now(timezone.utc).isoformat()
+            # The notes come before the customer, in the same system message.
+            pack = join_instructions(notes, customer)
         overrides = {"variableValues": variables}
         if self.assistant is not None:
             assistant = copy.deepcopy(dict(self.assistant))
@@ -221,14 +241,14 @@ class VapiServer:
 
     async def _tools(self, message: Mapping[str, Any]) -> WebhookResponse:
         session = self._session(message, self.tool_verification)
-        kit = session.tools() if session is not None else None
+        kit = memory_kit_of(session, self.agent_memory)
         results: list[dict[str, Any]] = []
         for call in message.get("toolCallList") or []:
             call = mapping(call)
             function = mapping(call.get("function"))
             name = str(function.get("name") or "")
             result: dict[str, Any] = {"toolCallId": call.get("id"), "name": name}
-            if name not in _NAMES:
+            if name not in self._names:
                 result["error"] = f"unknown tool {name}"
             elif kit is None:
                 result["result"] = json.dumps(

@@ -177,3 +177,18 @@ async def test_niadra_down_never_stops_the_run(chat: Any, mock_app: MockApp) -> 
         i for i in model.calls[1].input if isinstance(i, dict) and i.get("type") == "function_call_output"
     )
     assert "unavailable" in json.loads(output["output"])["error"]
+
+
+async def test_the_agents_own_notes_come_before_the_customers_context(
+    chat: Any, on_mock_async: AsyncNiadra
+) -> None:
+    await on_mock_async.remember(
+        "procedure", "Replacement parts", "Open a replacement order before any refund."
+    )
+    memory = NiadraAgentsMemory(chat, agent_memory={"write": True})
+    assert [t.name for t in memory.tools][-2:] == ["search_agent_memory", "remember"]
+    model = ScriptedModel([said("Opening it.")])
+    agent = Agent(name="S", instructions="You are Acme's agent.", model=model, tools=memory.tools)
+    await Runner.run(agent, "Hi", hooks=memory.hooks, run_config=memory.run_config())
+    instructions = model.calls[0].system_instructions or ""
+    assert instructions.index("replacement order") < instructions.index("<context")

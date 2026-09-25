@@ -148,3 +148,30 @@ def test_the_sync_client(on_mock: Niadra, mock_app: MockApp) -> None:
     assert CALL in mock_app.cell.ended
     with pytest.raises(TypeError):
         server(AsyncNiadra()).handle_sync(payload("tool_calls"), AUTH)
+
+
+async def test_the_agents_notes_come_first_and_the_memory_tools_answer(on_mock_async: AsyncNiadra) -> None:
+    await seed_async(on_mock_async)
+    await on_mock_async.remember(
+        "procedure", "Replacement parts", "Open a replacement order before any refund."
+    )
+    assistant = {"model": {"messages": [{"role": "system", "content": "You are Acme's agent."}]}}
+    vapi = server(on_mock_async, assistant=assistant, agent_memory=True)
+    answer = await vapi.handle(payload("assistant_request"), AUTH)
+    slot = answer.body["assistant"]["model"]["messages"][1]["content"]
+    assert slot.index("replacement order") < slot.index(EARLIER), "notes first, then the customer"
+    assert "replacement order" in answer.body["assistantOverrides"]["variableValues"]["niadra_agent_memory"]
+    assert [t["function"]["name"] for t in tool_definitions("u", agent_memory=True)][
+        -1
+    ] == "search_agent_memory"
+    calls = {
+        "message": {
+            "type": "tool-calls",
+            "toolCallList": [
+                {"id": "t1", "function": {"name": "search_agent_memory", "arguments": {"query": "refund"}}}
+            ],
+            "call": {"id": CALL, "customer": {"number": "+5511912345678"}},
+        }
+    }
+    results = (await vapi.handle(json.dumps(calls), AUTH)).body["results"]
+    assert "Replacement parts" in results[0]["result"]

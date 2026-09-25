@@ -226,3 +226,21 @@ def test_conversation_for_call(on_mock_async: AsyncNiadra) -> None:
     assert (conversation.id, conversation.subject, conversation.view) == ("CA-9", MARINA, "voice")
     assert conversation_for_call(on_mock_async, "CA-9", "anonymous").subject is None
     assert history_tools(conversation_for_call(on_mock_async, "CA-9", None)) == []
+
+
+async def test_the_agents_own_notes_come_before_the_customers_context(
+    call: Any, on_mock_async: AsyncNiadra
+) -> None:
+    await on_mock_async.remember(
+        "procedure", "Replacement parts", "Open a replacement order before any refund."
+    )
+    model = FakeLLM("Opening it.")
+    memory = NiadraMemoryProcessor(call, agent_memory=True)
+    tools = history_tools(call, agent_memory={"write": True})
+    assert [t.name for t in tools][-2:] == ["search_agent_memory", "remember"]
+    await run_test(
+        pipeline(memory, model, LLMContext([INSTRUCTIONS], tools=tools)), frames_to_send=said("Hi")
+    )
+    slot = model.prompts[0][1]["content"]
+    assert slot.startswith('<agent_memory source="niadra">') and EARLIER in slot
+    assert slot.index("</agent_memory>") < slot.index("<context")

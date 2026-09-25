@@ -29,6 +29,9 @@ pipeline = Pipeline([transport.input(), stt, user, memory, llm, tts, transport.o
   and `CancelFrame` end the conversation.
 - **Tools.** `history_tools()` gives the three history tools as `FunctionSchema`s that carry their
   handlers, so the LLM service registers them from the context. Their JSON Schemas are the kit's.
+- **Agent memory.** With `agent_memory=True` (or `{"write": True, "max_tokens": 300, "tags": [...]}`)
+  the agent's own notes go right before the customer's context, in the same message, and
+  `history_tools(conversation, agent_memory=...)` adds `search_agent_memory` (and `remember`).
 - **Verification.** `attestation=` is the carrier's STIR/SHAKEN level (`A`, `B` or `C`, or
   Twilio's `StirVerstat`), verified once before the first context.
 - **Handoff.** `transferred_to_human()` and `transferred_to_agent()` record a transfer; call them
@@ -56,6 +59,7 @@ except ImportError as exc:  # pragma: no cover - depends on the environment
 from niadra._async_client import AsyncNiadra
 from niadra.conversation import AsyncConversation
 from niadra.integrations._common import (
+    AgentMemoryLike,
     AnyKit,
     agent_turn,
     call_tool,
@@ -63,10 +67,11 @@ from niadra.integrations._common import (
     end,
     handoff,
     instruction_count,
-    kit_of,
     mark_injected,
+    memory_kit_of,
+    memory_option,
     phone_or_none,
-    read_context,
+    read_prompt,
     tool_specs,
     verify_attestation,
     warn,
@@ -108,12 +113,14 @@ class _HistorySchema(FunctionSchema):
         return {"name": self.name, "description": self.description, "parameters": self._parameters}
 
 
-def history_tools(conversation: AsyncConversation) -> list[Any]:
-    """The history tools as `FunctionSchema`s with their handlers, bound to the customer."""
-    kit = kit_of(conversation)
+def history_tools(conversation: AsyncConversation, agent_memory: AgentMemoryLike = None) -> list[Any]:
+    """The history tools as `FunctionSchema`s with their handlers, bound to the customer, with the
+    agent memory tools when `agent_memory` asks for them."""
+    kit = memory_kit_of(conversation, memory_option(agent_memory))
     if kit is None:
         return []
-    return [_HistorySchema(s.name, s.description, s.parameters, _handler(kit, s.name)) for s in tool_specs()]
+    specs = tool_specs(kit.definitions)
+    return [_HistorySchema(s.name, s.description, s.parameters, _handler(kit, s.name)) for s in specs]
 
 
 def _handler(kit: AnyKit, name: str) -> Callable[[Any], Any]:
@@ -136,11 +143,13 @@ class NiadraMemoryProcessor(FrameProcessor):
         *,
         attestation: str | None = None,
         role: str = "system",
+        agent_memory: AgentMemoryLike = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.conversation = conversation
         self.attestation = attestation
+        self.agent_memory = memory_option(agent_memory)
         self.role = role
         self._verified = False
         self._placed: list[dict[str, Any]] = []
@@ -179,19 +188,19 @@ class NiadraMemoryProcessor(FrameProcessor):
         if not self._verified:
             self._verified = True
             await verify_attestation(self.conversation, self.attestation)
-        pack = await read_context(self.conversation)
+        prompt = await read_prompt(self.conversation, self.agent_memory)
         placed: list[dict[str, Any]] = []
-        if pack is not None and pack.system_block:
-            block = {"role": self.role, "content": pack.system_block}
+        if prompt.system:
+            block = {"role": self.role, "content": prompt.system}
             messages.insert(instruction_count(messages), block)
             placed.append(block)
-        if pack is not None and pack.turn_block:
-            block = {"role": self.role, "content": pack.turn_block}
+        if prompt.turn:
+            block = {"role": self.role, "content": prompt.turn}
             messages.append(block)
             placed.append(block)
         context.set_messages(messages)
-        if pack is not None:
-            mark_injected(self.conversation, pack)
+        if prompt.context is not None:
+            mark_injected(self.conversation, prompt.context)
         # A speculative inference runs on a provisional copy: the shared context keeps what it had.
         if not speculative:
             self._placed = placed

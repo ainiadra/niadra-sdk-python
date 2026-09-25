@@ -283,3 +283,80 @@ def model_usage(
         )
     except ValueError:
         return None
+
+
+@dataclass(frozen=True)
+class AgentMemoryOption:
+    """The `agent_memory=` option of every adapter: `True`, or `{write, max_tokens, tags}`.
+
+    The agent's notes go into the prompt before the customer's context, in the same system slot,
+    and `search_agent_memory` joins the tools; `remember` joins them only with `write`, for a key
+    that holds the `agent_memory:write` scope.
+    """
+
+    write: bool = False
+    max_tokens: int = 300
+    tags: tuple[str, ...] = ()
+
+
+AgentMemoryLike = bool | Mapping[str, Any] | AgentMemoryOption | None
+
+
+def memory_option(value: AgentMemoryLike) -> AgentMemoryOption | None:
+    """The option as given to an adapter; None when the agent memory is off (the default)."""
+    if value is None or value is False:
+        return None
+    if value is True:
+        return AgentMemoryOption()
+    if isinstance(value, AgentMemoryOption):
+        return value
+    return AgentMemoryOption(
+        write=bool(value.get("write", False)),
+        max_tokens=int(value.get("max_tokens", 300)),
+        tags=tuple(value.get("tags") or ()),
+    )
+
+
+@dataclass(frozen=True)
+class Prompt:
+    """What an adapter puts into the prompt: the system slot after the instructions, and the end."""
+
+    system: str = ""
+    turn: str = ""
+    context: Context | None = None
+    agent_memory: str = ""
+
+
+async def read_agent_memory(session: AnySession | None, option: AgentMemoryOption | None) -> str:
+    """The agent's notes for the session's view, or "" when off, empty or failing."""
+    if session is None or option is None:
+        return ""
+    try:
+        block = await maybe_await(session.agent_memory(option.max_tokens, tags=list(option.tags) or None))
+    except Exception as exc:
+        warn("read the agent memory", exc)
+        return ""
+    return block.text if block.enabled else ""
+
+
+async def read_prompt(session: AnySession | None, option: AgentMemoryOption | None = None) -> Prompt:
+    """The agent's notes and the customer's context, placed for the prompt; empty on any failure."""
+    notes = await read_agent_memory(session, option)
+    context = await read_context(session)
+    system_block, turn_block = blocks(context)
+    return Prompt(
+        system=join_instructions(notes, system_block), turn=turn_block, context=context, agent_memory=notes
+    )
+
+
+def memory_kit_of(session: AnySession | None, option: AgentMemoryOption | None) -> AnyKit | None:
+    """`kit_of()` with the agent memory tools the option asks for."""
+    if option is None:
+        return kit_of(session)
+    if session is None:
+        return None
+    try:
+        return session.tools(agent_memory=True, write_agent_memory=option.write)
+    except Exception as exc:
+        warn("build the history tools", exc)
+        return None

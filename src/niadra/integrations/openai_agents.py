@@ -22,6 +22,9 @@ async with niadra.conversation(thread_id, subject=phone(caller)) as conversation
   `Session` replays on the next run is never recorded twice.
 - **Tools.** `tools` are the three history tools as `FunctionTool`s with the kit's names,
   descriptions and JSON Schemas, bound to the customer.
+- **Agent memory.** With `agent_memory=True` (or `{"write": True, "max_tokens": 300, "tags": [...]}`)
+  the agent's own notes go after the instructions, before the customer's context, and
+  `search_agent_memory` (and `remember`, with `write`) join `tools`.
 - **Handoff.** An SDK handoff between agents records `handoff("agent")`; give every agent of the
   run the same `memory`.
 - **Verification.** What your app proved (a login, an OTP) goes to `conversation.verify()` before
@@ -45,19 +48,20 @@ except ImportError as exc:  # pragma: no cover - depends on the environment
     raise ImportError("The OpenAI Agents SDK is not installed: pip install 'niadra[openai-agents]'") from exc
 
 from niadra.integrations._common import (
+    AgentMemoryLike,
     AnyKit,
     AnySession,
     agent_turn,
-    blocks,
     call_tool,
     customer_turn,
     handoff,
     join_instructions,
-    kit_of,
     mark_injected,
     maybe_await,
+    memory_kit_of,
+    memory_option,
     model_usage,
-    read_context,
+    read_prompt,
     tool_specs,
     warn,
 )
@@ -65,9 +69,10 @@ from niadra.integrations._common import (
 __all__ = ["NiadraAgentsMemory", "history_tools"]
 
 
-def history_tools(conversation: AnySession) -> list[Any]:
-    """The history tools as `FunctionTool`s bound to the conversation's customer."""
-    kit = kit_of(conversation)
+def history_tools(conversation: AnySession, agent_memory: AgentMemoryLike = None) -> list[Any]:
+    """The history tools as `FunctionTool`s bound to the conversation's customer, with the agent
+    memory tools when `agent_memory` asks for them."""
+    kit = memory_kit_of(conversation, memory_option(agent_memory))
     if kit is None:
         return []
     return [
@@ -108,9 +113,12 @@ def _text(content: Any) -> str | None:
 class NiadraAgentsMemory:
     """Wires one Niadra conversation into OpenAI Agents SDK runs. See the module documentation."""
 
-    def __init__(self, conversation: AnySession, *, history_tools: bool = True) -> None:
+    def __init__(
+        self, conversation: AnySession, *, history_tools: bool = True, agent_memory: AgentMemoryLike = None
+    ) -> None:
         self.conversation = conversation
-        self.tools: list[Any] = _tools(conversation) if history_tools else []
+        self.agent_memory = memory_option(agent_memory)
+        self.tools: list[Any] = _tools(conversation, agent_memory) if history_tools else []
         self.hooks = _Hooks(self)
 
     def run_config(self, config: Any = None) -> Any:
@@ -129,16 +137,16 @@ class NiadraAgentsMemory:
         """The model input with the pack after the instructions and the turn block at the end."""
         model_data = data.model_data
         try:
-            context = await read_context(self.conversation)
-            if context is None:
+            prompt = await read_prompt(self.conversation, self.agent_memory)
+            if not (prompt.system or prompt.turn):
                 return model_data
-            system_block, turn_block = blocks(context)
             items = list(model_data.input)
-            if turn_block:
-                items.append({"role": "system", "content": turn_block})
-            mark_injected(self.conversation, context)
+            if prompt.turn:
+                items.append({"role": "system", "content": prompt.turn})
+            if prompt.context is not None:
+                mark_injected(self.conversation, prompt.context)
             return ModelInputData(
-                input=items, instructions=join_instructions(model_data.instructions, system_block)
+                input=items, instructions=join_instructions(model_data.instructions, prompt.system)
             )
         except Exception as exc:
             warn("place the context", exc)
@@ -158,9 +166,9 @@ class NiadraAgentsMemory:
                 customer_turn(self.conversation, said, idempotency_key=key)
 
 
-def _tools(conversation: AnySession) -> list[Any]:
+def _tools(conversation: AnySession, agent_memory: AgentMemoryLike) -> list[Any]:
     try:
-        return history_tools(conversation)
+        return history_tools(conversation, agent_memory)
     except Exception as exc:
         warn("build the history tools", exc)
         return []

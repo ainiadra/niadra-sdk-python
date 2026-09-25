@@ -256,3 +256,21 @@ def test_conversation_for_reads_the_sip_participant(on_mock_async: AsyncNiadra) 
 
 def test_no_tools_without_a_customer(on_mock_async: AsyncNiadra) -> None:
     assert history_tools(on_mock_async.conversation("c", channel="voice")) == []
+
+
+async def test_the_agents_own_notes_come_before_the_customers_context(
+    call: Any, on_mock_async: AsyncNiadra, mock_app: MockApp
+) -> None:
+    await on_mock_async.remember(
+        "procedure", "Replacement parts", "Open a replacement order before any refund."
+    )
+    model = FakeLLM("I'll open the replacement order.")
+    agent = NiadraAgent(call, instructions="You are Acme's agent.", agent_memory={"write": True})
+    await run(agent, model, "My lid is broken")
+    slot = messages(model.prompts[0])[1][1]
+    assert slot.startswith('<agent_memory source="niadra">') and "Open a replacement order" in slot
+    assert slot.index("</agent_memory>") < slot.index("<context"), "notes first, then the customer"
+    offered = [tool.info.name for tool in model.tools[0]]
+    assert offered == [*DEFINITIONS, "search_agent_memory", "remember"]
+    reader = NiadraAgent(call, instructions="x", agent_memory=True)
+    assert [tool.info.name for tool in reader.tools][-1] == "search_agent_memory"
