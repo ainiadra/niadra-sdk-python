@@ -3,6 +3,7 @@ network), a logger that captures what LiteLLM was asked, and the emulator behind
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import pytest
@@ -89,8 +90,13 @@ def test_the_logger_records_calls_made_directly(
         litellm.completion(model="gpt-4.1", messages=MESSAGES, mock_response="Direct answer.")
         completion(model="gpt-4.1", messages=MESSAGES, mock_response="Wrapped answer.")
     litellm.completion(model="gpt-4.1", messages=MESSAGES, mock_response="Outside any conversation.")
-    on_mock.flush()
-    assert turns(mock_app.cell, "chat-4") == [("ai_agent", "Direct answer."), ("ai_agent", "Wrapped answer.")]
+    expected = [("ai_agent", "Direct answer."), ("ai_agent", "Wrapped answer.")]
+    # LiteLLM runs its success callbacks on a worker thread: wait for them, briefly.
+    deadline = time.monotonic() + 5
+    while sorted(turns(mock_app.cell, "chat-4")) != expected and time.monotonic() < deadline:
+        time.sleep(0.05)
+        on_mock.flush()
+    assert sorted(turns(mock_app.cell, "chat-4")) == expected
 
 
 def test_niadra_down_or_no_conversation_leaves_the_call_alone(

@@ -107,7 +107,10 @@ def lenient(quiet_queue: QueueOptions) -> Iterator[Niadra]:
 
 @pytest.fixture
 def mock_app() -> MockApp:
-    return MockApp()
+    """An emulated space with the agent memory on, which a new space is not (`enable_agent_memory`)."""
+    app = MockApp()
+    app.cell.enable_agent_memory()
+    return app
 
 
 @pytest.fixture

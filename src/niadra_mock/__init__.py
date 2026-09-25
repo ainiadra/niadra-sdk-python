@@ -16,9 +16,6 @@ Or start it from a shell with `niadra-mock` and point the SDK at `http://127.0.0
 """
 
 from niadra_mock.app import MockApp, Response
-from niadra_mock.cell import MockCell, StoredEvent
-
-MOCK_KEY = "nia_sk_test_local_mock_k1_mocksecret"
-"""A well-formed test key. The emulator accepts any `nia_sk_` key; this one is just convenient."""
+from niadra_mock.cell import MOCK_KEY, MockCell, StoredEvent
 
 __all__ = ["MOCK_KEY", "MockApp", "MockCell", "Response", "StoredEvent"]

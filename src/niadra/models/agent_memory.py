@@ -19,7 +19,7 @@ AgentNoteKind = Literal["procedure", "tool_note", "process_note", "pitfall"]
 AgentNoteVisibility = Literal["source", "vendor", "space"]
 AgentNoteOrigin = Literal["agent", "human", "distilled"]
 AgentNoteStatus = Literal["active", "retired"]
-ProposalStatus = Literal["pending", "approved", "rejected"]
+ProposalStatus = Literal["drafting", "pending", "approved", "rejected", "failed"]
 Tag = Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9_.:-]{0,63}$")]
 
 
@@ -150,6 +150,10 @@ class AgentNoteProposal(ResponseModel):
     created_at: datetime
     decided_at: datetime | None = None
     decided_by: str | None = None
+    problem: str | None = Field(
+        default=None,
+        description="Why a distillation failed: `nothing_to_propose`, `personal_data`, `no_turns`.",
+    )
 
 
 class AgentNoteProposalPage(ResponseModel):

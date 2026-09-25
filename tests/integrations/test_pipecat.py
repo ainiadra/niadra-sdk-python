@@ -242,5 +242,5 @@ async def test_the_agents_own_notes_come_before_the_customers_context(
         pipeline(memory, model, LLMContext([INSTRUCTIONS], tools=tools)), frames_to_send=said("Hi")
     )
     slot = model.prompts[0][1]["content"]
-    assert slot.startswith('<agent_memory source="niadra">') and EARLIER in slot
-    assert slot.index("</agent_memory>") < slot.index("<context")
+    assert slot.startswith("<agent_notes>") and EARLIER in slot
+    assert slot.index("</agent_notes>") < slot.index("<context")

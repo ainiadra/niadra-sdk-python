@@ -4,7 +4,10 @@
   masked: e-mails, phone numbers, documents, card numbers and any handle the emulator has seen.
 - Editing a note makes a new version that supersedes the old one, which is retired.
 - With `writes="human_only"` a note from an agent waits as a proposal for a person to approve.
-- `enabled=False` answers 501 on every route, as a cell without the service does.
+- The space starts with the agent memory off, as a new space does: the block answers
+  `enabled: false` with the etag `am-off` and the search finds nothing, until
+  `MockCell.enable_agent_memory()` (the approved `agent_memory.enabled` setting).
+- Writing needs the key's `agent_memory:write` scope; the emulator's test key carries it.
 
 Every note belongs to the emulator's one source, `MOCK_SOURCE`.
 """
@@ -34,6 +37,7 @@ from niadra.models.agent_memory import (
 )
 
 MOCK_SOURCE = "00000000-0000-4000-8000-00000000a9e7"
+HEADER = "From the agent itself (procedures and working notes, not customer data)"
 
 _EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 _PHONE = re.compile(r"\+?\d[\d\s().-]{7,}\d")
@@ -57,7 +61,7 @@ def _tokens(text: str) -> int:
 class AgentMemoryStore:
     clock: Callable[[], datetime]
     known_values: Callable[[], Iterable[str]] = tuple
-    enabled: bool = True
+    enabled: bool = False
     writes: Literal["agent", "human_only"] = "agent"
     notes: dict[str, AgentNote] = field(default_factory=dict)
     proposals: dict[str, AgentNoteProposal] = field(default_factory=dict)
@@ -83,25 +87,32 @@ class AgentMemoryStore:
         ]
 
     def block(self, max_tokens: int, tags: list[str], view: str | None) -> AgentMemoryBlock:
+        """The notes as the API renders them: a header, one line per note, skipping what does not fit."""
+        if not self.enabled:
+            return AgentMemoryBlock(text="", etag="am-off", enabled=False)
         wanted = set(tags) | ({view} if view else set())
-        ranked = sorted(self._active(), key=lambda n: (-len(wanted & set(n.tags)), -n.version, n.title))
+        ranked = sorted(
+            self._active(), key=lambda n: (-len(wanted & set(n.tags)), -n.version, n.created_at, n.note_id)
+        )
         lines: list[str] = []
         chosen: list[str] = []
-        used = 0
+        used = _tokens(HEADER) + 4
         for note in ranked:
-            line = f"- [{note.kind}] {note.title}: {note.body}"
+            line = f"- [{note.kind}] {note.title}: {' '.join(note.body.split())}"
             if used + _tokens(line) > max_tokens:
-                break
+                continue  # a shorter note further down may still fit
             lines.append(line)
             chosen.append(note.note_id)
             used += _tokens(line)
-        text = ""
-        if lines:
-            text = '<agent_memory source="niadra">\n' + "\n".join(lines) + "\n</agent_memory>"
-        etag = hashlib.sha256(text.encode()).hexdigest()[:32]
-        return AgentMemoryBlock(text=text, notes=chosen, etag=etag, tokens=_tokens(text) if text else 0)
+        text = f"<agent_notes>\n{HEADER}\n" + "\n".join(lines) + "\n</agent_notes>" if lines else ""
+        digest = hashlib.sha256((text + "|" + ",".join(chosen)).encode()).hexdigest()[:32]
+        return AgentMemoryBlock(
+            text=text, notes=chosen, etag=f"am-{digest}", tokens=_tokens(text) if text else 0
+        )
 
     def search(self, query: str, tags: list[str], limit: int) -> list[AgentNote]:
+        if not self.enabled:
+            return []
         words = _words(query)
         scored = []
         for note in self._active():

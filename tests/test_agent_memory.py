@@ -50,7 +50,7 @@ def test_the_emulator_lists_the_same_tools(on_mock: Niadra, mock_app: MockApp) -
         )
     )
     assert response == ALL_DEFINITIONS
-    mock_app.cell.agent_memory_write = False
+    mock_app.cell.agent_memory_writers.clear()
     shorter = on_mock._transport.request(
         __import__("niadra._transport", fromlist=["Request"]).Request(
             "GET", "/v1/history/tools", params={"agent_memory": "true"}
@@ -141,24 +141,52 @@ def test_a_person_approves_what_an_agent_writes_in_human_only_spaces(
     assert on_mock.agent_memory().text == ""
 
 
-def test_off_or_down_the_memory_is_empty_and_the_tools_say_so(
+def test_off_down_or_missing_the_memory_is_empty_and_the_tools_say_so(
     on_mock: Niadra, lenient: Niadra, mock_app: MockApp, respx_mock: respx.MockRouter
 ) -> None:
+    on_mock.remember("procedure", "Credit", PROCEDURE)
     mock_app.cell.agent_memory.enabled = False
     block = on_mock.agent_memory()
-    assert (block.enabled, block.text, block.error) == (False, "", "not_implemented")
+    assert (block.enabled, block.text, block.etag, block.error) == (False, "", "am-off", None)
     kit = on_mock.tools(MARINA, conversation_id="c-1", agent_memory=True, write_agent_memory=True)
-    assert kit.call("search_agent_memory", {"query": "credit"}) == MEMORY_UNAVAILABLE
-    assert kit.call("remember", {"kind": "pitfall", "title": "t", "body": "b"}) == MEMORY_UNAVAILABLE
+    assert json.loads(kit.call("search_agent_memory", {"query": "credit"})) == {"notes": []}
 
-    respx_mock.get(f"{BASE}/v1/agent-memory/block").respond(
+    respx_mock.get(f"{BASE}/v1/agent-memory/block").respond(501)
+    missing = lenient.agent_memory()
+    assert (missing.enabled, missing.text, missing.error) == (False, "", "not_implemented")
+    respx_mock.get(f"{BASE}/v1/agent-memory/block?max_tokens=100").respond(
         200, json={"text": "x", "etag": "e", "enabled": False}
     )
-    off = lenient.agent_memory()
-    assert (off.enabled, off.text) == (False, "")
+    assert lenient.agent_memory(100).text == "", "a block of a space with the memory off is never shown"
     respx_mock.post(f"{BASE}/v1/agent-memory/search").respond(503)
     assert lenient.search_agent_memory("credit") == []
+    strict_kit = on_mock.tools(MARINA, conversation_id="c-1", agent_memory=True)
+    mock_app.cell.fail_next("/v1/agent-memory/", 503, times=10)
+    assert strict_kit.call("search_agent_memory", {"query": "credit"}) == MEMORY_UNAVAILABLE
     assert not Niadra().agent_memory().text
+
+
+def test_a_new_space_has_the_memory_off_and_writing_needs_the_scope(respx_mock: respx.MockRouter) -> None:
+    import httpx
+
+    from niadra_mock import MOCK_KEY
+
+    app = MockApp()
+    http = httpx.Client(transport=httpx.WSGITransport(app=app.wsgi))
+    writer = Niadra(MOCK_KEY, base_url="http://mock", http_client=http)
+    reader = Niadra("nia_sk_test_local_mock_k2_reader", base_url="http://mock", http_client=http)
+    assert (writer.agent_memory().etag, writer.agent_memory().enabled) == ("am-off", False)
+    refused = reader.remember("pitfall", "Transfers", "Say the queue name first.")
+    assert refused.error == "scope_missing" and not refused
+    kit = reader.tools(MARINA, conversation_id="c-1", agent_memory=True, write_agent_memory=True)
+    assert kit.call("remember", {"kind": "pitfall", "title": "t", "body": "b"}) == MEMORY_UNAVAILABLE
+    assert writer.remember("pitfall", "Transfers", "Say the queue name first.").note is not None
+    app.cell.enable_agent_memory()
+    # A new request (another budget, so not the cached "off" block) sees the memory on.
+    assert "Say the queue name first." in writer.agent_memory(250).text
+    for client in (writer, reader):
+        client.close()
+    http.close()
 
 
 async def test_the_async_client_and_a_sessions_view(on_mock_async: AsyncNiadra, mock_app: MockApp) -> None:

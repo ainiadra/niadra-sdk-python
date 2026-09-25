@@ -146,6 +146,8 @@ class MockApp:
                 return self._reserve_upload(body, f"{scheme}://{headers.get('host', 'localhost')}")
             if path.startswith(_AGENT_MEMORY):
                 return self._agent_memory(method, path[len(_AGENT_MEMORY) :], parse_qs(query), headers, body)
+            if method == "GET" and path == "/v1/history/tools":
+                return self._tools(parse_qs(query), headers)
             return self._route(method, path, parse_qs(query), body)
         except ValidationError as exc:
             return _problem(422, _fields(exc))
@@ -176,10 +178,6 @@ class MockApp:
         }
         if (method, path) in routes:
             return routes[(method, path)](body)
-        if method == "GET" and path == "/v1/history/tools":
-            with_memory = query.get("agent_memory", ["false"])[0].lower() == "true"
-            chosen = definitions(agent_memory=with_memory, write_agent_memory=self.cell.agent_memory_write)
-            return _json(200, chosen)
         prefix = "/v1/history/items/"
         if method == "GET" and path.startswith(prefix) and len(path) > len(prefix):
             level = Verification(query.get("verification", ["V0"])[0])
@@ -205,13 +203,19 @@ class MockApp:
             return _problem(422, "limit: between 1 and 100")
         return _model(self.cell.object_timeline(ref, query.get("cursor", [None])[0], limit))
 
+    def _writer(self, headers: Headers) -> bool:
+        return headers.get("authorization", "").partition(" ")[2] in self.cell.agent_memory_writers
+
+    def _tools(self, query: dict[str, list[str]], headers: Headers) -> Response:
+        with_memory = query.get("agent_memory", ["false"])[0].lower() == "true"
+        return _json(200, definitions(agent_memory=with_memory, write_agent_memory=self._writer(headers)))
+
     def _agent_memory(
         self, method: str, rest: str, query: dict[str, list[str]], headers: Headers, body: bytes
     ) -> Response:
-        """`/v1/agent-memory/*`, as the cell answers it; 501 when the store is off."""
-        store = self.cell.agent_memory
-        if not store.enabled:
-            return _problem(501, "agent memory is not available in this space", code="not_implemented")
+        """`/v1/agent-memory/*`, as the cell answers it. Writes need the `agent_memory:write` scope."""
+        if method in ("POST", "PATCH", "DELETE") and rest != "search" and not self._writer(headers):
+            return _problem(403, "the key lacks the scope agent_memory:write", code="scope_missing")
         parts = [unquote(p) for p in rest.split("/")] if rest else []
         route = (method, *parts[:1], *(["{id}"] if len(parts) >= 2 else []), *parts[2:3])
         one = parts[1] if len(parts) >= 2 else ""
@@ -246,9 +250,7 @@ class MockApp:
             notes = store.search(search.query, list(search.tags), search.limit)
             return _json(200, {"notes": [n.model_dump(mode="json") for n in notes]})
         if route == ("GET", "tools"):
-            return _json(
-                200, definitions(agent_memory=True, write_agent_memory=self.cell.agent_memory_write)[3:]
-            )
+            return _json(200, definitions(agent_memory=True, write_agent_memory=self._writer(headers))[3:])
         if route == ("POST", "notes"):
             result = store.create(CreateAgentNoteRequest.model_validate_json(body))
             return Response(201, result.model_dump_json(exclude={"error"}).encode(), _JSON)
