@@ -13,6 +13,7 @@ from typing import Any, Literal
 import httpx
 from pydantic import BaseModel
 
+from niadra._admin import Admin
 from niadra._base import (
     ClientCore,
     ClosesLike,
@@ -31,6 +32,7 @@ from niadra._cache import ContextCache, cache_key
 from niadra._queue import SyncFlusher, is_retryable
 from niadra._transport import SyncTransport
 from niadra.conversation import Conversation, Task
+from niadra.models.admin import KeyIdentity
 from niadra.models.agent_memory import (
     AgentMemory,
     AgentMemorySearchResponse,
@@ -41,7 +43,13 @@ from niadra.models.agent_memory import (
     RememberResult,
 )
 from niadra.models.context import ContextRequest, HistoryFilters, ObjectState, OpenedItem
-from niadra.models.events import BatchResponse, FeedbackAction, MediaUploadResponse, VerifyMethod
+from niadra.models.events import (
+    BatchResponse,
+    FeedbackAction,
+    FeedbackRequest,
+    MediaUploadResponse,
+    VerifyMethod,
+)
 from niadra.models.objects import ObjectTimeline
 from niadra.models.results import Context, MediaUpload, SearchResult, TimelinePage
 from niadra.models.tokens import SubjectToken
@@ -96,6 +104,8 @@ class Niadra:
         )
         self._cache = ContextCache(self._core.cache_options)
         self._transport = SyncTransport(self._core.base_url, self._core.api_key, http_client)
+        self.admin = Admin(self._core, self._transport)
+        """Governance calls for a key with the `admin` scope: memory, fact history, corrections, erasure."""
         self._flusher = SyncFlusher(self._core.buffer, self._send_batch, self._core.queue_options)
         self._refresher: ThreadPoolExecutor | None = None
         self._closed = False
@@ -209,6 +219,7 @@ class Niadra:
         task_id: str | None = None,
         voice: bool = False,
         timeout: float | None = None,
+        limit: int | None = None,
     ) -> SearchResult:
         """Searches the subject's whole history by keyword and meaning.
 
@@ -221,7 +232,16 @@ class Niadra:
         try:
             budget = self._core.navigation_budget(voice, timeout)
             request = self._core.search_http(
-                subject, query, about, filters, max_tokens, verification, conversation_id, task_id, budget
+                subject,
+                query,
+                about,
+                filters,
+                max_tokens,
+                verification,
+                conversation_id,
+                task_id,
+                budget,
+                limit,
             )
             return SearchResult.model_validate(self._transport.request(request))
         except Exception as exc:
@@ -458,6 +478,29 @@ class Niadra:
             return BatchResponse.model_validate(self._transport.request(self._core.feedback_http(body)))
         except Exception as exc:
             return self._core.fail("feedback", exc, None)
+
+    def feedback_batch(self, items: Sequence[FeedbackRequest | Mapping[str, Any]]) -> BatchResponse | None:
+        """Up to 500 corrections in one call, each with its own `idempotency_key` (one is minted when
+        missing): `accepted`, `duplicates` for replayed keys, and one error per refused item."""
+        if not self._core.enabled:
+            return None
+        try:
+            requests = [self._core.feedback_item(item) for item in items]
+            return BatchResponse.model_validate(
+                self._transport.request(self._core.feedback_batch_http(requests))
+            )
+        except Exception as exc:
+            return self._core.fail("feedback_batch", exc, None)
+
+    def whoami(self) -> KeyIdentity | None:
+        """What this key authenticates as: space, source, vendor, scopes and whether agent memory is on.
+        Any key may ask, whatever its scopes; use it to check a key before wiring an agent to it."""
+        if not self._core.enabled:
+            return None
+        try:
+            return KeyIdentity.model_validate(self._transport.request(self._core.whoami_http()))
+        except Exception as exc:
+            return self._core.fail("whoami", exc, None)
 
     def upload_media(
         self, data: bytes | bytearray | memoryview, content_type: str, *, subject: HandleLike | None = None

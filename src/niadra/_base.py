@@ -294,6 +294,7 @@ class ClientCore:
         conversation_id: str | None,
         task_id: str | None,
         budget: float,
+        limit: int | None = None,
     ) -> Request:
         body = SearchRequest(
             subject=as_handle(subject),
@@ -304,6 +305,7 @@ class ClientCore:
             verification=Verification(verification),
             conversation_id=conversation_id,
             task_id=task_id,
+            limit=limit,
         )
         return Request(
             "POST",
@@ -508,6 +510,24 @@ class ClientCore:
             budget=self.timeouts.write,
             idempotency_key=request.idempotency_key,
         )
+
+    def feedback_batch_http(self, requests: Sequence[FeedbackRequest]) -> Request:
+        body = {"items": [_body(r) for r in requests]}
+        return Request(
+            "POST", "/v1/feedback/batch", json=body, timeout=self.timeouts.write, budget=self.timeouts.write
+        )
+
+    def whoami_http(self) -> Request:
+        return Request("GET", "/v1/sources/me", timeout=self.timeouts.write, budget=self.timeouts.write)
+
+    @staticmethod
+    def feedback_item(item: FeedbackRequest | Mapping[str, Any]) -> FeedbackRequest:
+        if isinstance(item, FeedbackRequest):
+            return item
+        fields = dict(item)
+        if "subject" in fields:
+            fields["subject"] = as_handle(fields["subject"])
+        return FeedbackRequest.model_validate(fields)
 
     @staticmethod
     def feedback_request(

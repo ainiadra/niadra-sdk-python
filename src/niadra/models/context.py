@@ -178,6 +178,14 @@ class HistoryFilters(Model):
     outcome: ShortStr | None = None
     object: ObjectRef | None = None
     show_expired: bool | None = Field(default=None, description="Also items whose `valid_until` has passed.")
+    where: dict[str, Any] | None = Field(
+        default=None,
+        description="Conditions joined by `AND`, `OR` and `NOT` over the row fields `id`, `kind`, `channel`, "
+        "`category`, `outcome`, `source_id`, `vendor`, `at`, `valid_until`, `confidence`, `text`, "
+        "`object_type` and `object_namespace`, with `eq`, `ne`, `in`, `nin`, `gt`, `gte`, `lt`, `lte`, "
+        "`contains`, `icontains` and `exists`. A bare value means `eq`, a list means `in`. It narrows what "
+        "the policy already let through and never changes the order.",
+    )
 
 
 class SearchRequest(Model):
@@ -189,6 +197,7 @@ class SearchRequest(Model):
     verification: Verification = Verification.V0
     conversation_id: IdStr | None = None
     task_id: IdStr | None = None
+    limit: int | None = Field(default=None, ge=1, le=100, description="At most this many items.")
 
 
 class HistoryItem(ResponseModel):
