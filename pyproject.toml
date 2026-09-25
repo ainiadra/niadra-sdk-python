@@ -99,7 +99,7 @@ ignore = ["S101", "S311"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S105", "S106", "ARG", "N802", "PT018"]
 # An adapter overrides a framework's hooks with the framework's own signatures.
-"src/niadra/integrations/**" = ["ARG002"]
+"src/niadra/integrations/**" = ["ARG002", "ARG003"]
 # An adapter's tests import the framework only after `pytest.importorskip` found it.
 "tests/integrations/**" = ["S105", "S106", "ARG", "N802", "PT018", "E402"]
 

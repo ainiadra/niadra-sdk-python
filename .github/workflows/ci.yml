@@ -35,10 +35,16 @@ jobs:
     name: integration (${{ matrix.extra }}, ${{ matrix.python }})
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      # Frameworks that report usage by default report nothing from a test run.
+      CREWAI_DISABLE_TELEMETRY: "true"
+      OTEL_SDK_DISABLED: "true"
+      AGNO_TELEMETRY: "false"
+      ANONYMIZED_TELEMETRY: "false"
     strategy:
       fail-fast: false
       matrix:
-        extra: [livekit, pipecat, openai-agents, langchain, langgraph, anthropic, bedrock, google-genai, litellm, google-adk, strands]
+        extra: [livekit, pipecat, openai-agents, langchain, langgraph, anthropic, bedrock, google-genai, litellm, google-adk, strands, pydantic-ai, llamaindex, crewai, agno, agent-framework, openai]
         python: ["3.10", "3.13"]
         exclude:
           - { extra: pipecat, python: "3.10" }
