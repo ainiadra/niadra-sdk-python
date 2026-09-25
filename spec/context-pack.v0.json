@@ -1,0 +1,526 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://specs.niadra.com/schemas/context-pack.v0.json",
+  "title": "Niadra Context Pack v0",
+  "description": "What an agent should know about one subject now: text for the model and metadata for the program. See spec/context-pack.md.",
+  "$defs": {
+    "CacheDirectives": {
+      "additionalProperties": false,
+      "properties": {
+        "breakpoints": {
+          "description": "Character offsets where a cache breakpoint may be placed.",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Breakpoints",
+          "type": "array"
+        },
+        "ttl_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ttl Seconds"
+        },
+        "floor_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Floor Tokens"
+        },
+        "cacheable": {
+          "title": "Cacheable",
+          "type": "boolean"
+        },
+        "salt": {
+          "description": "Stable cache salt for self-hosted engines.",
+          "title": "Salt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "breakpoints",
+        "cacheable",
+        "salt"
+      ],
+      "title": "CacheDirectives",
+      "type": "object"
+    },
+    "ContextPack": {
+      "additionalProperties": false,
+      "description": "The pack as data (`format: \"json\"`): the same bytes as `text`, split by section in layer order.",
+      "properties": {
+        "spec": {
+          "const": "context-pack.v0",
+          "default": "context-pack.v0",
+          "title": "Spec",
+          "type": "string"
+        },
+        "view": {
+          "title": "View",
+          "type": "string"
+        },
+        "verification": {
+          "$ref": "#/$defs/Verification",
+          "description": "The effective level."
+        },
+        "withheld": {
+          "title": "Withheld",
+          "type": "integer"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "As Of"
+        },
+        "preamble": {
+          "description": "The tenant block: the line that says the content is data, not instructions, and the usage rules.",
+          "title": "Preamble",
+          "type": "string"
+        },
+        "sections": {
+          "items": {
+            "$ref": "#/$defs/PackSection"
+          },
+          "title": "Sections",
+          "type": "array"
+        },
+        "variables": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Variables",
+          "type": "object"
+        },
+        "stamp": {
+          "$ref": "#/$defs/PackStamp"
+        }
+      },
+      "required": [
+        "view",
+        "verification",
+        "withheld",
+        "preamble",
+        "sections",
+        "stamp"
+      ],
+      "title": "ContextPack",
+      "type": "object"
+    },
+    "DeliveryPath": {
+      "description": "Which read tier answered a `context()` call.",
+      "enum": [
+        "t0",
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "holdout",
+        "not_modified"
+      ],
+      "title": "DeliveryPath",
+      "type": "string"
+    },
+    "EventKind": {
+      "enum": [
+        "message",
+        "system_event",
+        "action"
+      ],
+      "title": "EventKind",
+      "type": "string"
+    },
+    "LiveTurn": {
+      "additionalProperties": false,
+      "description": "A recent turn from another conversation, not yet absorbed by the pack (B3). It passes the same policy as the pack's items: the level the conversation proved and the reader's purposes decide.",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "channel": {
+          "title": "Channel",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "speaker": {
+          "title": "Speaker",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at",
+        "channel",
+        "kind",
+        "speaker",
+        "text",
+        "source_id"
+      ],
+      "title": "LiveTurn",
+      "type": "object"
+    },
+    "PackSection": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Stable across languages; read this, never `label`.",
+          "enum": [
+            "account",
+            "customer",
+            "facts",
+            "stable_patterns",
+            "meta",
+            "history",
+            "summary",
+            "episodes",
+            "volatile_patterns",
+            "actions",
+            "objects",
+            "pending"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "label": {
+          "description": "The line's label in the space's language, as the text shows it.",
+          "title": "Label",
+          "type": "string"
+        },
+        "layer": {
+          "enum": [
+            "account",
+            "stable",
+            "volatile"
+          ],
+          "title": "Layer",
+          "type": "string"
+        },
+        "lines": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Lines",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "label",
+        "layer",
+        "lines"
+      ],
+      "title": "PackSection",
+      "type": "object"
+    },
+    "PackStamp": {
+      "additionalProperties": false,
+      "description": "What an agent's turn should carry to say which pack its prompt held (spec 8.5).",
+      "properties": {
+        "etag": {
+          "title": "Etag",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "As Of"
+        },
+        "manifest_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manifest Hash"
+        }
+      },
+      "required": [
+        "etag",
+        "version"
+      ],
+      "title": "PackStamp",
+      "type": "object"
+    },
+    "SourceCoverage": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "status": {
+          "description": "`ok` or `silent` when the source stopped sending.",
+          "title": "Status",
+          "type": "string"
+        },
+        "last_event_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Event At"
+        }
+      },
+      "required": [
+        "source_id",
+        "status"
+      ],
+      "title": "SourceCoverage",
+      "type": "object"
+    },
+    "Verification": {
+      "description": "Session verification levels. `no_customer` sits outside the V0-V4 scale.",
+      "enum": [
+        "V0",
+        "V1",
+        "V2",
+        "V3",
+        "V4",
+        "no_customer"
+      ],
+      "title": "Verification",
+      "type": "string"
+    },
+    "VerificationResult": {
+      "additionalProperties": false,
+      "properties": {
+        "requested": {
+          "$ref": "#/$defs/Verification"
+        },
+        "effective": {
+          "$ref": "#/$defs/Verification"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Why effective is lower: `source_ceiling`, `not_proven`.",
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "requested",
+        "effective"
+      ],
+      "title": "VerificationResult",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "not_modified": {
+      "default": false,
+      "title": "Not Modified",
+      "type": "boolean"
+    },
+    "text": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Text"
+    },
+    "variables": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Variables",
+      "type": "object"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    },
+    "etag": {
+      "title": "Etag",
+      "type": "string"
+    },
+    "manifest_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Manifest Hash"
+    },
+    "as_of": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "As Of"
+    },
+    "lag_seconds": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lag Seconds"
+    },
+    "coverage": {
+      "items": {
+        "$ref": "#/$defs/SourceCoverage"
+      },
+      "title": "Coverage",
+      "type": "array"
+    },
+    "verification": {
+      "$ref": "#/$defs/VerificationResult"
+    },
+    "withheld": {
+      "default": 0,
+      "description": "Items and `live` turns the policy left out for this reader and level.",
+      "title": "Withheld",
+      "type": "integer"
+    },
+    "live": {
+      "description": "Recent turns of the customer's other conversations not yet in the compiled context, oldest first: at most the newest 50, from the newest 100 turns of each of the customer's handles.",
+      "items": {
+        "$ref": "#/$defs/LiveTurn"
+      },
+      "title": "Live",
+      "type": "array"
+    },
+    "live_complete": {
+      "default": true,
+      "description": "False when the hot layer was unavailable, a turn could not be read, or a handle had more recent turns than were read.",
+      "title": "Live Complete",
+      "type": "boolean"
+    },
+    "delta": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Delta"
+    },
+    "cache": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CacheDirectives"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "timing": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Timing",
+      "type": "object"
+    },
+    "path": {
+      "$ref": "#/$defs/DeliveryPath"
+    },
+    "degraded": {
+      "default": false,
+      "title": "Degraded",
+      "type": "boolean"
+    },
+    "pack": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContextPack"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "With `format: \"json\"`; absent when `text` is absent."
+    }
+  },
+  "required": [
+    "version",
+    "etag",
+    "verification",
+    "path"
+  ],
+  "type": "object"
+}
