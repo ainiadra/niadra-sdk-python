@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from types import SimpleNamespace
 from typing import Any
@@ -12,6 +13,7 @@ pytest.importorskip("livekit.agents")
 
 from livekit.agents import Agent, AgentSession, APIConnectOptions, llm
 from livekit.agents.llm import ChatChunk, ChoiceDelta, CompletionUsage, FunctionToolCall
+from livekit.agents.voice.events import UserInputTranscribedEvent
 
 from niadra import AsyncNiadra
 from niadra.integrations.livekit import NiadraAgent, NiadraMemory, conversation_for, history_tools
@@ -274,3 +276,50 @@ async def test_the_agents_own_notes_come_before_the_customers_context(
     assert offered == [*DEFINITIONS, "search_agent_memory", "remember"]
     reader = NiadraAgent(call, instructions="x", agent_memory=True)
     assert [tool.info.name for tool in reader.tools][-1] == "search_agent_memory"
+
+
+async def test_the_turn_picks_the_slots_at_the_end(call: Any, mock_app: MockApp) -> None:
+    mock_app.cell.enable_memory_v2()
+    model = FakeLLM("Let me check.")
+    await run(NiadraAgent(call, instructions="You are Acme's agent."), model, "What about order 9911?")
+    shown = messages(model.prompts[0])
+    assert shown[-2] == ("user", "What about order 9911?")
+    assert shown[-1][0] == "system" and shown[-1][1].endswith(
+        "[Note] no record of 9911 in this customer's history\n</turn>"
+    ), "the slots of this turn, last"
+
+
+async def test_the_caller_is_prefetched_while_speaking(call: Any, mock_app: MockApp) -> None:
+    mock_app.cell.enable_memory_v2()
+    model = FakeLLM("Let me check.")
+    async with AgentSession(llm=model) as session:
+        await session.start(NiadraAgent(call, instructions="You are Acme's agent."))
+        for transcript, final in (
+            ("what about", False),
+            ("what about order 9911", True),
+            ("it never", False),
+        ):
+            session.emit(
+                "user_input_transcribed", UserInputTranscribedEvent(transcript=transcript, is_final=final)
+            )
+        # One at a time per call: the first goes at once, the newest when it ends.
+        for _ in range(1000):
+            if len(mock_app.cell.prefetches) >= 2:
+                break
+            await asyncio.sleep(0.005)
+        await session.run(user_input="what about order 9911 it never came")
+    sent = [(p.query, p.conversation_id) for p in mock_app.cell.prefetches]
+    assert sent == [("what about", "call-1"), ("what about order 9911 it never", "call-1")]
+    assert len(model.prompts) == 1, "the turn went on as usual"
+
+
+async def test_a_failing_prefetch_never_stops_the_agent(call: Any, mock_app: MockApp) -> None:
+    mock_app.cell.fail_next("/v1/context/prefetch", 500, times=5)
+    model = FakeLLM("Hello.")
+    async with AgentSession(llm=model) as session:
+        await session.start(NiadraAgent(call, instructions="You are Acme's agent."))
+        session.emit(
+            "user_input_transcribed", UserInputTranscribedEvent(transcript="hello there", is_final=False)
+        )
+        await session.run(user_input="hello there")
+    assert len(model.prompts) == 1

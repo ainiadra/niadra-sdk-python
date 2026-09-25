@@ -26,6 +26,38 @@ All notable changes to this project are documented here. The format follows
   `forget_status`, and `export`. They fail open like the rest of the SDK.
 - Models: `IngestStatus`, `KeyIdentity`, `ProfileMemory`, `FactOut`, `FactHistory`, `FactRelation`, `ProfileMatch`,
   `CorrectionRequest`, `Erasure`, `ExportPackage`.
+- Memory v2 on the read path. A conversation sends the customer's last turn (the text of the last
+  `customer()`) as `query` on every `context()`; `turn=` passes another one and `turn=None` sends
+  none. In a space with memory v2 the answer keeps the pinned pack and adds `slots`, what that
+  turn selected from memory, which `turn_block` places after the live turns and before the delta,
+  as the API documents it, so every integration gets it with no change. The pack is cached as the read without `query` and
+  the slots never are. A space without memory v2 compiles a read with `query` for it and does not
+  pin it: after one such answer the client reads the pinned pack instead, within the same budget,
+  and stops sending the turn for ten minutes. `Niadra.context()` and `AsyncNiadra.context()` take
+  `turn=` too.
+- The pack as data follows `context-pack.v1`: `ContextPack.slots` lists the turn's lines typed as
+  `PackSlot` (`section`, `derived`: `count`, `no_record` or `withheld`, `channels`, `text`);
+  `ContextResponse.slots` is the rendered block. Both are optional: an answer without them reads as
+  before. `spec/context-pack.v1.json` is the schema, and a test keeps the models equal to it.
+- `prefetch()` on the clients and on conversations and tasks: `POST /v1/context/prefetch` with a
+  partial transcript of the customer's turn, so the server warms what the read that answers the
+  turn will need. It runs in the background (a task on the running loop, or a thread for
+  `Niadra`), one at a time per conversation (the newest text waits for the one in flight), never
+  raises and never holds a turn; a server without the route is not asked again for ten minutes.
+  `Timeouts.prefetch` bounds it (1 s).
+- Voice adapters: LiveKit sends the turn so far on each `user_input_transcribed` event and passes
+  the last user message as the turn of each read; Pipecat has `memory.prefetcher()`, a processor
+  for right after the STT service that prefetches on interim and final transcripts, and passes the
+  last user message as the turn.
+- `niadra-mock`: `enable_memory_v2()` (and `--memory-v2`) answers a read's `query` with `slots`
+  instead of a pack compiled for it; `POST /v1/context/prefetch` answers 202 and keeps each request
+  in `cell.prefetches`. Models: `PackSlot`, `PrefetchRequest`.
+
+### Changed
+
+- `turn_block` puts the live turns first and the delta last (it was the delta first), the order the
+  API documents with the slots between them. Only the end of the prompt moves; the pinned pack and
+  the provider's prompt cache are not affected.
 
 ### Fixed
 

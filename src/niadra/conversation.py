@@ -6,8 +6,14 @@
   same bytes for every turn of it, and the SDK's cache answers most turns without a request.
   After the first pack, each read also asks for the delta: what changed since this agent last
   looked. Deltas are kept, in order, for as long as the pack stays the same, because the
-  server sends each one only once; `turn_block` carries them with the live turns, for the end
+  server sends each one only once; `turn_block` carries them after the live turns, for the end
   of the prompt. A new pack (after `verify()`, say) already includes them, so they are dropped.
+- Every read sends the customer's last turn (the text of the last `customer()`) along. In a
+  space with memory v2, the server picks from memory what that turn needs and the answer carries
+  it as `slots`, in `turn_block` between the live turns and the delta; the pinned pack does not
+  change. `turn=` passes another
+  turn (a transcript the platform finalized before `customer()` saw it), and `turn=None` reads
+  without one. `prefetch()` sends a partial transcript while the customer is still speaking.
 - `customer()`, `agent()` and `human_agent()` record turns, and `action()` records what an
   agent did in a system of record. None of them block.
 - Leaving the block emits `conversation.ended` (or `task.ended`), even when the block raised.
@@ -117,6 +123,8 @@ class _Session:
         self.last_context: Context | None = None
         self._etag: str | None = None
         self._deltas: list[str] = []
+        self.last_turn: str | None = None
+        self._prefetched: str | None = None
         self._track = track
         self._fail = fail
         self._ended = False
@@ -135,8 +143,11 @@ class _Session:
 
         `stt_confidence` (0 to 1) is the speech-to-text confidence of a spoken turn, when the
         voice stack reports one. `handles=` adds more ids of the same person to the subject, and
-        `content=` replaces the text content (a voice note or an image by reference).
+        `content=` replaces the text content (a voice note or an image by reference). The text is
+        also the turn the next `context()` sends.
         """
+        if text and text.strip():
+            self.last_turn = text
         return self._turn(Speaker.CUSTOMER, "inbound", text, event, stt_confidence=stt_confidence)
 
     def agent(self, text: str, *, usage: Any = None, **event: Any) -> bool:
@@ -200,10 +211,26 @@ class _Session:
             "delta": self._etag is not None,
         }
 
-    def _is_pinned(self, overrides: dict[str, Any]) -> bool:
+    def _read_arguments(self, overrides: dict[str, Any]) -> dict[str, Any]:
+        arguments = {**self._context_arguments(), **overrides}
+        if not overrides.get("query"):
+            arguments.setdefault("turn", self.last_turn)
+        return arguments
+
+    def _is_pinned(self, overrides: dict[str, Any], context: Context) -> bool:
         # A read with a query is compiled for that query and never pinned, so it leaves the
-        # conversation's pack and deltas alone.
-        return not overrides.get("query")
+        # conversation's pack and deltas alone; so is the turn's read in a space without memory v2.
+        return not overrides.get("query") and not context._unpinned
+
+    def _prefetch_arguments(self, text: str) -> dict[str, Any] | None:
+        """What `prefetch()` sends, or None for the same text twice in a row."""
+        if text == self._prefetched:
+            return None
+        self._prefetched = text
+        arguments = self._context_arguments()
+        for name in ("delta", "target"):
+            arguments.pop(name)
+        return {**arguments, "text": text}
 
     def _absorb(self, context: Context) -> Context:
         """Keeps the deltas received against the current pack and returns them all with it."""
@@ -307,12 +334,22 @@ class _SyncSession(_Session):
         self._client = client
 
     def context(self, **overrides: Any) -> Context:
-        """The pack for this turn: the pinned bytes, with every delta since the pin in `delta`.
+        """The pack for this turn: the pinned bytes, with every delta since the pin in `delta` and,
+        in a space with memory v2, what the customer's last turn selected in `slots`.
 
-        Keyword arguments override the session's, e.g. `query=` for a one-off focused read.
+        Keyword arguments override the session's: `turn=` for the customer's turn when
+        `customer()` has not recorded it yet (`None` to send none), `query=` for a one-off
+        focused read.
         """
-        context = self._client.context(**{**self._context_arguments(), **overrides})
-        return self._absorb(context) if self._is_pinned(overrides) else context
+        context = self._client.context(**self._read_arguments(overrides))
+        return self._absorb(context) if self._is_pinned(overrides, context) else context
+
+    def prefetch(self, text: str) -> bool:
+        """Sends a partial transcript of the customer's turn, while they speak, so the read that
+        answers the turn finds its memory warm. In the background; never raises. See
+        `Niadra.prefetch`."""
+        arguments = self._prefetch_arguments(text)
+        return arguments is not None and self._client.prefetch(**arguments)
 
     def action(self, operation: str, **options: Any) -> bool:
         """Records an action, defaulting subject, object, channel, ids and context stamp to this session's."""
@@ -384,9 +421,17 @@ class _AsyncSession(_Session):
         self._client = client
 
     async def context(self, **overrides: Any) -> Context:
-        """The pack for this turn: the pinned bytes, with every delta since the pin in `delta`."""
-        context = await self._client.context(**{**self._context_arguments(), **overrides})
-        return self._absorb(context) if self._is_pinned(overrides) else context
+        """The pack for this turn: the pinned bytes, with every delta since the pin in `delta` and,
+        in a space with memory v2, what the customer's last turn selected in `slots`. See
+        `Conversation.context`."""
+        context = await self._client.context(**self._read_arguments(overrides))
+        return self._absorb(context) if self._is_pinned(overrides, context) else context
+
+    def prefetch(self, text: str) -> bool:
+        """Sends a partial transcript of the customer's turn, while they speak, as a task on the
+        running loop. Never raises and never waits. See `AsyncNiadra.prefetch`."""
+        arguments = self._prefetch_arguments(text)
+        return arguments is not None and self._client.prefetch(**arguments)
 
     def action(self, operation: str, **options: Any) -> bool:
         """Records an action, defaulting subject, object, channel, ids and context stamp to this session's."""

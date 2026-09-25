@@ -88,10 +88,10 @@ def test_live_turns_and_delta_form_the_turn_block(respx_mock: respx.MockRouter, 
     context = client.context(MARINA, delta=True)
     assert context.system_block == context_payload()["text"]
     assert context.turn_block == (
-        "<delta>credit issued</delta>\n\n"
         '<live_turns source="niadra" complete="false">\n'
         "[2026-09-22T14:02:00Z] whatsapp · customer: charged twice\n"
-        "</live_turns>"
+        "</live_turns>\n\n"
+        "<delta>credit issued</delta>"
     )
 
 

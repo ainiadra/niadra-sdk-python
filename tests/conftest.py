@@ -77,6 +77,8 @@ def _nothing_leaves_after_the_test(monkeypatch: pytest.MonkeyPatch) -> Iterator[
             thread.join(timeout=10)
         if client._refresher is not None:
             client._refresher.shutdown(wait=True)
+        if client._prefetcher is not None:
+            client._prefetcher.shutdown(wait=True)
 
 
 @pytest.fixture(autouse=True)

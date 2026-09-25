@@ -14,7 +14,8 @@ class Timeouts:
     budget covers the whole call, retries and waits included. `write` is the budget of the
     writes a caller waits for (`identify`, `verify`, `feedback`, `subject_token` and the
     reservation of an upload) and the timeout of each attempt of the background queue, which
-    never holds a caller. `upload` bounds sending media bytes to storage.
+    never holds a caller. `upload` bounds sending media bytes to storage. `prefetch` bounds a
+    prefetch, which runs in the background and never holds a turn.
     """
 
     context: float = 0.30
@@ -23,6 +24,7 @@ class Timeouts:
     navigation_voice: float = 0.30
     write: float = 5.0
     upload: float = 60.0
+    prefetch: float = 1.0
 
 
 @dataclass(frozen=True)

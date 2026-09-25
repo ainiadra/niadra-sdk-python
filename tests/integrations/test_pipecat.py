@@ -12,6 +12,7 @@ pytest.importorskip("pipecat")
 from pipecat.frames.frames import (
     Frame,
     FunctionCallFromLLM,
+    InterimTranscriptionFrame,
     LLMContextFrame,
     LLMFullResponseEndFrame,
     LLMFullResponseStartFrame,
@@ -244,3 +245,58 @@ async def test_the_agents_own_notes_come_before_the_customers_context(
     slot = model.prompts[0][1]["content"]
     assert slot.startswith("<agent_notes>") and EARLIER in slot
     assert slot.index("</agent_notes>") < slot.index("<context")
+
+
+async def test_the_turn_picks_the_slots_at_the_end(call: Any, mock_app: MockApp) -> None:
+    mock_app.cell.enable_memory_v2()
+    model = FakeLLM("Let me check.")
+    await run_test(
+        pipeline(NiadraMemoryProcessor(call), model, LLMContext([INSTRUCTIONS])),
+        frames_to_send=said("What about order 9911?"),
+    )
+    last = model.prompts[0][-1]
+    assert last["role"] == "system" and last["content"].endswith(
+        "[Note] no record of 9911 in this customer's history\n</turn>"
+    ), "the slots of this turn, last"
+    assert model.prompts[0][-2] == {"role": "user", "content": "What about order 9911?"}
+
+
+async def test_the_prefetcher_sends_the_turn_while_the_caller_speaks(call: Any, mock_app: MockApp) -> None:
+    mock_app.cell.enable_memory_v2()
+    memory = NiadraMemoryProcessor(call)
+    model = FakeLLM("Let me check.")
+    strategies = UserTurnStrategies(
+        start=[ExternalUserTurnStartStrategy()], stop=[ExternalUserTurnStopStrategy(timeout=0.01)]
+    )
+    pair = LLMContextAggregatorPair(
+        LLMContext([INSTRUCTIONS]), user_params=LLMUserAggregatorParams(user_turn_strategies=strategies)
+    )
+    memory.observe(pair)
+    frames: list[Frame] = [
+        UserStartedSpeakingFrame(),
+        InterimTranscriptionFrame("what about", "caller", time_now_iso8601()),
+        SleepFrame(0.1),
+        TranscriptionFrame("what about order 9911", "caller", time_now_iso8601()),
+        SleepFrame(0.1),
+        InterimTranscriptionFrame("it never", "caller", time_now_iso8601()),
+        SleepFrame(0.1),
+        UserStoppedSpeakingFrame(),
+        SleepFrame(0.3),
+    ]
+    pipe = Pipeline([memory.prefetcher(), pair.user(), memory, model, pair.assistant()])
+    await run_test(pipe, frames_to_send=frames)
+    sent = [p.query for p in mock_app.cell.prefetches]
+    # One at a time per call: a text that arrives while one runs waits, and only the newest goes.
+    assert sent[0] == "what about" and sent[-1] == "what about order 9911 it never"
+    assert set(sent) <= {"what about", "what about order 9911", "what about order 9911 it never"}
+    assert {(p.conversation_id, p.view) for p in mock_app.cell.prefetches} == {("CA-1", "voice")}
+    assert len(model.prompts) == 1, "the turn went on as usual"
+
+
+async def test_a_failing_prefetch_never_stops_the_pipeline(call: Any, mock_app: MockApp) -> None:
+    mock_app.cell.fail_next("/v1/context/prefetch", 500, times=5)
+    memory = NiadraMemoryProcessor(call)
+    frames: list[Frame] = [InterimTranscriptionFrame("what about my order", "caller", time_now_iso8601())]
+    await run_test(
+        memory.prefetcher(), frames_to_send=frames, expected_down_frames=[InterimTranscriptionFrame]
+    )

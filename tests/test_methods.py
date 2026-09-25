@@ -234,7 +234,11 @@ def test_conversation_pins_captures_and_ends(respx_mock: respx.MockRouter, clien
         conversation.action("note", object="invoice:erp:0823", speaker="human_agent")
         conversation.handoff("human", reason="wants a person")
     assert current_session() is None
-    assert context.call_count == 1
+    # The first read sent the customer's turn; the answer had no slots (a space without memory v2),
+    # so the conversation read its pinned pack at once, and stopped sending the turn.
+    assert context.call_count == 2
+    first, second = (json.loads(call.request.content) for call in context.calls)
+    assert first["query"] == "I was charged twice" and "query" not in second
     assert body(context)["conversation_id"] == "c-1"
     client.flush()
     items = [i for call in batch.calls for i in json.loads(call.request.content)["items"]]
@@ -353,7 +357,8 @@ def test_a_conversation_keeps_every_delta_until_the_pack_changes(
     assert all(request["delta"] is True for request in sent[1:])
     assert first.turn_block == ""
     assert second.text == first.text
-    assert second.turn_block.startswith("[New] credit of R$ 40\n\n<live_turns")
+    assert second.turn_block.startswith("<live_turns")
+    assert second.turn_block.endswith("</live_turns>\n\n[New] credit of R$ 40")
     assert third.turn_block == "[New] credit of R$ 40\n\n[New] visit rescheduled"
     assert fourth.turn_block == third.turn_block, "a repeated delta is kept once"
     assert (repinned.text, repinned.turn_block) == ("<context>V2</context>", "")

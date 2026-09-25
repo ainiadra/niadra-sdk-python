@@ -135,7 +135,11 @@ async def entrypoint(ctx):
 ```
 
 Pipecat takes `NiadraMemoryProcessor(conversation)` between `aggregators.user()` and the LLM, plus
-`memory.observe(aggregators)` for the turns. For hosted platforms the SDK answers their webhooks:
+`memory.observe(aggregators)` for the turns and, right after the STT service, `memory.prefetcher()`.
+Both adapters send the caller's turn with each read and, while the caller is still speaking,
+`prefetch()` the partial transcript (LiveKit's `user_input_transcribed`, Pipecat's interim
+transcripts), in the background, so the read that answers the turn finds the caller's memory warm;
+a prefetch never holds or fails a turn. For hosted platforms the SDK answers their webhooks:
 `ElevenLabsWebhooks` (the context as the `niadra_context` dynamic variable, server tools whose
 caller comes from ElevenLabs' system variables, and a signed post-call transcript recorded turn by
 turn) and `VapiServer` (`assistant-request`, `tool-calls`, `end-of-call-report` and transfers).
@@ -250,12 +254,23 @@ context = niadra.context(
     target="openai/gpt-4.1",  # lets Niadra aim the pack at the model's prompt-cache floor
 )
 context.system_block  # the pinned pack: place it after your own instructions
-context.turn_block  # live turns from other channels and the delta: place it at the end
+context.turn_block  # live turns from other channels, this turn's slots and the delta: at the end
 context.withheld  # items the policy held back at this verification level
 ```
 
-With `format="json"`, `context.pack` also carries the pack as data (`context-pack.v0`: typed
-sections with stable names, the preamble and the stamp), for programs that build their own prompt.
+With `format="json"`, `context.pack` also carries the pack as data (`context-pack.v1`: typed
+sections with stable names, the preamble, the stamp and this turn's `slots`), for programs that
+build their own prompt.
+
+`turn=` is the customer's last turn; a conversation sends it for you (below). In a space with
+memory v2 it goes as `query`, and the answer adds `context.slots`: what that turn needs from memory
+that the pinned pack left out (the protocol number the customer asks for, the earlier conversations
+on the same topic with their dates, or a line saying memory has no record of it), in
+`turn_block` after the live turns and before the delta. The pack itself stays the pinned one. A space without memory v2 would compile a read
+with `query` for that query and not pin it, so there the client reads the pinned pack instead and
+stops sending the turn for ten minutes. `prefetch(subject, text=...)` sends a partial transcript
+while the customer is still speaking; it runs in the background, one at a time per conversation
+(the newest text waits), and never raises.
 
 Pass `object="invoice:erp:0823"` instead of a subject to center the pack on a business object, and
 `about=` to add what the organization the person acts for has that matters here.
@@ -367,9 +382,14 @@ with niadra.conversation(thread_id, subject=customer, view="chat") as conversati
 
 The first `context()` of a conversation gets the pack the server pins for it. Later reads also
 ask for the delta, and the conversation keeps every delta it receives, in order, in
-`context.delta`, so `turn_block` carries all the changes since the pin, followed by the live
-turns. When the server pins a new pack, after `verify()` for instance, the kept deltas are
+`context.delta`, so `turn_block` carries all the changes since the pin, after the live turns
+(and this turn's slots). When the server pins a new pack, after `verify()` for instance, the kept deltas are
 dropped: the new pack already has them. A read with `query=` is a one-off and leaves them alone.
+
+Every read sends the customer's last turn, the text of the last `customer()`, so a space with
+memory v2 answers it with `slots` in `turn_block`. Pass `turn=` when the platform has
+the turn before `customer()` recorded it, or `turn=None` to read without one. In a voice call,
+`conversation.prefetch(partial_transcript)` sends the turn so far while the customer speaks.
 
 Call `mark_injected()` each time you put the pack in a prompt. The agent's turns and actions that
 follow carry it as `context_stamp`, with the pack's etag, which is how Niadra tells a context
@@ -537,6 +557,11 @@ Recent turns become a small pack, deltas are sent once per change, search matche
 verification only rises through `verify()`, objects take their state from system events, feedback
 becomes a `feedback.*` event, and media uploads land in `mock.cell.media`. `mock.cell` also lets
 you inspect events or inject failures (`fail_next`, `revoke`, `cut`, `put_in_holdout`). From a shell, `niadra-mock --port 8765` serves it over HTTP.
+
+`mock.cell.enable_memory_v2()` (or `niadra-mock --memory-v2`) answers as a space with memory v2: a
+read's `query` never changes the pinned pack and picks `slots` (the customer's lines outside the
+pack that share a word with it, and a `no_record` line for a number nothing holds).
+`POST /v1/context/prefetch` answers 202 and keeps each request in `mock.cell.prefetches`.
 
 ## Documentation in Portuguese
 

@@ -243,7 +243,7 @@ def test_the_pack_as_data(on_mock: Niadra) -> None:
     text = on_mock.context(MARINA, conversation_id="c-2")
     assert text.pack is None
     data = on_mock.context(MARINA, conversation_id="c-3", format="json")
-    assert data.pack is not None and data.pack.spec == "context-pack.v0"
+    assert data.pack is not None and data.pack.spec == "context-pack.v1"
     assert [s.name for s in data.pack.sections] == ["episodes"]
     assert data.pack.sections[0].lines[0].endswith("whatsapp customer: hi")
     assert data.pack.stamp.etag == data.etag

@@ -26,7 +26,13 @@ from niadra.models.agent_memory import (
     UpdateAgentNoteRequest,
 )
 from niadra.models.common import ObjectRef
-from niadra.models.context import ContextRequest, OpenItemRequest, SearchRequest, TimelineRequest
+from niadra.models.context import (
+    ContextRequest,
+    OpenItemRequest,
+    PrefetchRequest,
+    SearchRequest,
+    TimelineRequest,
+)
 from niadra.models.events import (
     MAX_BATCH_ITEMS,
     BatchItem,
@@ -56,6 +62,7 @@ StartResponse = Callable[[str, list[tuple[str, str]]], Any]
 _REASONS = {
     200: "OK",
     201: "Created",
+    202: "Accepted",
     207: "Multi-Status",
     400: "Bad Request",
     401: "Unauthorized",
@@ -170,6 +177,7 @@ class MockApp:
         routes: dict[tuple[str, str], Callable[[bytes], Response]] = {
             ("POST", "/v1/batch"): self._batch,
             ("POST", "/v1/context"): self._context,
+            ("POST", "/v1/context/prefetch"): self._prefetch,
             ("POST", "/v1/history/search"): self._search,
             ("POST", "/v1/history/timeline"): self._timeline,
             ("POST", "/v1/history/open"): self._open,
@@ -329,6 +337,10 @@ class MockApp:
 
     def _context(self, body: bytes) -> Response:
         return _model(self.cell.context(ContextRequest.model_validate_json(body)))
+
+    def _prefetch(self, body: bytes) -> Response:
+        self.cell.prefetch(PrefetchRequest.model_validate_json(body))
+        return _json(202, {})
 
     def _search(self, body: bytes) -> Response:
         return _model(self.cell.search(SearchRequest.model_validate_json(body)))

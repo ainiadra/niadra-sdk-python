@@ -25,10 +25,16 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="niadra-mock", description="A local, in-memory Niadra API.")
     parser.add_argument("--host", default="127.0.0.1", help="interface to bind (default: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=8765, help="port to listen on (default: 8765)")
+    parser.add_argument(
+        "--memory-v2",
+        action="store_true",
+        help="answer as a space with memory v2: a read's query picks this turn's slots",
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     app = MockApp()
+    app.cell.enable_memory_v2(args.memory_v2)
     server = make_server(
         args.host, args.port, app.wsgi, server_class=_ThreadingServer, handler_class=_QuietHandler
     )

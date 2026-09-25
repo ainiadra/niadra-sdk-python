@@ -15,14 +15,23 @@ context = LLMContext(messages, tools=history_tools(conversation))
 aggregators = LLMContextAggregatorPair(context)
 memory.observe(aggregators)
 user, assistant = aggregators.user(), aggregators.assistant()
-pipeline = Pipeline([transport.input(), stt, user, memory, llm, tts, transport.output(), assistant])
+pipeline = Pipeline(
+    [transport.input(), stt, memory.prefetcher(), user, memory, llm, tts, transport.output(), assistant]
+)
 ```
 
 - **Context.** On each `LLMContextFrame`, between the user aggregator and the LLM, the processor
   reads `context()` (150 ms for the voice view) and puts the pack right after the leading
   `system` or `developer` messages and the turn block at the end. The blocks it placed on the
   previous turn are taken out first, so the shared context never piles them up. A speculative
-  inference gets them too, in its provisional copy.
+  inference gets them too, in its provisional copy. The read sends the user's turn (the last
+  user message of the context) along, so a space with memory v2 answers with what that turn
+  needs from memory, last in the turn block.
+- **Prefetch.** `prefetcher()` is a second processor, for right after the STT service (the user
+  aggregator consumes the interim transcripts): on each `InterimTranscriptionFrame` and
+  `TranscriptionFrame` it sends the turn so far with `prefetch()`, in the background, so the
+  read that answers the turn finds the caller's memory warm. It passes every frame on at once
+  and never holds or fails a turn. Leave it out and nothing else changes.
 - **Turns.** `observe()` subscribes to the aggregators: each user message written to the
   context (`on_user_turn_message_added`, final in cascade and realtime modes) is the customer's
   turn and each finished assistant turn (`on_assistant_turn_stopped`) is the agent's. `EndFrame`
@@ -51,7 +60,14 @@ from typing import Any
 
 try:
     from pipecat.adapters.schemas.function_schema import FunctionSchema
-    from pipecat.frames.frames import CancelFrame, EndFrame, Frame, LLMContextFrame
+    from pipecat.frames.frames import (
+        CancelFrame,
+        EndFrame,
+        Frame,
+        InterimTranscriptionFrame,
+        LLMContextFrame,
+        TranscriptionFrame,
+    )
     from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 except ImportError as exc:  # pragma: no cover - depends on the environment
     raise ImportError("Pipecat is not installed: pip install 'niadra[pipecat]'") from exc
@@ -71,6 +87,7 @@ from niadra.integrations._common import (
     memory_kit_of,
     memory_option,
     phone_or_none,
+    prefetch,
     read_prompt,
     tool_specs,
     verify_attestation,
@@ -78,7 +95,7 @@ from niadra.integrations._common import (
 )
 from niadra.models.common import Handle
 
-__all__ = ["NiadraMemoryProcessor", "conversation_for_call", "history_tools"]
+__all__ = ["NiadraMemoryProcessor", "NiadraPrefetchProcessor", "conversation_for_call", "history_tools"]
 
 
 def conversation_for_call(
@@ -153,6 +170,22 @@ class NiadraMemoryProcessor(FrameProcessor):
         self.role = role
         self._verified = False
         self._placed: list[dict[str, Any]] = []
+        self._heard: list[str] = []
+
+    def prefetcher(self, **kwargs: Any) -> NiadraPrefetchProcessor:
+        """The processor that prefetches the caller's turn: put it right after the STT service."""
+        return NiadraPrefetchProcessor(self, **kwargs)
+
+    def _hearing(self, frame: Frame) -> None:
+        """Sends the turn so far: the final segments of the turn and, when interim, `frame`'s text."""
+        text = str(getattr(frame, "text", "") or "").strip()
+        if isinstance(frame, TranscriptionFrame):
+            if text:
+                self._heard.append(text)
+            heard = " ".join(self._heard)
+        else:
+            heard = " ".join([*self._heard, text] if text else self._heard)
+        prefetch(self.conversation, heard)
 
     def observe(self, aggregators: Any) -> None:
         """Records turns from an `LLMContextAggregatorPair` (or a `(user, assistant)` pair)."""
@@ -188,7 +221,9 @@ class NiadraMemoryProcessor(FrameProcessor):
         if not self._verified:
             self._verified = True
             await verify_attestation(self.conversation, self.attestation)
-        prompt = await read_prompt(self.conversation, self.agent_memory)
+        if not speculative:
+            self._heard = []
+        prompt = await read_prompt(self.conversation, self.agent_memory, turn=_last_user_text(messages))
         placed: list[dict[str, Any]] = []
         if prompt.system:
             block = {"role": self.role, "content": prompt.system}
@@ -212,3 +247,38 @@ class NiadraMemoryProcessor(FrameProcessor):
 
     async def _on_assistant_turn(self, _aggregator: Any, message: Any) -> None:
         agent_turn(self.conversation, getattr(message, "content", None))
+
+
+class NiadraPrefetchProcessor(FrameProcessor):
+    """Prefetches the caller's turn from the STT service's transcripts; see
+    `NiadraMemoryProcessor.prefetcher()`. Every frame passes through unchanged."""
+
+    def __init__(self, memory: NiadraMemoryProcessor, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.memory = memory
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
+        await super().process_frame(frame, direction)
+        await self.push_frame(frame, direction)
+        if isinstance(frame, (InterimTranscriptionFrame, TranscriptionFrame)):
+            try:
+                self.memory._hearing(frame)
+            except Exception as exc:
+                warn("prefetch the turn", exc)
+
+
+def _last_user_text(messages: list[Any]) -> str | None:
+    """The caller's turn this inference answers: the text of the last user message."""
+    for message in reversed(messages):
+        if not isinstance(message, dict) or message.get("role") != "user":
+            continue
+        content = message.get("content")
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts = [
+                p.get("text") for p in content if isinstance(p, dict) and p.get("type", "text") == "text"
+            ]
+            return "".join(p for p in parts if isinstance(p, str)) or None
+        return None
+    return None

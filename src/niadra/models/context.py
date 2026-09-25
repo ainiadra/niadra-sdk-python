@@ -126,11 +126,32 @@ class PackStamp(ResponseModel):
     manifest_hash: str | None = None
 
 
-class ContextPack(ResponseModel):
-    """The pack as data (`format="json"`), in the `context-pack.v0` shape, for programs that build
-    their own prompt. The same content as `text`."""
+PackSlotDerived = Literal["count", "no_record", "withheld"]
 
-    spec: str = "context-pack.v0"
+
+class PackSlot(ResponseModel):
+    """One line of this turn's slots (memory v2): an item the customer's last turn selected, or a
+    line derived from memory. The same line as in `ContextResponse.slots`.
+
+    `section` names the pack section the item comes from (`episodes`, `objects`...), or is
+    `derived` for a line the server derived: `derived` then says which (`count`, how many times a
+    topic came back, with the dates; `no_record`, that memory holds nothing about what was asked;
+    `withheld`, that items held back until verification may hold it). `channels` are the ways the
+    item was found: `exact`, `lexical`, `temporal`, `values`, `semantic`.
+    """
+
+    section: PackSectionName | str
+    derived: PackSlotDerived | str | None = None
+    channels: list[str] = Field(default_factory=list)
+    text: str
+
+
+class ContextPack(ResponseModel):
+    """The pack as data (`format="json"`), in the `context-pack.v1` shape, for programs that build
+    their own prompt. The same content as `text`, plus this turn's `slots`, which are never part of
+    `text`. A server that answers `context-pack.v0` sends no `slots`; the list is then empty."""
+
+    spec: str = "context-pack.v1"
     view: str
     verification: Verification
     withheld: int
@@ -139,6 +160,7 @@ class ContextPack(ResponseModel):
     sections: list[PackSection] = Field(default_factory=list)
     variables: dict[str, Any] = Field(default_factory=dict)
     stamp: PackStamp
+    slots: list[PackSlot] = Field(default_factory=list)
 
 
 class ContextResponse(ResponseModel):
@@ -156,11 +178,39 @@ class ContextResponse(ResponseModel):
     live: list[LiveTurn] = Field(default_factory=list)
     live_complete: bool = True
     delta: str | None = None
+    slots: str | None = Field(
+        default=None,
+        description="Memory v2, on a read with `query`: what the customer's last turn selected from memory "
+        "for this turn, a tagged block for the end of the prompt. Never part of `text`. Servers without "
+        "memory v2 do not send it.",
+    )
     cache: CacheDirectives | None = None
     timing: dict[str, float] = Field(default_factory=dict)
     path: DeliveryPath | str
     degraded: bool = False
     pack: ContextPack | None = None
+
+
+class PrefetchRequest(Model):
+    """Body of `POST /v1/context/prefetch`: a partial transcript of the customer's turn, sent while they
+    are still speaking, so the server warms what the final read will need. It answers nothing."""
+
+    subject: Handle | None = None
+    object: ObjectRef | None = None
+    about: Handle | None = None
+    view: View = "voice"
+    verification: Verification = Verification.V0
+    conversation_id: IdStr | None = None
+    task_id: IdStr | None = None
+    query: Annotated[str, StringConstraints(min_length=1, max_length=2000)]
+
+    @model_validator(mode="after")
+    def _one_target(self) -> PrefetchRequest:
+        if (self.subject is None) == (self.object is None):
+            raise ValueError("pass exactly one of `subject` or `object`")
+        if self.conversation_id and self.task_id:
+            raise ValueError("pass `conversation_id` or `task_id`, not both")
+        return self
 
 
 class HistoryFilters(Model):

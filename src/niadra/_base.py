@@ -16,9 +16,11 @@ from urllib.parse import quote, urlsplit
 
 from pydantic import BaseModel, ValidationError
 
+from niadra._cache import ContextCache
 from niadra._ids import new_key
 from niadra._queue import EventBuffer, serialize
 from niadra._transport import Request
+from niadra._turns import MIN_PREFETCH, NO_PREFETCH, TurnSupport, turn_text
 from niadra.errors import APIError, ConfigurationError
 from niadra.keys import ApiKey
 from niadra.models.agent_memory import AgentMemory, AgentMemorySearchRequest, CreateAgentNoteRequest, Evidence
@@ -27,6 +29,7 @@ from niadra.models.context import (
     ContextRequest,
     HistoryFilters,
     OpenItemRequest,
+    PrefetchRequest,
     SearchRequest,
     TargetModel,
     TimelineRequest,
@@ -200,6 +203,7 @@ class ClientCore:
         self.base_url = ""
         self.enabled = False
         self.agent_memory_cache = AgentMemoryCache(self.cache_options)
+        self.turns = TurnSupport()
 
         raw = api_key if api_key is not None else os.environ.get("NIADRA_API_KEY", "")
         base_url = base_url or os.environ.get("NIADRA_BASE_URL") or None
@@ -263,6 +267,78 @@ class ClientCore:
             target=as_target(target) if target is not None else None,
             format="json" if format == "json" else None,
         )
+
+    def turn_query(self, request: ContextRequest, turn: str | None) -> str | None:
+        """The customer's turn to send as `query`, or None: a read with its own `query`, a blank turn,
+        or a space that answered without slots a moment ago keep the read as it was."""
+        if request.query is not None or not self.turns.wanted():
+            return None
+        return turn_text(turn)
+
+    @staticmethod
+    def unpinned(fetched: Context) -> Context:
+        """An answer compiled for the turn by a space without memory v2: served once, never kept."""
+        unpinned = fetched.model_copy()
+        unpinned._unpinned = True
+        return unpinned
+
+    def settle_turn(self, cache: ContextCache, key: str | None, scope: str, fetched: Context) -> Context:
+        """What a read that sent the turn returns when the space read it (or the answer cannot tell):
+        the pack is the conversation's pinned one, cached as the read without `query`, and the slots
+        are this turn's, on the answer only."""
+        if key is None:
+            return fetched
+        pack = fetched.pack
+        stored = cache.absorb(
+            key,
+            scope,
+            fetched.model_copy(
+                update={"slots": None, "pack": pack.model_copy(update={"slots": []}) if pack else None}
+            ),
+        )
+        kept = stored.pack
+        if kept is not None and pack is not None:
+            kept = kept.model_copy(update={"slots": pack.slots})
+        return stored.model_copy(update={"slots": fetched.slots, "pack": kept})
+
+    def prefetch_request(
+        self,
+        subject: HandleLike | None,
+        object: ObjectLike | None,
+        about: HandleLike | None,
+        view: str,
+        verification: VerificationLike,
+        conversation_id: str | None,
+        task_id: str | None,
+        text: str | None,
+    ) -> PrefetchRequest | None:
+        """The body of a prefetch, or None when there is nothing worth sending."""
+        query = turn_text(text)
+        if query is None or len(query) < MIN_PREFETCH or not self.turns.prefetch_wanted():
+            return None
+        return PrefetchRequest(
+            subject=as_handle(subject) if subject is not None else None,
+            object=as_object(object) if object is not None else None,
+            about=as_handle(about) if about is not None else None,
+            view=view,
+            verification=Verification(verification),
+            conversation_id=conversation_id,
+            task_id=task_id,
+            query=query,
+        )
+
+    def prefetch_http(self, request: PrefetchRequest) -> Request:
+        budget = self.timeouts.prefetch
+        body = request.model_dump(mode="json", exclude_none=True)
+        return Request(
+            "POST", "/v1/context/prefetch", json=body, timeout=budget, budget=budget, max_attempts=1
+        )
+
+    def prefetch_failed(self, error: BaseException) -> None:
+        """A prefetch never fails anything; a server without the route is not asked again for a while."""
+        if isinstance(error, APIError) and error.status_code in NO_PREFETCH:
+            self.turns.prefetch_refused()
+        logger.debug("niadra: prefetch skipped (%s)", type(error).__name__)
 
     def cacheable(self, request: ContextRequest, use_cache: bool) -> bool:
         return use_cache and self.cache_options.enabled and bool(request.conversation_id or request.task_id)

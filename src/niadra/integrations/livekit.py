@@ -23,6 +23,11 @@ What `NiadraAgent` (or the `NiadraMemory` mixin on your own `Agent` class) does:
   agent this happens in `llm_node`, on a copy of the chat context, so nothing piles up in the
   agent's history and LiveKit's preemptive generation still matches. With a realtime model it
   happens in `on_user_turn_completed`, on the turn's temporary context, which LiveKit syncs.
+  The read sends the user's turn along (the last user message of the chat context), so a space
+  with memory v2 answers with what that turn needs from memory, in the turn block.
+- **Prefetch.** While the caller speaks, the session's `user_input_transcribed` events (interim
+  and final) send the turn so far with `prefetch()`, in the background: the read that answers
+  the turn finds the caller's memory warm. It never holds or fails a turn.
 - **Turns.** The session's `conversation_item_added` events record each final user transcript
   (with its confidence) and each assistant message (with the usage the model reported).
   The session's `close` ends the conversation.
@@ -76,6 +81,7 @@ from niadra.integrations._common import (
     memory_option,
     model_usage,
     phone_or_none,
+    prefetch,
     read_prompt,
     tool_specs,
     verify_attestation,
@@ -150,6 +156,16 @@ class _Call:
     verified: bool = False
     sessions: weakref.WeakSet[Any] = field(default_factory=weakref.WeakSet)
     usage: ModelUsage | None = None
+    heard: list[str] = field(default_factory=list)
+    """The final transcript segments of the turn the caller is still speaking."""
+
+    def hearing(self, transcript: str, is_final: bool) -> str:
+        """The turn so far: its final segments and, when `transcript` is interim, that one too."""
+        text = transcript.strip()
+        if is_final and text:
+            self.heard.append(text)
+            return " ".join(self.heard)
+        return " ".join([*self.heard, text] if text else self.heard)
 
 
 _CALLS: weakref.WeakKeyDictionary[AsyncConversation, _Call] = weakref.WeakKeyDictionary()
@@ -171,6 +187,15 @@ def _message_id(kind: str, text: str) -> str:
 
 def _is_marked(chat_ctx: Any) -> bool:
     return any(getattr(item, "extra", None) and MARK in item.extra for item in chat_ctx.items)
+
+
+def _last_user_text(chat_ctx: Any) -> str | None:
+    """The caller's turn this reply answers: the last user message of the chat context."""
+    for item in reversed(chat_ctx.items):
+        if _role(item) == "user" and MARK not in (getattr(item, "extra", None) or {}):
+            text = item.text_content
+            return text if isinstance(text, str) else None
+    return None
 
 
 def _role(item: Any) -> Any:
@@ -238,14 +263,17 @@ class NiadraMemory:
         # A pipeline agent gets the context in `llm_node`; changing this context would also make
         # LiveKit throw away a preemptive generation. A realtime model has no `llm_node`.
         if self._niadra_realtime() and not _is_marked(turn_ctx):
-            self._niadra_stamp(_place(turn_ctx, await self._niadra_prompt()))
+            turn = getattr(new_message, "text_content", None)
+            self._niadra_stamp(
+                _place(turn_ctx, await self._niadra_prompt(turn if isinstance(turn, str) else None))
+            )
         await super().on_user_turn_completed(turn_ctx, new_message)  # type: ignore[misc]
 
     async def llm_node(
         self, chat_ctx: Any, tools: list[Any], model_settings: ModelSettings
     ) -> AsyncIterator[Any]:
         if not _is_marked(chat_ctx):
-            prompt = await self._niadra_prompt()
+            prompt = await self._niadra_prompt(_last_user_text(chat_ctx))
             if prompt.system or prompt.turn:
                 chat_ctx = chat_ctx.copy()
                 self._niadra_stamp(_place(chat_ctx, prompt))
@@ -262,12 +290,12 @@ class NiadraMemory:
                 self._niadra_usage(chunk.usage)
             yield chunk
 
-    async def _niadra_prompt(self) -> Prompt:
+    async def _niadra_prompt(self, turn: str | None = None) -> Prompt:
         call = self._niadra_call
         if not call.verified:
             call.verified = True
             await verify_attestation(self.niadra, call.attestation)
-        prompt = await read_prompt(self.niadra, self._niadra_memory)
+        prompt = await read_prompt(self.niadra, self._niadra_memory, turn=turn)
         self._niadra_last = prompt
         return prompt
 
@@ -319,6 +347,7 @@ class NiadraMemory:
             if getattr(item, "type", None) != "message" or MARK in (item.extra or {}):
                 return
             if item.role == "user":
+                call.heard.clear()
                 confidence = item.transcript_confidence
                 valid = isinstance(confidence, float) and 0 <= confidence <= 1
                 customer_turn(conversation, item.text_content, stt_confidence=confidence if valid else None)
@@ -326,7 +355,16 @@ class NiadraMemory:
                 usage, call.usage = call.usage, None
                 agent_turn(conversation, item.text_content, usage=usage)
 
+        def on_transcribed(event: Any) -> None:
+            try:
+                heard = call.hearing(str(event.transcript or ""), bool(event.is_final))
+            except Exception as exc:
+                warn("read the transcript", exc)
+                return
+            prefetch(conversation, heard)
+
         session.on("conversation_item_added", on_item)
+        session.on("user_input_transcribed", on_transcribed)
         session.on("close", lambda _event: end(conversation))
 
 

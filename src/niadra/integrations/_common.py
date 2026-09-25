@@ -90,12 +90,18 @@ def run_sync(coroutine: Coroutine[Any, Any, T]) -> T:
     raise TypeError("this call needs `await`: it was given an AsyncNiadra conversation")
 
 
-async def read_context(session: AnySession | None) -> Context | None:
-    """The session's pack for this turn, or None when there is none or it could not be read."""
+async def read_context(session: AnySession | None, turn: str | None = None) -> Context | None:
+    """The session's pack for this turn, or None when there is none or it could not be read.
+
+    `turn` is the customer's turn when the framework has it before the session recorded it; by
+    default the session sends the last one `customer()` recorded.
+    """
     if session is None:
         return None
     try:
-        context = await maybe_await(session.context())
+        context = await maybe_await(
+            session.context(turn=turn) if turn and turn.strip() else session.context()
+        )
     except Exception as exc:
         warn("read the context", exc)
         return None
@@ -191,6 +197,16 @@ def handoff(
 
 def end(session: AnySession | None) -> None:
     record(session, "end the conversation", lambda s: s.end())
+
+
+def prefetch(session: AnySession | None, text: str | None) -> None:
+    """Sends a partial transcript of the customer's turn; never raises, never waits."""
+    if session is None or not text or not text.strip():
+        return
+    try:
+        session.prefetch(text)
+    except Exception as exc:
+        warn("prefetch the turn", exc)
 
 
 def kit_of(session: AnySession | None) -> AnyKit | None:
@@ -350,10 +366,12 @@ async def read_agent_memory(session: AnySession | None, option: AgentMemoryOptio
     return block.text if block.enabled else ""
 
 
-async def read_prompt(session: AnySession | None, option: AgentMemoryOption | None = None) -> Prompt:
+async def read_prompt(
+    session: AnySession | None, option: AgentMemoryOption | None = None, *, turn: str | None = None
+) -> Prompt:
     """The agent's notes and the customer's context, placed for the prompt; empty on any failure."""
     notes = await read_agent_memory(session, option)
-    context = await read_context(session)
+    context = await read_context(session, turn)
     system_block, turn_block = blocks(context)
     return Prompt(
         system=join_instructions(notes, system_block), turn=turn_block, context=context, agent_memory=notes

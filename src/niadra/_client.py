@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import atexit
 import logging
+import threading
 import time
 import weakref
 from collections.abc import Mapping, Sequence
@@ -31,6 +32,7 @@ from niadra._base import (
 from niadra._cache import ContextCache, cache_key
 from niadra._queue import SyncFlusher, is_retryable
 from niadra._transport import SyncTransport
+from niadra._turns import MIN_REREAD
 from niadra.conversation import Conversation, Task
 from niadra.models.admin import IngestStatus, KeyIdentity
 from niadra.models.agent_memory import (
@@ -42,7 +44,7 @@ from niadra.models.agent_memory import (
     Evidence,
     RememberResult,
 )
-from niadra.models.context import ContextRequest, HistoryFilters, ObjectState, OpenedItem
+from niadra.models.context import ContextRequest, HistoryFilters, ObjectState, OpenedItem, PrefetchRequest
 from niadra.models.events import (
     BatchResponse,
     FeedbackAction,
@@ -108,6 +110,10 @@ class Niadra:
         """Governance calls for a key with the `admin` scope: memory, fact history, corrections, erasure."""
         self._flusher = SyncFlusher(self._core.buffer, self._send_batch, self._core.queue_options)
         self._refresher: ThreadPoolExecutor | None = None
+        self._prefetcher: ThreadPoolExecutor | None = None
+        # Per conversation, one prefetch in flight and the newest text waiting behind it.
+        self._prefetching: dict[str, PrefetchRequest | None] = {}
+        self._prefetch_lock = threading.Lock()
         self._closed = False
         if self._core.enabled:
             atexit.register(_flush_at_exit, weakref.ref(self))
@@ -142,6 +148,7 @@ class Niadra:
         timeout: float | None = None,
         use_cache: bool = True,
         format: Literal["text", "json"] = "text",
+        turn: str | None = None,
     ) -> Context:
         """The context pack for a subject (a person, account or partner) or a business object.
 
@@ -153,6 +160,13 @@ class Niadra:
         `target`, e.g. `"openai/gpt-4.1"`, lets the server aim the pack at that model's
         prompt-cache floor. `delta=True` asks for what changed since this agent last looked,
         and is never served from the cache.
+
+        `turn` is the customer's last turn, which a conversation passes for you. In a space with
+        memory v2 it goes as `query` and the answer adds `slots`, what the turn selected from
+        memory, at the end of `turn_block`, while the pack stays the conversation's pinned one (and
+        is cached as without it). A space without memory v2 compiles a read with `query` for it and
+        does not pin it, so after one such answer the client stops sending the turn for ten
+        minutes. `query` asks for a read focused on that text, as before, and wins over `turn`.
 
         Never raises (unless `strict`): on failure it returns the last good pack for the same
         key or an empty one. A 401 or 403 also wipes what the cache held for that key.
@@ -180,31 +194,10 @@ class Niadra:
         if not self._core.enabled:
             return Context.empty(requested=requested, error="disabled")
         budget = self._core.context_budget(view, timeout)
-        if not self._core.cacheable(request, use_cache):
-            try:
-                return self._fetch_context(request, budget, None)
-            except Exception as exc:
-                return self._core.fail(
-                    "context", exc, Context.empty(requested=requested, error=error_code(exc))
-                )
-
-        key = cache_key(request)
-        scope = self._core.scope_of(conversation_id, task_id)
-        hit = self._cache.get(key)
-        if hit is not None and hit.freshness == "fresh":
-            return hit.context
-        if hit is not None and hit.freshness == "stale":
-            self._refresh_later(key, scope, request, budget)
-            return hit.context
-        try:
-            fetched = self._fetch_context(request, budget, self._cache.etag(key))
-            return self._cache.absorb(key, scope, fetched)
-        except Exception as exc:
-            fallback = self._cache.fallback(key, exc)
-            if fallback is not None and not self._core.strict:
-                logger.warning("niadra: context failed, serving the last good pack (%s)", error_code(exc))
-                return fallback
-            return self._core.fail("context", exc, Context.empty(requested=requested, error=error_code(exc)))
+        query = self._core.turn_query(request, turn)
+        if query is not None:
+            return self._turn_context(request, query, budget, use_cache, requested)
+        return self._pinned_context(request, budget, use_cache, requested)
 
     def search(
         self,
@@ -759,6 +752,66 @@ class Niadra:
         except Exception as exc:
             return self._core.fail("subject_token", exc, None)
 
+    def prefetch(
+        self,
+        subject: HandleLike | None = None,
+        object: ObjectLike | None = None,
+        *,
+        text: str,
+        about: HandleLike | None = None,
+        view: str = "voice",
+        verification: VerificationLike = Verification.V0,
+        conversation_id: str | None = None,
+        task_id: str | None = None,
+    ) -> bool:
+        """Sends a partial transcript of the customer's turn while they are still speaking.
+
+        The server reads it the way it will read the final turn and warms what that read needs
+        (memory v2), so the `context()` that answers the turn spends less of its budget. It runs
+        in the background: it returns at once, never raises and never holds a turn. True when it
+        was sent or queued: while one runs for the same conversation, the newest text waits and
+        goes when it ends, and older waiting texts are dropped. False when there was nothing worth
+        sending (blank or very short text) or the space does not read turns.
+        """
+        if not self._core.enabled or self._closed:
+            return False
+        try:
+            request = self._core.prefetch_request(
+                subject, object, about, view, verification, conversation_id, task_id, text
+            )
+        except (TypeError, ValueError):
+            return False
+        scope = self._core.scope_of(conversation_id, task_id)
+        if request is None:
+            return False
+        with self._prefetch_lock:
+            if scope in self._prefetching:
+                self._prefetching[scope] = request  # the newest text waits for the one in flight
+                return True
+            self._prefetching[scope] = None
+        if self._prefetcher is None:
+            self._prefetcher = ThreadPoolExecutor(max_workers=2, thread_name_prefix="niadra-prefetch")
+        try:
+            self._prefetcher.submit(self._prefetch, scope, request)
+        except RuntimeError:
+            with self._prefetch_lock:
+                self._prefetching.pop(scope, None)  # the executor is shutting down
+            return False
+        return True
+
+    def _prefetch(self, scope: str, request: PrefetchRequest | None) -> None:
+        while request is not None:
+            try:
+                self._transport.request(self._core.prefetch_http(request))
+            except Exception as exc:
+                self._core.prefetch_failed(exc)
+            with self._prefetch_lock:
+                request = self._prefetching.pop(scope, None)
+                if request is not None and self._core.turns.prefetch_wanted():
+                    self._prefetching[scope] = None
+                else:
+                    request = None
+
     def flush(self, timeout: float | None = None) -> bool:
         """Sends everything queued, from the calling thread. True when nothing is left."""
         if not self._core.enabled:
@@ -778,6 +831,8 @@ class Niadra:
                 self._flusher.stop(timeout)
             if self._refresher is not None:
                 self._refresher.shutdown(wait=True)  # refreshes are bounded by the context budget
+            if self._prefetcher is not None:
+                self._prefetcher.shutdown(wait=True)  # bounded by the prefetch budget
             self._transport.close()
         except Exception as exc:
             self._core.fail("close", exc, None)
@@ -804,6 +859,64 @@ class Niadra:
         started = time.monotonic()
         data = self._transport.request(self._core.context_http(request, budget, known_etag))
         return self._core.parse_context(data, started)
+
+    def _pinned_context(
+        self, request: ContextRequest, budget: float, use_cache: bool, requested: Verification
+    ) -> Context:
+        """A read without the turn: the conversation's pinned pack, from the cache when it is fresh."""
+        if not self._core.cacheable(request, use_cache):
+            try:
+                return self._fetch_context(request, budget, None)
+            except Exception as exc:
+                return self._core.fail(
+                    "context", exc, Context.empty(requested=requested, error=error_code(exc))
+                )
+
+        key = cache_key(request)
+        scope = self._core.scope_of(request.conversation_id, request.task_id)
+        hit = self._cache.get(key)
+        if hit is not None and hit.freshness == "fresh":
+            return hit.context
+        if hit is not None and hit.freshness == "stale":
+            self._refresh_later(key, scope, request, budget)
+            return hit.context
+        try:
+            fetched = self._fetch_context(request, budget, self._cache.etag(key))
+            return self._cache.absorb(key, scope, fetched)
+        except Exception as exc:
+            fallback = self._cache.fallback(key, exc)
+            if fallback is not None and not self._core.strict:
+                logger.warning("niadra: context failed, serving the last good pack (%s)", error_code(exc))
+                return fallback
+            return self._core.fail("context", exc, Context.empty(requested=requested, error=error_code(exc)))
+
+    def _turn_context(
+        self, request: ContextRequest, query: str, budget: float, use_cache: bool, requested: Verification
+    ) -> Context:
+        """A read that sends the customer's turn: always asked of the API, since the slots are this
+        turn's; the pack is cached, and served on failure, as the read without `query`."""
+        cacheable = self._core.cacheable(request, use_cache)
+        key = cache_key(request) if cacheable else None
+        scope = self._core.scope_of(request.conversation_id, request.task_id)
+        # A `not_modified` answer carries no `pack`, so a read as data asks for the whole answer.
+        known = self._cache.etag(key) if key is not None and request.format != "json" else None
+        started = time.monotonic()
+        try:
+            fetched = self._fetch_context(request.model_copy(update={"query": query}), budget, known)
+        except Exception as exc:
+            fallback = self._cache.fallback(key, exc) if key is not None else None
+            if fallback is not None and not self._core.strict:
+                logger.warning("niadra: context failed, serving the last good pack (%s)", error_code(exc))
+                return fallback
+            return self._core.fail("context", exc, Context.empty(requested=requested, error=error_code(exc)))
+        if self._core.turns.observe(fetched) is False and not fetched.not_modified:
+            # This space compiled the pack for the turn and did not pin it: the conversation reads its
+            # pinned pack as before, within what is left of the budget, and stops sending the turn.
+            left = budget - (time.monotonic() - started)
+            if left >= MIN_REREAD:
+                return self._pinned_context(request, left, use_cache, requested)
+            return self._core.unpinned(fetched)
+        return self._core.settle_turn(self._cache, key, scope, fetched)
 
     def _refresh_later(self, key: str, scope: str, request: ContextRequest, budget: float) -> None:
         if not self._cache.begin_refresh(key):
