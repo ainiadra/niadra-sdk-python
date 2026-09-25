@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        extra: [livekit, pipecat, openai-agents, langchain, langgraph]
+        extra: [livekit, pipecat, openai-agents, langchain, langgraph, anthropic]
         python: ["3.10", "3.13"]
         exclude:
           - { extra: pipecat, python: "3.10" }
