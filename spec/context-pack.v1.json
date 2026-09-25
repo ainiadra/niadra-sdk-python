@@ -64,6 +64,7 @@
         "spec": {
           "const": "context-pack.v1",
           "default": "context-pack.v1",
+          "description": "The shape's version. `context-pack.v1` adds `slots` to `v0` and changes nothing else.",
           "title": "Spec",
           "type": "string"
         },
@@ -407,7 +408,7 @@
             }
           ],
           "default": null,
-          "description": "Why effective is lower: `source_ceiling`, `not_proven`.",
+          "description": "Why effective is lower: `source_ceiling`, `not_proven`, or `unconfirmed_link` (the read went through an identifier joined to the profile by a claim nobody confirmed yet, so it stays at V1 until the company's systems, a login or a person confirm the link).",
           "title": "Reason"
         }
       },
@@ -530,6 +531,7 @@
         }
       ],
       "default": null,
+      "description": "With `delta`: what memory learned since this agent's last read, for the end of the prompt. The turn block after `text` is `live`, then `slots`, then `delta`.",
       "title": "Delta"
     },
     "slots": {
@@ -542,7 +544,7 @@
         }
       ],
       "default": null,
-      "description": "Memory v2, with `query`: what the customer's last turn selected from memory for this turn, a block for the end of the prompt, after `live` and before `delta`. Never part of `text`, which stays the same bytes for the whole conversation.",
+      "description": "Memory v2, with `query`: what the customer's last turn selected from memory for this turn. It goes in the turn block after `text`, in this order: the `live` turns, then `slots`, then `delta`. Never part of `text`, which stays the same bytes for the whole conversation.",
       "title": "Slots"
     },
     "cache": {
