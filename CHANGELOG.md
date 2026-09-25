@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- The WhatsApp, Twilio and ElevenLabs webhook checks refuse a signature header with non-ASCII
+  characters instead of raising `TypeError` (a 500 where a 401 belongs): they compare bytes.
+
 ## [0.3.0] - 2026-09-25
 
 ### Added

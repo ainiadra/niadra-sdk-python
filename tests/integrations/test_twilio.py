@@ -149,3 +149,8 @@ async def test_an_sms_through_twilio_with_the_async_client(
         assert message.record(chat)
     await on_mock_async.flush()
     assert turns(mock_app.cell, "sms-1") == [("customer", "Call me back")]
+
+
+def test_a_signature_with_non_ascii_characters_is_refused_not_raised() -> None:
+    # `hmac.compare_digest` raises on a non-ASCII str; a forged header must be refused, not raise.
+    assert not verify_signature("https://agent.example.com/twilio/voice", {"CallSid": ["CA1"]}, "é", "token")

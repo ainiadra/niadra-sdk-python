@@ -184,7 +184,7 @@ def verify_signature(body: Body, signature: str | None, app_secret: str | None) 
     if not signature or not app_secret or not signature.startswith("sha256="):
         return False
     expected = hmac.new(app_secret.encode(), raw(body), hashlib.sha256).hexdigest()
-    return hmac.compare_digest(signature[len("sha256=") :], expected)
+    return same(signature[len("sha256=") :], expected)
 
 
 def subscribe(query: Mapping[str, Any], verify_token: str) -> WebhookResponse:

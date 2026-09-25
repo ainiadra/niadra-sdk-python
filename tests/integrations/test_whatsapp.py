@@ -133,3 +133,10 @@ def test_recording_never_raises(on_mock: Niadra) -> None:
     assert sent(Broken(), "hi", {"messages": []}) is False  # type: ignore[arg-type]
     chat = on_mock.conversation("wa-1", subject=MARINA_WA)
     assert sent(chat, "hi", object()) is True, "an odd response still records"
+
+
+def test_a_signature_with_non_ascii_characters_is_refused_not_raised() -> None:
+    # `hmac.compare_digest` raises on a non-ASCII str; a forged header must be a 401, not a 500.
+    body = b'{"object": "whatsapp_business_account"}'
+    assert not verify_signature(body, "sha256=é" * 3, APP_SECRET)
+    assert parse_webhook(body, {"X-Hub-Signature-256": "sha256=é"}, APP_SECRET) is None

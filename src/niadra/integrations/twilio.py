@@ -47,7 +47,7 @@ from niadra._client import Niadra
 from niadra.conversation import AsyncConversation, Conversation
 from niadra.handles import whatsapp
 from niadra.integrations._common import attestation_level, end, phone_or_none, warn
-from niadra.integrations._webhooks import Body, Session, header
+from niadra.integrations._webhooks import Body, Session, header, same
 from niadra.models.common import Handle
 from niadra.models.events import VoiceInfo
 from niadra.vocabulary import Verification
@@ -87,7 +87,7 @@ def verify_signature(url: str, params: Params, given: str | None, auth_token: st
     if not given or not auth_token:
         return False
     candidates = {url, _without_port(url), _with_port(url)}
-    return any(hmac.compare_digest(given, signature(url_, params, auth_token)) for url_ in candidates)
+    return any(same(given, signature(url_, params, auth_token)) for url_ in candidates)
 
 
 def _without_port(url: str) -> str:

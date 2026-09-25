@@ -153,7 +153,7 @@ def verify_signature(
     if abs(moment - int(stamp)) > tolerance:
         return False
     expected = hmac.new(secret.encode(), stamp.encode() + b"." + raw(body), hashlib.sha256).hexdigest()
-    return hmac.compare_digest(given, expected)
+    return same(given, expected)
 
 
 def _property(schema: Mapping[str, Any]) -> dict[str, Any]:

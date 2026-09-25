@@ -228,3 +228,8 @@ async def test_the_agents_notes_as_a_dynamic_variable_and_the_memory_tools(
     off = await hooks(on_mock_async).conversation_initiation(payload("initiation"), AUTH)
     assert off.body["dynamic_variables"]["niadra_agent_memory"] == ""
     assert (await hooks(on_mock_async).server_tool("remember", json.dumps(body), AUTH)).status == 404
+
+
+def test_a_signature_with_non_ascii_characters_is_refused_not_raised() -> None:
+    # `hmac.compare_digest` raises on a non-ASCII str; a forged header must be refused, not raise.
+    assert not verify_signature(b"{}", f"t={NOW},v0=é", SECRET, now=NOW)

@@ -73,7 +73,8 @@ def header(headers: Mapping[str, str] | None, name: str) -> str | None:
 
 
 def same(given: str | None, expected: str | None) -> bool:
-    """Constant-time comparison; missing values never match."""
+    """Constant-time comparison of the UTF-8 bytes; missing values never match. Strings go in as bytes:
+    `hmac.compare_digest` raises on a non-ASCII `str`, and a forged header must answer 401, not fail."""
     if not given or not expected:
         return False
     return hmac.compare_digest(given.encode(), expected.encode())
