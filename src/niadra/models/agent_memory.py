@@ -152,7 +152,9 @@ class AgentNoteProposal(ResponseModel):
     decided_by: str | None = None
     problem: str | None = Field(
         default=None,
-        description="Why a distillation failed: `nothing_to_propose`, `personal_data`, `no_turns`.",
+        description="Why a distillation failed: `nothing_to_propose`, `personal_data`, `no_turns`, or "
+        "`unconfirmed_link` (the conversation spoke only through a link a claim made and nobody confirmed "
+        "yet; ask again once it is confirmed).",
     )
 
 
