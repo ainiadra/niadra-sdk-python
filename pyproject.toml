@@ -46,7 +46,8 @@ google-adk = ["google-adk>=2.9,<3"]
 strands = ["strands-agents>=1.57,<2"]
 pydantic-ai = ["pydantic-ai-slim>=2.49,<3"]
 llamaindex = ["llama-index-core>=0.14.25,<0.15"]
-crewai = ["crewai>=1.15,<2; python_version < '3.14'"]
+# CrewAI's vector store needs onnxruntime, which has no Python 3.10 wheels.
+crewai = ["crewai>=1.15,<2; python_version >= '3.11' and python_version < '3.14'"]
 agno = ["agno>=3.0.11,<4"]
 agent-framework = ["agent-framework-core>=1.19,<2"]
 
@@ -102,6 +103,8 @@ ignore = ["S101", "S311"]
 "src/niadra/integrations/**" = ["ARG002", "ARG003"]
 # An adapter's tests import the framework only after `pytest.importorskip` found it.
 "tests/integrations/**" = ["S105", "S106", "ARG", "N802", "PT018", "E402"]
+# Langflow components declare their inputs and outputs as class lists, Langflow's own style.
+"integrations-extras/**" = ["RUF012", "ARG", "E402", "S105", "S106"]
 
 [tool.mypy]
 python_version = "3.10"

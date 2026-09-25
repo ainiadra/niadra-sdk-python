@@ -48,8 +48,10 @@ jobs:
         python: ["3.10", "3.13"]
         exclude:
           - { extra: pipecat, python: "3.10" }
+          - { extra: crewai, python: "3.10" }
         include:
           - { extra: pipecat, python: "3.11" }
+          - { extra: crewai, python: "3.11" }
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
@@ -62,6 +64,20 @@ jobs:
           file="tests/integrations/test_$(echo '${{ matrix.extra }}' | tr - _).py"
           uv run pytest -rs "$file" | tee pytest.log
           ! grep -q SKIPPED pytest.log
+
+  # The Langflow components (integrations-extras/langflow/), with Langflow's component runtime.
+  langflow:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - run: uv run --with "lfx==1.12.3" pytest -rs integrations-extras/langflow | tee pytest.log
+      - run: "! grep -q SKIPPED pytest.log"
 
   # The benchmark harness (benchmarks/): its own project and lock, its own checks. It never runs a
   # benchmark here; the runs happen inside the cloud region (benchmarks/README.md).
