@@ -1,0 +1,23 @@
+{
+  "name": "search_customer_history",
+  "call": {
+    "call_type": "phone_call",
+    "call_id": "call_8f1e2d3c4b5a69788f1e2d3c4b",
+    "agent_id": "agent_4c2a9e1f7b3d5a6c8e0f1a2b3c",
+    "call_status": "ongoing",
+    "direction": "inbound",
+    "from_number": "+5511912345678",
+    "to_number": "+551130001000",
+    "metadata": {},
+    "retell_llm_dynamic_variables": {
+      "niadra_context": "<context source=\"niadra\">...</context>",
+      "niadra_context_etag": "etag-9",
+      "niadra_injected_at": "2026-09-25T02:00:00+00:00"
+    },
+    "start_timestamp": 1790301600000,
+    "transcript": "Agent: Hi Marina, is this about the lid of order 4471?\nUser: Yes, it still has not arrived.\n"
+  },
+  "args": {
+    "query": "lid"
+  }
+}

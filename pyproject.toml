@@ -50,6 +50,13 @@ llamaindex = ["llama-index-core>=0.14.25,<0.15"]
 crewai = ["crewai>=1.15,<2; python_version >= '3.11' and python_version < '3.14'"]
 agno = ["agno>=3.0.11,<4"]
 agent-framework = ["agent-framework-core>=1.19,<2"]
+retell = []
+# semantic-kernel 1.44 requires a pre-release of azure-ai-agents; naming it here lets uv take it.
+semantic-kernel = ["semantic-kernel>=1.44.1,<2", "azure-ai-agents>=1.2.0b3"]
+haystack = ["haystack-ai>=3.2,<4"]
+camel = ["camel-ai>=0.2.90,<0.3"]
+dspy = ["dspy>=3.4,<4"]
+ag2 = ["ag2>=1.1,<2"]
 
 [project.urls]
 Homepage = "https://niadra.com"
@@ -119,7 +126,8 @@ plugins = ["pydantic.mypy"]
 module = [
   "livekit.*", "pipecat.*", "agents.*", "langchain.*", "langchain_core.*", "langgraph.*", "anthropic.*", "boto3.*",
   "botocore.*", "google.genai.*", "google.adk.*", "litellm.*", "strands.*", "pydantic_ai.*",
-  "llama_index.*", "crewai.*", "agno.*", "agent_framework.*", "openai.*",
+  "llama_index.*", "crewai.*", "agno.*", "agent_framework.*", "openai.*", "semantic_kernel.*", "haystack.*",
+  "camel.*", "dspy.*", "ag2.*",
 ]
 ignore_missing_imports = true
 
@@ -136,4 +144,10 @@ conflicts = [
   [{ extra = "livekit" }, { extra = "openai-agents" }],
   [{ extra = "crewai" }, { extra = "openai-agents" }],
   [{ extra = "litellm" }, { extra = "openai-agents" }],
+  # CAMEL-AI pins pydantic 2.12.0 or older; these want a newer one.
+  [{ extra = "camel" }, { extra = "google-genai" }],
+  [{ extra = "camel" }, { extra = "google-adk" }],
+  [{ extra = "camel" }, { extra = "pipecat" }],
+  [{ extra = "camel" }, { extra = "livekit" }],
+  [{ extra = "camel" }, { extra = "openai-agents" }],
 ]

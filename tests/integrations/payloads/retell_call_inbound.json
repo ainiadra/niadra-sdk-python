@@ -1,0 +1,14 @@
+{
+  "event": "call_inbound",
+  "event_timestamp": 1790301600105,
+  "call_inbound": {
+    "call_id": "call_8f1e2d3c4b5a69788f1e2d3c4b",
+    "agent_id": "agent_4c2a9e1f7b3d5a6c8e0f1a2b3c",
+    "agent_version": 3,
+    "from_number": "+5511912345678",
+    "to_number": "+551130001000",
+    "custom_sip_headers": {
+      "x-stir-verstat": "TN-Validation-Passed-A"
+    }
+  }
+}
