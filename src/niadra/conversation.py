@@ -129,9 +129,13 @@ class _Session:
     def task_id(self) -> str | None:
         return self.id if self._kind == "task" else None
 
-    def customer(self, text: str, **event: Any) -> bool:
-        """Records something the customer said. Extra keyword arguments go to the `EventItem`."""
-        return self._turn(Speaker.CUSTOMER, "inbound", text, event)
+    def customer(self, text: str, *, stt_confidence: float | None = None, **event: Any) -> bool:
+        """Records something the customer said. Extra keyword arguments go to the `EventItem`.
+
+        `stt_confidence` (0 to 1) is the speech-to-text confidence of a spoken turn, when the
+        voice stack reports one.
+        """
+        return self._turn(Speaker.CUSTOMER, "inbound", text, event, stt_confidence=stt_confidence)
 
     def agent(self, text: str, *, usage: Any = None, **event: Any) -> bool:
         """Records the AI agent's answer, stamped with the context its prompt carried.
@@ -233,7 +237,13 @@ class _Session:
         self._etag, self._deltas = None, []
 
     def _turn(
-        self, speaker: Speaker, direction: Literal["inbound", "outbound"], text: str, event: dict[str, Any]
+        self,
+        speaker: Speaker,
+        direction: Literal["inbound", "outbound"],
+        text: str,
+        event: dict[str, Any],
+        *,
+        stt_confidence: float | None = None,
     ) -> bool:
         try:
             if self.channel is None:
@@ -248,7 +258,7 @@ class _Session:
                     role=speaker, id=self.agent_id if speaker is not Speaker.CUSTOMER else None
                 ),
                 direction=direction,
-                content=Content(text=text),
+                content=Content(text=text, stt_confidence=stt_confidence),
                 **event,
             )
         except (TypeError, ValueError) as exc:

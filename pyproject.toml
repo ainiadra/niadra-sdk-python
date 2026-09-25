@@ -27,6 +27,29 @@ dependencies = [
   "pydantic>=2.6,<3",
 ]
 
+[project.optional-dependencies]
+livekit = ["livekit-agents>=1.8.3,<2"]
+pipecat = ["pipecat-ai>=1.11.0,<2; python_version >= '3.11'"]
+elevenlabs = []
+vapi = []
+whatsapp = []
+twilio = []
+openai = ["openai>=1.40,<4"]
+openai-agents = ["openai-agents>=0.22.3,<1"]
+langchain = ["langchain-core>=1.6,<2"]
+langgraph = ["langgraph>=1.2,<2", "langchain-core>=1.6,<2"]
+anthropic = ["anthropic>=1.8,<2"]
+bedrock = ["boto3>=1.40,<2"]
+google-genai = ["google-genai>=2.25,<3"]
+litellm = ["litellm>=1.102,<2"]
+google-adk = ["google-adk>=2.9,<3"]
+strands = ["strands-agents>=1.57,<2"]
+pydantic-ai = ["pydantic-ai-slim>=2.49,<3"]
+llamaindex = ["llama-index-core>=0.14.25,<0.15"]
+crewai = ["crewai>=1.15,<2; python_version < '3.14'"]
+agno = ["agno>=3.0.11,<4"]
+agent-framework = ["agent-framework-core>=1.19,<2"]
+
 [project.urls]
 Homepage = "https://niadra.com"
 Documentation = "https://docs.niadra.com/en"
@@ -76,3 +99,28 @@ strict = true
 mypy_path = "src"
 files = ["src", "tests"]
 plugins = ["pydantic.mypy"]
+
+# The frameworks behind the extras are not installed in the main job, where mypy runs: their
+# types are unknown there, and an adapter subclasses them.
+[[tool.mypy.overrides]]
+module = [
+  "livekit.*", "pipecat.*", "agents.*", "langchain_core.*", "langgraph.*", "anthropic.*", "boto3.*",
+  "botocore.*", "google.genai.*", "google.adk.*", "litellm.*", "strands.*", "pydantic_ai.*",
+  "llama_index.*", "crewai.*", "agno.*", "agent_framework.*", "openai.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["niadra.integrations.*", "tests.integrations.*"]
+disallow_subclassing_any = false
+warn_unused_ignores = false
+disallow_untyped_decorators = false
+
+[tool.uv]
+# Frameworks that pin incompatible versions of a shared dependency. Each is tested in its own job.
+conflicts = [
+  [{ extra = "pipecat" }, { extra = "crewai" }],
+  [{ extra = "livekit" }, { extra = "openai-agents" }],
+  [{ extra = "crewai" }, { extra = "openai-agents" }],
+  [{ extra = "litellm" }, { extra = "openai-agents" }],
+]

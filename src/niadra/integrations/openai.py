@@ -38,12 +38,13 @@ from __future__ import annotations
 
 import inspect
 import logging
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from typing import Any, TypeVar, cast
 
 from niadra.conversation import AnySession, current_session
 from niadra.conversation import _AsyncSession as AsyncSession
 from niadra.conversation import _SyncSession as SyncSession
+from niadra.integrations._common import inject
 from niadra.models.events import ModelUsage
 from niadra.models.results import Context
 
@@ -51,7 +52,6 @@ logger = logging.getLogger("niadra")
 
 C = TypeVar("C")
 
-_INSTRUCTION_ROLES = frozenset({"system", "developer"})
 _INTERCEPTED = ("create", "parse")
 
 
@@ -107,25 +107,6 @@ class _Proxy:
 
     def __repr__(self) -> str:
         return f"niadra.wrap({object.__getattribute__(self, '_target')!r})"
-
-
-def inject(context: Context, messages: Sequence[Any]) -> list[Any]:
-    """Places the pack after the leading system or developer messages and the turn block at the end."""
-    result = list(messages)
-    if context.system_block:
-        position = 0
-        while position < len(result) and _role(result[position]) in _INSTRUCTION_ROLES:
-            position += 1
-        result.insert(position, {"role": "system", "content": context.system_block})
-    if context.turn_block:
-        result.append({"role": "system", "content": context.turn_block})
-    return result
-
-
-def _role(message: Any) -> Any:
-    if isinstance(message, Mapping):
-        return message.get("role")
-    return getattr(message, "role", None)
 
 
 def _is_async(method: Any) -> bool:
