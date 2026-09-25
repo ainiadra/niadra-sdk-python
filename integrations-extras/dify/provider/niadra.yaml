@@ -1,0 +1,39 @@
+identity:
+  author: niadra
+  name: niadra
+  label:
+    en_US: Niadra
+  description:
+    en_US: The customer's memory, shared by every agent of the company.
+  icon: icon.svg
+  tags:
+    - utilities
+    - productivity
+credentials_for_provider:
+  api_key:
+    type: secret-input
+    required: true
+    label:
+      en_US: Source key
+    placeholder:
+      en_US: nia_sk_live_...
+    help:
+      en_US: The key of the Niadra source this Dify app writes and reads as, from the Niadra Console.
+    url: https://niadra.com
+  base_url:
+    type: text-input
+    required: false
+    label:
+      en_US: API address
+    help:
+      en_US: Leave empty. Only for the local emulator (niadra-mock).
+tools:
+  - tools/get_context.yaml
+  - tools/record_reply.yaml
+  - tools/search_customer_history.yaml
+  - tools/get_customer_timeline.yaml
+  - tools/open_history_item.yaml
+  - tools/search_agent_memory.yaml
+extra:
+  python:
+    source: provider/niadra.py

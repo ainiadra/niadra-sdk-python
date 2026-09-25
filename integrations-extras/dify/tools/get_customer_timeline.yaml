@@ -1,0 +1,93 @@
+identity:
+  name: get_customer_timeline
+  author: niadra
+  label:
+    en_US: Customer timeline
+description:
+  human:
+    en_US: Lists the customer's conversations and agent actions, newest first.
+  llm: List this customer's conversations and agent actions in order, newest first, one line each. Use
+    it to leaf through the history when you do not know what to search for. Pass next_cursor to continue.
+    Prefer search_customer_history for a specific question.
+parameters:
+- name: customer_id_type
+  type: select
+  required: true
+  default: phone
+  options:
+  - value: phone
+    label:
+      en_US: Phone (E.164)
+  - value: whatsapp
+    label:
+      en_US: WhatsApp id
+  - value: email
+    label:
+      en_US: E-mail
+  - value: app_user
+    label:
+      en_US: App user id
+  - value: system_id
+    label:
+      en_US: System id (system:id)
+  label:
+    en_US: Customer id type
+  human_description:
+    en_US: How the customer is identified.
+  form: form
+- name: customer_id
+  type: string
+  required: false
+  label:
+    en_US: Customer id
+  human_description:
+    en_US: The customer's phone, WhatsApp id, e-mail or id; usually a variable of the app. Never chosen
+      by the model.
+  form: form
+- name: conversation_id
+  type: string
+  required: false
+  label:
+    en_US: Conversation id
+  human_description:
+    en_US: The conversation this turn belongs to, such as sys.conversation_id.
+  form: form
+- name: channel
+  type: string
+  required: false
+  default: chat
+  label:
+    en_US: Channel
+  human_description:
+    en_US: 'The channel of the conversation: chat, whatsapp, voice, email...'
+  form: form
+- name: cursor
+  type: string
+  required: false
+  label:
+    en_US: Cursor
+  human_description:
+    en_US: Cursor
+  form: llm
+- name: limit
+  type: number
+  required: false
+  label:
+    en_US: Limit
+  human_description:
+    en_US: Limit
+  form: llm
+- name: when
+  type: string
+  required: false
+  label:
+    en_US: When
+  human_description:
+    en_US: 'The period in the customer''s own words, as they said it: ''last week'', ''semana passada'',
+      ''en marzo''.'
+  form: llm
+  llm_description: 'The period in the customer''s own words, as they said it: ''last week'', ''semana
+    passada'', ''en marzo''.'
+extra:
+  python:
+    source: tools/get_customer_timeline.py

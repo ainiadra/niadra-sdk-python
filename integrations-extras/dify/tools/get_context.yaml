@@ -1,0 +1,104 @@
+identity:
+  name: get_context
+  author: niadra
+  label:
+    en_US: Get context
+description:
+  human:
+    en_US: Records the customer's message and returns what the company knows about the customer, for the
+      prompt.
+  llm: Returns the customer's context for the prompt. Call it once at the start of every turn.
+parameters:
+- name: customer_id_type
+  type: select
+  required: true
+  default: phone
+  options:
+  - value: phone
+    label:
+      en_US: Phone (E.164)
+  - value: whatsapp
+    label:
+      en_US: WhatsApp id
+  - value: email
+    label:
+      en_US: E-mail
+  - value: app_user
+    label:
+      en_US: App user id
+  - value: system_id
+    label:
+      en_US: System id (system:id)
+  label:
+    en_US: Customer id type
+  human_description:
+    en_US: How the customer is identified.
+  form: form
+- name: customer_id
+  type: string
+  required: false
+  label:
+    en_US: Customer id
+  human_description:
+    en_US: The customer's phone, WhatsApp id, e-mail or id; usually a variable of the app. Never chosen
+      by the model.
+  form: form
+- name: conversation_id
+  type: string
+  required: false
+  label:
+    en_US: Conversation id
+  human_description:
+    en_US: The conversation this turn belongs to, such as sys.conversation_id.
+  form: form
+- name: channel
+  type: string
+  required: false
+  default: chat
+  label:
+    en_US: Channel
+  human_description:
+    en_US: 'The channel of the conversation: chat, whatsapp, voice, email...'
+  form: form
+- name: customer_message
+  type: string
+  required: false
+  label:
+    en_US: Customer message
+  human_description:
+    en_US: The customer's message of this turn, such as sys.query. Recorded as the customer's turn.
+  form: form
+- name: view
+  type: select
+  required: false
+  default: chat
+  options:
+  - value: chat
+    label:
+      en_US: chat
+  - value: voice
+    label:
+      en_US: voice
+  - value: brief
+    label:
+      en_US: brief
+  - value: full
+    label:
+      en_US: full
+  label:
+    en_US: View
+  human_description:
+    en_US: How much context to return.
+  form: form
+- name: agent_memory
+  type: boolean
+  required: false
+  default: false
+  label:
+    en_US: Agent memory
+  human_description:
+    en_US: Put the agent's own notes before the customer's context.
+  form: form
+extra:
+  python:
+    source: tools/get_context.py

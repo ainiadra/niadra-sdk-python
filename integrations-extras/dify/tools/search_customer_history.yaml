@@ -1,0 +1,88 @@
+identity:
+  name: search_customer_history
+  author: niadra
+  label:
+    en_US: Search customer history
+description:
+  human:
+    en_US: Searches everything that already happened with the customer.
+  llm: 'Search everything that already happened with this customer: past conversations, promises, agent
+    actions, orders and invoices. Use it when the customer refers to something earlier or asks whether
+    a problem happened before. Do not call it when the answer is already in the context block, including
+    its ''Do histórico'' line, which already counts recurrences. Returns short items with date, channel
+    and outcome, plus a recurrence count. Open one with open_history_item.'
+parameters:
+- name: customer_id_type
+  type: select
+  required: true
+  default: phone
+  options:
+  - value: phone
+    label:
+      en_US: Phone (E.164)
+  - value: whatsapp
+    label:
+      en_US: WhatsApp id
+  - value: email
+    label:
+      en_US: E-mail
+  - value: app_user
+    label:
+      en_US: App user id
+  - value: system_id
+    label:
+      en_US: System id (system:id)
+  label:
+    en_US: Customer id type
+  human_description:
+    en_US: How the customer is identified.
+  form: form
+- name: customer_id
+  type: string
+  required: false
+  label:
+    en_US: Customer id
+  human_description:
+    en_US: The customer's phone, WhatsApp id, e-mail or id; usually a variable of the app. Never chosen
+      by the model.
+  form: form
+- name: conversation_id
+  type: string
+  required: false
+  label:
+    en_US: Conversation id
+  human_description:
+    en_US: The conversation this turn belongs to, such as sys.conversation_id.
+  form: form
+- name: channel
+  type: string
+  required: false
+  default: chat
+  label:
+    en_US: Channel
+  human_description:
+    en_US: 'The channel of the conversation: chat, whatsapp, voice, email...'
+  form: form
+- name: query
+  type: string
+  required: true
+  label:
+    en_US: Query
+  human_description:
+    en_US: What to look for, in the customer's words.
+  form: llm
+  llm_description: What to look for, in the customer's words.
+- name: when
+  type: string
+  required: false
+  label:
+    en_US: When
+  human_description:
+    en_US: 'The period in the customer''s own words, as they said it: ''last week'', ''semana passada'',
+      ''en marzo''.'
+  form: llm
+  llm_description: 'The period in the customer''s own words, as they said it: ''last week'', ''semana
+    passada'', ''en marzo''.'
+extra:
+  python:
+    source: tools/search_customer_history.py

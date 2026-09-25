@@ -1,0 +1,72 @@
+identity:
+  name: record_reply
+  author: niadra
+  label:
+    en_US: Record reply
+description:
+  human:
+    en_US: Records the agent's reply, for every other agent of the company.
+  llm: Records the reply you sent to the customer.
+parameters:
+- name: customer_id_type
+  type: select
+  required: true
+  default: phone
+  options:
+  - value: phone
+    label:
+      en_US: Phone (E.164)
+  - value: whatsapp
+    label:
+      en_US: WhatsApp id
+  - value: email
+    label:
+      en_US: E-mail
+  - value: app_user
+    label:
+      en_US: App user id
+  - value: system_id
+    label:
+      en_US: System id (system:id)
+  label:
+    en_US: Customer id type
+  human_description:
+    en_US: How the customer is identified.
+  form: form
+- name: customer_id
+  type: string
+  required: false
+  label:
+    en_US: Customer id
+  human_description:
+    en_US: The customer's phone, WhatsApp id, e-mail or id; usually a variable of the app. Never chosen
+      by the model.
+  form: form
+- name: conversation_id
+  type: string
+  required: false
+  label:
+    en_US: Conversation id
+  human_description:
+    en_US: The conversation this turn belongs to, such as sys.conversation_id.
+  form: form
+- name: channel
+  type: string
+  required: false
+  default: chat
+  label:
+    en_US: Channel
+  human_description:
+    en_US: 'The channel of the conversation: chat, whatsapp, voice, email...'
+  form: form
+- name: agent_message
+  type: string
+  required: true
+  label:
+    en_US: Agent reply
+  human_description:
+    en_US: The reply the agent sent, usually the LLM node's text.
+  form: form
+extra:
+  python:
+    source: tools/record_reply.py
