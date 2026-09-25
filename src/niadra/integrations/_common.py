@@ -141,6 +141,17 @@ def inject(context: Context, messages: Sequence[Any]) -> list[Any]:
     return result
 
 
+def inject_prompt(prompt: Prompt, messages: Sequence[Any]) -> list[Any]:
+    """Chat-shaped messages with the prompt's system slot after the leading instructions and its
+    turn block at the end."""
+    result = list(messages)
+    if prompt.system:
+        result.insert(instruction_count(result), {"role": "system", "content": prompt.system})
+    if prompt.turn:
+        result.append({"role": "system", "content": prompt.turn})
+    return result
+
+
 def join_instructions(*parts: str | None) -> str:
     """Instruction text followed by the Niadra blocks, for frameworks that take one system string."""
     return "\n\n".join(part for part in parts if part)
