@@ -24,9 +24,10 @@ spec:
           env: [{name: NIADRA_MODELS_URL, value: "http://models:8080"}]
           ports: [{containerPort: 8080}]
           readinessProbe: {httpGet: {path: /healthz, port: 8080}, periodSeconds: 5}
+          # Working set 44 MiB (peak 54) under the benchmark on 25/09/2026.
           resources:
-            requests: {cpu: 20m, memory: 96Mi}
-            limits: {memory: 256Mi}
+            requests: {cpu: 20m, memory: 48Mi}
+            limits: {memory: 128Mi}
 ---
 apiVersion: v1
 kind: Service
@@ -59,9 +60,10 @@ spec:
           env: [{name: LLM_UPSTREAM, value: "https://openrouter.ai/api/v1"}]
           ports: [{containerPort: 8081}]
           readinessProbe: {httpGet: {path: /healthz, port: 8081}, periodSeconds: 5}
+          # Working set 49 MiB (peak 52) under the benchmark on 25/09/2026.
           resources:
-            requests: {cpu: 20m, memory: 96Mi}
-            limits: {memory: 256Mi}
+            requests: {cpu: 20m, memory: 64Mi}
+            limits: {memory: 128Mi}
 ---
 apiVersion: v1
 kind: Service
@@ -110,9 +112,10 @@ spec:
             - {name: OPENAI_API_KEY, value: not-used}
             - {name: MEM0_TELEMETRY, value: "false"}
           readinessProbe: {httpGet: {path: /docs, port: 8000}, periodSeconds: 5, failureThreshold: 60}
+          # Working set 379 MiB (peak 424) under the benchmark on 25/09/2026.
           resources:
-            requests: {cpu: 100m, memory: 512Mi}
-            limits: {memory: 1536Mi}
+            requests: {cpu: 100m, memory: 384Mi}
+            limits: {memory: 1Gi}
 ---
 apiVersion: v1
 kind: Service

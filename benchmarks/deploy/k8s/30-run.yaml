@@ -54,9 +54,11 @@ spec:
           volumeMounts:
             - {name: bootstrap, mountPath: /bootstrap, readOnly: true}
             - {name: results, mountPath: /app/results}
+          # Request: the working set measured under the benchmark on 25/09/2026 (333 MiB,
+          # peak 383). Limit: room for dataset v2's longer customers, still under the node's headroom.
           resources:
-            requests: {cpu: 100m, memory: 512Mi}
-            limits: {memory: 1536Mi}
+            requests: {cpu: 100m, memory: 352Mi}
+            limits: {memory: 1Gi}
       volumes:
         - {name: bootstrap, secret: {secretName: niadra-sandbox-bootstrap}}
         - {name: results, hostPath: {path: /var/lib/niadra-bench/results, type: DirectoryOrCreate}}

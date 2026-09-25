@@ -271,7 +271,13 @@ with different flag values must not overlap in the same space. `summary.json` re
 bench start run --dataset v2 --niadra-memory-v2 off && on_ops /tmp/bench.sh 300    # memory v2 off
 bench start run --dataset v2 --niadra-memory-v2 on && on_ops /tmp/bench.sh 300     # then on, same cases
 ```
-`mem0_platform` needs a `MEM0_API_KEY` from a free Mem0 account, added to the
+
+Memory requests of the benchmark's pods are what each one held under the benchmark on 25/09/2026, so a
+run fits beside production with monitoring on: the harness 352 MiB (it held 333, peak 383), Mem0's
+server 384 MiB (379, peak 424), the embedding proxy 48 MiB (44, peak 54), the meter 64 MiB (49, peak
+52). Limits stay above the peaks with room: 1 GiB for the harness and Mem0 (dataset v2's longer customers
+make the harness's rows and Mem0's prompts larger), 128 MiB for the proxy and the meter. A pod past its
+request is the first the node evicts under pressure, never a production pod. `mem0_platform` needs a `MEM0_API_KEY` from a free Mem0 account, added to the
 Job by hand; it is not part of the default run. `BENCH_REF` picks another branch or tag of this
 repository.
 
