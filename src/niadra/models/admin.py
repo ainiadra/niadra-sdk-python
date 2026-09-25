@@ -30,6 +30,16 @@ class KeyIdentity(ResponseModel):
     agent_memory: bool = False
 
 
+class IngestStatus(ResponseModel):
+    """`POST /v1/ingest/status`: whether what was sent for a conversation or task became memory yet."""
+
+    state: str = Field(description="`open`, `processing`, `ready`, `failed` or `unknown`.")
+    last_event_at: datetime | None = None
+    closed_at: datetime | None = None
+    close_reason: str | None = None
+    extraction: str | None = Field(default=None, description="`ok`, `minimal`, `invalid` or `failed`.")
+
+
 class Origin(ResponseModel):
     event_id: str | None = None
     kind: str | None = None

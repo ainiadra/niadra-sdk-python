@@ -170,3 +170,19 @@ async def test_the_async_client_has_the_same_calls(respx_mock: respx.MockRouter)
     assert memory is not None
     assert memory.facts == []
     assert batch is not None
+
+
+def test_ingest_status_sends_the_thread_in_the_body(respx_mock: respx.MockRouter, client: Niadra) -> None:
+    route = respx_mock.post(f"{BASE}/v1/ingest/status").respond(
+        200, json={"state": "ready", "extraction": "ok", "closed_at": "2026-09-25T10:00:00Z"}
+    )
+    status = client.ingest_status(conversation_id="wa-81")
+    assert status is not None
+    assert (status.state, status.extraction) == ("ready", "ok")
+    assert json.loads(route.calls.last.request.content) == {"conversation_id": "wa-81"}
+    assert "wa-81" not in str(route.calls.last.request.url)
+
+
+def test_ingest_status_needs_exactly_one_thread(lenient: Niadra) -> None:
+    assert lenient.ingest_status() is None
+    assert lenient.ingest_status(conversation_id="c", task_id="t") is None

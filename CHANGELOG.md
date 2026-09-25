@@ -15,6 +15,8 @@ All notable changes to this project are documented here. The format follows
   `contains`, `icontains` and `exists`. It narrows what the policy let through; it never reorders.
 - `feedback_batch(items)`: up to 500 corrections in one call, each with its own idempotency key
   (minted when missing); per-item errors come back by index.
+- `ingest_status(conversation_id=... | task_id=...)`: whether what was sent became memory yet
+  (`open`, `processing`, `ready`, `failed` or `unknown`), states and times only.
 - `whoami()`: what the key authenticates as (space, source, vendor, scopes, audience, whether agent
   memory is on), for any key, to check a key before wiring an agent to it.
 - `niadra.admin`, for a key with the `admin` scope, on the sync and the async client:
@@ -22,7 +24,7 @@ All notable changes to this project are documented here. The format follows
   provenance), `fact_history` (every value a fact's slot held and who replaced whom), `correct` and
   `correct_batch` (the data subject's correction, keyed `<key>:<n>` per item), `forget` and
   `forget_status`, and `export`. They fail open like the rest of the SDK.
-- Models: `KeyIdentity`, `ProfileMemory`, `FactOut`, `FactHistory`, `FactRelation`, `ProfileMatch`,
+- Models: `IngestStatus`, `KeyIdentity`, `ProfileMemory`, `FactOut`, `FactHistory`, `FactRelation`, `ProfileMatch`,
   `CorrectionRequest`, `Erasure`, `ExportPackage`.
 
 ### Fixed

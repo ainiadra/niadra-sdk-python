@@ -29,7 +29,7 @@ from niadra._cache import ContextCache, cache_key
 from niadra._queue import AsyncFlusher, is_retryable
 from niadra._transport import AsyncTransport
 from niadra.conversation import AsyncConversation, AsyncTask
-from niadra.models.admin import KeyIdentity
+from niadra.models.admin import IngestStatus, KeyIdentity
 from niadra.models.agent_memory import (
     AgentMemory,
     AgentMemorySearchResponse,
@@ -412,6 +412,20 @@ class AsyncNiadra:
             )
         except Exception as exc:
             return self._core.fail("feedback_batch", exc, None)
+
+    async def ingest_status(
+        self, *, conversation_id: str | None = None, task_id: str | None = None
+    ) -> IngestStatus | None:
+        """Whether what was sent for a conversation or task became memory yet: `open` (still
+        receiving turns), `processing`, `ready` (memory applies it in seconds), `failed` or `unknown`.
+        States and times only. Flush the queue first if the turns were sent with `track()`."""
+        if not self._core.enabled:
+            return None
+        try:
+            request = self._core.ingest_status_http(conversation_id, task_id)
+            return IngestStatus.model_validate(await self._transport.request(request))
+        except Exception as exc:
+            return self._core.fail("ingest_status", exc, None)
 
     async def whoami(self) -> KeyIdentity | None:
         """What this key authenticates as: space, source, vendor, scopes and whether agent memory is on.

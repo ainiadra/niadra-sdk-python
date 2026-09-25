@@ -517,6 +517,13 @@ class ClientCore:
             "POST", "/v1/feedback/batch", json=body, timeout=self.timeouts.write, budget=self.timeouts.write
         )
 
+    def ingest_status_http(self, conversation_id: str | None, task_id: str | None) -> Request:
+        if (conversation_id is None) == (task_id is None):
+            raise ValueError("pass exactly one of conversation_id or task_id")
+        body = {"conversation_id": conversation_id} if conversation_id else {"task_id": task_id}
+        budget = self.timeouts.write
+        return Request("POST", "/v1/ingest/status", json=body, timeout=budget, budget=budget)
+
     def whoami_http(self) -> Request:
         return Request("GET", "/v1/sources/me", timeout=self.timeouts.write, budget=self.timeouts.write)
 
