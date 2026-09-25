@@ -240,3 +240,76 @@ def test_a_run_without_the_new_metrics_summarizes_exactly_as_published() -> None
     published = json.loads((PUBLISHED / "summary.json").read_text())
     assert aggregate(reps) == published["metrics"]
     assert "history" not in aggregate(reps) and "ingest" not in aggregate(reps)
+
+
+def test_server_timing_steps_are_read_in_milliseconds() -> None:
+    response = httpx.Response(200, headers={"server-timing": 'app;dur=12.5, encode;desc="q";dur=8.1, cache'})
+    assert operations.server_timing(response) == {"app": 12.5, "encode": 8.1}
+    assert operations.server_timing(httpx.Response(200)) == {}
+
+
+async def test_the_encode_line_times_the_question_alone_on_the_embedding_server(config, cases) -> None:
+    from niadra_bench.services.fakes import FakeModels
+
+    pairs = _pairs(cases)
+    lines = await history.run(
+        None,
+        _mem0(config),
+        pairs,
+        "t1",
+        config.history,
+        config.mem0,
+        rates=[20],
+        duration_s=0.3,
+        mem0_transport=lambda: httpx.MockTransport(FakeMem0(set())),
+        models_url="http://models:8080",
+        models_transport=lambda: httpx.ASGITransport(app=FakeModels()),
+    )
+    encode = next(line for line in lines if line["operation"] == "encode")
+    assert (encode["system"], encode["path"], encode["call"]) == ("embedder", "cluster", "POST /v1/embed")
+    assert encode["sent"] > 0 and encode["errors"] == {}
+
+
+async def test_niadra_search_keeps_the_steps_its_server_names(config, cases, monkeypatch) -> None:
+    mock = MockApp()
+
+    async def with_timing(scope, receive, send):
+        async def stamped(message):
+            if message["type"] == "http.response.start":
+                message["headers"] = [
+                    *message.get("headers", []),
+                    (b"server-timing", b"app;dur=4.0, encode;dur=2.5"),
+                ]
+            await send(message)
+
+        await mock.asgi(scope, receive, stamped)
+
+    monkeypatch.delenv("NIADRA_CLUSTER_URL", raising=False)
+    monkeypatch.delenv("NIADRA_MODELS_URL", raising=False)
+    target = NiadraTarget(
+        Keys({"whatsapp": MOCK_KEY}),
+        base_url="http://niadra-mock",
+        transport_factory=lambda: httpx.ASGITransport(app=with_timing),
+    )
+    pairs = _pairs(cases)
+    await target.start()
+    for case, ids in pairs:
+        await target.seed(case, ids)
+    lines = await history.run(
+        target,
+        None,
+        pairs,
+        "t1",
+        config.history,
+        config.mem0,
+        rates=[20],
+        duration_s=0.3,
+        transport=lambda: httpx.ASGITransport(app=with_timing),
+    )
+    await target.close()
+    search = next(line for line in lines if line["operation"] == "search")
+    assert search["server_timing"]["encode"]["p50"] == 2.5 and search["server_timing"]["app"]["p50"] == 4.0
+    summary = operations.aggregate([{"history": lines}], "history")
+    assert summary is not None
+    row = next(r for r in summary["results"] if r["operation"] == "search")
+    assert row["server_timing"]["encode"]["p50"]["median"] == 2.5

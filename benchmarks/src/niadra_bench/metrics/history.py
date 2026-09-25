@@ -21,11 +21,19 @@ a history search is the same `POST /search` metric 1 times, with the same probe 
 `threshold`, for the same seeded user (`known_id`). Mem0 has no episode or conversation to open; the
 nearest call to `open` is `GET /memories/{memory_id}`, reading one memory a search returned. From
 inside the cluster only: Mem0's server has no public address here.
+
+Both searches start by encoding the question with the same embedding server (`niadra-models`: Niadra's
+read service calls it, Mem0 through the embedding proxy). So that a search's time can be read without
+it, a third line times that step alone: `encode`, `POST /v1/embed` with the same probe questions at the
+same rates, from inside the cluster (`NIADRA_MODELS_URL`; no line without it). Niadra's search line
+also keeps the steps its server names in `Server-Timing` (`server_timing`), so an encoding step the
+server reports shows there too.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Callable, Sequence
 from typing import Any, Final
 
@@ -36,7 +44,16 @@ from niadra_bench.config import HistorySettings, Mem0Settings
 from niadra_bench.dataset.model import Case
 from niadra_bench.identity import Identities
 from niadra_bench.metrics import latency
-from niadra_bench.metrics.operations import DEGRADED, EMPTY, OK, Operation, measure, paths, timed
+from niadra_bench.metrics.operations import (
+    DEGRADED,
+    EMPTY,
+    OK,
+    Operation,
+    measure,
+    paths,
+    recording,
+    timed,
+)
 from niadra_bench.targets.mem0 import Mem0RestTarget
 from niadra_bench.targets.niadra import NiadraTarget
 
@@ -164,12 +181,30 @@ def _niadra_search(
         for s in slots
     ]
     url = f"{base}/v1/history/search"
+    timings: dict[str, list[float]] = {}
+    classify = recording(niadra_search_outcome, timings)
 
     async def call(client: httpx.AsyncClient, n: int) -> tuple[float, str]:
         body = bodies[n % len(bodies)]
-        return await timed(client.post(url, json=body, headers=headers), 200, niadra_search_outcome)
+        return await timed(client.post(url, json=body, headers=headers), 200, classify)
 
-    return Operation(latency.Probe("niadra", path, call, transport), "search", "POST /v1/history/search")
+    probe = latency.Probe("niadra", path, call, transport)
+    return Operation(probe, "search", "POST /v1/history/search", timings=timings)
+
+
+def encode_operation(
+    models_url: str,
+    pairs: Sequence[tuple[Case, Identities]],
+    transport: Callable[[], httpx.AsyncBaseTransport] | None = None,
+) -> Operation:
+    """The question's encoding alone, on the embedding server both searches call first."""
+    url = f"{models_url.rstrip('/')}/v1/embed"
+    bodies = [{"texts": [case.probe.question]} for case, _ in pairs]
+
+    async def call(client: httpx.AsyncClient, n: int) -> tuple[float, str]:
+        return await timed(client.post(url, json=bodies[n % len(bodies)]), 200)
+
+    return Operation(latency.Probe("embedder", "cluster", call, transport), "encode", "POST /v1/embed")
 
 
 def _niadra_open(
@@ -248,8 +283,13 @@ async def run(
     duration_s: float,
     transport: Callable[[], httpx.AsyncBaseTransport] | None = None,
     mem0_transport: Callable[[], httpx.AsyncBaseTransport] | None = None,
+    models_url: str | None = None,
+    models_transport: Callable[[], httpx.AsyncBaseTransport] | None = None,
 ) -> list[dict[str, Any]]:
     ops: list[Operation] = []
+    models_url = models_url or os.environ.get("NIADRA_MODELS_URL")
+    if models_url and (niadra is not None or mem0 is not None):
+        ops.append(encode_operation(models_url, pairs, models_transport))
     if niadra is not None:
         where = paths(niadra.client("voice").base_url, "NIADRA_CLUSTER_URL")
         ops += await niadra_operations(niadra, pairs, tag, settings, where, transport)

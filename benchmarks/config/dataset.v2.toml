@@ -1,0 +1,34 @@
+# Dataset v2: what dataset v1 does not measure and memory v2 needs (niadra-docs estudo/11-MEMORIA-V2.md,
+# work package 7). A file of its own, so benchmark.toml, and with it the configuration hash of every v1
+# run, stays what it was. A v2 run's hash covers this file too.
+#
+# The first 120 cases per language are the v1 cases, byte for byte (same seed, same plan); the four
+# categories below follow them. Both systems answer the same cases, and the validity rule of v1 (right
+# with the whole history, wrong with none) decides in each run which of them count.
+
+[dataset]
+seed = 20260924
+cases_per_language = 178
+languages = ["pt", "en"]
+min_sessions = 3
+max_sessions = 8
+# A long_history customer has 30 to 60 sessions, CRM profile included.
+long_min_sessions = 30
+long_max_sessions = 60
+
+[dataset.categories]
+continuity = 20
+identity = 20
+recurrence = 16
+order_time = 16
+promise_action = 16
+privacy = 16
+contradiction = 16
+# A fact asked for in words that share no content word with how the customer said it.
+paraphrase = 16
+# Customers with 30 to 60 sessions, the key session anywhere in the last six months.
+long_history = 10
+# The history has no record of what is asked; the right answer says so and names what the record is.
+unanswerable = 16
+# How many times about one matter, when the latest conversation was about another matter.
+recurrence_topic = 16

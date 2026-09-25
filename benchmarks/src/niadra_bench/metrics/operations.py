@@ -8,15 +8,19 @@ waits for counts as a success; everything else (an HTTP error status, a timeout,
 connection) is an error, counted by kind. A success that carried nothing (a search with no result)
 or a degraded answer (Niadra's `text_only` search, when its encoder did not answer in time) stays in
 the percentiles and is counted apart, so a fast empty answer never hides.
+
+When the server names its own steps in a `Server-Timing` header (`app;dur=12.5, encode;dur=8.1`), a line
+that records them (`Operation.timings`) also gets their percentiles, per step, beside the client's.
 """
 
 from __future__ import annotations
 
+import contextlib
 import os
 import time
 from collections import Counter
 from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
@@ -48,6 +52,30 @@ def plain(_response: httpx.Response) -> str:
     return OK
 
 
+def server_timing(response: httpx.Response) -> dict[str, float]:
+    """The steps a `Server-Timing` header names, in milliseconds (entries without `dur` are left out)."""
+    out: dict[str, float] = {}
+    for entry in response.headers.get("server-timing", "").split(","):
+        name, *params = (part.strip() for part in entry.split(";"))
+        for param in params:
+            key, _, value = param.partition("=")
+            if name and key.strip() == "dur":
+                with contextlib.suppress(ValueError):
+                    out[name] = float(value.strip().strip('"'))
+    return out
+
+
+def recording(classify: Classify, timings: dict[str, list[float]]) -> Classify:
+    """`classify`, also keeping the `Server-Timing` steps of every successful answer in `timings`."""
+
+    def run(response: httpx.Response) -> str:
+        for name, ms in server_timing(response).items():
+            timings.setdefault(name, []).append(ms)
+        return classify(response)
+
+    return run
+
+
 async def timed(
     send: Awaitable[httpx.Response], expect: int, classify: Classify = plain
 ) -> tuple[float, str]:
@@ -76,6 +104,8 @@ class Operation:
     call: str  # the HTTP call as the results name it, e.g. "POST /v1/history/search"
     #: Why the line could not be measured (for example, no item to open); it is still written.
     skipped: str | None = None
+    #: The server's own steps (`Server-Timing`) per answer, when the line records them (`recording`).
+    timings: dict[str, list[float]] = field(default_factory=dict)
 
 
 def summarize(
@@ -97,6 +127,11 @@ def summarize(
         "empty": outcomes.get(EMPTY, 0),
         "degraded": outcomes.get(DEGRADED, 0),
         **({"skipped": op.skipped} if op.skipped else {}),
+        **(
+            {"server_timing": {name: distribution(v) for name, v in sorted(op.timings.items())}}
+            if op.timings
+            else {}
+        ),
     }
 
 
@@ -110,6 +145,7 @@ async def measure(
             if op.skipped:
                 out.append(summarize(op, rate, duration_s, []))
                 continue
+            op.timings.clear()
             results = await latency.open_loop(op.probe, rate, duration_s, warmups, timeout_s)
             out.append(summarize(op, rate, duration_s, results))
     return out
@@ -135,6 +171,16 @@ def aggregate(reps: list[dict[str, Any]], metric: str) -> dict[str, Any] | None:
         for line in present:
             kinds.update(line.get("errors") or {})
         skipped = next((line["skipped"] for line in present if line.get("skipped")), None)
+        steps = sorted({name for line in present for name in line.get("server_timing") or {}})
+        server = {
+            name: {
+                p: stats.across(
+                    [((line or {}).get("server_timing") or {}).get(name, {}).get(p) for line in lines], 1
+                )
+                for p in ("p50", "p95")
+            }
+            for name in steps
+        }
         rows.append(
             {
                 "system": system,
@@ -149,6 +195,7 @@ def aggregate(reps: list[dict[str, Any]], metric: str) -> dict[str, Any] | None:
                 "empty": sum(line.get("empty", 0) for line in present),
                 "degraded": sum(line.get("degraded", 0) for line in present),
                 **({"skipped": skipped} if skipped else {}),
+                **({"server_timing": server} if server else {}),
             }
         )
     return {"unit": "ms", "results": rows}

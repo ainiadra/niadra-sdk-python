@@ -9,12 +9,30 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializationInfo,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+)
 
 Category = Literal[
-    "continuity", "identity", "recurrence", "order_time", "promise_action", "privacy", "contradiction"
+    "continuity",
+    "identity",
+    "recurrence",
+    "order_time",
+    "promise_action",
+    "privacy",
+    "contradiction",
+    "paraphrase",
+    "long_history",
+    "unanswerable",
+    "recurrence_topic",
 ]
-CATEGORIES: tuple[Category, ...] = (
+# The categories of dataset v1. Every results file lists them, even when a smoke run skipped one.
+BASE_CATEGORIES: tuple[Category, ...] = (
     "continuity",
     "identity",
     "recurrence",
@@ -23,6 +41,11 @@ CATEGORIES: tuple[Category, ...] = (
     "privacy",
     "contradiction",
 )
+# Added by dataset v2 (benchmarks/README.md, "The dataset"); v1 cases never use them.
+V2_CATEGORIES: tuple[Category, ...] = ("paraphrase", "long_history", "unanswerable", "recurrence_topic")
+CATEGORIES: tuple[Category, ...] = BASE_CATEGORIES + V2_CATEGORIES
+# Categories whose answer is a count: the history must never hold the count word itself.
+COUNT_CATEGORIES: frozenset[str] = frozenset({"recurrence", "recurrence_topic"})
 Channel = Literal["whatsapp", "voice", "email", "app", "crm", "erp"]
 HandleKind = Literal["phone", "wa_id", "email", "app_user", "crm_id"]
 Level = Literal["V0", "V1", "V2"]
@@ -98,6 +121,19 @@ class Expectation(_Model):
     reference_answer: str
     # Privacy cases: what a verified conversation (V2) must answer; the validity rule uses it.
     verified_all_of: list[list[str]] = Field(default_factory=list)
+    # Unanswerable cases (dataset v2): what the history holds no record of, in the case's language. The
+    # right answer says there is none and gives no value for it.
+    no_record: str | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_v2_fields(
+        self, handler: SerializerFunctionWrapHandler, _info: SerializationInfo
+    ) -> dict[str, object]:
+        # Dataset v1 is committed byte for byte: a field v2 added is written only when a case uses it.
+        data: dict[str, object] = handler(self)
+        if self.no_record is None:
+            data.pop("no_record", None)
+        return data
 
 
 class Case(_Model):

@@ -56,6 +56,10 @@ class Options:
     limit: int | None = None
     quick: bool = False
     output: Path | None = None
+    # The dataset version the cases come from (config.DATASET_VERSIONS).
+    dataset: str = bench_config.DEFAULT_DATASET
+    # Niadra's `memory_v2` space flag for the run: on, off, or None to leave the space as it is.
+    memory_v2: bool | None = None
     # Dry runs only: an in-process transport to niadra-mock instead of the network.
     niadra_transport: Callable[[], httpx.AsyncBaseTransport] | None = None
     niadra_base_url: str | None = None
@@ -143,6 +147,7 @@ class Run:
             concurrency=self.config.run.concurrency,
             control_url=ControlPlane.available(keys.document),
             operations=dataset_operations(self.cases),
+            memory_v2=self.options.memory_v2,
         )
 
     def build_targets(self) -> list[Target]:
@@ -384,6 +389,8 @@ class Run:
 
     async def summary(self, versions: dict[str, str]) -> dict[str, Any]:
         kind = "dry-run" if self.options.dry_run else os.environ.get("BENCH_ENVIRONMENT", "local")
+        dataset_dir = bench_config.dataset_dir(self.options.dataset)
+        memory_v2 = self.options.memory_v2
         identity = await _instance_identity() if kind == "region" else {}
         env = self.config.environment
         return {
@@ -411,7 +418,7 @@ class Run:
                 **{k: v for k, v in versions.items() if k not in ("niadra_sdk", "mem0ai")},
             },
             "config": {
-                "hash": bench_config.config_hash(),
+                "hash": bench_config.config_hash(dataset=self.options.dataset),
                 "repetitions": self.options.repetitions,
                 "agent_model": self.config.agent.model,
                 "judge_model": None if self.options.dry_run else self.config.judge.model,
@@ -434,10 +441,17 @@ class Run:
                 "ingest_duration_s": self.config.ingest.duration_s,
                 "ingest_conversations": self.config.ingest.conversations,
                 "ingest_mem0_modes": self.config.ingest.mem0_modes,
+                # Whether the run set Niadra's `memory_v2` space flag, and to what ("unchanged": the
+                # space kept its own setting, as in every run before the flag existed).
+                "niadra_memory_v2": "unchanged" if memory_v2 is None else ("on" if memory_v2 else "off"),
+                # `context_has_answer` by whole token for values of three or more digits and by the
+                # category's pattern otherwise; the first run's rule is `context_has_answer_loose`.
+                "context_has_answer_rule": "specific-v2",
             },
             "dataset": {
-                "hash": generate.dataset_hash(bench_config.DATASET_DIR),
-                "generator_version": generate.GENERATOR_VERSION,
+                "version": self.options.dataset,
+                "hash": generate.dataset_hash(dataset_dir),
+                "generator_version": generate.GENERATOR_VERSIONS[self.options.dataset],
                 "cases": len(self.cases),
                 "valid": stats.across([r.get("validity", {}).get("valid") for r in self.reps], 0),
                 "excluded": [r.get("validity", {}).get("excluded", []) for r in self.reps],
@@ -508,6 +522,16 @@ def aggregate(reps: list[dict[str, Any]]) -> dict[str, Any]:
                         for category in next((x for x in lines if x), {}).get("by_category", {})
                     },
                     "retrieve_errors": sum((line or {}).get("retrieve_errors", 0) for line in lines),
+                    # Runs before the rule changed have no loose figure; their summary stays as published.
+                    **(
+                        {
+                            "context_has_answer_loose": stats.across(
+                                _pick(lines, "context_has_answer_loose"), 4
+                            )
+                        }
+                        if any("context_has_answer_loose" in (line or {}) for line in lines)
+                        else {}
+                    ),
                 }
             )
             views = next((x for x in lines if x), {}).get("tokens", {})
@@ -586,5 +610,5 @@ def aggregate(reps: list[dict[str, Any]]) -> dict[str, Any]:
     return metrics
 
 
-def load_cases() -> list[Case]:
-    return generate.load(bench_config.DATASET_DIR)
+def load_cases(version: str = bench_config.DEFAULT_DATASET) -> list[Case]:
+    return generate.load(bench_config.dataset_dir(version))

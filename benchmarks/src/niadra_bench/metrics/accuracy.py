@@ -4,24 +4,130 @@ cases count whether the block handed over the sensitive value (5).
 
 The validity rule runs in the same pass: the two references (no memory, full history) answer every
 case, and a case counts only when the agent gets it right with the full history and wrong without.
+
+`context_has_answer` says whether the memory block itself holds the answer, before any agent reads it.
+A value with three or more digits (a protocol, an amount, a ZIP code) counts as a whole token, as
+before. A shorter number or a word cannot: the first run counted the "3" of a recurrence answer in any
+date of the block, so a block that listed dates "had" every count. Those answers count only in the
+pattern of their category (`_holds_short`): a count as a number of its own (never part of a date, a
+time or an amount, never next to a month) on a line with a word that counts ("3 reclamações",
+"Reclamações de técnico: 3", "twice"), or every occurrence listed by its reference; a deadline day
+right after a word that sets one ("até o dia 15", "by the 15th"). The first run's rule is still reported, as
+`context_has_answer_loose`, so runs stay comparable.
 """
 
 from __future__ import annotations
 
 import asyncio
+import re
 import statistics
+import unicodedata
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from typing import Any, Protocol
 
 from niadra_bench.agent import Judge
-from niadra_bench.dataset.model import CATEGORIES, Case
+from niadra_bench.dataset.model import BASE_CATEGORIES, CATEGORIES, COUNT_CATEGORIES, Case
 from niadra_bench.identity import Identities
 from niadra_bench.stats import percentile, rate
 from niadra_bench.targets.base import Target
-from niadra_bench.text import matches_all, matches_none, passes
+from niadra_bench.text import contains, matches_all, matches_none, normalize, passes
 
 Tokenizer = Callable[[str], int]
+
+# Words that make a number next to them a count, and words that make a day next to them a deadline
+# (normalized: lowercase, no accents).
+_COUNTING = frozenset(
+    {
+        "vez", "vezes", "reclamacao", "reclamacoes", "ocorrencia", "ocorrencias", "registro", "registros",
+        "contato", "contatos", "time", "times", "complaint", "complaints", "incident", "incidents",
+        "report", "reports", "occurrence", "occurrences",
+    }
+)  # fmt: skip
+_COUNT_ALONE = frozenset({"twice", "once", "thrice"})
+_MONTHS = frozenset(
+    {
+        "janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro",
+        "outubro", "novembro", "dezembro", "january", "february", "march", "april", "may", "june",
+        "july", "august", "september", "october", "november", "december", "jan", "fev", "feb", "mar",
+        "abr", "apr", "mai", "jun", "jul", "ago", "aug", "set", "sep", "sept", "out", "oct", "nov",
+        "dez", "dec",
+    }
+)  # fmt: skip
+# A word or number standing alone: not glued to a date, a time, an amount or an id by / . : , or -.
+_STANDALONE = re.compile(r"(?<![\w/.:,\-])([a-z0-9]+)(?![\w]|[/.:,\-][a-z0-9])")
+_DEADLINE = frozenset(
+    {"ate", "dia", "prazo", "vencimento", "until", "by", "day", "deadline", "due", "before", "antes"}
+)
+_ORDINAL = re.compile(r"^(\d{1,2})(st|nd|rd|th)$")
+_WINDOW = 3
+
+
+def _digits(value: str) -> int:
+    return sum(ch.isdigit() for ch in value)
+
+
+def _fold(text: str) -> str:
+    text = unicodedata.normalize("NFKD", text)
+    return "".join(ch for ch in text if not unicodedata.combining(ch)).lower()
+
+
+def _count_stated(block: str, wanted: set[str]) -> bool:
+    """A line that states the count: the count on its own, not in a date, and a word that counts."""
+    for line in _fold(block).splitlines():
+        words = [m.group(1) for m in _STANDALONE.finditer(line)]
+        counting = any(t in _COUNTING for t in normalize(line))
+        for i, word in enumerate(words):
+            if word not in wanted:
+                continue
+            if word in _COUNT_ALONE:
+                return True
+            beside = {*words[max(0, i - 1) : i], *words[i + 1 : i + 3]}
+            if counting and not beside & _MONTHS:
+                return True
+    return False
+
+
+def _deadline_near(tokens: list[str], wanted: set[str]) -> bool:
+    days = {w for w in wanted if w.isdigit()}
+    for i, token in enumerate(tokens):
+        match = _ORDINAL.match(token)
+        day = match.group(1) if match else token
+        if day in days and any(t in _DEADLINE for t in tokens[max(0, i - _WINDOW) : i]):
+            return True
+    return False
+
+
+def _references(case: Case) -> list[str]:
+    """The reference of every occurrence the count is about: the numbers of its key sessions."""
+    refs: list[str] = []
+    for session in case.sessions:
+        if session.role == "key":
+            refs += [t for turn in session.turns for t in normalize(turn.text) if t.isdigit() and len(t) >= 3]
+    return refs
+
+
+def _holds_short(block: str, tokens: list[str], group: list[str], case: Case) -> bool:
+    wanted = {t for alt in group for t in normalize(alt)}
+    if case.category in COUNT_CATEGORIES:
+        refs = _references(case)
+        return _count_stated(block, wanted) or (bool(refs) and all(contains(tokens, r) for r in refs))
+    if case.category == "continuity":
+        return _deadline_near(tokens, wanted)
+    return any(contains(tokens, alt) for alt in group)
+
+
+def context_holds_answer(block: str, case: Case) -> bool:
+    """Whether a memory block holds every expected value, by the rule in this module's docstring."""
+    tokens = normalize(block)
+    for group in case.expect.all_of:
+        specific = [alt for alt in group if _digits(alt) >= 3]
+        if any(contains(tokens, alt) for alt in specific):
+            continue
+        short = [alt for alt in group if _digits(alt) < 3]
+        if not short or not _holds_short(block, tokens, short, case):
+            return False
+    return True
 
 
 class Answerer(Protocol):
@@ -44,6 +150,7 @@ class CaseRow:
     retrieve_ms: float
     error: str | None
     context_has_answer: bool | None
+    context_has_answer_loose: bool | None
     leak: bool | None
     answer: str | None
     deterministic: bool | None
@@ -90,7 +197,8 @@ async def _one(
         tokens=tokenizer(block) if block else 0,
         retrieve_ms=round(got.elapsed_ms, 2),
         error=got.error,
-        context_has_answer=None if privacy else matches_all(block, case.expect.all_of),
+        context_has_answer=None if privacy else context_holds_answer(block, case),
+        context_has_answer_loose=None if privacy else matches_all(block, case.expect.all_of),
         leak=(not matches_none(block, case.expect.none_of)) if privacy else None,
         answer=None,
         deterministic=None,
@@ -174,7 +282,9 @@ def summarize(rows: Sequence[CaseRow], valid: set[str]) -> list[dict[str, Any]]:
     for (system, scenario), group in sorted(groups.items(), key=lambda kv: (kv[0][0], kv[0][1] or "")):
         answered = [r for r in group if r.purpose == "answer" and r.case_id in valid]
         by_category: dict[str, Any] = {}
-        for category in CATEGORIES:
+        # The v1 categories always; a later version's only when its cases were asked.
+        asked = {r.category for r in group}
+        for category in (c for c in CATEGORIES if c in BASE_CATEGORIES or c in asked):
             subset = [r for r in answered if r.category == category]
             by_category[category] = {
                 "cases": len(subset),
@@ -203,6 +313,9 @@ def summarize(rows: Sequence[CaseRow], valid: set[str]) -> list[dict[str, Any]]:
                 "judge": rate(sum(bool(r.judge) for r in judged), len(judged)) if judged else None,
                 "context_has_answer": rate(
                     sum(bool(r.context_has_answer) for r in context_known), len(context_known)
+                ),
+                "context_has_answer_loose": rate(
+                    sum(bool(r.context_has_answer_loose) for r in context_known), len(context_known)
                 ),
                 "by_category": by_category,
                 "tokens": tokens,

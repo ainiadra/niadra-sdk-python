@@ -1,0 +1,34 @@
+{
+  "cases": 356,
+  "counts": {
+    "en": {
+      "continuity": 20,
+      "contradiction": 16,
+      "identity": 20,
+      "long_history": 10,
+      "order_time": 16,
+      "paraphrase": 16,
+      "privacy": 16,
+      "promise_action": 16,
+      "recurrence": 16,
+      "recurrence_topic": 16,
+      "unanswerable": 16
+    },
+    "pt": {
+      "continuity": 20,
+      "contradiction": 16,
+      "identity": 20,
+      "long_history": 10,
+      "order_time": 16,
+      "paraphrase": 16,
+      "privacy": 16,
+      "promise_action": 16,
+      "recurrence": 16,
+      "recurrence_topic": 16,
+      "unanswerable": 16
+    }
+  },
+  "generator_version": "2",
+  "seed": 20260924,
+  "sha256": "afdd99efd133199eae45e6a2b229156df39e8659c26c2d00bb636529dbdbfb1d"
+}

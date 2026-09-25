@@ -69,5 +69,6 @@ services:
       MEM0_LLM_BASE_URL: http://meter:8081/v1
       MEM0_EMBEDDER_BASE_URL: http://embed:8080/v1
       MEM0_SERVER_VERSION: v2.2.0
+      NIADRA_MODELS_URL: http://fake-models:9002
       BENCH_ENVIRONMENT: local
     volumes: ["./results:/results"]

@@ -36,6 +36,8 @@ spec:
             - {name: MEM0_METER_URL, value: "http://bench-meter:8081"}
             - {name: MEM0_LLM_BASE_URL, value: "http://bench-meter:8081/v1"}
             - {name: MEM0_EMBEDDER_BASE_URL, value: "http://bench-embed:8080/v1"}
+            # Metric 8's `encode` line: the question's encoding alone, on the server both searches call.
+            - {name: NIADRA_MODELS_URL, value: "http://models:8080"}
             - name: MEM0_SERVER_KEY
               valueFrom: {secretKeyRef: {name: bench-mem0, key: ADMIN_API_KEY}}
             - name: OPENROUTER_API_KEY

@@ -1,7 +1,9 @@
 """`bench`: generate and check the dataset, run the benchmark, serve the helper services.
 
-bench prepare [--check]          write dataset/ from the generator (or check the committed copy)
-bench run [options]              seed, measure and write results/<date>-<id>/
+bench prepare [--check] [--dataset v1|v2]   write dataset/ (v1) and dataset/v2/ from the generator
+                                            (or check the committed copies)
+bench run [options]              seed, measure and write results/<date>-<id>/ (--dataset v1|v2,
+                                 --niadra-memory-v2 on|off)
 bench report <results dir>       rebuild summary.json from the repetitions of a run
 bench serve embed-proxy|llm-meter [--port N]    (fake-llm and fake-models: local smoke runs only)
 """
@@ -23,22 +25,31 @@ from niadra_bench.runner import METRICS, SYSTEMS, Options, Run, aggregate, load_
 
 def _prepare(args: argparse.Namespace) -> int:
     config = bench_config.load()
-    cases = generate.generate(config.dataset)
-    if args.check:
-        committed = (bench_config.DATASET_DIR / "cases.jsonl").read_text()
-        fresh = "\n".join(case.model_dump_json() for case in cases) + "\n"
-        if committed != fresh:
-            print("dataset/cases.jsonl differs from what the generator makes; run `bench prepare`")
-            return 1
-        problems = {c.id: p for c in generate.load(bench_config.DATASET_DIR) if (p := structural_problems(c))}
-        if problems:
-            print(json.dumps(problems, indent=2))
-            return 1
-        print(f"dataset ok: {len(cases)} cases, every one passes the structural validity rule")
-        return 0
-    manifest = generate.write(cases, bench_config.DATASET_DIR, config.dataset)
-    print(json.dumps(manifest, indent=2))
-    return 0
+    versions = bench_config.DATASET_VERSIONS if args.dataset == "all" else (args.dataset,)
+    status = 0
+    for version in versions:
+        settings = bench_config.dataset_settings(config, version)
+        directory = bench_config.dataset_dir(version)
+        cases = generate.generate(settings)
+        name = directory.relative_to(bench_config.ROOT)
+        if args.check:
+            path = directory / "cases.jsonl"
+            committed = path.read_text() if path.exists() else ""
+            fresh = "\n".join(case.model_dump_json() for case in cases) + "\n"
+            if committed != fresh:
+                print(f"{name}/cases.jsonl differs from what the generator makes; run `bench prepare`")
+                status = 1
+                continue
+            problems = {c.id: p for c in generate.load(directory) if (p := structural_problems(c))}
+            if problems:
+                print(json.dumps(problems, indent=2))
+                status = 1
+                continue
+            print(f"{name} ({version}) ok: {len(cases)} cases, every one passes the structural validity rule")
+            continue
+        manifest = generate.write(cases, directory, settings, generate.GENERATOR_VERSIONS[version])
+        print(json.dumps({"dataset": version, **manifest}, indent=2))
+    return status
 
 
 def _csv(value: str, allowed: tuple[str, ...]) -> set[str]:
@@ -61,6 +72,8 @@ def _run(args: argparse.Namespace) -> int:
         limit=args.limit,
         quick=args.quick,
         output=Path(args.output) if args.output else None,
+        dataset=args.dataset,
+        memory_v2=None if args.niadra_memory_v2 is None else args.niadra_memory_v2 == "on",
     )
     if args.mock:
         import httpx
@@ -72,7 +85,7 @@ def _run(args: argparse.Namespace) -> int:
         import os
 
         os.environ.setdefault("NIADRA_API_KEY", MOCK_KEY)
-    run = Run(config, load_cases(), options)
+    run = Run(config, load_cases(args.dataset), options)
     out = asyncio.run(run.execute())
     print(f"results in {out}")
     return 0
@@ -119,6 +132,9 @@ def main(argv: list[str] | None = None) -> None:
     prepare.add_argument(
         "--check", action="store_true", help="fail if the committed dataset is stale or invalid"
     )
+    prepare.add_argument(
+        "--dataset", choices=[*bench_config.DATASET_VERSIONS, "all"], default="all", help="default: all"
+    )
     prepare.set_defaults(func=_prepare)
 
     run = sub.add_parser("run", help="seed every system and measure")
@@ -136,6 +152,19 @@ def main(argv: list[str] | None = None) -> None:
         "--mock", action="store_true", help="Niadra is the in-process niadra-mock (implies --dry-run)"
     )
     run.add_argument("--output", default=None, help="results directory (default: results/)")
+    run.add_argument(
+        "--dataset",
+        choices=bench_config.DATASET_VERSIONS,
+        default=bench_config.DEFAULT_DATASET,
+        help="dataset version (default: v1, the dataset of the published runs)",
+    )
+    run.add_argument(
+        "--niadra-memory-v2",
+        choices=["on", "off"],
+        default=None,
+        help="set Niadra's memory_v2 space flag for the run through the control API, and put it back "
+        "at the end (default: leave the space as it is)",
+    )
     run.set_defaults(func=_run)
 
     report = sub.add_parser("report", help="rebuild summary.json from a run's repetitions")

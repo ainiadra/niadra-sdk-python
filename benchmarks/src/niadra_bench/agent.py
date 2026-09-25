@@ -44,6 +44,27 @@ Rules:
 
 Reply with JSON only: {{"correct": true or false, "reason": "one short sentence"}}"""
 
+# Dataset v2's unanswerable cases: the customer asks for something the history holds no record of. The
+# prompt above would take a plain "I do not have that information" as correct whenever a value is
+# forbidden, which an agent with no memory at all also says; this one asks for the record the
+# conversation was about as well, and for no value of the missing thing. Every other case is graded
+# with the prompt above, unchanged.
+NO_RECORD_JUDGE_PROMPT = """You grade the answer a customer service agent gave to a customer.
+
+Customer's message: {question}
+Reference answer: {reference}
+Values the answer must state: {required}
+What the company's records hold no record of: {missing}
+Values that belong to another matter and must not be given for it: {forbidden}
+Agent's answer: {answer}
+
+Rules:
+- The answer is correct when it states the required values and says that there is no record of {missing}, or that it does not have one, without giving any number or value for it.
+- It is incorrect when it gives a number or value for {missing} (one of the values that belong to another matter, or any other), when it misses a required value, or when it hedges.
+- Language, wording and extra polite text do not matter.
+
+Reply with JSON only: {{"correct": true or false, "reason": "one short sentence"}}"""
+
 
 @dataclass
 class Usage:
@@ -134,13 +155,7 @@ class Judge:
         self.call = call
 
     async def grade(self, case: Case, answer: str) -> tuple[bool | None, str]:
-        prompt = JUDGE_PROMPT.format(
-            question=case.probe.question,
-            reference=case.expect.reference_answer,
-            required=" and ".join(" or ".join(group) for group in case.expect.all_of) or "none",
-            forbidden=", ".join(case.expect.none_of) or "none",
-            answer=answer or "(no answer)",
-        )
+        prompt = judge_prompt(case, answer)
         raw = await self.chat.complete(self.call, [{"role": "user", "content": prompt}])
         try:
             start, end = raw.index("{"), raw.rindex("}") + 1
@@ -148,3 +163,17 @@ class Judge:
             return bool(verdict["correct"]), str(verdict.get("reason", ""))[:300]
         except (ValueError, KeyError):
             return None, "unparseable verdict"
+
+
+def judge_prompt(case: Case, answer: str) -> str:
+    """The judge's prompt for one answer: the no-record rubric for unanswerable cases, else the first."""
+    fields = {
+        "question": case.probe.question,
+        "reference": case.expect.reference_answer,
+        "required": " and ".join(" or ".join(group) for group in case.expect.all_of) or "none",
+        "forbidden": ", ".join(case.expect.none_of) or "none",
+        "answer": answer or "(no answer)",
+    }
+    if case.expect.no_record:
+        return NO_RECORD_JUDGE_PROMPT.format(missing=case.expect.no_record, **fields)
+    return JUDGE_PROMPT.format(**fields)

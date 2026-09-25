@@ -209,3 +209,70 @@ def test_without_the_admin_account_or_the_control_plane_nothing_is_provisioned()
 
 async def _no_wait(seconds: float) -> None:
     return None
+
+
+class FakeConfig:
+    """The control API's configuration documents and diffs, as far as the flag switch calls them."""
+
+    def __init__(self, document: dict) -> None:
+        self.document = document
+        self.diffs: list[dict] = []
+        self.approved = 0
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/v1/auth/login":
+            return httpx.Response(200, json={"access_token": "t"})
+        if request.method == "GET" and path == "/v1/config/settings":
+            return httpx.Response(200, json={"version": 3, "type": "settings", "document": self.document})
+        if path == "/v1/config/diffs":
+            body = json.loads(request.content)
+            self.diffs.append(body)
+            return httpx.Response(201, json={"diff_id": "d1", "status": "pending"})
+        if path == "/v1/config/diffs/d1/approve":
+            self.approved += 1
+            self.document = self.diffs[-1]["document"]
+            return httpx.Response(200, json={"diff_id": "d1", "status": "applied"})
+        return httpx.Response(404)
+
+
+DOCUMENT = {"admin_email": "a@x.test", "password": "p", "space_id": "s1", "keys": {"whatsapp": "k"}}
+
+
+async def test_the_flag_switch_sets_memory_v2_and_puts_the_old_value_back() -> None:
+    fake = FakeConfig({"timezone": "America/Sao_Paulo"})
+    async with httpx.AsyncClient(transport=httpx.MockTransport(fake)) as http:
+        control = ControlPlane("http://control", DOCUMENT, http)
+        before = await control.set_flag("settings/memory_v2", True)
+        assert before is None and fake.approved == 1
+        assert fake.diffs[0]["type"] == "settings" and fake.diffs[0]["space_id"] == "s1"
+        assert fake.document == {"timezone": "America/Sao_Paulo", "memory_v2": True}
+        assert await control.set_flag("settings/memory_v2", True) is True
+        assert fake.approved == 1  # nothing changed, no diff
+        await control.set_flag("settings/memory_v2", before)
+        assert fake.document == {"timezone": "America/Sao_Paulo"} and fake.approved == 2
+        await control.set_flag("settings/read.memory_v2", False)
+        assert fake.document["read"] == {"memory_v2": False}
+
+
+async def test_the_flag_switch_needs_the_control_plane() -> None:
+    target = NiadraTarget(Keys({"whatsapp": "k"}), base_url="http://niadra", memory_v2=True)
+    with pytest.raises(RuntimeError, match="NIADRA_CONTROL_URL"):
+        await target.start()
+    await target.close()
+
+
+async def test_the_target_sets_the_flag_before_seeding_and_restores_it_on_close(monkeypatch) -> None:
+    fake = FakeConfig({})
+    transport = httpx.MockTransport(fake)
+    target = NiadraTarget(
+        Keys({"whatsapp": "k"}, DOCUMENT),
+        base_url="http://niadra",
+        transport_factory=lambda: transport,
+        control_url="http://control",
+        memory_v2=False,
+    )
+    await target.start()
+    assert fake.document == {"memory_v2": False} and target.seed_report()["memory_v2"] is False
+    await target.close()
+    assert fake.document == {}

@@ -17,6 +17,12 @@ ROOT = Path(os.environ.get("BENCH_ROOT") or Path(__file__).resolve().parents[2])
 CONFIG_DIR = ROOT / "config"
 DATASET_DIR = ROOT / "dataset"
 RESULTS_DIR = ROOT / "results"
+# Dataset versions: v1 is the dataset of the first published run, with its settings in
+# benchmark.toml; v2 adds categories, with its settings in a file of its own, so a v1 run keeps the
+# configuration hash of the runs published before v2 existed.
+DATASET_VERSIONS = ("v1", "v2")
+DEFAULT_DATASET = "v1"
+_DATASET_FILES = {"v2": "dataset.v2.toml"}
 _PLACEHOLDER = re.compile(r"\$\{([A-Z0-9_]+)\}")
 
 
@@ -45,6 +51,9 @@ class DatasetSettings(_Frozen):
     min_sessions: int
     max_sessions: int
     categories: dict[str, int]
+    # Dataset v2: the size of a `long_history` customer, CRM profile included.
+    long_min_sessions: int | None = None
+    long_max_sessions: int | None = None
 
 
 class LatencySettings(_Frozen):
@@ -170,10 +179,38 @@ def load(config_dir: Path = CONFIG_DIR) -> BenchConfig:
         return BenchConfig.model_validate(tomllib.load(handle))
 
 
-def config_hash(config_dir: Path = CONFIG_DIR) -> str:
-    """One hash over both frozen files, in a fixed order."""
+def _check_version(version: str) -> None:
+    if version not in DATASET_VERSIONS:
+        raise ValueError(f"unknown dataset version {version!r}; choose from {', '.join(DATASET_VERSIONS)}")
+
+
+def dataset_dir(version: str = DEFAULT_DATASET, root: Path | None = None) -> Path:
+    """Where a dataset version is committed: v1 at `dataset/`, later versions under it."""
+    _check_version(version)
+    base = root or DATASET_DIR
+    return base if version == "v1" else base / version
+
+
+def dataset_settings(
+    config: BenchConfig, version: str = DEFAULT_DATASET, config_dir: Path = CONFIG_DIR
+) -> DatasetSettings:
+    """The generator settings of a dataset version: v1 from benchmark.toml, v2 from its own file."""
+    _check_version(version)
+    if version not in _DATASET_FILES:
+        return config.dataset
+    with (config_dir / _DATASET_FILES[version]).open("rb") as handle:
+        return DatasetSettings.model_validate(tomllib.load(handle)["dataset"])
+
+
+def config_hash(config_dir: Path = CONFIG_DIR, dataset: str = DEFAULT_DATASET) -> str:
+    """One hash over the frozen files, in a fixed order. A v1 run hashes the two files every run hashed
+    before v2 existed, so its hash is unchanged; a v2 run also hashes the v2 dataset settings."""
+    _check_version(dataset)
     digest = hashlib.sha256()
-    for name in ("benchmark.toml", "mem0.config.json"):
+    names = ["benchmark.toml", "mem0.config.json"]
+    if dataset in _DATASET_FILES:
+        names.append(_DATASET_FILES[dataset])
+    for name in names:
         digest.update(name.encode())
         digest.update(_sha256(config_dir / name).encode())
     return "sha256:" + digest.hexdigest()

@@ -20,7 +20,7 @@ environment is `region`.
 | 5 | Privacy: sensitive value handed to an unverified (V0) conversation | counted in the memory block | counted in the memory block |
 | 6 | Freshness: a WhatsApp message until the voice agent reads it | `track()` until `context(view="voice")` shows it | `add()` until `search()` shows it |
 | 7 | Memory slow (2 s) or down (503) behind the same fault proxy | the SDK as it ships | an HTTP client at its defaults with `raise_for_status()` |
-| 8 | History navigation (p50, p95, p99), open loop at 10 and 25 calls per second for 30 s over 20 seeded customers | `POST /v1/history/search` and `POST /v1/history/open`, from inside the cluster and through the public TLS address | `POST /search` and `GET /memories/{memory_id}`, from inside the cluster |
+| 8 | History navigation (p50, p95, p99), open loop at 10 and 25 calls per second for 30 s over 20 seeded customers | `POST /v1/history/search` and `POST /v1/history/open`, from inside the cluster and through the public TLS address | `POST /search` and `GET /memories/{memory_id}`, from inside the cluster; both searches' question encoding alone as its own line (`encode`) |
 | 9 | Ingestion acknowledgement (p50, p95, p99), open loop at 10 and 25 writes per second for 30 s over 20 seeded customers | `POST /v1/batch` with one exchange until its `200`, from inside the cluster and through the public TLS address | `POST /memories` with the same exchange until its `200`, with `infer` (its default) and with `infer=False`, from inside the cluster |
 
 Metrics 8 and 9 are timed exactly as metric 1: the same open loop (`latency.open_loop`: constant rate
@@ -33,6 +33,18 @@ of each repetition, so metrics 1 to 7 are measured under the same conditions as 
 
 Two references run through the same agent for every accuracy number: no memory at all, and the whole
 raw history pasted into the prompt.
+
+Beside the grades, each accuracy line reports `context_has_answer`: whether the memory block itself held
+the answer, before any agent read it. A value of three or more digits (a protocol, an amount, a ZIP
+code) counts when the block holds it as a whole token. A shorter number or a word does not count that
+way: the first run counted the "3" of a recurrence answer in any date of the block, so a block that
+listed dates "had" every count (18 of Niadra's 32 recurrence blocks in the first run's first
+repetition, with 6 right answers). Since dataset v2, a count holds only as a
+number of its own (never inside a date, a time or an amount, never next to a month) on a line with a word
+that counts ("3 reclamações", "Reclamações de técnico: 3", "twice"), or when the block lists every one
+of the occurrences by its reference; a deadline day holds only right after a word that sets it ("até o
+dia 15", "by the 15th"). The first run's rule stays in the results as `context_has_answer_loose`, and
+`config.context_has_answer_rule` names the rule a run used (`metrics/accuracy.py`).
 
 We do not run LoCoMo, LongMemEval or BEAM: they are long personal conversation sets and do not measure
 what a Niadra buyer buys.
@@ -66,6 +78,19 @@ what a Niadra buyer buys.
   source, which trusts `credit` only, so Niadra refused 26 of the 32 promise cases' actions while Mem0
   stored them. Nothing else about Niadra is configured: starter policy and extraction schema, the space's
   language and time zone, no predicate added for the dataset.
+- **Mem0 as its open source release.** What is compared is Mem0's open source release (the `mem0ai`
+  package and the REST server of github.com/mem0ai/mem0 at tag v2.2.0), not the hosted Mem0 Platform.
+  Two features Mem0 describes for the Platform are not in it: the time of an event (`timestamp` and
+  `reference_date` on `add()`, what its temporal diagrams show) and memory decay (`decay` on a project).
+  The open source SDK refuses them with "The timestamp parameter is not supported by the OSS Memory
+  SDK", "The reference_date parameter is not supported by the OSS Memory SDK" and "The decay parameter
+  is not supported by the OSS Memory SDK" (`mem0/memory/notices.py`, lines 130 to 134 at tag v2.2.0;
+  `mem0/memory/main.py`, lines 467 to 483, raises the decay one). What the open source release does
+  have, and the benchmark uses as it ships: the date of observation in its extraction prompt, as the
+  anchor for words like "yesterday", and an `expiration_date` per memory. So no number here says
+  anything about the Platform's temporal or decay features, and changed fact and order and time in
+  particular are measured against a Mem0 without them. The Platform's accuracy is measured only when a
+  run includes `mem0_platform` (below), which the default run does not.
 - **Identity in two scenarios.** Mem0 does not resolve identity, so it runs with the same user id on
   every channel (`known_id`, its best case) and with each channel's own id (`per_channel_id`). Niadra
   receives the same handles in both.
@@ -74,7 +99,9 @@ what a Niadra buyer buys.
   range.
 - **Frozen inputs.** `config/benchmark.toml`, `config/mem0.config.json` and `dataset/cases.jsonl` are
   committed; every result file carries their hashes, the harness commit, the package versions and the
-  deployed Niadra server version.
+  deployed Niadra server version. Dataset v2 adds `config/dataset.v2.toml` and `dataset/v2/cases.jsonl`;
+  a v2 run's configuration hash also covers the v2 settings, and a v1 run's hash is computed exactly as
+  before v2 existed.
 
 ## History navigation and ingestion, call by call
 
@@ -107,6 +134,14 @@ How the Niadra side is prepared, before any clock starts:
   (the `read` service) for navigation and `NIADRA_CLUSTER_INGEST_URL` (the `ingest` service) for the
   acknowledgement; through the public TLS address they go where the SDK sends them.
 
+Both searches start by encoding the question on the same embedding server (Niadra's read service calls
+`niadra-models`; Mem0 calls it through the embedding proxy). So that a search's time can be read without
+that step, metric 8 has a third line, `encode`: `POST /v1/embed` on `NIADRA_MODELS_URL` with the same
+probe questions, at the same rates, from inside the cluster (system `embedder`, since both searches pay
+it). Niadra's search line also keeps the steps its server names in `Server-Timing` (`server_timing`,
+p50 and p95 per step): today only `app`, the whole request; a step the server adds later, such as the
+encoding, shows there with no change here.
+
 Mem0's `add_infer` loop costs model spend (the extraction runs on every call) and leaves its server
 busy with the requests the client gave up on, so it runs last, after `add_raw`, with a pause of
 `cooldown_s` after each rate.
@@ -127,11 +162,46 @@ key sessions only and never in the question. In each run, the agent must answer 
 history and wrong with none; cases that fail are listed in the results and left out of that run's
 accuracy.
 
+### Dataset v2
+
+`dataset/v2/cases.jsonl` (`bench run --dataset v2`; the default stays v1, the dataset of run
+2026-09-25-6efee4, so every published run can be run again as it was). 356 cases, 178 per language: the
+240 cases of v1, byte for byte and with the same ids (same seed, same plan), then four categories v1
+never asked about, from `config/dataset.v2.toml`. Both systems answer every case, and the v1 validity
+rule decides in each run which of them count.
+
+| Category | Per language (pt, en) | What the customer asks | What makes it hard |
+|---|---|---|---|
+| `paraphrase` | 16, 16 | a fact they stated once, in other words ("Que senha o porteiro precisa para deixar o instalador subir?" about "a portaria libera com o código 17674") | the question shares no content word with the statement; the structural rule checks it |
+| `long_history` | 10, 10 | a protocol given for one matter, by that matter (even cases), or the current value of something they changed (odd cases) | 30 to 60 sessions per customer, the key session anywhere in the last six months, among exchanges that hand out other protocols |
+| `unanswerable` | 16, 16 | the number of the record an e-mail was about, and the protocol "you gave me in your reply" | the reply gave none. The right answer names the record and says there is no protocol, with no number; in half the cases another matter's protocol, on another channel, is in the history |
+| `recurrence_topic` | 16, 16 | how many times they complained about one matter | they also complained about another matter a different number of times, the last time in their latest conversation |
+
+How these were kept from favoring either system:
+
+- They are questions customers ask, written from the customer's side (`dataset/vocab_v2.py`), in both
+  languages and in the five domains. No wording, field name or category name was taken from either
+  system, and nothing was checked against either system's output while writing them.
+- Each has the answer only in the history: the structural rule runs on every case in CI, and each run
+  keeps a case only when the agent gets it right with the whole history and wrong with no memory.
+  An `unanswerable` case stays valid under that rule because its answer also names the record, which only
+  the history holds: with no memory, "I do not have that information" misses it.
+- An `unanswerable` case is graded with its own rubric (`NO_RECORD_JUDGE_PROMPT` in `agent.py`): correct
+  when the answer gives the record and says there is no such protocol, with no number for it. Every other
+  case is graded with the first run's rubric, unchanged. The exact check still asks for the record's
+  number and for no decoy.
+- The long customers' key sessions sit at random ages up to six months, so neither ranking by recency
+  nor ranking by similarity is favored by where the answer is.
+
+Running v2 costs more than v1: about 2,330 conversations per repetition instead of 986 (the long
+customers are most of the difference), so seeding Mem0 and Niadra's extraction take about twice as
+long and cost about twice as much (below).
+
 ## Layout
 
 ```
 config/                 frozen configuration and Mem0's configuration
-dataset/                the committed dataset and its manifest
+dataset/                the committed dataset v1 and its manifest; dataset/v2/, the same for v2
 src/niadra_bench/       the harness (`bench` command)
 tests/                  unit tests, and a dry run against niadra-mock
 deploy/Dockerfile       the harness image
@@ -187,7 +257,21 @@ bench down --drop-db && on_ops /tmp/bench.sh 600
 ```
 
 `start` takes any `bench run` arguments. Without arguments it runs every metric on `niadra`, `mem0_oss`
-and `mem0_oss_rerank`. `mem0_platform` needs a `MEM0_API_KEY` from a free Mem0 account, added to the
+and `mem0_oss_rerank`, on dataset v1.
+
+Dataset v2, and Niadra's `memory_v2` space flag (the read path of memory v2 ships behind it, off by
+default). `--niadra-memory-v2 on|off` sets the flag for the run through the control API, with the
+bootstrap's admin account, as a configuration diff the same person approves, before seeding; it puts the
+previous value back when the run ends. The flag lives at `settings/memory_v2` (`<document type>/<dotted
+field>`); `NIADRA_MEMORY_V2_FLAG` overrides that. Without the option the space is left as it is. Two runs
+with different flag values must not overlap in the same space. `summary.json` records the choice
+(`config.niadra_memory_v2`: `on`, `off` or `unchanged`) and the dataset (`dataset.version`).
+
+```bash
+bench start run --dataset v2 --niadra-memory-v2 off && on_ops /tmp/bench.sh 300    # memory v2 off
+bench start run --dataset v2 --niadra-memory-v2 on && on_ops /tmp/bench.sh 300     # then on, same cases
+```
+`mem0_platform` needs a `MEM0_API_KEY` from a free Mem0 account, added to the
 Job by hand; it is not part of the default run. `BENCH_REF` picks another branch or tag of this
 repository.
 
@@ -212,7 +296,13 @@ waits for the next day and the settle step sees nothing change, so the accuracy 
 half-built memory. A prompt change also re-extracts up to 1,000 recent sessions per space after the
 deploy, from the same ceiling.
 
-Three repetitions: about 4 h to 4 h 45 and about $20 (budget $30 for retries). No AWS resource is
+Three repetitions: about 4 h to 4 h 45 and about $20 (budget $30 for retries).
+
+Dataset v2 (356 cases, about 2,330 conversations per repetition instead of 986), estimated from the table
+above by the number of conversations and cases, not yet measured: seeding and settling Niadra 20 to 40
+min, seeding Mem0 35 to 45 min and about $6.20, the accuracy pass 35 to 45 min and about $2.20, the rest
+unchanged. About 2 h to 2 h 30 and about $11 per repetition; three repetitions, 6 to 7 h 30 and about $33
+(budget $45). The sandbox's daily extraction ceiling must cover about 7,000 sessions (three repetitions). No AWS resource is
 created beyond Kubernetes objects and two small databases on the existing RDS instance; the machine
 and the database are the ones already running.
 
@@ -232,8 +322,9 @@ and the database are the ones already running.
 ```bash
 uv sync
 uv run pytest -q                       # unit tests and a dry run against niadra-mock
-uv run bench prepare --check           # the committed dataset is what the generator makes, and valid
-uv run bench run --mock --quick --limit 28 --repetitions 1 --output /tmp/bench   # Niadra only, no network
+uv run bench prepare --check           # both committed datasets are what the generator makes, and valid
+uv run bench run --mock --systems niadra --quick --limit 28 --repetitions 1 --output /tmp/bench   # no network
+uv run bench run --mock --systems niadra --dataset v2 --quick --limit 72 --repetitions 1 --output /tmp/bench
 docker compose -f deploy/local/compose.yaml up --build --exit-code-from harness harness
 ```
 

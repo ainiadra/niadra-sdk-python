@@ -4,6 +4,12 @@ Every case gets a CRM profile (the record that says which phone, e-mail and ids 
 the key sessions of its category and filler sessions up to its size. A case that fails the structural
 validity rule (`validate.structural_problems`) is drawn again with the next attempt number, so the
 dataset always has the configured size and every case in it passes.
+
+Two versions share this code. Version 1 (`dataset/`) is the dataset of the first published run and
+stays byte for byte what it was. Version 2 (`dataset/v2/`) plans the v1 categories first, with the same
+seed, so its first cases per language are the v1 cases unchanged, and adds four categories after them
+(`paraphrase`, `long_history`, `unanswerable`, `recurrence_topic`). A v2 category never consumes a
+random draw a v1 case makes.
 """
 
 from __future__ import annotations
@@ -29,8 +35,11 @@ from niadra_bench.dataset.model import (
 )
 from niadra_bench.dataset.validate import structural_problems
 from niadra_bench.dataset.vocab import CONDITIONS, COUNT_WORDS, DOMAINS, FIRST_NAMES, LAST_NAMES, Domain
+from niadra_bench.dataset.vocab_v2 import V2, DomainV2
 
-GENERATOR_VERSION = "1"
+# The generator version written in each dataset version's manifest.
+GENERATOR_VERSIONS = {"v1": "1", "v2": "2"}
+GENERATOR_VERSION = GENERATOR_VERSIONS["v1"]
 DOMAIN_ORDER = ("telecom", "insurance", "banking", "retail", "logistics")
 TALK_CHANNELS: tuple[Channel, ...] = ("whatsapp", "voice", "email", "app")
 VERIFY_METHOD = {"voice": "network_attestation", "whatsapp": "otp_whatsapp", "email": "login", "app": "login"}
@@ -92,11 +101,15 @@ def _cap(text: str) -> str:
 
 
 class _Builder:
-    def __init__(self, case_id: str, lang: str, domain_key: str, category: Category, draw: _Draw) -> None:
+    def __init__(
+        self, case_id: str, lang: str, domain_key: str, category: Category, draw: _Draw, index: int = 0
+    ) -> None:
         self.case_id = case_id
         self.lang = lang
+        self.index = index
         self.domain_key = domain_key
         self.domain: Domain = DOMAINS[domain_key]
+        self.v2: DomainV2 = V2[domain_key]
         self.category = category
         self.draw = draw
         self.sessions: list[Session] = []
@@ -163,15 +176,17 @@ class _Builder:
         )
         self.add("crm", self.draw.days(60, 120), record=record, role="profile")
 
-    def fillers(self, count: int) -> None:
+    def fillers(self, count: int, low: float = 1, high: float = 90, *, more: bool = False) -> None:
         options = list(self.domain["fillers"][self.lang])
+        if more:
+            options += self.v2["more_fillers"][self.lang]
         self.draw.rng.shuffle(options)
         for i in range(count):
             question, answer = options[i % len(options)]
             channel = self.draw.pick(TALK_CHANNELS)
             self.add(
                 channel,
-                self.draw.days(1, 90),
+                self.draw.days(low, high),
                 [("c", question), ("a", answer.format(code=self.draw.code()))],
                 role="filler",
             )
@@ -467,6 +482,239 @@ class _Builder:
         answer = self.t(f"O CEP atual é {new}.", f"The current ZIP code is {new}.")
         return probe, Expectation(all_of=[new_keys], reference_answer=answer)
 
+    # Dataset v2 categories. Each is a question a real customer asks and that dataset v1 never asked;
+    # none depends on how any system under test stores or ranks memory.
+
+    def paraphrase(self) -> tuple[Probe, Expectation]:
+        """The customer states a fact in one wording and later asks for it in another, with no content
+        word in common (checked by the structural rule)."""
+        pair = self.draw.pick(self.v2["paraphrases"][self.lang])
+        if pair["kind"] == "amount":
+            said, keys = self.draw.amount()
+        else:
+            said = self.draw.code()
+            keys = [said]
+        channel = self.draw.pick(TALK_CHANNELS)
+        self.add(
+            channel,
+            self.draw.days(5, 40),
+            [
+                ("c", pair["statement"].format(v=said)),
+                ("a", self.t("Anotado, obrigado.", "Noted, thank you.")),
+            ],
+        )
+        probe_channel: Channel = "whatsapp" if channel == "voice" else "voice"
+        probe = Probe(
+            channel=probe_channel,
+            question=pair["question"],
+            verification="V1",
+            verify_method=VERIFY_METHOD[probe_channel],
+        )
+        return probe, Expectation(all_of=[keys], reference_answer=pair["answer"].format(v=said))
+
+    def long_history(self) -> tuple[Probe, Expectation]:
+        """A customer with 30 to 60 sessions (the fillers come from `build_case`). The key sessions sit
+        anywhere in the last six months, not only among the most recent ones. Even cases ask for a
+        protocol by the matter it was given for, among fillers that hand out other protocols; odd cases
+        ask for the current value of something the customer changed."""
+        if self.index % 2 == 0:
+            protocol = self.draw.code()
+            issue = self.v("issue")
+            self.add(
+                self.draw.pick(TALK_CHANNELS),
+                self.draw.days(20, 170),
+                [
+                    ("c", self.t(f"{_cap(issue)}. Podem registrar?", f"{_cap(issue)}. Can you log it?")),
+                    (
+                        "a",
+                        self.t(
+                            f"Registrei, o protocolo é {protocol}.",
+                            f"Logged it, the protocol number is {protocol}.",
+                        ),
+                    ),
+                ],
+            )
+            probe = Probe(
+                channel="voice",
+                question=self.t(
+                    f"Há um tempo eu reclamei que {issue}. Qual protocolo vocês me passaram naquela vez?",
+                    f"A while ago I complained that {issue}. What protocol number did you give me that time?",
+                ),
+                verification="V1",
+                verify_method=VERIFY_METHOD["voice"],
+            )
+            answer = self.t(f"O protocolo é {protocol}.", f"The protocol number is {protocol}.")
+            return probe, Expectation(all_of=[[protocol]], reference_answer=answer)
+        old, _ = self.draw.postal()
+        new, new_keys = self.draw.postal()
+        label = self.v("address_label")
+        changed = self.draw.days(10, 80)
+        self.add(
+            self.draw.pick(("email", "app")),
+            self.draw.days(changed + 20, 175),
+            [
+                ("c", self.t(f"Para atualizar: {label} é {old}.", f"To update: {label} is {old}.")),
+                ("a", self.t("Atualizado, obrigado.", "Updated, thank you.")),
+            ],
+        )
+        self.add(
+            self.draw.pick(("whatsapp", "voice")),
+            changed,
+            [
+                (
+                    "c",
+                    self.t(f"Mudei de endereço. Agora {label} é {new}.", f"I moved. Now {label} is {new}."),
+                ),
+                ("a", self.t(f"Pronto, atualizei para {new}.", f"Done, I updated it to {new}.")),
+            ],
+        )
+        probe = Probe(
+            channel="whatsapp",
+            question=self.t(
+                f"Qual é {label} que vocês têm hoje no meu cadastro?",
+                f"What is {label} you have on file now?",
+            ),
+            verification="V1",
+            verify_method=VERIFY_METHOD["whatsapp"],
+        )
+        answer = self.t(f"O CEP atual é {new}.", f"The current ZIP code is {new}.")
+        return probe, Expectation(all_of=[new_keys], reference_answer=answer)
+
+    def unanswerable(self) -> tuple[Probe, Expectation]:
+        """The customer asks for a protocol from an e-mail reply that gave none. The right answer names
+        the record the e-mail was about (so an agent without the history cannot be right) and says there
+        is no protocol for it, giving no number. Even cases also hold a protocol handed out for another
+        matter, on another channel, which must not be given as this one."""
+        code = self.draw.code()
+        issues = list(self.domain["issue"][self.lang])
+        issue = self.draw.pick(issues)
+        item = self.v("item")
+        self.add(
+            "email",
+            self.draw.days(3, 12),
+            [
+                (
+                    "c",
+                    self.t(
+                        f"Olá, sou {self.customer.name}. Escrevo sobre {item} {code}: {issue}.",
+                        f"Hello, I'm {self.customer.name}. Writing about {item} {code}: {issue}.",
+                    ),
+                ),
+                (
+                    "a",
+                    self.t(
+                        f"Olá, {self.first}. Recebemos sua mensagem e vamos analisar o caso.",
+                        f"Hello {self.first}, we received your message and will look into it.",
+                    ),
+                ),
+            ],
+        )
+        forbidden: list[str] = []
+        if self.index % 2 == 0:
+            other = self.draw.code()
+            other_issue = next(i for i in issues if i != issue)
+            self.add(
+                self.draw.pick(("whatsapp", "app")),
+                self.draw.days(15, 40),
+                [
+                    (
+                        "c",
+                        self.t(
+                            f"Quero registrar outra coisa: {other_issue}.",
+                            f"I want to report something else: {other_issue}.",
+                        ),
+                    ),
+                    (
+                        "a",
+                        self.t(
+                            f"Registrado. O protocolo desse atendimento é {other}.",
+                            f"Logged. The protocol number for this is {other}.",
+                        ),
+                    ),
+                ],
+                role="distractor",
+            )
+            forbidden.append(other)
+        probe = Probe(
+            channel="voice",
+            question=self.t(
+                f"Mandei um e-mail sobre {item} porque {issue}. Qual é o número desse registro e qual "
+                "protocolo vocês me passaram na resposta?",
+                f"I emailed you about my {item} because {issue}. What is its number, and what protocol "
+                "number did you give me in your reply?",
+            ),
+            verification="V1",
+            verify_method=VERIFY_METHOD["voice"],
+        )
+        answer = self.t(
+            f"O número é {code}. Não há registro de protocolo passado na resposta a esse e-mail.",
+            f"The number is {code}. There is no record of a protocol number given in the reply to that email.",
+        )
+        missing = self.t(
+            "um número de protocolo passado na resposta a esse e-mail",
+            "a protocol number given in the reply to that email",
+        )
+        return probe, Expectation(
+            all_of=[[code]], none_of=forbidden, reference_answer=answer, no_record=missing
+        )
+
+    def recurrence_topic(self) -> tuple[Probe, Expectation]:
+        """The customer asks how many times they complained about one matter, after complaining about
+        another matter a different number of times, the last time in their latest conversation."""
+        count = self.draw.pick([2, 3, 4])
+        other_count = self.draw.pick([n for n in (1, 2, 3, 4) if n != count])
+        phrasings = list(self.domain["recurring"][self.lang])
+        self.draw.rng.shuffle(phrasings)
+        for i in range(count):
+            code = self.draw.code()
+            self.add(
+                TALK_CHANNELS[i % len(TALK_CHANNELS)],
+                self.draw.days(15 + i * 20, 30 + i * 20),
+                [
+                    ("c", phrasings[i]),
+                    (
+                        "a",
+                        self.t(
+                            f"Sinto muito. Registrei a ocorrência {code}.",
+                            f"I'm sorry. I logged incident {code}.",
+                        ),
+                    ),
+                ],
+            )
+        others = list(self.v2["recurring_other"][self.lang])
+        self.draw.rng.shuffle(others)
+        for i in range(other_count):
+            code = self.draw.code()
+            # The last one is the customer's latest conversation, a day or two before this call.
+            days = self.draw.days(0.5, 2) if i == other_count - 1 else self.draw.days(8, 100)
+            self.add(
+                self.draw.pick(TALK_CHANNELS),
+                days,
+                [
+                    ("c", others[i]),
+                    (
+                        "a",
+                        self.t(
+                            f"Sinto muito. Registrei a ocorrência {code}.",
+                            f"I'm sorry. I logged incident {code}.",
+                        ),
+                    ),
+                ],
+                role="other_topic",
+            )
+        about = self.v("issue_about")
+        probe = Probe(
+            channel="voice",
+            question=self.t(
+                f"Quantas vezes eu já reclamei {about} com vocês antes desta ligação?",
+                f"How many times have I complained {about} before this call?",
+            ),
+            verification="V1",
+            verify_method=VERIFY_METHOD["voice"],
+        )
+        answer = self.t(f"{count} vezes.", f"{count} times.")
+        return probe, Expectation(all_of=[COUNT_WORDS[self.lang][count]], reference_answer=answer)
+
 
 def _plan(settings: DatasetSettings) -> Iterator[tuple[str, int, Category]]:
     unknown = set(settings.categories) - set(CATEGORIES)
@@ -487,11 +735,21 @@ def build_case(settings: DatasetSettings, lang: str, index: int, category: Categ
     draw = _Draw(rng, lang)
     domain_key = DOMAIN_ORDER[index % len(DOMAIN_ORDER)]
     case_id = f"{lang}-{index + 1:03d}"
-    builder = _Builder(case_id, lang, domain_key, category, draw)
+    builder = _Builder(case_id, lang, domain_key, category, draw, index)
     builder.crm_profile()
     probe, expect = getattr(builder, category)()
-    size = rng.randint(settings.min_sessions, settings.max_sessions)
-    builder.fillers(max(0, size - len(builder.sessions)))
+    if category == "long_history":
+        if settings.long_min_sessions is None or settings.long_max_sessions is None:
+            raise ValueError("long_history cases need long_min_sessions and long_max_sessions")
+        size = rng.randint(settings.long_min_sessions, settings.long_max_sessions)
+        builder.fillers(max(0, size - len(builder.sessions)), 1, 180, more=True)
+    elif category == "recurrence_topic":
+        # Fillers stay older than the latest complaint, which must be the latest conversation.
+        size = rng.randint(settings.min_sessions, settings.max_sessions)
+        builder.fillers(max(0, size - len(builder.sessions)), 3, 90)
+    else:
+        size = rng.randint(settings.min_sessions, settings.max_sessions)
+        builder.fillers(max(0, size - len(builder.sessions)))
     return Case(
         id=case_id,
         language="pt" if lang == "pt" else "en",
@@ -518,7 +776,9 @@ def generate(settings: DatasetSettings) -> list[Case]:
     return cases
 
 
-def write(cases: list[Case], directory: Path, settings: DatasetSettings) -> dict[str, object]:
+def write(
+    cases: list[Case], directory: Path, settings: DatasetSettings, generator_version: str = GENERATOR_VERSION
+) -> dict[str, object]:
     """Writes `cases.jsonl` and `manifest.json`; returns the manifest."""
     directory.mkdir(parents=True, exist_ok=True)
     lines = [case.model_dump_json(exclude_defaults=False) for case in cases]
@@ -529,7 +789,7 @@ def write(cases: list[Case], directory: Path, settings: DatasetSettings) -> dict
         counts.setdefault(case.language, {}).setdefault(case.category, 0)
         counts[case.language][case.category] += 1
     manifest: dict[str, object] = {
-        "generator_version": GENERATOR_VERSION,
+        "generator_version": generator_version,
         "seed": settings.seed,
         "cases": len(cases),
         "sha256": hashlib.sha256(body.encode()).hexdigest(),
