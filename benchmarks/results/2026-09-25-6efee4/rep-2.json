@@ -1,0 +1,754 @@
+{
+  "repetition": 2,
+  "tag": "6efee4r2",
+  "seed": {
+    "niadra": {
+      "seconds": 94.1,
+      "failures": [],
+      "refused_actions": [
+        "bench-6efee4r2-en-073-s3-record: refund_fee",
+        "bench-6efee4r2-en-074-s3-record: refund",
+        "bench-6efee4r2-en-075-s3-record: redeliver",
+        "bench-6efee4r2-en-077-s3-record: reimburse",
+        "bench-6efee4r2-en-078-s3-record: refund_fee",
+        "bench-6efee4r2-en-079-s3-record: refund",
+        "bench-6efee4r2-en-080-s3-record: redeliver",
+        "bench-6efee4r2-en-082-s3-record: reimburse",
+        "bench-6efee4r2-en-083-s3-record: refund_fee",
+        "bench-6efee4r2-en-084-s3-record: refund",
+        "bench-6efee4r2-en-085-s3-record: redeliver",
+        "bench-6efee4r2-en-087-s3-record: reimburse",
+        "bench-6efee4r2-en-088-s3-record: refund_fee",
+        "bench-6efee4r2-pt-073-s3-record: refund_fee",
+        "bench-6efee4r2-pt-074-s3-record: refund",
+        "bench-6efee4r2-pt-075-s3-record: redeliver",
+        "bench-6efee4r2-pt-077-s3-record: reimburse",
+        "bench-6efee4r2-pt-078-s3-record: refund_fee",
+        "bench-6efee4r2-pt-079-s3-record: refund",
+        "bench-6efee4r2-pt-080-s3-record: redeliver",
+        "bench-6efee4r2-pt-082-s3-record: reimburse",
+        "bench-6efee4r2-pt-083-s3-record: refund_fee",
+        "bench-6efee4r2-pt-084-s3-record: refund",
+        "bench-6efee4r2-pt-085-s3-record: redeliver",
+        "bench-6efee4r2-pt-087-s3-record: reimburse",
+        "bench-6efee4r2-pt-088-s3-record: refund_fee"
+      ]
+    },
+    "mem0_oss:known_id": {
+      "seconds": 208.6,
+      "failures": [],
+      "model_usage": {
+        "google/gemini-2.5-flash-lite": {
+          "calls": 1058,
+          "failed": 0,
+          "prompt_tokens": 8804624,
+          "completion_tokens": 93274
+        }
+      }
+    },
+    "mem0_oss:per_channel_id": {
+      "seconds": 226.5,
+      "failures": [],
+      "model_usage": {
+        "google/gemini-2.5-flash-lite": {
+          "calls": 1058,
+          "failed": 0,
+          "prompt_tokens": 8539938,
+          "completion_tokens": 79482
+        }
+      }
+    }
+  },
+  "settle": {
+    "no_memory": {},
+    "full_history": {},
+    "niadra": {
+      "settled": true,
+      "seconds": 107.3,
+      "rounds": 5
+    },
+    "mem0_oss:known_id": {},
+    "mem0_oss:per_channel_id": {}
+  },
+  "validity": {
+    "valid": 228,
+    "excluded": [
+      "en-041",
+      "en-043",
+      "en-046",
+      "en-051",
+      "en-053",
+      "en-054",
+      "en-056",
+      "en-075",
+      "en-085",
+      "pt-048",
+      "pt-051",
+      "pt-075"
+    ]
+  },
+  "accuracy": [
+    {
+      "system": "full_history",
+      "scenario": null,
+      "cases": 228,
+      "deterministic": 1.0,
+      "judge": 1.0,
+      "context_has_answer": 0.9388,
+      "by_category": {
+        "continuity": {
+          "cases": 40,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "identity": {
+          "cases": 40,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "recurrence": {
+          "cases": 23,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "order_time": {
+          "cases": 32,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "promise_action": {
+          "cases": 29,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "privacy": {
+          "cases": 32,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "contradiction": {
+          "cases": 32,
+          "deterministic": 1.0,
+          "judge": 1.0
+        }
+      },
+      "tokens": {
+        "default": {
+          "median": 248.0,
+          "p95": 383,
+          "mean": 255.4
+        }
+      },
+      "privacy": {
+        "cases": 32,
+        "leaks": 32,
+        "leak_rate": 1.0
+      },
+      "retrieve_errors": 0,
+      "retrieve_ms_p50": 0.0
+    },
+    {
+      "system": "mem0_oss",
+      "scenario": "known_id",
+      "cases": 228,
+      "deterministic": 0.7412,
+      "judge": 0.7193,
+      "context_has_answer": 0.8724,
+      "by_category": {
+        "continuity": {
+          "cases": 40,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "identity": {
+          "cases": 40,
+          "deterministic": 0.95,
+          "judge": 0.95
+        },
+        "recurrence": {
+          "cases": 23,
+          "deterministic": 0.7391,
+          "judge": 0.7391
+        },
+        "order_time": {
+          "cases": 32,
+          "deterministic": 0.625,
+          "judge": 0.625
+        },
+        "promise_action": {
+          "cases": 29,
+          "deterministic": 0.8966,
+          "judge": 0.8276
+        },
+        "privacy": {
+          "cases": 32,
+          "deterministic": 0.0938,
+          "judge": 0.0312
+        },
+        "contradiction": {
+          "cases": 32,
+          "deterministic": 0.7812,
+          "judge": 0.75
+        }
+      },
+      "tokens": {
+        "default": {
+          "median": 165.0,
+          "p95": 243,
+          "mean": 168.2
+        }
+      },
+      "privacy": {
+        "cases": 32,
+        "leaks": 27,
+        "leak_rate": 0.8438
+      },
+      "retrieve_errors": 0,
+      "retrieve_ms_p50": 88.42
+    },
+    {
+      "system": "mem0_oss",
+      "scenario": "per_channel_id",
+      "cases": 228,
+      "deterministic": 0.3684,
+      "judge": 0.3158,
+      "context_has_answer": 0.2398,
+      "by_category": {
+        "continuity": {
+          "cases": 40,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "identity": {
+          "cases": 40,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "recurrence": {
+          "cases": 23,
+          "deterministic": 0.2609,
+          "judge": 0.2609
+        },
+        "order_time": {
+          "cases": 32,
+          "deterministic": 0.4375,
+          "judge": 0.4375
+        },
+        "promise_action": {
+          "cases": 29,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "privacy": {
+          "cases": 32,
+          "deterministic": 1.0,
+          "judge": 0.625
+        },
+        "contradiction": {
+          "cases": 32,
+          "deterministic": 1.0,
+          "judge": 1.0
+        }
+      },
+      "tokens": {
+        "default": {
+          "median": 37.0,
+          "p95": 94,
+          "mean": 39.5
+        }
+      },
+      "privacy": {
+        "cases": 32,
+        "leaks": 0,
+        "leak_rate": 0.0
+      },
+      "retrieve_errors": 0,
+      "retrieve_ms_p50": 83.81
+    },
+    {
+      "system": "mem0_oss_rerank",
+      "scenario": "known_id",
+      "cases": 228,
+      "deterministic": 0.4167,
+      "judge": 0.4035,
+      "context_has_answer": 0.4388,
+      "by_category": {
+        "continuity": {
+          "cases": 40,
+          "deterministic": 0.625,
+          "judge": 0.625
+        },
+        "identity": {
+          "cases": 40,
+          "deterministic": 0.4,
+          "judge": 0.4
+        },
+        "recurrence": {
+          "cases": 23,
+          "deterministic": 0.2174,
+          "judge": 0.2174
+        },
+        "order_time": {
+          "cases": 32,
+          "deterministic": 0.3125,
+          "judge": 0.2812
+        },
+        "promise_action": {
+          "cases": 29,
+          "deterministic": 0.4138,
+          "judge": 0.4138
+        },
+        "privacy": {
+          "cases": 32,
+          "deterministic": 0.2812,
+          "judge": 0.2188
+        },
+        "contradiction": {
+          "cases": 32,
+          "deterministic": 0.5625,
+          "judge": 0.5625
+        }
+      },
+      "tokens": {
+        "default": {
+          "median": 24.0,
+          "p95": 209,
+          "mean": 54.8
+        }
+      },
+      "privacy": {
+        "cases": 32,
+        "leaks": 21,
+        "leak_rate": 0.6562
+      },
+      "retrieve_errors": 0,
+      "retrieve_ms_p50": 526.43
+    },
+    {
+      "system": "mem0_oss_rerank",
+      "scenario": "per_channel_id",
+      "cases": 228,
+      "deterministic": 0.2675,
+      "judge": 0.2237,
+      "context_has_answer": 0.148,
+      "by_category": {
+        "continuity": {
+          "cases": 40,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "identity": {
+          "cases": 40,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "recurrence": {
+          "cases": 23,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "order_time": {
+          "cases": 32,
+          "deterministic": 0.0938,
+          "judge": 0.0938
+        },
+        "promise_action": {
+          "cases": 29,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "privacy": {
+          "cases": 32,
+          "deterministic": 1.0,
+          "judge": 0.6875
+        },
+        "contradiction": {
+          "cases": 32,
+          "deterministic": 0.8125,
+          "judge": 0.8125
+        }
+      },
+      "tokens": {
+        "default": {
+          "median": 0.0,
+          "p95": 73,
+          "mean": 13.6
+        }
+      },
+      "privacy": {
+        "cases": 32,
+        "leaks": 0,
+        "leak_rate": 0.0
+      },
+      "retrieve_errors": 0,
+      "retrieve_ms_p50": 77.09
+    },
+    {
+      "system": "niadra",
+      "scenario": null,
+      "cases": 228,
+      "deterministic": 0.4649,
+      "judge": 0.443,
+      "context_has_answer": 0.4643,
+      "by_category": {
+        "continuity": {
+          "cases": 40,
+          "deterministic": 0.975,
+          "judge": 0.975
+        },
+        "identity": {
+          "cases": 40,
+          "deterministic": 0.0,
+          "judge": 0.025
+        },
+        "recurrence": {
+          "cases": 23,
+          "deterministic": 0.1304,
+          "judge": 0.1304
+        },
+        "order_time": {
+          "cases": 32,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "promise_action": {
+          "cases": 29,
+          "deterministic": 0.8276,
+          "judge": 0.7931
+        },
+        "privacy": {
+          "cases": 32,
+          "deterministic": 1.0,
+          "judge": 0.8438
+        },
+        "contradiction": {
+          "cases": 32,
+          "deterministic": 0.25,
+          "judge": 0.25
+        }
+      },
+      "tokens": {
+        "chat": {
+          "median": 314.0,
+          "p95": 486,
+          "mean": 300.3
+        },
+        "voice": {
+          "median": 236.0,
+          "p95": 320,
+          "mean": 217.5
+        }
+      },
+      "privacy": {
+        "cases": 32,
+        "leaks": 0,
+        "leak_rate": 0.0
+      },
+      "retrieve_errors": 0,
+      "retrieve_ms_p50": 56.83
+    },
+    {
+      "system": "no_memory",
+      "scenario": null,
+      "cases": 228,
+      "deterministic": 0.1404,
+      "judge": 0.1009,
+      "context_has_answer": 0.0,
+      "by_category": {
+        "continuity": {
+          "cases": 40,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "identity": {
+          "cases": 40,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "recurrence": {
+          "cases": 23,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "order_time": {
+          "cases": 32,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "promise_action": {
+          "cases": 29,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "privacy": {
+          "cases": 32,
+          "deterministic": 1.0,
+          "judge": 0.7188
+        },
+        "contradiction": {
+          "cases": 32,
+          "deterministic": 0.0,
+          "judge": 0.0
+        }
+      },
+      "tokens": {
+        "default": {
+          "median": 0.0,
+          "p95": 0,
+          "mean": 0.0
+        }
+      },
+      "privacy": {
+        "cases": 32,
+        "leaks": 0,
+        "leak_rate": 0.0
+      },
+      "retrieve_errors": 0,
+      "retrieve_ms_p50": 0.0
+    }
+  ],
+  "cost": [
+    {
+      "system": "niadra",
+      "variant": "price_low",
+      "memory_usd_per_1000": 5.0,
+      "agent_prompt_usd_per_1000": 1.256,
+      "basis": "public price, models included"
+    },
+    {
+      "system": "niadra",
+      "variant": "price_high",
+      "memory_usd_per_1000": 15.0,
+      "agent_prompt_usd_per_1000": 1.256,
+      "basis": "public price, models included"
+    },
+    {
+      "system": "mem0_oss",
+      "variant": "models_only",
+      "memory_usd_per_1000": 8.5137,
+      "agent_prompt_usd_per_1000": 0.66,
+      "basis": "measured extraction model spend, servers not priced",
+      "usd_per_add": 0.00085137
+    },
+    {
+      "system": "mem0_oss_rerank",
+      "variant": "models_only",
+      "memory_usd_per_1000": 9.0529,
+      "agent_prompt_usd_per_1000": 0.096,
+      "basis": "measured extraction and rerank model spend, servers not priced",
+      "usd_per_search": 5.393e-05
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "hobby",
+      "memory_usd_per_1000": 0.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 0.0,
+      "conversations_per_month": 100
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "starter",
+      "memory_usd_per_1000": 38.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 19.0,
+      "conversations_per_month": 500
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "pro",
+      "memory_usd_per_1000": 49.8,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 249.0,
+      "conversations_per_month": 5000
+    }
+  ],
+  "latency": [
+    {
+      "system": "niadra",
+      "path": "edge",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 53.6,
+      "p90": 156.2,
+      "p95": 294.0,
+      "p99": 725.5,
+      "max": 982.5,
+      "sent": 300,
+      "errors": {}
+    },
+    {
+      "system": "niadra",
+      "path": "edge",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 114.0,
+      "p90": 3705.1,
+      "p95": 4748.8,
+      "p99": 5483.9,
+      "max": 6907.2,
+      "sent": 750,
+      "errors": {}
+    },
+    {
+      "system": "niadra",
+      "path": "cluster",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 37.4,
+      "p90": 61.6,
+      "p95": 77.5,
+      "p99": 423.2,
+      "max": 654.8,
+      "sent": 300,
+      "errors": {}
+    },
+    {
+      "system": "niadra",
+      "path": "cluster",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 24.3,
+      "p90": 33.4,
+      "p95": 43.5,
+      "p99": 61.2,
+      "max": 97.8,
+      "sent": 750,
+      "errors": {}
+    },
+    {
+      "system": "mem0_oss",
+      "path": "cluster",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 97.9,
+      "p90": 123.8,
+      "p95": 141.1,
+      "p99": 203.1,
+      "max": 214.4,
+      "sent": 300,
+      "errors": {}
+    },
+    {
+      "system": "mem0_oss",
+      "path": "cluster",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 540,
+      "p50": 9284.4,
+      "p90": 17647.7,
+      "p95": 18948.2,
+      "p99": 19497.7,
+      "max": 19822.5,
+      "sent": 750,
+      "errors": {
+        "ReadTimeout": 29,
+        "PoolTimeout": 181
+      }
+    }
+  ],
+  "freshness": [
+    {
+      "system": "niadra",
+      "trials": 20,
+      "timeouts": 0,
+      "timeout_s": 30.0,
+      "n": 20,
+      "p50": 357.7,
+      "p90": 912.2,
+      "p95": 1018.9,
+      "p99": 1534.9,
+      "max": 1534.9
+    },
+    {
+      "system": "mem0_oss",
+      "trials": 20,
+      "timeouts": 1,
+      "timeout_s": 30.0,
+      "n": 19,
+      "p50": 947.1,
+      "p90": 1065.8,
+      "p95": 1124.9,
+      "p99": 2581.0,
+      "max": 2581.0
+    }
+  ],
+  "resilience": [
+    {
+      "system": "niadra",
+      "fault": "delay_2000ms",
+      "trials": 20,
+      "memory_stage_ms": {
+        "n": 20,
+        "p50": 151.4,
+        "p90": 152.4,
+        "p95": 152.9,
+        "p99": 156.1,
+        "max": 156.1
+      },
+      "within_budget_rate": 1.0,
+      "raised_rate": 0.0,
+      "empty_rate": 1.0,
+      "turn_budget_ms": 1000
+    },
+    {
+      "system": "mem0_oss",
+      "fault": "delay_2000ms",
+      "trials": 20,
+      "memory_stage_ms": {
+        "n": 20,
+        "p50": 2111.3,
+        "p90": 2154.9,
+        "p95": 2179.7,
+        "p99": 2200.0,
+        "max": 2200.0
+      },
+      "within_budget_rate": 0.0,
+      "raised_rate": 0.0,
+      "empty_rate": 0.0,
+      "turn_budget_ms": 1000
+    },
+    {
+      "system": "niadra",
+      "fault": "http_503",
+      "trials": 20,
+      "memory_stage_ms": {
+        "n": 20,
+        "p50": 1.6,
+        "p90": 121.7,
+        "p95": 133.3,
+        "p99": 150.0,
+        "max": 150.0
+      },
+      "within_budget_rate": 1.0,
+      "raised_rate": 0.0,
+      "empty_rate": 1.0,
+      "turn_budget_ms": 1000
+    },
+    {
+      "system": "mem0_oss",
+      "fault": "http_503",
+      "trials": 20,
+      "memory_stage_ms": {
+        "n": 20,
+        "p50": 0.9,
+        "p90": 1.1,
+        "p95": 1.2,
+        "p99": 2.6,
+        "max": 2.6
+      },
+      "within_budget_rate": 1.0,
+      "raised_rate": 1.0,
+      "empty_rate": 1.0,
+      "turn_budget_ms": 1000
+    }
+  ]
+}
