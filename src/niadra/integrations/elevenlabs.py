@@ -148,14 +148,16 @@ def verify_signature(
     return hmac.compare_digest(given, expected)
 
 
-def _literal(schema: Mapping[str, Any]) -> dict[str, Any]:
-    """One JSON Schema property in ElevenLabs' tool schema, which keeps type, description and enum."""
-    kind = schema.get("type", "string")
-    if kind == "array":
-        items = _literal(schema.get("items", {"type": "string"}))
-        items.setdefault("description", "")
-        return {"type": "array", "description": schema.get("description", ""), "items": items}
+def _property(schema: Mapping[str, Any]) -> dict[str, Any]:
+    """One JSON Schema property in ElevenLabs' tool schema: type, description, enum, items and
+    nested properties; the constraints it does not take (formats, bounds, patterns) are left out."""
+    kind = schema.get("type") or ("object" if "properties" in schema else "string")
     prop: dict[str, Any] = {"type": kind, "description": schema.get("description", "")}
+    if kind == "array":
+        prop["items"] = _property(schema.get("items", {"type": "string"}))
+    elif kind == "object":
+        prop["properties"] = {name: _property(value) for name, value in schema.get("properties", {}).items()}
+        prop["required"] = list(schema.get("required", []))
     if "enum" in schema:
         prop["enum"] = list(schema["enum"])
     return prop
@@ -170,7 +172,7 @@ def tool_configs(url: str, *, secret: str | None = None) -> list[dict[str, Any]]
     """
     configs: list[dict[str, Any]] = []
     for spec in tool_specs(BUILTIN_DEFINITIONS):
-        properties = {name: _literal(prop) for name, prop in spec.parameters.get("properties", {}).items()}
+        properties = {name: _property(prop) for name, prop in spec.parameters.get("properties", {}).items()}
         for variable in _SYSTEM:
             properties[variable] = {"type": "string", "description": "", "dynamic_variable": variable}
         api_schema: dict[str, Any] = {

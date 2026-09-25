@@ -8,7 +8,7 @@ from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from types import TracebackType
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from pydantic import BaseModel
@@ -31,13 +31,22 @@ from niadra._cache import ContextCache, cache_key
 from niadra._queue import SyncFlusher, is_retryable
 from niadra._transport import SyncTransport
 from niadra.conversation import Conversation, Task
+from niadra.models.agent_memory import (
+    AgentMemory,
+    AgentMemorySearchResponse,
+    AgentNote,
+    AgentNoteKind,
+    AgentNoteVisibility,
+    Evidence,
+    RememberResult,
+)
 from niadra.models.context import ContextRequest, HistoryFilters, ObjectState, OpenedItem
 from niadra.models.events import BatchResponse, FeedbackAction, MediaUploadResponse, VerifyMethod
 from niadra.models.objects import ObjectTimeline
 from niadra.models.results import Context, MediaUpload, SearchResult, TimelinePage
 from niadra.models.tokens import SubjectToken
 from niadra.options import CacheOptions, QueueOptions, Timeouts
-from niadra.tools import BUILTIN_DEFINITIONS, ToolKit
+from niadra.tools import ToolKit, definitions
 from niadra.vocabulary import AssertionMethod, Speaker, SubjectKind, Verification
 
 
@@ -122,6 +131,7 @@ class Niadra:
         target: TargetLike | None = None,
         timeout: float | None = None,
         use_cache: bool = True,
+        format: Literal["text", "json"] = "text",
     ) -> Context:
         """The context pack for a subject (a person, account or partner) or a business object.
 
@@ -141,7 +151,17 @@ class Niadra:
         try:
             requested = Verification(verification)
             request = self._core.context_request(
-                subject, object, about, view, verification, conversation_id, task_id, query, delta, target
+                subject,
+                object,
+                about,
+                view,
+                verification,
+                conversation_id,
+                task_id,
+                query,
+                delta,
+                target,
+                format,
             )
         except (TypeError, ValueError) as exc:
             return self._core.fail(
@@ -562,6 +582,8 @@ class Niadra:
         task_id: str | None = None,
         verification: VerificationLike = Verification.V0,
         voice: bool = False,
+        agent_memory: bool = False,
+        write_agent_memory: bool = False,
     ) -> ToolKit:
         """The history navigation kit as function-calling tools, bound to one customer.
 
@@ -571,7 +593,7 @@ class Niadra:
         """
         return ToolKit(
             self,
-            BUILTIN_DEFINITIONS,
+            definitions(agent_memory=agent_memory, write_agent_memory=write_agent_memory),
             subject=subject,
             about=about,
             conversation_id=conversation_id,
@@ -579,6 +601,84 @@ class Niadra:
             verification=verification,
             voice=voice,
         )
+
+    def agent_memory(
+        self,
+        max_tokens: int = 300,
+        *,
+        tags: Sequence[str] | None = None,
+        view: str | None = None,
+        timeout: float | None = None,
+    ) -> AgentMemory:
+        """The agent's own working notes as one block, for the prompt after your instructions.
+
+        Put `text` after the agent's instructions and before the customer's context: it is the same
+        for every customer, so it stays in the cacheable prefix of the prompt. The block is cached
+        per `(max_tokens, tags, view)` for the context cache's TTL and revalidated by ETag. With the
+        agent memory off in the space, `enabled` is False and `text` empty. Never raises (unless
+        `strict`).
+        """
+        if not self._core.enabled:
+            return AgentMemory.empty(error="disabled")
+        key = self._core.agent_memory_cache.key(max_tokens, tags, view)
+        cached, fresh = self._core.agent_memory_cache.get(key)
+        if cached is not None and fresh:
+            return cached.model_copy(update={"source": "cache"})
+        try:
+            budget = self._core.context_budget(view or "chat", timeout)
+            etag = cached.etag if cached is not None and cached.etag else None
+            request = self._core.agent_memory_http(max_tokens, tags, view, etag, budget)
+            return self._core.agent_memory_cache.absorb(key, self._transport.request(request))
+        except Exception as exc:
+            return self._core.agent_memory_failed(key, exc)
+
+    def search_agent_memory(
+        self,
+        query: str,
+        *,
+        tags: Sequence[str] | None = None,
+        limit: int = 5,
+        conversation_id: str | None = None,
+        task_id: str | None = None,
+        timeout: float | None = None,
+    ) -> list[AgentNote]:
+        """The agent's notes that match `query` (and `tags`), best first. Empty on failure."""
+        if not self._core.enabled:
+            return []
+        try:
+            budget = self._core.navigation_budget(False, timeout)
+            request = self._core.search_agent_memory_http(
+                query, tags, limit, conversation_id, task_id, budget
+            )
+            return AgentMemorySearchResponse.model_validate(self._transport.request(request)).notes
+        except Exception as exc:
+            return self._core.fail("search_agent_memory", exc, [])
+
+    def remember(
+        self,
+        kind: AgentNoteKind,
+        title: str,
+        body: str,
+        *,
+        tags: Sequence[str] | None = None,
+        evidence: Evidence | Mapping[str, Any] | None = None,
+        visibility: AgentNoteVisibility | None = None,
+        valid_until: datetime | None = None,
+    ) -> RememberResult:
+        """Saves a working note: a procedure, how a tool or process behaves, or a pitfall.
+
+        Never about a customer: a note with personal data is refused, and `error` comes back as
+        `personal_data_in_agent_memory` (in `strict` mode, an `UnprocessableEntityError` with that
+        code). Sent at once, since the answer says whether it was saved or waits for a person
+        (`proposal_id`). Needs a key with the `agent_memory:write` scope.
+        """
+        if not self._core.enabled:
+            return RememberResult(error="disabled")
+        try:
+            request = self._core.remember_http(kind, title, body, tags, evidence, visibility, valid_until)
+            return RememberResult.model_validate(self._transport.request(request))
+        except Exception as exc:
+            return self._core.fail("remember", exc, RememberResult(error=error_code(exc)))
 
     def subject_token(
         self,

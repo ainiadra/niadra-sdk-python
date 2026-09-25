@@ -20,7 +20,7 @@ calls it for you; without it, call it when you build the prompt.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from contextvars import ContextVar, Token
 from datetime import datetime, timezone
 from types import TracebackType
@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, Union
 
 from niadra._base import HandleLike, ItemLike, ObjectLike, TargetLike, VerificationLike, as_handle, as_object
 from niadra._ids import new_key
+from niadra.models.agent_memory import AgentMemory, AgentNoteKind, RememberResult
 from niadra.models.events import (
     BatchResponse,
     Content,
@@ -40,7 +41,7 @@ from niadra.models.events import (
     VerifyMethod,
 )
 from niadra.models.results import Context
-from niadra.tools import BUILTIN_DEFINITIONS, AsyncToolKit, ToolKit
+from niadra.tools import AsyncToolKit, ToolKit, definitions
 from niadra.vocabulary import Speaker, Verification
 
 if TYPE_CHECKING:
@@ -232,6 +233,9 @@ class _Session:
             "voice": self.view == "voice",
         }
 
+    def _evidence(self) -> dict[str, str]:
+        return {"conversation_id": self.id} if self._kind == "conversation" else {"task_id": self.id}
+
     def _verified(self, level: VerificationLike) -> None:
         # The server pins a new pack for the new level; the next read starts from it.
         self.verification = Verification(level)
@@ -314,14 +318,27 @@ class _SyncSession(_Session):
         """Records an action, defaulting subject, object, channel, ids and context stamp to this session's."""
         return self._client.action(operation, **self._action_arguments(options))
 
-    def tools(self) -> ToolKit | None:
+    def tools(self, *, agent_memory: bool = False, write_agent_memory: bool = False) -> ToolKit | None:
         """The history kit bound to this session's customer and id; None without a subject.
 
         The kit follows the session's verification level, so one made before `verify()`
-        reads at the new level afterwards. Voice views get the voice budgets.
+        reads at the new level afterwards. Voice views get the voice budgets. `agent_memory`
+        adds `search_agent_memory`, and `write_agent_memory` also `remember`.
         """
         binding = self._kit_binding()
-        return ToolKit(self._client, BUILTIN_DEFINITIONS, **binding) if binding is not None else None
+        if binding is None:
+            return None
+        chosen = definitions(agent_memory=agent_memory, write_agent_memory=write_agent_memory)
+        return ToolKit(self._client, chosen, **binding)
+
+    def agent_memory(self, max_tokens: int = 300, *, tags: Sequence[str] | None = None) -> AgentMemory:
+        """The agent's own notes for this session's view. See `Niadra.agent_memory`."""
+        return self._client.agent_memory(max_tokens, tags=tags, view=self.view)
+
+    def remember(self, kind: AgentNoteKind, title: str, body: str, **options: Any) -> RememberResult:
+        """Saves a working note with this session's id as its evidence. See `Niadra.remember`."""
+        options.setdefault("evidence", self._evidence())
+        return self._client.remember(kind, title, body, **options)
 
     def verify(
         self,
@@ -375,10 +392,22 @@ class _AsyncSession(_Session):
         """Records an action, defaulting subject, object, channel, ids and context stamp to this session's."""
         return self._client.action(operation, **self._action_arguments(options))
 
-    def tools(self) -> AsyncToolKit | None:
+    def tools(self, *, agent_memory: bool = False, write_agent_memory: bool = False) -> AsyncToolKit | None:
         """The history kit bound to this session's customer and id; None without a subject."""
         binding = self._kit_binding()
-        return AsyncToolKit(self._client, BUILTIN_DEFINITIONS, **binding) if binding is not None else None
+        if binding is None:
+            return None
+        chosen = definitions(agent_memory=agent_memory, write_agent_memory=write_agent_memory)
+        return AsyncToolKit(self._client, chosen, **binding)
+
+    async def agent_memory(self, max_tokens: int = 300, *, tags: Sequence[str] | None = None) -> AgentMemory:
+        """The agent's own notes for this session's view. See `AsyncNiadra.agent_memory`."""
+        return await self._client.agent_memory(max_tokens, tags=tags, view=self.view)
+
+    async def remember(self, kind: AgentNoteKind, title: str, body: str, **options: Any) -> RememberResult:
+        """Saves a working note with this session's id as its evidence. See `AsyncNiadra.remember`."""
+        options.setdefault("evidence", self._evidence())
+        return await self._client.remember(kind, title, body, **options)
 
     async def verify(
         self,

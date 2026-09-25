@@ -55,11 +55,12 @@ class Request:
     method: str
     path: str
     json: Any = None
-    params: dict[str, str] | None = None
+    params: dict[str, Any] | None = None
     timeout: float = 5.0
     budget: float | None = None
     idempotency_key: str | None = None
     max_attempts: int = 3
+    headers: dict[str, str] | None = None
 
 
 @dataclass
@@ -178,6 +179,8 @@ def _headers(api_key: str, request: Request) -> dict[str, str]:
     }
     if request.idempotency_key:
         headers["Idempotency-Key"] = request.idempotency_key
+    if request.headers:
+        headers.update(request.headers)
     return headers
 
 

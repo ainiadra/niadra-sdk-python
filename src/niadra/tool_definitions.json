@@ -1,0 +1,232 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "search_customer_history",
+      "description": "Search everything that already happened with this customer: past conversations, promises, agent actions, orders and invoices. Use it when the customer refers to something earlier or asks whether a problem happened before. Do not call it when the answer is already in the context block, including its 'Do histórico' line, which already counts recurrences. Returns short items with date, channel and outcome, plus a recurrence count. Open one with open_history_item.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "What to look for, in the customer's words."
+          },
+          "filters": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "until": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "when": {
+                "type": "string",
+                "description": "The period in the customer's own words, as they said it: 'last week', 'semana passada', 'en marzo'."
+              },
+              "channels": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "categories": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "item_kinds": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "episode",
+                    "fact",
+                    "open_item",
+                    "action",
+                    "object",
+                    "trait"
+                  ]
+                }
+              },
+              "outcome": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "max_tokens": {
+            "type": "integer",
+            "minimum": 50,
+            "maximum": 4000
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "get_customer_timeline",
+      "description": "List this customer's conversations and agent actions in order, newest first, one line each. Use it to leaf through the history when you do not know what to search for. Pass next_cursor to continue. Prefer search_customer_history for a specific question.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "filters": {
+            "type": "object",
+            "properties": {
+              "since": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "until": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "when": {
+                "type": "string",
+                "description": "The period in the customer's own words, as they said it: 'last week', 'semana passada', 'en marzo'."
+              },
+              "channels": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "categories": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "item_kinds": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "episode",
+                    "fact",
+                    "open_item",
+                    "action",
+                    "object",
+                    "trait"
+                  ]
+                }
+              },
+              "outcome": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "open_history_item",
+      "description": "Open one conversation or business object returned by search_customer_history or get_customer_timeline: what was asked, what was promised and by whom, the outcome and what memory came from it. Use it only after a search or timeline pointed to the item.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The item id, e.g. `episode:...`."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "search_agent_memory",
+      "description": "Search your own working notes: procedures, how the company's tools and processes behave, and known pitfalls. Use it before a task or a tool call you are unsure how to do. It holds nothing about customers; for the customer's history use search_customer_history.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "What you need to know how to do."
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9_.:-]{0,63}$"
+            },
+            "description": "Object types, operations or systems, e.g. `invoice`, `credit`, `erp`."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "remember",
+      "description": "Save a working note for yourself and future runs: a procedure that worked, how a tool or process behaves, or a pitfall to avoid. Never write anything about a customer here: no names, phones, e-mails, documents, ids or words from the conversation. A note with personal data is refused. Write it so it helps with any customer.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "enum": [
+              "procedure",
+              "tool_note",
+              "process_note",
+              "pitfall"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9_.:-]{0,63}$"
+            },
+            "description": "Object types, operations or systems, e.g. `invoice`, `credit`, `erp`."
+          }
+        },
+        "required": [
+          "kind",
+          "title",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+]

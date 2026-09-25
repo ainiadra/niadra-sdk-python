@@ -46,6 +46,10 @@ class ContextRequest(Model):
     delta: bool = False
     target: TargetModel | None = None
     known_etag: str | None = None
+    # Sent only when asked for, so a cell that does not know the field yet still takes the request.
+    format: Literal["text", "json"] | None = Field(
+        default=None, description="`json` also returns `pack`: the pack as typed sections."
+    )
 
     @model_validator(mode="after")
     def _one_target(self) -> ContextRequest:
@@ -90,6 +94,53 @@ class CacheDirectives(ResponseModel):
     salt: str = ""
 
 
+PackSectionName = Literal[
+    "account",
+    "customer",
+    "facts",
+    "stable_patterns",
+    "meta",
+    "history",
+    "summary",
+    "episodes",
+    "volatile_patterns",
+    "actions",
+    "objects",
+    "pending",
+]
+
+
+class PackSection(ResponseModel):
+    """One line group of the pack. Read `name`, stable across languages; `label` is for people."""
+
+    name: PackSectionName | str
+    label: str
+    layer: Literal["account", "stable", "volatile"] | str
+    lines: list[str] = Field(default_factory=list)
+
+
+class PackStamp(ResponseModel):
+    etag: str
+    version: str
+    as_of: datetime | None = None
+    manifest_hash: str | None = None
+
+
+class ContextPack(ResponseModel):
+    """The pack as data (`format="json"`), in the `context-pack.v0` shape, for programs that build
+    their own prompt. The same content as `text`."""
+
+    spec: str = "context-pack.v0"
+    view: str
+    verification: Verification
+    withheld: int
+    as_of: datetime | None = None
+    preamble: str
+    sections: list[PackSection] = Field(default_factory=list)
+    variables: dict[str, Any] = Field(default_factory=dict)
+    stamp: PackStamp
+
+
 class ContextResponse(ResponseModel):
     not_modified: bool = False
     text: str | None = None
@@ -109,16 +160,24 @@ class ContextResponse(ResponseModel):
     timing: dict[str, float] = Field(default_factory=dict)
     path: DeliveryPath | str
     degraded: bool = False
+    pack: ContextPack | None = None
 
 
 class HistoryFilters(Model):
     since: datetime | None = None
     until: datetime | None = None
+    when: Annotated[str, StringConstraints(min_length=1, max_length=100)] | None = Field(
+        default=None,
+        description="A time phrase in the customer's words (`last week`, `semana passada`, `en marzo`), in "
+        "Portuguese, English or Spanish. It narrows `since` and `until`; one the server cannot read comes "
+        "back in `ignored`.",
+    )
     channels: list[ShortStr] = Field(default_factory=list)
     categories: list[ShortStr] = Field(default_factory=list)
     item_kinds: list[HistoryItemKind] = Field(default_factory=list)
     outcome: ShortStr | None = None
     object: ObjectRef | None = None
+    show_expired: bool | None = Field(default=None, description="Also items whose `valid_until` has passed.")
 
 
 class SearchRequest(Model):
@@ -142,6 +201,14 @@ class HistoryItem(ResponseModel):
     outcome: str | None = None
     confidence: float | None = None
     origin_event_id: str | None = None
+    valid_until: datetime | None = None
+
+
+class TimeWindow(ResponseModel):
+    """The period a search or timeline covered, after reading `since`, `until` and `when`."""
+
+    since: datetime | None = None
+    until: datetime | None = None
 
 
 class Recurrence(ResponseModel):
@@ -160,6 +227,8 @@ class SearchResponse(ResponseModel):
     as_of: datetime | None = None
     tokens_used: int = 0
     degraded: str | None = Field(default=None, description="`text_only` when the encoder was unavailable.")
+    window: TimeWindow | None = None
+    ignored: list[str] = Field(default_factory=list, description="Filters the server could not read.")
 
 
 class TimelineRequest(Model):
@@ -189,6 +258,16 @@ class TimelineResponse(ResponseModel):
     next_cursor: str | None = None
     withheld: int = 0
     as_of: datetime | None = None
+    window: TimeWindow | None = None
+    ignored: list[str] = Field(default_factory=list, description="Filters the server could not read.")
+
+
+class ItemVersion(ResponseModel):
+    """One earlier state of an opened item: when it changed and what changed."""
+
+    version: int
+    changed_at: datetime
+    what_changed: str
 
 
 class Promise(ResponseModel):
@@ -212,6 +291,7 @@ class OpenedItem(ResponseModel):
         default=None, description="The server no longer sends a transcript excerpt; kept for code reading it."
     )
     as_of: datetime | None = None
+    versions: list[ItemVersion] = Field(default_factory=list)
 
 
 class ObjectState(ResponseModel):

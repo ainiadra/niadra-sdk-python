@@ -166,6 +166,11 @@ class EventItem(Model):
     corrects_event_id: str | None = None
     voice: VoiceInfo | None = None
     context_stamp: ContextStamp | None = None
+    valid_until: datetime | None = Field(
+        default=None,
+        description="Until when what this event states holds, e.g. an offer valid until a date: after it, "
+        "the facts it gave leave the context and the search.",
+    )
     usage: ModelUsage | None = Field(
         default=None, description="The model call behind an `ai_agent` message: tokens and prompt cache."
     )

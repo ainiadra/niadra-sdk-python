@@ -100,7 +100,8 @@ def test_tool_configs_carry_the_kits_words_and_the_call_from_system_variables() 
         model_facing = {k: v for k, v in body["properties"].items() if "dynamic_variable" not in v}
         assert set(model_facing) == set(definition["parameters"]["properties"])
         for name, prop in model_facing.items():
-            assert prop["description"] == definition["parameters"]["properties"][name]["description"]
+            expected = definition["parameters"]["properties"][name]
+            assert prop["description"] == expected.get("description", "")
         filled = {k: v["dynamic_variable"] for k, v in body["properties"].items() if "dynamic_variable" in v}
         assert filled == {k: k for k in ("system__call_sid", "system__conversation_id", "system__caller_id")}
         assert body["required"] == definition["parameters"].get("required", [])

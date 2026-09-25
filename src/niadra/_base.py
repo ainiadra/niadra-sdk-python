@@ -21,6 +21,7 @@ from niadra._queue import EventBuffer, serialize
 from niadra._transport import Request
 from niadra.errors import APIError, ConfigurationError
 from niadra.keys import ApiKey
+from niadra.models.agent_memory import AgentMemory, AgentMemorySearchRequest, CreateAgentNoteRequest, Evidence
 from niadra.models.common import Handle, ObjectRef
 from niadra.models.context import (
     ContextRequest,
@@ -198,6 +199,7 @@ class ClientCore:
         self.api_key = ""
         self.base_url = ""
         self.enabled = False
+        self.agent_memory_cache = AgentMemoryCache(self.cache_options)
 
         raw = api_key if api_key is not None else os.environ.get("NIADRA_API_KEY", "")
         base_url = base_url or os.environ.get("NIADRA_BASE_URL") or None
@@ -246,6 +248,7 @@ class ClientCore:
         query: str | None,
         delta: bool,
         target: TargetLike | None,
+        format: Literal["text", "json"] = "text",
     ) -> ContextRequest:
         return ContextRequest(
             subject=as_handle(subject) if subject is not None else None,
@@ -258,6 +261,7 @@ class ClientCore:
             query=query,
             delta=delta,
             target=as_target(target) if target is not None else None,
+            format="json" if format == "json" else None,
         )
 
     def cacheable(self, request: ContextRequest, use_cache: bool) -> bool:
@@ -567,6 +571,78 @@ class ClientCore:
             return
         raise ValueError("the upload URL is not HTTPS")
 
+    def agent_memory_http(
+        self, max_tokens: int, tags: Sequence[str] | None, view: str | None, etag: str | None, budget: float
+    ) -> Request:
+        params: dict[str, Any] = {"max_tokens": str(max_tokens)}
+        if tags:
+            params["tags"] = list(tags)
+        if view:
+            params["view"] = view
+        headers = {"If-None-Match": etag} if etag else None
+        return Request(
+            "GET", "/v1/agent-memory/block", params=params, headers=headers, timeout=budget, budget=budget
+        )
+
+    def search_agent_memory_http(
+        self,
+        query: str,
+        tags: Sequence[str] | None,
+        limit: int,
+        conversation_id: str | None,
+        task_id: str | None,
+        budget: float,
+    ) -> Request:
+        body = AgentMemorySearchRequest(
+            query=query, tags=list(tags or []), limit=limit, conversation_id=conversation_id, task_id=task_id
+        )
+        return Request("POST", "/v1/agent-memory/search", json=_body(body), timeout=budget, budget=budget)
+
+    def remember_http(
+        self,
+        kind: str,
+        title: str,
+        body: str,
+        tags: Sequence[str] | None,
+        evidence: Evidence | Mapping[str, Any] | None,
+        visibility: str | None,
+        valid_until: datetime | None,
+    ) -> Request:
+        request = CreateAgentNoteRequest.model_validate(
+            {
+                "kind": kind,
+                "title": title,
+                "body": body,
+                "tags": list(tags or []),
+                "evidence": evidence,
+                "valid_until": valid_until,
+                **({"visibility": visibility} if visibility else {}),
+            }
+        )
+        budget = self.timeouts.write
+        # A retried write must not save the note twice.
+        return Request(
+            "POST",
+            "/v1/agent-memory/notes",
+            json=_body(request),
+            timeout=budget,
+            budget=budget,
+            idempotency_key=new_key(),
+        )
+
+    def agent_memory_failed(self, key: str, error: BaseException) -> AgentMemory:
+        """A block that could not be read: `enabled=False` when the route is not there (501), else the
+        last good block within `max_stale`, else an empty one with the error's code."""
+        if isinstance(error, APIError) and error.status_code == 501:
+            disabled = AgentMemory.empty(enabled=False, error="not_implemented")
+            self.agent_memory_cache.put(key, disabled)
+            return disabled
+        fallback = self.agent_memory_cache.fallback(key)
+        if fallback is not None and not self.strict:
+            logger.warning("niadra: agent memory failed, serving the last good block (%s)", error_code(error))
+            return fallback
+        return self.fail("agent_memory", error, AgentMemory.empty(error=error_code(error)))
+
     @staticmethod
     def handoff_item(
         conversation_id: str,
@@ -582,6 +658,61 @@ class ClientCore:
             reason=reason,
             mode=mode,
         )
+
+
+class AgentMemoryCache:
+    """The agent memory blocks already read, per (max_tokens, tags, view), with their ETags.
+
+    A block younger than the context cache's `ttl` is served as is; an older one is revalidated
+    with `If-None-Match`. On failure, the last good block is served for up to `max_stale`.
+    """
+
+    def __init__(self, options: CacheOptions) -> None:
+        self._options = options
+        self._entries: dict[str, tuple[AgentMemory, float]] = {}
+        self._lock = threading.Lock()
+
+    @staticmethod
+    def key(max_tokens: int, tags: Sequence[str] | None, view: str | None) -> str:
+        return f"{max_tokens}|{','.join(sorted(tags or []))}|{view or ''}"
+
+    def get(self, key: str) -> tuple[AgentMemory | None, bool]:
+        """The cached block and whether it is still fresh."""
+        if not self._options.enabled:
+            return None, False
+        with self._lock:
+            entry = self._entries.get(key)
+        if entry is None:
+            return None, False
+        block, stored_at = entry
+        return block, time.monotonic() - stored_at < self._options.ttl
+
+    def put(self, key: str, block: AgentMemory) -> AgentMemory:
+        if self._options.enabled:
+            with self._lock:
+                self._entries[key] = (block, time.monotonic())
+        return block
+
+    def absorb(self, key: str, data: Any) -> AgentMemory:
+        """A new block from the API, or the cached one when the API answered 304."""
+        cached, _ = self.get(key)
+        if data is None and cached is not None:
+            return self.put(key, cached.model_copy(update={"source": "cache"}))
+        block = AgentMemory.model_validate({**(data or {}), "source": "network"})
+        if not block.enabled:
+            # The agent memory is off in the space: nothing goes into the prompt.
+            block = block.model_copy(update={"text": "", "notes": []})
+        return self.put(key, block)
+
+    def fallback(self, key: str) -> AgentMemory | None:
+        with self._lock:
+            entry = self._entries.get(key)
+        if entry is None or not entry[0].text:
+            return None
+        block, stored_at = entry
+        if time.monotonic() - stored_at > self._options.max_stale:
+            return None
+        return block.model_copy(update={"source": "cache"})
 
 
 def _body(model: BaseModel) -> dict[str, Any]:

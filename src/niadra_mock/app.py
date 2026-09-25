@@ -19,6 +19,12 @@ from urllib.parse import parse_qs, unquote
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
+from niadra.models.agent_memory import (
+    AgentMemorySearchRequest,
+    CreateAgentNoteRequest,
+    DistillRequest,
+    UpdateAgentNoteRequest,
+)
 from niadra.models.common import ObjectRef
 from niadra.models.context import ContextRequest, OpenItemRequest, SearchRequest, TimelineRequest
 from niadra.models.events import (
@@ -30,12 +36,15 @@ from niadra.models.events import (
     MediaUploadRequest,
 )
 from niadra.models.tokens import SubjectTokenRequest
-from niadra.tools import BUILTIN_DEFINITIONS
+from niadra.tools import definitions
 from niadra.vocabulary import Verification
+from niadra_mock.agent_memory import MOCK_SOURCE, PersonalDataError
 from niadra_mock.cell import ItemNotFoundError, MockCell, UploadRejectedError
 
 _BATCH_ITEM: TypeAdapter[Any] = TypeAdapter(BatchItem)
 _OBJECTS = "/v1/objects/"
+_AGENT_MEMORY = "/v1/agent-memory/"
+_JSON = {"content-type": "application/json"}
 _UPLOADS = "/_mock/media/"
 
 Headers = dict[str, str]
@@ -53,10 +62,12 @@ _REASONS = {
     403: "Forbidden",
     404: "Not Found",
     405: "Method Not Allowed",
+    409: "Conflict",
     421: "Misdirected Request",
     422: "Unprocessable Entity",
     429: "Too Many Requests",
     500: "Internal Server Error",
+    501: "Not Implemented",
     503: "Service Unavailable",
 }
 _CODES = {
@@ -64,6 +75,7 @@ _CODES = {
     401: "unauthenticated",
     403: "forbidden",
     404: "not_found",
+    409: "conflict",
     421: "wrong_cell",
     422: "invalid_input",
     429: "rate_limited",
@@ -85,8 +97,10 @@ def _json(status: int, payload: Any, headers: Headers | None = None) -> Response
     )
 
 
-def _problem(status: int, detail: str | None = None, headers: Headers | None = None) -> Response:
-    code = _CODES.get(status, "error")
+def _problem(
+    status: int, detail: str | None = None, headers: Headers | None = None, *, code: str | None = None
+) -> Response:
+    code = code or _CODES.get(status, "error")
     body: dict[str, Any] = {
         "type": f"https://docs.niadra.com/errors/{code}",
         "title": code.replace("_", " "),
@@ -130,6 +144,8 @@ class MockApp:
         try:
             if path == "/v1/media/uploads" and method == "POST":
                 return self._reserve_upload(body, f"{scheme}://{headers.get('host', 'localhost')}")
+            if path.startswith(_AGENT_MEMORY):
+                return self._agent_memory(method, path[len(_AGENT_MEMORY) :], parse_qs(query), headers, body)
             return self._route(method, path, parse_qs(query), body)
         except ValidationError as exc:
             return _problem(422, _fields(exc))
@@ -161,7 +177,9 @@ class MockApp:
         if (method, path) in routes:
             return routes[(method, path)](body)
         if method == "GET" and path == "/v1/history/tools":
-            return _json(200, {"tools": BUILTIN_DEFINITIONS})
+            with_memory = query.get("agent_memory", ["false"])[0].lower() == "true"
+            chosen = definitions(agent_memory=with_memory, write_agent_memory=self.cell.agent_memory_write)
+            return _json(200, chosen)
         prefix = "/v1/history/items/"
         if method == "GET" and path.startswith(prefix) and len(path) > len(prefix):
             level = Verification(query.get("verification", ["V0"])[0])
@@ -186,6 +204,85 @@ class MockApp:
         if not 1 <= limit <= 100:
             return _problem(422, "limit: between 1 and 100")
         return _model(self.cell.object_timeline(ref, query.get("cursor", [None])[0], limit))
+
+    def _agent_memory(
+        self, method: str, rest: str, query: dict[str, list[str]], headers: Headers, body: bytes
+    ) -> Response:
+        """`/v1/agent-memory/*`, as the cell answers it; 501 when the store is off."""
+        store = self.cell.agent_memory
+        if not store.enabled:
+            return _problem(501, "agent memory is not available in this space", code="not_implemented")
+        parts = [unquote(p) for p in rest.split("/")] if rest else []
+        route = (method, *parts[:1], *(["{id}"] if len(parts) >= 2 else []), *parts[2:3])
+        one = parts[1] if len(parts) >= 2 else ""
+        try:
+            with self.cell._lock:
+                return self._agent_memory_route(route, one, query, headers, body)
+        except PersonalDataError:
+            detail = "the note has personal data; write it so it helps with any customer"
+            return _problem(422, detail, code="personal_data_in_agent_memory")
+        except KeyError:
+            return _problem(404)
+
+    def _agent_memory_route(
+        self, route: tuple[str, ...], one: str, query: dict[str, list[str]], headers: Headers, body: bytes
+    ) -> Response:
+        store = self.cell.agent_memory
+
+        def arg(name: str, default: str | None = None) -> str | None:
+            return query.get(name, [default])[0] if query.get(name) or default is not None else None
+
+        limit = int(arg("limit", "20") or 20)
+        if route == ("GET", "block"):
+            max_tokens = int(arg("max_tokens", "300") or 300)
+            if not 50 <= max_tokens <= 2000:
+                return _problem(422, "max_tokens: between 50 and 2000")
+            block = store.block(max_tokens, query.get("tags", []), arg("view"))
+            if headers.get("if-none-match") == block.etag:
+                return Response(304, b"", {"etag": block.etag})
+            return _json(200, block.model_dump(mode="json"), {"etag": block.etag})
+        if route == ("POST", "search"):
+            search = AgentMemorySearchRequest.model_validate_json(body)
+            notes = store.search(search.query, list(search.tags), search.limit)
+            return _json(200, {"notes": [n.model_dump(mode="json") for n in notes]})
+        if route == ("GET", "tools"):
+            return _json(
+                200, definitions(agent_memory=True, write_agent_memory=self.cell.agent_memory_write)[3:]
+            )
+        if route == ("POST", "notes"):
+            result = store.create(CreateAgentNoteRequest.model_validate_json(body))
+            return Response(201, result.model_dump_json(exclude={"error"}).encode(), _JSON)
+        if route == ("GET", "notes"):
+            return _model(store.page(arg("status"), arg("visibility"), arg("cursor"), limit))
+        if route == ("DELETE", "notes"):
+            return _model(store.erase(arg("source_id") or MOCK_SOURCE))
+        if route == ("GET", "notes", "{id}"):
+            return _model(store.get(one))
+        if route == ("PATCH", "notes", "{id}"):
+            return _model(store.update(one, UpdateAgentNoteRequest.model_validate_json(body)))
+        if route == ("POST", "notes", "{id}", "retire"):
+            return _model(store.retire(one))
+        if route == ("GET", "notes", "{id}", "versions"):
+            return _json(200, [n.model_dump(mode="json") for n in store.versions(one)])
+        if route == ("GET", "export"):
+            return _model(store.export(arg("source_id") or MOCK_SOURCE))
+        if route == ("POST", "distill"):
+            request = DistillRequest.model_validate_json(body)
+            session = request.conversation_id or request.task_id
+            actions = [
+                f"{e.item.action.operation} {' '.join(r.type for r in e.item.object_refs)}".strip()
+                for e in self.cell.events
+                if e.item.action is not None and session in (e.item.conversation_id, e.item.task_id)
+            ]
+            return Response(201, store.distill(request, actions).model_dump_json().encode(), _JSON)
+        if route == ("GET", "proposals"):
+            return _model(store.proposal_page(arg("status"), arg("cursor"), limit))
+        if route in (("POST", "proposals", "{id}", "approve"), ("POST", "proposals", "{id}", "reject")):
+            try:
+                return _model(store.decide(one, approve=route[-1] == "approve"))
+            except ValueError:
+                return _problem(409, "the proposal was already decided")
+        return _problem(404)
 
     def _feedback(self, body: bytes) -> Response:
         response = self.cell.feedback(FeedbackRequest.model_validate_json(body))
