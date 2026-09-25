@@ -22,6 +22,9 @@ provider's prompt cache and the ones written to it (see `niadra.usage`). A strea
 usage only when you ask for it (`stream_options={"include_usage": True}`); the wrapper never
 changes your request to get it. Outside a block, calls pass through untouched.
 
+With `agent_memory=True` (or `{"max_tokens": ..., "tags": [...]}`), the agent's own notes (see
+`agent_memory()`) go into the same system message, before the customer's context.
+
 The pack goes after your instructions, not before them, because your instructions are the
 same for every customer: kept first, they stay the cacheable prefix of the prompt.
 
@@ -44,7 +47,14 @@ from typing import Any, TypeVar, cast
 from niadra.conversation import AnySession, current_session
 from niadra.conversation import _AsyncSession as AsyncSession
 from niadra.conversation import _SyncSession as SyncSession
-from niadra.integrations._common import inject
+from niadra.integrations._common import (
+    AgentMemoryLike,
+    AgentMemoryOption,
+    Prompt,
+    inject_prompt,
+    join_instructions,
+    memory_option,
+)
 from niadra.models.events import ModelUsage
 from niadra.models.results import Context
 
@@ -55,24 +65,26 @@ C = TypeVar("C")
 _INTERCEPTED = ("create", "parse")
 
 
-def wrap(client: C, *, conversation: AnySession | None = None) -> C:
+def wrap(client: C, *, conversation: AnySession | None = None, agent_memory: AgentMemoryLike = None) -> C:
     """Returns a proxy of an `OpenAI` or `AsyncOpenAI` client that injects context and records answers.
 
     By default the conversation is the one whose `with` block is running; pass `conversation=`
-    to bind the proxy to one explicitly.
+    to bind the proxy to one explicitly. `agent_memory=True` adds the agent's notes before the
+    customer's context.
     """
-    overrides: dict[str, Any] = {"chat": _wrap_chat(client.chat, conversation)}  # type: ignore[attr-defined]
+    option = memory_option(agent_memory)
+    overrides: dict[str, Any] = {"chat": _wrap_chat(client.chat, conversation, option)}  # type: ignore[attr-defined]
     beta_chat = getattr(getattr(client, "beta", None), "chat", None)
     if getattr(beta_chat, "completions", None) is not None:
         # Older clients keep structured outputs under `beta.chat.completions.parse`.
-        overrides["beta"] = _Proxy(client.beta, {"chat": _wrap_chat(beta_chat, conversation)})  # type: ignore[attr-defined]
+        overrides["beta"] = _Proxy(client.beta, {"chat": _wrap_chat(beta_chat, conversation, option)})  # type: ignore[attr-defined]
     return cast(C, _Proxy(client, overrides))
 
 
-def _wrap_chat(chat: Any, explicit: AnySession | None) -> _Proxy:
+def _wrap_chat(chat: Any, explicit: AnySession | None, option: AgentMemoryOption | None) -> _Proxy:
     completions = chat.completions
     overrides: dict[str, Any] = {
-        name: _intercept(getattr(completions, name), explicit, raw=False)
+        name: _intercept(getattr(completions, name), explicit, option, raw=False)
         for name in _INTERCEPTED
         if callable(getattr(completions, name, None))
     }
@@ -81,7 +93,7 @@ def _wrap_chat(chat: Any, explicit: AnySession | None) -> _Proxy:
         overrides["with_raw_response"] = _Proxy(
             raw,
             {
-                name: _intercept(getattr(raw, name), explicit, raw=True)
+                name: _intercept(getattr(raw, name), explicit, option, raw=True)
                 for name in _INTERCEPTED
                 if callable(getattr(raw, name, None))
             },
@@ -127,17 +139,26 @@ def _session(explicit: AnySession | None, expected: type) -> AnySession | None:
     return session
 
 
-def _prepare(session: AnySession, context: Context, kwargs: dict[str, Any]) -> None:
+def _notes(block: Any) -> str:
+    return block.text if getattr(block, "enabled", False) and isinstance(block.text, str) else ""
+
+
+def _prepare(session: AnySession, context: Context, kwargs: dict[str, Any], notes: str = "") -> None:
     messages = kwargs.get("messages")
     if messages is None:
         return
-    kwargs["messages"] = inject(context, messages)
+    prompt = Prompt(system=join_instructions(notes, context.system_block), turn=context.turn_block or "")
+    kwargs["messages"] = inject_prompt(prompt, messages)
     # A holdout pack is empty on purpose, and the turn was still built with it.
     if context.system_block or context.turn_block or context.is_holdout:
         session.mark_injected(context)
 
 
-def _intercept(original: Callable[..., Any], explicit: AnySession | None, *, raw: bool) -> Callable[..., Any]:
+def _intercept(
+    original: Callable[..., Any], explicit: AnySession | None, option: AgentMemoryOption | None, *, raw: bool
+) -> Callable[..., Any]:
+    tags = list(option.tags) if option is not None and option.tags else None
+
     if _is_async(original):
 
         async def call_async(*args: Any, **kwargs: Any) -> Any:
@@ -146,7 +167,13 @@ def _intercept(original: Callable[..., Any], explicit: AnySession | None, *, raw
                 return await original(*args, **kwargs)
             assert isinstance(session, AsyncSession)
             try:
-                _prepare(session, await session.context(), kwargs)
+                notes = ""
+                if option is not None:
+                    try:
+                        notes = _notes(await session.agent_memory(option.max_tokens, tags=tags))
+                    except Exception as exc:
+                        logger.warning("niadra: could not read the agent memory (%s)", type(exc).__name__)
+                _prepare(session, await session.context(), kwargs, notes)
             except Exception as exc:
                 logger.warning("niadra: could not inject context (%s)", type(exc).__name__)
             result = await original(*args, **kwargs)
@@ -160,7 +187,13 @@ def _intercept(original: Callable[..., Any], explicit: AnySession | None, *, raw
             return original(*args, **kwargs)
         assert isinstance(session, SyncSession)
         try:
-            _prepare(session, session.context(), kwargs)
+            notes = ""
+            if option is not None:
+                try:
+                    notes = _notes(session.agent_memory(option.max_tokens, tags=tags))
+                except Exception as exc:
+                    logger.warning("niadra: could not read the agent memory (%s)", type(exc).__name__)
+            _prepare(session, session.context(), kwargs, notes)
         except Exception as exc:
             logger.warning("niadra: could not inject context (%s)", type(exc).__name__)
         result = original(*args, **kwargs)

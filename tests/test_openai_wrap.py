@@ -348,3 +348,41 @@ def test_a_failing_capture_never_breaks_the_model_call(
     assert response.choices[0].message.content == "Your credit is issued."
     warnings = [r.getMessage() for r in caplog.records if r.name == "niadra"]
     assert warnings and all("credit" not in message for message in warnings)
+
+
+def test_agent_memory_goes_before_the_customer_context(respx_mock: respx.MockRouter) -> None:
+    respx_mock.post(f"{BASE}/v1/context").respond(200, json=context_payload())
+    notes = respx_mock.get(f"{BASE}/v1/agent-memory/block").respond(
+        200,
+        json={
+            "text": "<agent_memory>Refunds need the order number.</agent_memory>",
+            "etag": "am-1",
+            "enabled": True,
+        },
+    )
+    respx_mock.post(f"{BASE}/v1/batch").respond(200, json=batch_ok())
+    niadra = Niadra(KEY, channel="whatsapp", strict=True)
+    completions = FakeCompletions()
+    openai = wrap(FakeOpenAI(completions), agent_memory=True)
+    messages = [{"role": "system", "content": "You are Acme's agent."}, {"role": "user", "content": "hi"}]
+    with niadra.conversation("c-1", subject=MARINA):
+        openai.chat.completions.create(model="m", messages=messages)
+    system = completions.requests[0]["messages"][1]["content"]
+    assert notes.called
+    assert system.startswith("<agent_memory>Refunds need the order number.</agent_memory>\n\n<context")
+    niadra.close()
+
+
+def test_agent_memory_off_in_the_space_leaves_only_the_context(respx_mock: respx.MockRouter) -> None:
+    respx_mock.post(f"{BASE}/v1/context").respond(200, json=context_payload())
+    respx_mock.get(f"{BASE}/v1/agent-memory/block").respond(
+        200, json={"text": "", "etag": "am-off", "enabled": False}
+    )
+    respx_mock.post(f"{BASE}/v1/batch").respond(200, json=batch_ok())
+    niadra = Niadra(KEY, channel="whatsapp", strict=True)
+    completions = FakeCompletions()
+    openai = wrap(FakeOpenAI(completions), agent_memory={"max_tokens": 200, "tags": ["refunds"]})
+    with niadra.conversation("c-1", subject=MARINA):
+        openai.chat.completions.create(model="m", messages=[{"role": "user", "content": "hi"}])
+    assert completions.requests[0]["messages"][0]["content"].startswith("<context")
+    niadra.close()

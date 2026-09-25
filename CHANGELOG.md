@@ -4,11 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-09-25
+
+### Fixed
+
+- `wrap()` for OpenAI-shaped clients takes `agent_memory=` like every other adapter: the agent's notes go into the same system message, before the customer's context.
+
 ## [0.2.0] - 2026-09-25
 
 ### Added
 
-- Twenty integrations under `niadra.integrations`, each an optional extra that wires the context
+- Twenty-one integrations under `niadra.integrations`, each an optional extra that wires the context
   (after the agent's instructions, the turn block at the end), the turns (with the provider's
   usage), the history tools bound to the customer, the proof a platform gives about who is there
   (`verify()` before the first context) and handoffs into the framework's own extension points,
