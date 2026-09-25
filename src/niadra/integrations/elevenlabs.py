@@ -79,13 +79,14 @@ from niadra.integrations._webhooks import (
     Session,
     WebhookResponse,
     header,
+    mapping,
     parse,
     raw,
+    restore_stamp,
     same,
     text,
 )
 from niadra.models.common import Handle
-from niadra.models.events import ContextStamp
 from niadra.tools import BUILTIN_DEFINITIONS
 from niadra.vocabulary import Verification
 
@@ -321,11 +322,9 @@ class ElevenLabsWebhooks:
         return OK
 
     async def _record(self, data: Mapping[str, Any]) -> None:
-        metadata = _mapping(data.get("metadata"))
-        phone_call = _mapping(metadata.get("phone_call"))
-        variables = _mapping(
-            _mapping(data.get("conversation_initiation_client_data")).get("dynamic_variables")
-        )
+        metadata = mapping(data.get("metadata"))
+        phone_call = mapping(metadata.get("phone_call"))
+        variables = mapping(mapping(data.get("conversation_initiation_client_data")).get("dynamic_variables"))
         call = CallVariables(
             call_sid=text(phone_call.get("call_sid")) or text(variables.get("system__call_sid")),
             conversation_id=text(data.get("conversation_id")),
@@ -337,7 +336,7 @@ class ElevenLabsWebhooks:
         session = self._session(call)
         if session is None:
             return
-        _restore_stamp(session, variables)
+        restore_stamp(session, variables.get(ETAG_VARIABLE), variables.get(INJECTED_VARIABLE))
         started = metadata.get("start_time_unix_secs")
         for index, item in enumerate(data.get("transcript") or []):
             if isinstance(item, Mapping):
@@ -388,10 +387,6 @@ class ElevenLabsWebhooks:
         return run_sync(self._sync().post_call(body, headers))
 
 
-def _mapping(value: Any) -> Mapping[str, Any]:
-    return value if isinstance(value, Mapping) else {}
-
-
 def _moment(started: Any, offset: Any) -> datetime | None:
     if not isinstance(started, (int, float)) or isinstance(started, bool):
         return None
@@ -413,16 +408,3 @@ def _usage(value: Any) -> Any:
 
     read, written = tokens("input_cache_read"), tokens("input_cache_write")
     return model_usage(None, str(model), tokens("input") + read + written, read, written)
-
-
-def _restore_stamp(session: Session, variables: Mapping[str, Any]) -> None:
-    """The agent's turns carry the stamp of the context the initiation webhook put in the prompt."""
-    injected = text(variables.get(INJECTED_VARIABLE))
-    if injected is None:
-        return
-    try:
-        session.context_stamp = ContextStamp(
-            etag=text(variables.get(ETAG_VARIABLE)), injected_at=datetime.fromisoformat(injected)
-        )
-    except ValueError:
-        return

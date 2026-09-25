@@ -11,9 +11,11 @@ import hmac
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from niadra.conversation import AsyncConversation, Conversation
+from niadra.models.events import ContextStamp
 
 Body = bytes | bytearray | str | Mapping[str, Any]
 Session = Conversation | AsyncConversation
@@ -79,3 +81,23 @@ def same(given: str | None, expected: str | None) -> bool:
 
 def text(value: Any) -> str | None:
     return value if isinstance(value, str) and value else None
+
+
+def mapping(value: Any) -> Mapping[str, Any]:
+    """The value when it is a JSON object, else an empty one."""
+    return value if isinstance(value, Mapping) else {}
+
+
+def restore_stamp(session: Session, etag: Any, injected_at: Any) -> None:
+    """Stamps the agent's turns with the context an earlier request put in the prompt.
+
+    A platform that keeps variables for a call (ElevenLabs, Vapi) hands back the pack's etag and
+    the moment it went into the prompt, so the turns recorded after the call carry them.
+    """
+    moment = text(injected_at)
+    if moment is None:
+        return
+    try:
+        session.context_stamp = ContextStamp(etag=text(etag), injected_at=datetime.fromisoformat(moment))
+    except ValueError:
+        return

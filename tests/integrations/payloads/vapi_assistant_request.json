@@ -1,0 +1,20 @@
+{
+  "message": {
+    "timestamp": 1790301600000,
+    "type": "assistant-request",
+    "call": {
+      "id": "3f9d2c1e-8b7a-4c6d-9e0f-1a2b3c4d5e6f",
+      "orgId": "0e1f2a3b-4c5d-6e7f-8091-a2b3c4d5e6f7",
+      "type": "inboundPhoneCall",
+      "status": "ringing",
+      "phoneCallProvider": "twilio",
+      "phoneCallTransport": "pstn",
+      "phoneCallProviderId": "CA7c9e2b4d6f8a0c1e3b5d7f9a1c3e5b7d",
+      "phoneNumberId": "8a7b6c5d-4e3f-2a1b-0c9d-8e7f6a5b4c3d",
+      "customer": {"number": "+5511912345678"},
+      "createdAt": "2026-09-25T02:00:00.000Z"
+    },
+    "phoneNumber": {"id": "8a7b6c5d-4e3f-2a1b-0c9d-8e7f6a5b4c3d", "number": "+551130001000"},
+    "customer": {"number": "+5511912345678"}
+  }
+}
