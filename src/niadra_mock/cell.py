@@ -295,6 +295,19 @@ class MockCell:
             if owner is not None:
                 self._objects.setdefault(_object_key(ref), owner)
         self.events.append(StoredEvent(len(self.events) + 1, item, self.clock()))
+        self._channel_proof(item)
+
+    def _channel_proof(self, item: EventItem) -> None:
+        """A customer's inbound turn with `verification_hint` proves up to V2 for its conversation."""
+        hint = item.verification_hint
+        session = item.conversation_id or item.task_id
+        if hint is None or session is None or hint is Verification.NO_CUSTOMER:
+            return
+        if item.speaker.role is not Speaker.CUSTOMER or item.direction == "outbound":
+            return
+        level = hint if hint.rank <= Verification.V2.rank else Verification.V2
+        if level.rank > self.level(session).rank:
+            self._levels[session] = level
 
     def _profile_of(self, subject: Handle | None, obj: ObjectRef | None) -> HandleKey:
         if subject is not None:

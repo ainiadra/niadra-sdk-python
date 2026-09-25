@@ -133,7 +133,8 @@ class _Session:
         """Records something the customer said. Extra keyword arguments go to the `EventItem`.
 
         `stt_confidence` (0 to 1) is the speech-to-text confidence of a spoken turn, when the
-        voice stack reports one.
+        voice stack reports one. `handles=` adds more ids of the same person to the subject, and
+        `content=` replaces the text content (a voice note or an image by reference).
         """
         return self._turn(Speaker.CUSTOMER, "inbound", text, event, stt_confidence=stt_confidence)
 
@@ -248,17 +249,23 @@ class _Session:
         try:
             if self.channel is None:
                 raise ValueError("no channel: pass channel= to conversation() or to the client")
+            handles = [self.subject] if self.subject is not None else []
+            # More ids of the same person (a BSUID next to the wa_id) go along with the subject.
+            handles += [
+                h for h in (as_handle(h) for h in event.pop("handles", None) or []) if h not in handles
+            ]
+            content = event.pop("content", None) or Content(text=text, stt_confidence=stt_confidence)
             item = EventItem(
                 channel=self.channel,
                 conversation_id=self.conversation_id,
                 task_id=self.task_id,
-                handles=[self.subject] if self.subject is not None else [],
+                handles=handles,
                 object_refs=[self.object] if self.object is not None else [],
                 speaker=SpeakerRef(
                     role=speaker, id=self.agent_id if speaker is not Speaker.CUSTOMER else None
                 ),
                 direction=direction,
-                content=Content(text=text, stt_confidence=stt_confidence),
+                content=content,
                 **event,
             )
         except (TypeError, ValueError) as exc:

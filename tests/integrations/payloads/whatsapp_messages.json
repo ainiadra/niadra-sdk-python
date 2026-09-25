@@ -1,0 +1,41 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "301884756320117",
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {"display_phone_number": "551130001000", "phone_number_id": "106540352242922"},
+            "contacts": [{"profile": {"name": "Marina Souza"}, "wa_id": "5511912345678", "user_id": "BR.1098341"}],
+            "messages": [
+              {
+                "from": "5511912345678",
+                "from_user_id": "BR.1098341",
+                "id": "wamid.HBgNNTUxMTkxMjM0NTY3OBUCABIYFDNBQjJDNEQ1RTZGNzA4MTkyQTNCAA==",
+                "timestamp": "1790301720",
+                "type": "audio",
+                "audio": {
+                  "mime_type": "audio/ogg; codecs=opus",
+                  "sha256": "4Z0uV8lSd3eB5Hq9mXcJ2rTnK7wYpA1fG6hL0oQ3sE8=",
+                  "id": "1203456789012345",
+                  "voice": true
+                }
+              },
+              {
+                "from": "5511912345678",
+                "from_user_id": "BR.1098341",
+                "id": "wamid.HBgNNTUxMTkxMjM0NTY3OBUCABIYFDNBMTIzNDU2Nzg5MEFCQ0RFRjAA",
+                "timestamp": "1790301660",
+                "type": "text",
+                "text": {"body": "The technician never showed up. I am calling you."}
+              }
+            ]
+          },
+          "field": "messages"
+        }
+      ]
+    }
+  ]
+}
