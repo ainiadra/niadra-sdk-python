@@ -8,7 +8,7 @@ requires-python = ">=3.12"
 authors = [{ name = "Niadra" }]
 dependencies = [
   # The published SDK, pinned: the benchmark measures what a customer installs. It also ships niadra-mock.
-  "niadra==0.1.5",
+  "niadra==0.3.0",
   "httpx>=0.27,<1",
   "pydantic>=2.6,<3",
   "tiktoken>=0.8",
