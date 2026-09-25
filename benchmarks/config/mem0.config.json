@@ -1,0 +1,41 @@
+{
+  "_comment": "Sent to the Mem0 server's POST /configure before seeding, merged into its defaults. Each dollar-brace placeholder is read from the harness environment. The rerank target builds mem0.Memory in-process from the same file, reranker included.",
+  "vector_store": {
+    "provider": "pgvector",
+    "config": {
+      "collection_name": "bench_memories",
+      "embedding_model_dims": 384,
+      "hnsw": true
+    }
+  },
+  "llm": {
+    "provider": "openai",
+    "config": {
+      "model": "google/gemini-2.5-flash-lite",
+      "openrouter_base_url": "${MEM0_LLM_BASE_URL}"
+    }
+  },
+  "embedder": {
+    "provider": "openai",
+    "config": {
+      "model": "paraphrase-multilingual-minilm-l12-v2-r1",
+      "embedding_dims": 384,
+      "openai_base_url": "${MEM0_EMBEDDER_BASE_URL}",
+      "api_key": "not-used"
+    }
+  },
+  "reranker": {
+    "provider": "llm_reranker",
+    "config": {
+      "llm": {
+        "provider": "openai",
+        "config": {
+          "model": "google/gemini-2.5-flash-lite",
+          "openrouter_base_url": "${MEM0_LLM_BASE_URL}",
+          "temperature": 0.0,
+          "max_tokens": 100
+        }
+      }
+    }
+  }
+}

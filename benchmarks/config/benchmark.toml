@@ -1,0 +1,117 @@
+# The frozen configuration of the benchmark. Every result file carries the SHA-256 of this file and of
+# config/mem0.config.json; changing either one makes a new run, and earlier runs stay published.
+
+[environment]
+# What a published run must say about where it ran. `bench run` records what it finds, and the site
+# only imports results whose environment kind is "region".
+region = "us-east-2"
+machine_class = "m7i-flex.large"
+database_class = "db.t4g.micro"
+
+[run]
+repetitions = 3
+# Every repetition seeds fresh customers (new handles and user ids), so extraction runs again.
+reseed_each_repetition = true
+# How many cases are seeded and asked at the same time, per system.
+concurrency = 8
+# After seeding Niadra, wait until the context of every case stops changing for `settle_quiet_s`
+# (the extraction runs in the background), at most `settle_timeout_s`.
+settle_quiet_s = 20
+settle_timeout_s = 1200
+
+[dataset]
+seed = 20260924
+cases_per_language = 120
+languages = ["pt", "en"]
+min_sessions = 3
+max_sessions = 8
+
+# Fixed proportions per language (sum = cases_per_language).
+[dataset.categories]
+continuity = 20
+identity = 20
+recurrence = 16
+order_time = 16
+promise_action = 16
+privacy = 16
+contradiction = 16
+
+[latency]
+# Open loop: requests leave at a constant rate whatever the answers do, the way turns arrive.
+rates = [10, 25]
+duration_s = 30
+conversations = 20
+request_timeout_s = 10
+
+[tokens]
+encoding = "o200k_base"
+
+[freshness]
+trials = 20
+poll_interval_ms = 50
+timeout_s = 30
+
+[resilience]
+trials = 20
+delay_ms = 2000
+status = 503
+# What a voice turn can spend waiting for memory before the agent must speak.
+turn_budget_ms = 1000
+
+[niadra]
+# The views an agent reads: `chat` for text channels, `voice` for calls.
+views = ["chat", "voice"]
+
+[mem0]
+# Search as the Mem0 documentation recommends for mem0ai 2.2.0 (threshold and rerank are its defaults).
+top_k = 10
+threshold = 0.1
+# One add() per exchange (the customer's message and the agent's answer), as the Mem0 README does; the
+# v3 extraction reads both roles in one LLM call. System events and agent actions go in as raw text
+# (infer=False): they are records of a system, not conversation.
+render_header = "Based on previous conversations, I recall:"
+
+[agent]
+# The one agent that answers the probe question for every system: same prompt, same model.
+model = "openai/gpt-4.1-mini"
+temperature = 0
+max_tokens = 200
+
+[judge]
+model = "openai/gpt-4.1-mini"
+temperature = 0
+max_tokens = 150
+
+[models]
+# The model both memory systems extract with, through OpenRouter, and the embedder both use.
+extraction = "google/gemini-2.5-flash-lite"
+embedder = "paraphrase-multilingual-minilm-l12-v2-r1"
+embedding_dims = 384
+
+# Public prices on 2026-09-24. Check them again before a run that will be published and bump the date.
+[prices]
+checked_on = "2026-09-24"
+
+[prices.openrouter]
+# USD per million tokens (input, output), https://openrouter.ai/models
+source = "https://openrouter.ai/models"
+"google/gemini-2.5-flash-lite" = [0.10, 0.40]
+"openai/gpt-4.1-mini" = [0.40, 1.60]
+"openai/gpt-4o-mini" = [0.15, 0.60]
+
+[prices.niadra]
+# USD per thousand conversations or tasks, https://niadra.com/preco. The models Niadra calls are included.
+source = "https://niadra.com/preco"
+low = 5.0
+high = 15.0
+
+[prices.mem0_platform]
+# Monthly plans, https://mem0.ai/pricing: [monthly USD, add() per month, search() per month].
+source = "https://mem0.ai/pricing"
+hobby = [0.0, 10000, 1000]
+starter = [19.0, 50000, 5000]
+pro = [249.0, 500000, 50000]
+
+[cost]
+# A conversation of this many exchanges, with one context read (or search) and one add() per exchange.
+turns_per_conversation = 10

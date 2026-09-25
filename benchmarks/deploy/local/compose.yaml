@@ -1,0 +1,73 @@
+# Local smoke run of the whole pipeline, with no paid key: niadra-mock stands in for Niadra, and fake
+# LLM and embedding servers stand in for OpenRouter and niadra-models. It proves the plumbing (Mem0's
+# own server, pgvector, the proxies, every metric) and nothing else: these numbers are never published.
+#   docker compose -f deploy/local/compose.yaml up --build --exit-code-from harness harness
+name: niadra-bench-local
+
+# Every helper runs the harness image; only the `harness` service builds it.
+x-harness: &harness
+  image: niadra-bench/harness:local
+
+services:
+  pg:
+    image: pgvector/pgvector:pg17
+    environment: {POSTGRES_USER: bench, POSTGRES_PASSWORD: bench-local-only}
+    volumes: ["./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro"]
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U bench"], interval: 2s, retries: 30}
+
+  fake-llm:
+    <<: *harness
+    command: [serve, fake-llm, --port, "9001"]
+  fake-models:
+    <<: *harness
+    command: [serve, fake-models, --port, "9002"]
+  embed:
+    <<: *harness
+    command: [serve, embed-proxy, --port, "8080"]
+    environment: {NIADRA_MODELS_URL: "http://fake-models:9002"}
+  meter:
+    <<: *harness
+    command: [serve, llm-meter, --port, "8081"]
+    environment: {LLM_UPSTREAM: "http://fake-llm:9001/v1"}
+  niadra-mock:
+    <<: *harness
+    entrypoint: [niadra-mock, --host, 0.0.0.0, --port, "8765"]
+
+  mem0:
+    build: {context: ../mem0}
+    image: niadra-bench/mem0:local
+    depends_on: {pg: {condition: service_healthy}}
+    environment: &mem0-env
+      POSTGRES_HOST: pg
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: mem0_bench
+      APP_DB_NAME: mem0_bench_app
+      POSTGRES_USER: bench
+      POSTGRES_PASSWORD: bench-local-only
+      ADMIN_API_KEY: local-admin-key-0123456789
+      JWT_SECRET: local-jwt-secret-not-for-production-0123456789
+      OPENROUTER_API_KEY: fake
+      OPENAI_API_KEY: not-used
+      MEM0_TELEMETRY: "false"
+
+  harness:
+    <<: *harness
+    build: {context: ../.., dockerfile: deploy/Dockerfile}
+    depends_on: [mem0, embed, meter, niadra-mock, fake-llm, fake-models]
+    entrypoint: [sh, -c]
+    command:
+      - >-
+        for i in $(seq 1 90); do python -c "import httpx,sys; sys.exit(httpx.get('http://mem0:8000/docs').status_code!=200)" 2>/dev/null && break; sleep 2; done;
+        bench run --dry-run --systems niadra,mem0_oss,mem0_oss_rerank --limit 14 --quick --repetitions 1 --output /results
+    environment:
+      <<: *mem0-env
+      NIADRA_BASE_URL: http://niadra-mock:8765
+      NIADRA_API_KEY: nia_sk_test_local_mock_k1_mocksecret
+      MEM0_URL: http://mem0:8000
+      MEM0_SERVER_KEY: local-admin-key-0123456789
+      MEM0_METER_URL: http://meter:8081
+      MEM0_LLM_BASE_URL: http://meter:8081/v1
+      MEM0_EMBEDDER_BASE_URL: http://embed:8080/v1
+      MEM0_SERVER_VERSION: v2.2.0
+      BENCH_ENVIRONMENT: local
+    volumes: ["./results:/results"]

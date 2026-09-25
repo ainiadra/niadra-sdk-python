@@ -1,0 +1,26 @@
+{
+  "cases": 240,
+  "counts": {
+    "en": {
+      "continuity": 20,
+      "contradiction": 16,
+      "identity": 20,
+      "order_time": 16,
+      "privacy": 16,
+      "promise_action": 16,
+      "recurrence": 16
+    },
+    "pt": {
+      "continuity": 20,
+      "contradiction": 16,
+      "identity": 20,
+      "order_time": 16,
+      "privacy": 16,
+      "promise_action": 16,
+      "recurrence": 16
+    }
+  },
+  "generator_version": "1",
+  "seed": 20260924,
+  "sha256": "0a7a0feffde69420ba8a11408f78769e2989d4de3aa31cb3eb30c038a6780928"
+}
