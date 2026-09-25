@@ -37,7 +37,7 @@ twilio = []
 openai = ["openai>=1.40,<4"]
 openai-agents = ["openai-agents>=0.22.3,<1"]
 langchain = ["langchain-core>=1.6,<2"]
-langgraph = ["langgraph>=1.2,<2", "langchain-core>=1.6,<2"]
+langgraph = ["langgraph>=1.2,<2", "langchain>=1.4,<2", "langchain-core>=1.6,<2"]
 anthropic = ["anthropic>=1.8,<2"]
 bedrock = ["boto3>=1.40,<2"]
 google-genai = ["google-genai>=2.25,<3"]
@@ -112,7 +112,7 @@ plugins = ["pydantic.mypy"]
 # types are unknown there, and an adapter subclasses them.
 [[tool.mypy.overrides]]
 module = [
-  "livekit.*", "pipecat.*", "agents.*", "langchain_core.*", "langgraph.*", "anthropic.*", "boto3.*",
+  "livekit.*", "pipecat.*", "agents.*", "langchain.*", "langchain_core.*", "langgraph.*", "anthropic.*", "boto3.*",
   "botocore.*", "google.genai.*", "google.adk.*", "litellm.*", "strands.*", "pydantic_ai.*",
   "llama_index.*", "crewai.*", "agno.*", "agent_framework.*", "openai.*",
 ]
