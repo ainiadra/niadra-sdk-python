@@ -182,5 +182,12 @@ every metric) with fake LLM and embedding servers, so it needs no key. It proves
 - Mem0 v2.2.0's server lists plain `psycopg`, which does not import on `python:slim`; the image adds
   `psycopg[binary]`, the change Mem0 made on its main branch after the tag.
 - The rerank column is measured in-process, so it has accuracy, tokens and cost but no latency line.
+- The sandbox tenant's billing source (the one key with the `act` scope) declares a closed list of
+  operations, `credit` only, so Niadra refuses the agent actions of the dataset that record `refund`,
+  `refund_fee`, `reimburse` or `redeliver` (26 of the 32 promise cases). The harness writes the rest of
+  each history, including the system event that confirms the action, and lists every refused action
+  under `seed.niadra.refused_actions` of each repetition. Mem0 receives those actions as raw memories.
+- Niadra's freshness read verifies the voice call at V1 before the clock starts, as every accuracy probe
+  does: an unproven call reads at V0, where the starter policy withholds order numbers.
 - The third Mem0 column of the plan (its own defaults, `gpt-4o-mini` and `text-embedding-3-small`)
   needs an OpenAI embeddings key and is not in the default run.

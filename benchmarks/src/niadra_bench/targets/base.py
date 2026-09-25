@@ -37,6 +37,10 @@ class Target(ABC):
     async def seed(self, case: Case, ids: Identities) -> None:
         """Writes the case's history, in chronological order."""
 
+    def seed_report(self) -> dict[str, Any]:
+        """What the last seeding observed beyond failures (read once, then cleared)."""
+        return {}
+
     async def settle(self, pairs: list[tuple[Case, Identities]]) -> dict[str, Any]:  # noqa: ARG002
         """Waits until what was seeded can be read. Returns what it observed."""
         return {}

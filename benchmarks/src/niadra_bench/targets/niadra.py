@@ -166,6 +166,7 @@ class NiadraTarget(Target):
         self.settle_quiet_s = settle_quiet_s
         self.settle_timeout_s = settle_timeout_s
         self._limit = asyncio.Semaphore(concurrency)
+        self.refused: list[str] = []
 
     def _new_http(self, timeout: float = 30.0) -> httpx.AsyncClient:
         transport = self._transport_factory() if self._transport_factory else None
@@ -201,10 +202,24 @@ class NiadraTarget(Target):
             if response.status_code not in (200, 207):
                 raise RuntimeError(f"batch rejected with {response.status_code}: {response.text[:300]}")
             body = response.json()
-            if body.get("errors"):
-                raise RuntimeError(f"batch items rejected: {body['errors'][:3]}")
+            errors = body.get("errors") or []
+            refused = [e for e in errors if e.get("code") == "operation_not_allowed"]
+            if len(refused) < len(errors):
+                raise RuntimeError(f"batch items rejected: {errors[:3]}")
+            # An action whose operation the source did not declare is refused by design (the sandbox's
+            # billing source trusts only `credit`). The rest of the history is still written, and the
+            # refusal is counted in the results instead of failing the case.
+            for error in refused:
+                item = items[int(error.get("index", 0))]
+                self.refused.append(
+                    f"{item.get('idempotency_key')}: {item.get('action', {}).get('operation')}"
+                )
             return
         raise RuntimeError("the batch kept answering 429/503")
+
+    def seed_report(self) -> dict[str, Any]:
+        refused, self.refused = self.refused, []
+        return {"refused_actions": sorted(refused)}
 
     async def seed(self, case: Case, ids: Identities) -> None:
         now = self._now()

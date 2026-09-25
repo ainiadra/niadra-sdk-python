@@ -33,10 +33,11 @@ checkout() {
 
 harness_image() { echo "niadra-bench/harness:$(git -C "$SRC" rev-parse --short=12 HEAD)"; }
 
-render() {  # file: replaces the placeholders and prints the manifest
+render() {  # file: replaces the placeholders and prints the manifest. The server version is matched with
+  # its quotes: bare, it would also rewrite the name of the variable BENCH_NIADRA_SERVER_VERSION.
   sed -e "s#HARNESS_IMAGE#$(harness_image)#g" -e "s#MEM0_IMAGE#$MEM0_IMAGE#g" \
     -e "s#BENCH_ARGS#${BENCH_ARGS_JSON:-$DEFAULT_ARGS}#g" \
-    -e "s#NIADRA_SERVER_VERSION#${NIADRA_SERVER_VERSION:-unknown}#g" "$SRC/benchmarks/deploy/k8s/$1"
+    -e "s#\"NIADRA_SERVER_VERSION\"#\"${NIADRA_SERVER_VERSION:-unknown}\"#g" "$SRC/benchmarks/deploy/k8s/$1"
 }
 
 up() {

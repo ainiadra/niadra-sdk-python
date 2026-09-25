@@ -1,11 +1,14 @@
+import json
 from datetime import UTC, datetime
 
+import httpx
+import pytest
 from niadra.models.events import BatchItem
 from pydantic import TypeAdapter
 
 from niadra_bench.identity import Identities
 from niadra_bench.targets.mem0 import add_payloads, exchanges, render
-from niadra_bench.targets.niadra import Keys, session_items
+from niadra_bench.targets.niadra import Keys, NiadraTarget, session_items
 
 NOW = datetime(2026, 9, 24, 12, 0, tzinfo=UTC)
 ITEM = TypeAdapter(BatchItem)
@@ -68,3 +71,62 @@ def test_keys_fall_back_to_the_whatsapp_source(tmp_path) -> None:
     assert keys.for_channel("voice") == ("voice", "k-voice")
     assert keys.for_channel("erp") == ("billing", "k-bill")
     assert keys.for_channel("email") == ("whatsapp", "k-wa")
+
+
+async def test_an_operation_the_source_did_not_declare_is_counted_and_the_history_goes_on(cases) -> None:
+    case = next(c for c in cases if c.category == "promise_action")
+    ids = Identities.for_case(case, "t1")
+    posted: list[list[dict]] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        items = json.loads(request.content)["items"]
+        posted.append(items)
+        errors = [
+            {
+                "index": i,
+                "code": "operation_not_allowed",
+                "detail": "the source may not record this operation",
+            }
+            for i, item in enumerate(items)
+            if item.get("kind") == "action"
+        ]
+        return httpx.Response(
+            207 if errors else 200, json={"accepted": len(items) - len(errors), "errors": errors}
+        )
+
+    target = NiadraTarget(
+        Keys({"whatsapp": "k-wa", "voice": "k-voice", "billing": "k-bill"}),
+        base_url="http://niadra.test",
+        transport_factory=lambda: httpx.MockTransport(answer),
+        now=lambda: NOW,
+    )
+    await target.start()
+    await target.seed(case, ids)
+    await target.close()
+    assert len(posted) == len(case.sessions)
+    report = target.seed_report()
+    assert len(report["refused_actions"]) == 1 and report["refused_actions"][0].endswith(case_operation(case))
+    assert target.seed_report() == {"refused_actions": []}
+
+
+async def test_other_rejections_still_fail_the_case(cases) -> None:
+    case = cases[0]
+    ids = Identities.for_case(case, "t1")
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(207, json={"errors": [{"index": 0, "code": "invalid_input", "detail": "no"}]})
+
+    target = NiadraTarget(
+        Keys({"whatsapp": "k-wa"}),
+        base_url="http://niadra.test",
+        transport_factory=lambda: httpx.MockTransport(answer),
+        now=lambda: NOW,
+    )
+    await target.start()
+    with pytest.raises(RuntimeError, match="invalid_input"):
+        await target.seed(case, ids)
+    await target.close()
+
+
+def case_operation(case) -> str:
+    return next(s.record.operation for s in case.sessions if s.record and s.record.kind == "action")

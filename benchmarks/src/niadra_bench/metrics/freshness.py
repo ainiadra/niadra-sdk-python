@@ -3,7 +3,8 @@
 Each trial is a new customer. The customer writes on WhatsApp a message with a fresh number; the clock
 starts when the application hands the write to the memory (`track()` for Niadra, `add()` for Mem0)
 and stops at the first read, from the voice agent's side, whose text holds the number: Niadra's
-`context(view="voice")` in another conversation, Mem0's `search()` with the same user id.
+`context(view="voice")` in another conversation, verified at V1 before the clock starts, Mem0's
+`search()` with the same user id.
 """
 
 from __future__ import annotations
@@ -59,6 +60,11 @@ async def niadra_trial(
         verification_hint="V1",
     )
     voice = f"bench-{ids.tag}-fresh-{case.id}-voice"
+    # The voice agent proves the caller first, as in every probe of the accuracy pass: an unproven call
+    # reads at V0, where the starter policy withholds order numbers, and the message would never show.
+    await reader.verify(
+        "network_attestation", "V1", handle=ids.channel_handle("voice"), conversation_id=voice
+    )
 
     async def read() -> str:
         context = await reader.context(

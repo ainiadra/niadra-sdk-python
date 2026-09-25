@@ -184,7 +184,7 @@ class Run:
         await asyncio.gather(*(one(c, i) for c, i in pairs))
         if len(failures) > max(2, len(pairs) // 50):
             raise RuntimeError(f"seeding {target.label} failed for {len(failures)} cases: {failures[:3]}")
-        return {"seconds": round(time.monotonic() - started, 1), "failures": failures}
+        return {"seconds": round(time.monotonic() - started, 1), "failures": failures, **target.seed_report()}
 
     async def repetition(self, n: int, targets: list[Target]) -> dict[str, Any]:
         tag = f"{self.run_id[-6:]}r{n}"
