@@ -34,10 +34,11 @@ pipeline = Pipeline([transport.input(), stt, user, memory, llm, tts, transport.o
 - **Handoff.** `transferred_to_human()` and `transferred_to_agent()` record a transfer; call them
   where your pipeline (or Pipecat Flows) hands the call over.
 
-The shape of the processor (between the user aggregator and the LLM, editing the context of the
-frame and always passing it on, even on failure) follows Pipecat's own Mem0 memory service, `pipecat/services/mem0/memory.py`, Copyright (c)
-2024-2026, Daily, BSD 2-Clause License. The reading is Niadra's: one pinned pack per conversation
-instead of a similarity search per message.
+The shape of the processor (between the user aggregator and the LLM, editing the context of
+the frame and always passing it on, even on failure) follows Pipecat's own Mem0 memory
+service, `pipecat/services/mem0/memory.py`, Copyright (c) 2024-2026, Daily, BSD 2-Clause
+License. The reading is Niadra's: one pinned pack per conversation instead of a similarity
+search per message.
 """
 
 from __future__ import annotations

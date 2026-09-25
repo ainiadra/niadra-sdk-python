@@ -1,0 +1,80 @@
+{
+  "type": "post_call_transcription",
+  "event_timestamp": 1790301720,
+  "data": {
+    "agent_id": "agent_7101k2x9f0s3e8qv",
+    "conversation_id": "conv_01k5z8q3m2e7r9t4y6u8i0o2p4",
+    "status": "done",
+    "user_id": null,
+    "transcript": [
+      {
+        "role": "agent",
+        "message": "Hi Marina, is this about the lid of order 4471?",
+        "tool_calls": [],
+        "tool_results": [],
+        "time_in_call_secs": 0,
+        "llm_usage": {
+          "model_usage": {
+            "gemini-2.5-flash": {
+              "input": {"tokens": 312, "price": 0.0001},
+              "input_cache_read": {"tokens": 1024, "price": 0.0},
+              "input_cache_write": {"tokens": 0, "price": 0.0},
+              "output_total": {"tokens": 18, "price": 0.00001}
+            }
+          }
+        }
+      },
+      {
+        "role": "user",
+        "message": "Yes, it still has not arrived.",
+        "tool_calls": [],
+        "tool_results": [],
+        "time_in_call_secs": 4
+      },
+      {
+        "role": "agent",
+        "message": "Let me put you through to a person in logistics.",
+        "tool_calls": [
+          {
+            "type": "system",
+            "request_id": "transfer_to_number_9c1",
+            "tool_name": "transfer_to_number",
+            "params_as_json": "{\"phone_number\": \"+551130002000\"}",
+            "tool_has_been_called": true
+          }
+        ],
+        "tool_results": [],
+        "time_in_call_secs": 9
+      },
+      {
+        "role": "user",
+        "message": null,
+        "time_in_call_secs": 11
+      }
+    ],
+    "metadata": {
+      "start_time_unix_secs": 1790301600,
+      "call_duration_secs": 14,
+      "phone_call": {
+        "direction": "inbound",
+        "phone_number_id": "phnum_01k5z8",
+        "agent_number": "+551130001000",
+        "external_number": "+5511912345678",
+        "type": "twilio",
+        "stream_sid": "MZ18ad3ab5a668481ce02b83e7395059f0",
+        "call_sid": "CA5f1c2d7e9b3a4f6e8d0c1b2a3f4e5d6c"
+      },
+      "termination_reason": "transfer"
+    },
+    "analysis": {"call_successful": "success", "transcript_summary": "Lid of order 4471 still missing."},
+    "conversation_initiation_client_data": {
+      "dynamic_variables": {
+        "system__caller_id": "+5511912345678",
+        "system__call_sid": "CA5f1c2d7e9b3a4f6e8d0c1b2a3f4e5d6c",
+        "niadra_context": "<context source=\"niadra\">...</context>",
+        "niadra_context_etag": "etag-7",
+        "niadra_injected_at": "2026-09-25T02:00:00+00:00"
+      }
+    }
+  }
+}
