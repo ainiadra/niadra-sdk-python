@@ -8,7 +8,7 @@ import os
 import re
 import tomllib
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -56,6 +56,24 @@ class LatencySettings(_Frozen):
 
 class TokenSettings(_Frozen):
     encoding: str
+
+
+class HistorySettings(_Frozen):
+    rates: list[int]
+    duration_s: float
+    conversations: int
+    request_timeout_s: float
+    max_tokens: int
+
+
+class IngestSettings(_Frozen):
+    rates: list[int]
+    duration_s: float
+    conversations: int
+    request_timeout_s: float
+    turns_per_conversation: int = Field(ge=1)
+    mem0_modes: list[Literal["raw", "infer"]]
+    cooldown_s: float = Field(ge=0)
 
 
 class FreshnessSettings(_Frozen):
@@ -130,6 +148,8 @@ class BenchConfig(_Frozen):
     dataset: DatasetSettings
     latency: LatencySettings
     tokens: TokenSettings
+    history: HistorySettings
+    ingest: IngestSettings
     freshness: FreshnessSettings
     resilience: ResilienceSettings
     niadra: NiadraSettings

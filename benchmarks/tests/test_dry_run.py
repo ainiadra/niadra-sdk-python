@@ -32,7 +32,16 @@ async def test_a_dry_run_against_niadra_mock_writes_a_complete_summary(
     assert summary["schema"] == "niadra-bench.results.v1"
     assert summary["environment"]["kind"] == "dry-run" and summary["environment"]["region"] is None
     assert summary["config"]["agent"] == "context_only"
-    assert set(summary["metrics"]) == {"latency", "accuracy", "tokens", "privacy", "cost", "resilience"}
+    assert set(summary["metrics"]) == {
+        "latency",
+        "accuracy",
+        "tokens",
+        "privacy",
+        "cost",
+        "resilience",
+        "history",
+        "ingest",
+    }
     systems = {r["system"] for r in summary["metrics"]["accuracy"]["results"]}
     assert systems == {"niadra", "no_memory", "full_history"}
     niadra = next(r for r in summary["metrics"]["accuracy"]["results"] if r["system"] == "niadra")
@@ -43,5 +52,10 @@ async def test_a_dry_run_against_niadra_mock_writes_a_complete_summary(
     resilience = {r["fault"]: r for r in summary["metrics"]["resilience"]["results"]}
     assert resilience["delay_2000ms"]["raised_rate"]["median"] == 0.0
     assert resilience["delay_2000ms"]["within_budget_rate"]["median"] == 1.0
+    navigation = {r["operation"]: r for r in summary["metrics"]["history"]["results"]}
+    assert set(navigation) == {"search", "open"}
+    assert all(r["errors"] == 0 and r["sent"] > 0 and "skipped" not in r for r in navigation.values())
+    [ack] = summary["metrics"]["ingest"]["results"]
+    assert (ack["operation"], ack["errors"]) == ("batch", 0) and ack["sent"] > 0
     rows = (out / "cases-rep1.jsonl").read_text().splitlines()
     assert len(rows) == 28 * 3 + 28  # three systems answer every case; Niadra also reads its second view

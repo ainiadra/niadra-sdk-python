@@ -46,6 +46,32 @@ request_timeout_s = 10
 [tokens]
 encoding = "o200k_base"
 
+[history]
+# Metric 8, history navigation (the docs promise `search` and `open` in under 200 ms, in the region):
+# measured like [latency], open loop at constant rates over seeded customers, each call timed alone.
+# Niadra reads as a voice agent that proved the caller at V1 before the clock starts; `max_tokens` is
+# the SDK's default for `search()`. Mem0 searches with the [mem0] settings.
+rates = [10, 25]
+duration_s = 30
+conversations = 20
+request_timeout_s = 10
+max_tokens = 800
+
+[ingest]
+# Metric 9, ingestion acknowledgement (the docs promise it in under 80 ms): one exchange (the
+# customer's message and the agent's answer) per call, open loop at constant rates, spread over the
+# seeded customers, `turns_per_conversation` exchanges per conversation. Mem0 in both of its add()
+# modes: `raw` (infer=False) and `infer` (its default, the extraction runs before the answer).
+rates = [10, 25]
+duration_s = 30
+conversations = 20
+request_timeout_s = 10
+turns_per_conversation = 10
+mem0_modes = ["raw", "infer"]
+# After each of Mem0's infer loops: its server keeps working on requests the client gave up on, and
+# the next line starts only after this pause.
+cooldown_s = 60
+
 [freshness]
 trials = 20
 poll_interval_ms = 50

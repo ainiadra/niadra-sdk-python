@@ -34,14 +34,14 @@ from niadra_bench.config import BenchConfig
 from niadra_bench.dataset import generate
 from niadra_bench.dataset.model import Case
 from niadra_bench.identity import SCENARIOS, Identities
-from niadra_bench.metrics import accuracy, cost, freshness, latency, resilience
+from niadra_bench.metrics import accuracy, cost, freshness, history, ingest, latency, operations, resilience
 from niadra_bench.targets.base import Target
 from niadra_bench.targets.mem0 import Mem0LibTarget, Mem0PlatformTarget, Mem0RestTarget
 from niadra_bench.targets.niadra import Keys, NiadraTarget
 from niadra_bench.targets.reference import FullHistory, NoMemory
 
 SCHEMA = "niadra-bench.results.v1"
-METRICS = ("latency", "tokens", "cost", "accuracy", "privacy", "freshness", "resilience")
+METRICS = ("latency", "tokens", "cost", "accuracy", "privacy", "freshness", "resilience", "history", "ingest")
 SYSTEMS = ("niadra", "mem0_oss", "mem0_oss_rerank", "mem0_platform")
 log = logging.getLogger("niadra_bench")
 
@@ -298,6 +298,33 @@ class Run:
                 threshold=self.config.mem0.threshold,
                 transport=transport,
             )
+        # Metrics 8 and 9 run last, so the earlier metrics see the same conditions as in earlier runs.
+        if "history" in metrics:
+            his = self.config.history
+            rep["history"] = await history.run(
+                niadra,
+                mem0,
+                pairs[: his.conversations],
+                tag,
+                his,
+                self.config.mem0,
+                rates=[his.rates[0]] if quick else his.rates,
+                duration_s=3.0 if quick else his.duration_s,
+                transport=self.options.niadra_transport,
+            )
+        if "ingest" in metrics:
+            ing = self.config.ingest
+            rep["ingest"] = await ingest.run(
+                niadra,
+                mem0,
+                pairs[: ing.conversations],
+                tag,
+                ing,
+                rates=[ing.rates[0]] if quick else ing.rates,
+                duration_s=3.0 if quick else ing.duration_s,
+                cooldown_s=0.0 if quick else ing.cooldown_s,
+                transport=self.options.niadra_transport,
+            )
         return rep
 
     def _latency_probes(
@@ -396,6 +423,14 @@ class Run:
                 "token_encoding": self.config.tokens.encoding,
                 "turns_per_conversation": self.config.cost.turns_per_conversation,
                 "prices_checked_on": self.config.prices.checked_on,
+                "history_rates": self.config.history.rates,
+                "history_duration_s": self.config.history.duration_s,
+                "history_conversations": self.config.history.conversations,
+                "history_max_tokens": self.config.history.max_tokens,
+                "ingest_rates": self.config.ingest.rates,
+                "ingest_duration_s": self.config.ingest.duration_s,
+                "ingest_conversations": self.config.ingest.conversations,
+                "ingest_mem0_modes": self.config.ingest.mem0_modes,
             },
             "dataset": {
                 "hash": generate.dataset_hash(bench_config.DATASET_DIR),
@@ -542,6 +577,9 @@ def aggregate(reps: list[dict[str, Any]]) -> dict[str, Any]:
                 }
             )
         metrics["resilience"] = {"results": rows}
+    for name in ("history", "ingest"):
+        if (summary := operations.aggregate(reps, name)) is not None:
+            metrics[name] = summary
     return metrics
 
 

@@ -20,6 +20,16 @@ environment is `region`.
 | 5 | Privacy: sensitive value handed to an unverified (V0) conversation | counted in the memory block | counted in the memory block |
 | 6 | Freshness: a WhatsApp message until the voice agent reads it | `track()` until `context(view="voice")` shows it | `add()` until `search()` shows it |
 | 7 | Memory slow (2 s) or down (503) behind the same fault proxy | the SDK as it ships | an HTTP client at its defaults with `raise_for_status()` |
+| 8 | History navigation (p50, p95, p99), open loop at 10 and 25 calls per second for 30 s over 20 seeded customers | `POST /v1/history/search` and `POST /v1/history/open`, from inside the cluster and through the public TLS address | `POST /search` and `GET /memories/{memory_id}`, from inside the cluster |
+| 9 | Ingestion acknowledgement (p50, p95, p99), open loop at 10 and 25 writes per second for 30 s over 20 seeded customers | `POST /v1/batch` with one exchange until its `200`, from inside the cluster and through the public TLS address | `POST /memories` with the same exchange until its `200`, with `infer` (its default) and with `infer=False`, from inside the cluster |
+
+Metrics 8 and 9 are timed exactly as metric 1: the same open loop (`latency.open_loop`: constant rate
+whatever the answers do, one warm-up call per customer, the same HTTP client and limits), each line
+alone, three repetitions, the median and the range across them. Every call that did not get the answer
+the caller waits for is an error, counted by kind (`error_kinds`: an HTTP status, a timeout); a search
+that answered with nothing, or Niadra's `text_only` search when its encoder did not answer in time,
+stays in the percentiles and is counted apart (`empty`, `degraded`). They run after the other metrics
+of each repetition, so metrics 1 to 7 are measured under the same conditions as in earlier runs.
 
 Two references run through the same agent for every accuracy number: no memory at all, and the whole
 raw history pasted into the prompt.
@@ -53,6 +63,41 @@ what a Niadra buyer buys.
 - **Frozen inputs.** `config/benchmark.toml`, `config/mem0.config.json` and `dataset/cases.jsonl` are
   committed; every result file carries their hashes, the harness commit, the package versions and the
   deployed Niadra server version.
+
+## History navigation and ingestion, call by call
+
+The docs promise history navigation "in under 200 ms" and the ingestion acknowledgement "in under
+80 ms", in the region. What each side is sent, and why it is the comparable call:
+
+| Metric | Niadra | Mem0 (open source REST server, v2.2.0) | Why it is comparable |
+|---|---|---|---|
+| 8, `search` | `POST /v1/history/search`, the request behind `search()` and the `search_customer_history` tool: the case's probe question, the customer's phone, `max_tokens` 800 (the SDK's default), the conversation id, `verification` V1 | `POST /search` with the same probe question, `filters.user_id` of the same seeded customer (`known_id`), `top_k` 10, `threshold` 0.1 | Both are the one call an agent makes to look something up in a customer's past. Mem0 has a single read, so its line is the same call as its metric 1 line |
+| 8, `open` | `POST /v1/history/open`, the request behind `open()` and the `open_history_item` tool, on an episode or object of the same customer | `GET /memories/{memory_id}` on a memory a search of the same customer returned | Both read one item a search pointed to. Mem0 has no episode or conversation to open: a memory is one sentence, while Niadra's `open` returns the episode (what was asked, promised, the outcome, what memory came from it). The work behind the two answers is not the same |
+| 9, ack | `POST /v1/batch` with two message items (the customer's message and the agent's answer), the request the SDK's queue sends after `track()`, built with the SDK's own models, until the `200` | `POST /memories` with the same two messages, the call its README makes per exchange, until the `200`; `add_infer` with `infer` left at its default (true) and `add_raw` with `infer=False` | Both are what the application waits for before a write counts as taken. Niadra answers after the events are durable and extracts later, in the background. Mem0's open source server has no asynchronous add (the hosted Platform's `async_mode` is not in it): with `infer` its answer comes after the extraction model ran, and with `infer=False` after the text was embedded and stored, with no extraction ever. Neither Mem0 mode does what Niadra's acknowledgement does, so both lines are published |
+
+How the Niadra side is prepared, before any clock starts:
+
+- **Verification.** Each navigation conversation is proven at V1 (`network_attestation`, as a voice
+  agent that attested the caller's number), as every accuracy probe and the freshness reader do, and
+  each call asks for V1: an unproven read at V0 would have the policy withhold items, which is not the
+  call a real agent makes mid-call.
+- **An item to open.** For each customer, a search (and, if it returns no episode or object, the
+  timeline) finds an item, which is opened once to check it opens at that level. A customer with none
+  is left out of the `open` line; a line with no customer at all is written with `skipped` and no
+  number.
+- **The HTTP client, not the SDK's budget.** The calls go through a plain HTTP client with a 10 s
+  timeout, so the number is the server's answer. The SDK gives navigation 0.6 s (0.3 s on voice) and
+  returns an empty result past it; the p99 shows how often that would happen.
+- **Fresh writes.** Every ingestion call is a new exchange with a new number and new idempotency
+  keys, 10 exchanges per conversation, over the same seeded customers as metric 1, so the server never
+  answers from its duplicate check.
+- **Paths.** Inside the cluster the calls go to each service's own address: `NIADRA_CLUSTER_URL`
+  (the `read` service) for navigation and `NIADRA_CLUSTER_INGEST_URL` (the `ingest` service) for the
+  acknowledgement; through the public TLS address they go where the SDK sends them.
+
+Mem0's `add_infer` loop costs model spend (the extraction runs on every call) and leaves its server
+busy with the requests the client gave up on, so it runs last, after `add_raw`, with a pause of
+`cooldown_s` after each rate.
 
 ## The dataset
 
@@ -143,9 +188,10 @@ counts and OpenRouter's public prices on 2026-09-24:
 | Seed Mem0, both scenarios (about 1,500 `add()` each, about 8,600 prompt tokens per call) | 15 to 20 min | about $2.70 |
 | Accuracy pass: 7 systems x 240 cases, agent and judge, rerank searches | 25 to 30 min | about $1.50 |
 | Latency, freshness, resilience | about 8 min | none |
-| **Total per repetition** | **about 1 h to 1 h 20** | **about $4.50** |
+| History navigation and ingestion acknowledgement (about 1,100 `add()` with `infer` on Mem0; Niadra extracts the conversations the writes open, in the background) | 13 to 16 min | about $2 (almost all Mem0's `add_infer`) |
+| **Total per repetition** | **about 1 h 15 to 1 h 35** | **about $6.50** |
 
-Three repetitions: about 3 h 30 to 4 h and about $15 (budget $25 for retries). No AWS resource is
+Three repetitions: about 4 h to 4 h 45 and about $20 (budget $30 for retries). No AWS resource is
 created beyond Kubernetes objects and two small databases on the existing RDS instance; the machine
 and the database are the ones already running.
 
@@ -181,7 +227,15 @@ every metric) with fake LLM and embedding servers, so it needs no key. It proves
   Portuguese cases.
 - Mem0 v2.2.0's server lists plain `psycopg`, which does not import on `python:slim`; the image adds
   `psycopg[binary]`, the change Mem0 made on its main branch after the tag.
-- The rerank column is measured in-process, so it has accuracy, tokens and cost but no latency line.
+- The rerank column is measured in-process, so it has accuracy, tokens and cost but no latency,
+  navigation or ingestion line.
+- Navigation measures `search` and `open`, not `timeline` (the third call the docs name): Mem0 has no
+  paged history of a customer to set against it beyond listing every memory.
+- Mem0's `open` equivalent reads one memory, a sentence; Niadra's `open` builds an episode. The two
+  lines are the nearest calls, not the same work.
+- Mem0's ingestion lines are the open source server's two synchronous modes. The hosted Platform's
+  asynchronous `add()` (`async_mode`, the answer before the extraction) is the closest to Niadra's
+  acknowledgement, but the Platform runs outside the region, so it is not measured.
 - The sandbox tenant's billing source (the one key with the `act` scope) declares a closed list of
   operations, `credit` only, so Niadra refuses the agent actions of the dataset that record `refund`,
   `refund_fee`, `reimburse` or `redeliver` (26 of the 32 promise cases). The harness writes the rest of
