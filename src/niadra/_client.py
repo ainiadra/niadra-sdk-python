@@ -149,6 +149,7 @@ class Niadra:
         use_cache: bool = True,
         format: Literal["text", "json"] = "text",
         turn: str | None = None,
+        explain: bool = False,
     ) -> Context:
         """The context pack for a subject (a person, account or partner) or a business object.
 
@@ -168,6 +169,11 @@ class Niadra:
         does not pin it, so after one such answer the client stops sending the turn for ten
         minutes. `query` asks for a read focused on that text, as before, and wins over `turn`.
 
+        `explain=True` requires `format="json"` (raises `ValueError` otherwise) and, on a space
+        with memory v2, adds `why` to each of `pack.slots`: the retrieval channels that ranked it,
+        the fused score, the weights version and, for a derived line, the rule behind it. It
+        changes nothing else: the pinned text, the slots chosen and the receipt are the same.
+
         Never raises (unless `strict`): on failure it returns the last good pack for the same
         key or an empty one. A 401 or 403 also wipes what the cache held for that key.
         """
@@ -186,6 +192,7 @@ class Niadra:
                 delta,
                 target,
                 format,
+                explain,
             )
         except (TypeError, ValueError) as exc:
             return self._core.fail(

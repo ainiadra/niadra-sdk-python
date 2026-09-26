@@ -239,6 +239,20 @@ def test_bad_items_are_rejected_one_by_one(mock_app: MockApp) -> None:
     assert http.get("/v1/nothing", headers={"Authorization": f"Bearer {MOCK_KEY}"}).status_code == 404
 
 
+def test_batch_response_masked_defaults_empty(mock_app: MockApp) -> None:
+    """The emulator does not mask sensitive values, so `masked` comes back empty, never absent."""
+    http = httpx.Client(transport=httpx.WSGITransport(app=mock_app.wsgi), base_url="http://mock")
+    good = {
+        "type": "conversation.ended",
+        "idempotency_key": "k2",
+        "conversation_id": "c2",
+        "occurred_at": "2026-09-22T14:00:00Z",
+    }
+    response = http.post("/v1/batch", json={"items": [good]}, headers={"Authorization": f"Bearer {MOCK_KEY}"})
+    assert response.status_code == 200
+    assert response.json()["masked"] == {}
+
+
 def test_a_revoked_key_empties_the_cache(mock_app: MockApp, on_mock: Niadra) -> None:
     say(on_mock, "hello", minute=1, conversation="wa-1")
     on_mock.flush()

@@ -291,6 +291,11 @@ class BatchResponse(ResponseModel):
     accepted: int
     duplicates: int
     errors: list[ItemError] = Field(default_factory=list)
+    masked: dict[str, int] = Field(
+        default_factory=dict,
+        description="Values held back from the accepted items before storage, by type (`card`, `cvv`, "
+        "`password`, `secret`): the stored text says `[retido:cartão ****1234]` where the value was.",
+    )
 
 
 class MediaUploadRequest(Model):

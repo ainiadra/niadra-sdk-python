@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] - 0.5.0
+
+### Added
+
+- `explain=True` on `context()` and `ContextRequest` (sync and async clients), memory v2 only:
+  requires `format="json"` (raises `ValueError` otherwise) and adds `why` to each of
+  `pack.slots`, a `SlotWhy` naming the retrieval channels that ranked the item (`SlotChannelRank`:
+  `channel`, `position`, `weight`, `contribution`), the fused `score`, the `weights_version` used
+  and, for a derived line, the `rule` and `basis` behind it. It changes nothing else: the pinned
+  text, the slots chosen and the receipt are the same bytes with or without it.
+- Models: `SlotChannelRank`, `SlotWhy`, `PackSlot.why`, and `ContextUseEntry` (with `slots`), the
+  server's per-delivery measurement, ids public.
+- `BatchResponse.masked` and `IngestStatus.masked`: values held back from storage before it, by
+  type (`card`, `cvv`, `password`, `secret`), counts only, never the values.
+- `niadra_mock`: `explain` support in `MockCell.context()` (the emulator's own retrieval channel,
+  scored the way the server scores `lexical`).
+
 ## [0.4.0] - 2026-09-25
 
 ### Added

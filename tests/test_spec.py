@@ -14,6 +14,8 @@ from niadra.models.context import (
     PackSlot,
     PackSlotDerived,
     PackStamp,
+    SlotChannelRank,
+    SlotWhy,
 )
 from niadra.models.results import Context
 
@@ -30,11 +32,25 @@ def test_the_schema_is_the_context_pack_v1() -> None:
 
 
 def test_each_pack_model_has_exactly_the_fields_of_its_schema() -> None:
-    models = ((ContextPack, "ContextPack"), (PackSection, "PackSection"), (PackStamp, "PackStamp"))
-    for model, name in (*models, (PackSlot, "PackSlot")):
+    models = (
+        (ContextPack, "ContextPack"),
+        (PackSection, "PackSection"),
+        (PackStamp, "PackStamp"),
+        (PackSlot, "PackSlot"),
+        (SlotWhy, "SlotWhy"),
+        (SlotChannelRank, "SlotChannelRank"),
+    )
+    for model, name in models:
         assert set(model.model_fields) == set(DEFS[name]["properties"]), name
         required = {f for f, info in model.model_fields.items() if info.is_required()}
-        assert required <= set(DEFS[name]["required"]), name
+        assert required <= set(DEFS[name].get("required", [])), name
+
+
+def test_pack_slot_why_is_explain() -> None:
+    assert PackSlot.model_fields["why"].annotation == SlotWhy | None
+    assert "SlotWhy" in DEFS and "SlotChannelRank" in DEFS
+    channels = DEFS["SlotWhy"]["properties"]["channels"]["items"]
+    assert channels == {"$ref": "#/$defs/SlotChannelRank"}
 
 
 def test_section_names_are_the_ones_the_specification_fixes() -> None:

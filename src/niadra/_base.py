@@ -253,7 +253,10 @@ class ClientCore:
         delta: bool,
         target: TargetLike | None,
         format: Literal["text", "json"] = "text",
+        explain: bool = False,
     ) -> ContextRequest:
+        if explain and format != "json":
+            raise ValueError('explain requires format="json"')
         return ContextRequest(
             subject=as_handle(subject) if subject is not None else None,
             object=as_object(object) if object is not None else None,
@@ -266,6 +269,7 @@ class ClientCore:
             delta=delta,
             target=as_target(target) if target is not None else None,
             format="json" if format == "json" else None,
+            explain=True if explain else None,
         )
 
     def turn_query(self, request: ContextRequest, turn: str | None) -> str | None:

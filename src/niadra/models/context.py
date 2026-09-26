@@ -50,6 +50,14 @@ class ContextRequest(Model):
     format: Literal["text", "json"] | None = Field(
         default=None, description="`json` also returns `pack`: the pack as typed sections."
     )
+    # Sent only when asked for, so a cell that does not know the field yet still takes the request.
+    explain: bool | None = Field(
+        default=None,
+        description='Memory v2, with `format: "json"` and `query`: each of `pack.slots` also says `why` '
+        "it was chosen (its position in each retrieval channel, each channel's weighted share of the fused "
+        "score, the weights version, the rule of a derived line). It changes nothing else: the pinned text, "
+        "the slots chosen and the receipt are the same bytes with or without it.",
+    )
 
     @model_validator(mode="after")
     def _one_target(self) -> ContextRequest:
@@ -129,6 +137,50 @@ class PackStamp(ResponseModel):
 PackSlotDerived = Literal["count", "no_record", "withheld"]
 
 
+class SlotChannelRank(ResponseModel):
+    """One retrieval channel's part in a slot's fused score (weighted reciprocal rank fusion)."""
+
+    channel: str = Field(description="`exact`, `values`, `lexical`, `temporal`, `semantic` or `linked`.")
+    position: int = Field(description="1-based, in that channel's own ranking for the turn.")
+    weight: float = Field(description="The channel's weight in this fusion.")
+    contribution: float = Field(description="`weight / (60 + position)`: what the channel added to `score`.")
+
+
+class SlotWhy(ResponseModel):
+    """Why a line took a slot (`explain`). Ids, positions and numbers; never a line or a value."""
+
+    item_id: str | None = Field(
+        default=None, description="The item, as manifests and context-use name it; absent for a derived line."
+    )
+    score: float | None = Field(
+        default=None, description="The fused score: the sum of the channels' contributions."
+    )
+    channels: list[SlotChannelRank] = Field(
+        default_factory=list, description="Each channel that ranked the item, in fusion order."
+    )
+    weights_version: int | None = Field(
+        default=None, description="The space's learned fusion weights used; absent for the defaults."
+    )
+    via: str | None = Field(
+        default=None,
+        description="For an item the `linked` channel brought: the exact match it is tied to, as `item_id`.",
+    )
+    excerpt: bool = Field(
+        default=False, description="The line was cut to the sentences that answer the turn."
+    )
+    rule: str | None = Field(
+        default=None,
+        description="For a derived line: `count_complaints`, `count_conversations`, `no_record` or "
+        "`withheld_may_hold`.",
+    )
+    basis: dict[str, Any] = Field(
+        default_factory=dict,
+        description="For a derived line, what the rule counted or missed: `basis` (the conversation that "
+        "chose the category), `category`, `counted`, `window_days`; `asked_types`, `identifiers` (how many "
+        "numbers the turn named, never which), `withheld`.",
+    )
+
+
 class PackSlot(ResponseModel):
     """One line of this turn's slots (memory v2): an item the customer's last turn selected, or a
     line derived from memory. The same line as in `ContextResponse.slots`.
@@ -137,13 +189,14 @@ class PackSlot(ResponseModel):
     `derived` for a line the server derived: `derived` then says which (`count`, how many times a
     topic came back, with the dates; `no_record`, that memory holds nothing about what was asked;
     `withheld`, that items held back until verification may hold it). `channels` are the ways the
-    item was found: `exact`, `lexical`, `temporal`, `values`, `semantic`.
+    item was found: `exact`, `lexical`, `temporal`, `values`, `semantic`, `linked`.
     """
 
     section: PackSectionName | str
     derived: PackSlotDerived | str | None = None
     channels: list[str] = Field(default_factory=list)
     text: str
+    why: SlotWhy | None = Field(default=None, description="With `explain`: why this line was chosen.")
 
 
 class ContextPack(ResponseModel):

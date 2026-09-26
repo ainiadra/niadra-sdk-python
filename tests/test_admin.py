@@ -186,3 +186,19 @@ def test_ingest_status_sends_the_thread_in_the_body(respx_mock: respx.MockRouter
 def test_ingest_status_needs_exactly_one_thread(lenient: Niadra) -> None:
     assert lenient.ingest_status() is None
     assert lenient.ingest_status(conversation_id="c", task_id="t") is None
+
+
+def test_ingest_status_reads_masked_counts(respx_mock: respx.MockRouter, client: Niadra) -> None:
+    respx_mock.post(f"{BASE}/v1/ingest/status").respond(
+        200, json={"state": "ready", "masked": {"card": 1, "cvv": 1}}
+    )
+    status = client.ingest_status(conversation_id="wa-81")
+    assert status is not None
+    assert status.masked == {"card": 1, "cvv": 1}
+
+
+def test_ingest_status_masked_defaults_to_none(respx_mock: respx.MockRouter, client: Niadra) -> None:
+    respx_mock.post(f"{BASE}/v1/ingest/status").respond(200, json={"state": "open"})
+    status = client.ingest_status(conversation_id="wa-81")
+    assert status is not None
+    assert status.masked is None
