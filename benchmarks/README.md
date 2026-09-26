@@ -61,10 +61,8 @@ backed amounts are backed), applied by the harness to every system's answers wit
 measures what each memory gave the agent, not an SDK; no system's agent runs it during the pass. Each line
 (`metrics.backing`) gives the answers, the values they stated, the values without a source per thousand
 answers (median and range over the repetitions), by kind and by category. The accuracy, contradiction
-(`contradiction` category) and privacy figures are unchanged by it. The harness installs the SDK from PyPI
-(`niadra==0.4.0`), which predates `niadra.backing`, so it runs a verbatim copy
-(`src/niadra_bench/vendor/niadra_backing.py`; a test fails when it differs from `src/niadra/backing.py`)
-until the release that has it is the one installed.
+(`contradiction` category) and privacy figures are unchanged by it. The rule comes from the SDK the harness
+installs from PyPI (`niadra.backing`, from 0.5.0 on).
 
 Each privacy line says whether the system has a verification mechanism at all (`verification`:
 `per conversation` for Niadra, `none` for every other system). A system with none hands the block to
@@ -112,7 +110,7 @@ what a Niadra buyer buys.
   library with no server: it runs in a small service of the harness's (`deploy/systems/langmem/server.py`)
   that calls only its documented API. Honcho is AGPL: the harness runs its published image and calls its
   REST API, and no line of it is in this repository.
-- **Niadra as documented.** The SDK is the current release on PyPI (`niadra==0.4.0`; the first run
+- **Niadra as documented.** The SDK is the current release on PyPI (`niadra==0.5.0`; the first run
   installed 0.1.5 and run 2026-09-25-6efee4 0.3.0, whose read path is the same for a read with its own
   `query`). 0.4.0 is the first that puts memory v2's `slots` in `turn_block` (0.3.0 drops the field), so
   a run with `memory_v2` on measures what an agent gets only from 0.4.0 on; its turn block is the live

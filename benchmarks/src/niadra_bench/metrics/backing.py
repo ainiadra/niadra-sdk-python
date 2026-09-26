@@ -16,30 +16,18 @@ contradiction and privacy figures of the accuracy lines are not changed by it.
 
 from __future__ import annotations
 
-import importlib
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from typing import Any
+
+import niadra.backing
 
 from niadra_bench import stats
 
 
-def _load_check() -> Callable[..., Any]:
-    """`niadra.backing.check` from the installed SDK when it has it, else the harness's verbatim copy."""
-    try:
-        module = importlib.import_module("niadra.backing")
-    except ImportError:
-        module = importlib.import_module("niadra_bench.vendor.niadra_backing")
-    check: Callable[..., Any] = module.check
-    return check
-
-
-CHECK = _load_check()
-
-
 def check(answer: str, block: str, question: str) -> tuple[int, list[str]]:
     """How many values the answer states, and the kind of each one no source backs."""
-    report = CHECK(answer, [block, question])
+    report = niadra.backing.check(answer, [block, question])
     return int(report.checked), [str(v.kind) for v in report.unbacked]
 
 

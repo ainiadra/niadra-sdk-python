@@ -1,25 +1,15 @@
-"""Values without a source (metrics/backing.py), the verbatim copy of the SDK's rule it uses, and the
-guard lines' measurement (Niadra's answers recorded back)."""
+"""Values without a source (metrics/backing.py) and the guard lines' measurement (Niadra's answers
+recorded back)."""
 
 import json
 from datetime import UTC, datetime
-from pathlib import Path
 
 import httpx
-import pytest
 
 from niadra_bench.identity import Identities
 from niadra_bench.metrics import backing
 from niadra_bench.metrics.accuracy import CaseRow
 from niadra_bench.targets.niadra import Keys, NiadraTarget
-
-SDK = Path(__file__).resolve().parents[2] / "src" / "niadra" / "backing.py"
-COPY = Path(__file__).resolve().parents[1] / "src" / "niadra_bench" / "vendor" / "niadra_backing.py"
-
-
-@pytest.mark.skipif(not SDK.exists(), reason="outside the SDK repository")
-def test_the_copy_is_the_sdk_rule_byte_for_byte() -> None:
-    assert COPY.read_bytes() == SDK.read_bytes(), "copy src/niadra/backing.py to src/niadra_bench/vendor/"
 
 
 def test_a_value_the_memory_holds_is_backed_and_an_invented_one_is_not() -> None:
