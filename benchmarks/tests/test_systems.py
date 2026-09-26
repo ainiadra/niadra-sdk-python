@@ -435,6 +435,7 @@ async def test_runs_with_fewer_repetitions_and_cases_combine_after_the_first(
     sources = [(s["systems"], s["repetitions"], s["cases"]) for s in summary["combined_from"]]
     assert sources == [(["niadra"], 2, 8), (["ai_memory"], 1, 4)]
     assert summary["config"]["repetitions"] == 2
+    assert summary["config"]["quick"] is True and second["config"]["limit"] == 4
     line = next(r for r in summary["metrics"]["accuracy"]["results"] if r["system"] == "ai_memory")
     assert line["cases"]["runs"][1] is None
     assert '"system": "ai_memory"' not in (combined / "cases-rep2.jsonl").read_text()

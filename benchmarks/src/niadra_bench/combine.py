@@ -121,6 +121,11 @@ def combine(directories: list[Path], output: Path, cases: dict[str, Case]) -> Pa
         reps.append(rep)
 
     summary = dict(summaries[0])
+    summary["config"] = {
+        **summaries[0]["config"],
+        # One smoke run among the sources makes the whole folder a smoke run.
+        "quick": any(s["config"].get("quick", False) for s in summaries),
+    }
     summary["run_id"] = run_id
     summary["started_at"] = min(s["started_at"] for s in summaries)
     summary["finished_at"] = max(s["finished_at"] for s in summaries)

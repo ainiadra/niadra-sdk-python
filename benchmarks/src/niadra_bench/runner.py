@@ -597,6 +597,10 @@ class Run:
                 # "off": the run asked no reference (`--no-references`); its cases count only when
                 # `bench combine` puts it after a run that did, whose references decide validity.
                 "references": "on" if self.options.references else "off",
+                # A smoke run (`--quick`: 3 s loops at the first rate) is never published; the site's
+                # importer refuses it. `--limit` is the number of cases asked, or None for all of them.
+                "quick": self.options.quick,
+                "limit": self.options.limit,
             },
             "dataset": {
                 "version": self.options.dataset,
