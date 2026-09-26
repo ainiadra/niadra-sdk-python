@@ -283,11 +283,14 @@ class Run:
         rows: list[accuracy.CaseRow] = []
         rerank_usage: dict[str, dict[str, int]] = {}
         rerank_searches = 0
+        # What an added system's reads cost in models (a system that reasons on every read), per read.
+        read_spend: dict[str, tuple[dict[str, dict[str, int]], int]] = {}
         if metrics & {"accuracy", "tokens", "privacy", "cost"}:
             agent = ContextOnlyAgent() if self.options.dry_run else Agent(self.chat, self.config.agent)
             judge = None if self.options.dry_run else Judge(self.chat, self.config.judge)
             for target in targets:
                 before = await self._meter() if isinstance(target, Mem0LibTarget) else None
+                gateway = await target.meter_snapshot() if isinstance(target, HttpSystem) else None
                 log.info("accuracy pass: %s", target.label)
                 rows += await accuracy.run(
                     [target],
@@ -302,6 +305,11 @@ class Run:
                 if isinstance(target, Mem0LibTarget) and target.scenario == "known_id":
                     rerank_usage = cost.meter_delta(before, await self._meter())
                     rerank_searches = len(pairs)
+                if isinstance(target, HttpSystem) and gateway is not None:
+                    read_spend[target.system] = (
+                        cost.meter_delta(gateway, await target.meter_snapshot()),
+                        len(pairs),
+                    )
             valid, excluded = accuracy.valid_cases(rows, self.by_id)
             rep["validity"] = {"valid": len(valid), "excluded": excluded}
             rep["accuracy"] = accuracy.summarize(rows, valid)
@@ -322,7 +330,9 @@ class Run:
                 rerank_usage=rerank_usage,
                 rerank_searches=rerank_searches,
                 platform_measured="mem0_platform" in self.options.systems,
-                others=[(o.system, row) for o in others if (row := self._cost_row(o, spend, pairs))],
+                others=[
+                    (o.system, row) for o in others if (row := self._cost_row(o, spend, read_spend, pairs))
+                ],
             )
 
         niadra = next((t for t in targets if isinstance(t, NiadraTarget)), None)
@@ -412,10 +422,13 @@ class Run:
         self,
         system: HttpSystem,
         spend: dict[str, dict[str, dict[str, int]]],
+        read_spend: dict[str, tuple[dict[str, dict[str, int]], int]],
         pairs: list[tuple[Case, Identities]],
     ) -> dict[str, Any] | None:
-        """Metric 3 for an added system: its adapter's line, or the model spend its gateway counted
-        from seeding until the memory settled, per exchange written, for a thousand conversations."""
+        """Metric 3 for an added system: its adapter's line, or the model spend its gateway counted:
+        from seeding until the memory settled, per exchange written, plus the accuracy pass's reads, per
+        read (zero unless the system calls a model to read); one write and one read per exchange, for a
+        thousand conversations."""
         if (row := system.cost_row()) is not None:
             return row
         usage = spend.get(system.system)
@@ -423,12 +436,15 @@ class Run:
         if usage is None or not written:
             return None
         per_exchange = cost.model_usd(self.config, usage) / written
+        read_usage, reads = read_spend.get(system.system, ({}, 0))
+        per_read = cost.model_usd(self.config, read_usage) / reads if reads else 0.0
         turns = self.config.cost.turns_per_conversation
         return {
             "variant": "models_only",
-            "memory_usd_per_1000": round(per_exchange * turns * 1000, 4),
-            "basis": "measured model spend from seeding until the memory settled, servers not priced",
+            "memory_usd_per_1000": round((per_exchange + per_read) * turns * 1000, 4),
+            "basis": "measured model spend (writes until the memory settled, and reads), servers not priced",
             "usd_per_exchange": round(per_exchange, 8),
+            "usd_per_read": round(per_read, 8),
         }
 
     def _niadra_probes(

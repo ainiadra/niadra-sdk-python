@@ -1,11 +1,9 @@
-# systems: hindsight
-# Hindsight (github.com/vectorize-io/hindsight, MIT): its one-container image at 0.10.1 with the embedded
-# PostgreSQL (pg0), as its README's Docker quick start runs it. Its model and its embedder are
-# OpenAI-compatible settings, pointed at the system's gateway: the benchmark's extraction model, and the
-# benchmark's embedder (384 dimensions). The reranker stays its default, a local cross-encoder.
-# hindsight_reflect (deploy/systems/hindsight-reflect) is the same server read with `reflect`.
+# systems: hindsight_reflect
+# Hindsight read with `reflect` (hindsight_reflect): the same image and settings as deploy/systems/hindsight,
+# a server and a gateway of its own, so its model calls (the extraction and every read's reasoning) are
+# counted apart, and it runs alone on the host like every system.
 services:
-  hindsight-gateway:
+  hindsight-reflect-gateway:
     image: ${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}
     command: [serve, llm-meter, --port, "8081"]
     environment:
@@ -14,16 +12,16 @@ services:
       EMBED_UPSTREAM: http://embed:8080/v1
     mem_limit: 128m
 
-  hindsight:
+  hindsight-reflect:
     image: ghcr.io/vectorize-io/hindsight:0.10.1
     environment:
       HINDSIGHT_API_LLM_PROVIDER: openai
       HINDSIGHT_API_LLM_API_KEY: gateway
-      HINDSIGHT_API_LLM_BASE_URL: http://hindsight-gateway:8081/v1
+      HINDSIGHT_API_LLM_BASE_URL: http://hindsight-reflect-gateway:8081/v1
       HINDSIGHT_API_LLM_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
       HINDSIGHT_API_EMBEDDINGS_PROVIDER: openai
       HINDSIGHT_API_EMBEDDINGS_OPENAI_API_KEY: gateway
-      HINDSIGHT_API_EMBEDDINGS_OPENAI_BASE_URL: http://hindsight-gateway:8081/v1
+      HINDSIGHT_API_EMBEDDINGS_OPENAI_BASE_URL: http://hindsight-reflect-gateway:8081/v1
       HINDSIGHT_API_EMBEDDINGS_OPENAI_MODEL: paraphrase-multilingual-minilm-l12-v2-r1
       HINDSIGHT_API_EMBEDDINGS_OPENAI_DIMENSIONS: "384"
     mem_limit: 3g

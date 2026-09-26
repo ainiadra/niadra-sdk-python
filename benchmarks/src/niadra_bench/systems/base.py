@@ -100,6 +100,10 @@ class HttpSystem(Target):
     #: variable and its default. Its counters before seeding and after settling are the model spend.
     meter_env: ClassVar[str | None] = None
     meter_default: ClassVar[str | None] = None
+    #: The longest its background work may take to settle, when that is longer than the run's
+    #: `settle_timeout_s` (a system that extracts one message at a time). A settle that times out is
+    #: recorded as `settled: false` and the run goes on.
+    min_settle_timeout_s: ClassVar[float] = 0.0
     #: One store per customer: the application knows who the customer is (Mem0's best case).
     scenario = "known_id"
 
@@ -119,7 +123,7 @@ class HttpSystem(Target):
         self.transport = transport
         self._http: httpx.AsyncClient | None = None
         self._limit = asyncio.Semaphore(concurrency)
-        self.settle_timeout_s = settle_timeout_s
+        self.settle_timeout_s = max(settle_timeout_s, self.min_settle_timeout_s)
         self.counters: dict[str, int] = {"writes": 0, "write_retries": 0, "reads": 0}
 
     # What an adapter provides

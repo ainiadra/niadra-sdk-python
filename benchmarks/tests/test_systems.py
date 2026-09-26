@@ -307,3 +307,39 @@ async def test_an_adapter_needs_only_its_calls(cases) -> None:
     assert await tiny.freshness_trial(case, ids, 0.01, 1.0) is not None
     assert tiny.seed_report()["writes"] == sum(len(s.turns) for s in case.sessions) + 1
     await tiny.close()
+
+
+async def test_runs_of_different_systems_combine_into_one_summary(config, tmp_path, monkeypatch) -> None:
+    from niadra_bench.combine import combine
+
+    monkeypatch.setenv("NIADRA_API_KEY", MOCK_KEY)
+    monkeypatch.delenv("NIADRA_BOOTSTRAP", raising=False)
+    monkeypatch.delenv("MEM0_METER_URL", raising=False)
+    cases = load_cases("v2")
+    outs = []
+    for systems in ({"niadra"}, {"ai_memory"}):
+        mock = MockApp()
+        options = Options(
+            systems=systems,
+            metrics={"latency", "accuracy", "tokens", "privacy", "cost"},
+            repetitions=1,
+            dry_run=True,
+            limit=8,
+            quick=True,
+            output=tmp_path / "runs",
+            dataset="v2",
+            niadra_transport=lambda mock=mock: httpx.ASGITransport(app=mock.asgi),
+            niadra_base_url="http://niadra-mock",
+            system_transports={"ai_memory": httpx.ASGITransport(app=FakeAiMemory())},
+            extra={"tokenizer": word_tokenizer},
+        )
+        outs.append(await Run(config, cases, options).execute())
+    combined = combine(outs, tmp_path / "combined", {c.id: c for c in cases})
+    summary = json.loads((combined / "summary.json").read_text())
+    systems = [r["system"] for r in summary["metrics"]["accuracy"]["results"]]
+    assert sorted(systems) == ["ai_memory", "full_history", "niadra", "no_memory"]
+    cost = [(r["system"], r["variant"]) for r in summary["metrics"]["cost"]["results"]]
+    assert cost.count(("niadra", "price_low")) == 1 and ("ai_memory", "models_only") in cost
+    assert [s["systems"] for s in summary["combined_from"]] == [["niadra"], ["ai_memory"]]
+    rows = (combined / "cases-rep1.jsonl").read_text().splitlines()
+    assert sum('"system": "no_memory"' in r for r in rows) == 8

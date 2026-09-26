@@ -11,7 +11,7 @@ embedded PostgreSQL, driven as its documentation shows (hindsight-docs, "Retaini
   `GET .../operations` until nothing is pending or processing.
 - Reads: `POST .../memories/recall` with the customer's question and its defaults (budget `mid`,
   `max_tokens` 4096). The agent receives each fact's text and, when the fact carries it, when it
-  happened. `reflect` (a model call per read) is not measured here.
+  happened. `reflect` (a model call per read) is its own column, `hindsight_reflect`.
 - A live exchange (metrics 6 and 9) is one `retain` item with `async` true, its documented
   asynchronous mode: the call returns once the work is queued.
 - Open (metric 8): `GET .../memories/{id}` on the first fact.
@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -70,6 +71,7 @@ class Hindsight(HttpSystem):
     url_env = "HINDSIGHT_URL"
     default_url = "http://hindsight:8888"
     version = "0.10.1"
+    min_settle_timeout_s = 4 * 3600.0
     has_open = True
     meter_env = "HINDSIGHT_METER_URL"
     meter_default = "http://hindsight-gateway:8081"
@@ -162,3 +164,30 @@ class Hindsight(HttpSystem):
             "rounds": rounds,
             "unsettled": len(pending),
         }
+
+
+class HindsightReflect(Hindsight):
+    """The same server and memory, read with `reflect` (`POST .../reflect` with the question and its
+    defaults) instead of `recall`: Hindsight reasons over the bank with its model on every read and answers
+    in text. The agent receives that text. A separate column: its read is a model call, which the latency,
+    the cost and the tokens show."""
+
+    system = "hindsight_reflect"
+    title = "Hindsight (reflect)"
+    compose = "hindsight-reflect"
+    url_env = "HINDSIGHT_REFLECT_URL"
+    default_url = "http://hindsight-reflect:8888"
+    meter_env = "HINDSIGHT_REFLECT_METER_URL"
+    meter_default = "http://hindsight-reflect-gateway:8081"
+    has_open = False
+
+    def read_call(self, case: Case, ids: Identities, question: str) -> Call:  # noqa: ARG002
+        return Call("POST", self._path(ids, "/reflect"), json={"query": question})
+
+    def memories(self, response: httpx.Response) -> list[str]:
+        response.raise_for_status()
+        text = str(response.json().get("text") or "").strip()
+        return [line for line in text.splitlines() if line.strip()]
+
+    def render(self, lines: Sequence[str]) -> str:
+        return "\n".join(lines)

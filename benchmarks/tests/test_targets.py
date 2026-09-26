@@ -276,3 +276,84 @@ async def test_the_target_sets_the_flag_before_seeding_and_restores_it_on_close(
     assert fake.document == {"memory_v2": False} and target.seed_report()["memory_v2"] is False
     await target.close()
     assert fake.document == {}
+
+
+async def test_a_run_revokes_the_billing_keys_an_earlier_run_left_active() -> None:
+    revoked: list[str] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/v1/auth/login":
+            return httpx.Response(200, json={"access_token": "t"})
+        if path == "/v1/sources":
+            return httpx.Response(
+                200,
+                json=[
+                    {"source_id": "s1", "name": "bench-billing-1a2b3c4d", "revoked_at": None},
+                    {"source_id": "s2", "name": "crm", "revoked_at": None},
+                ],
+            )
+        if path == "/v1/sources/s1/keys":
+            return httpx.Response(
+                200,
+                json=[
+                    {"key_id": "k-live", "status": "active", "revoked_at": None},
+                    {"key_id": "k-old", "status": "revoked", "revoked_at": "2026-09-25T20:00:00Z"},
+                ],
+            )
+        if path.endswith("/revoke"):
+            revoked.append(path)
+            return httpx.Response(200, json={})
+        return httpx.Response(404)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(answer)) as http:
+        control = ControlPlane("http://control", DOCUMENT, http)
+        assert await control.revoke_stale_keys() == ["k-live"]
+    assert revoked == ["/v1/sources/s1/keys/k-live/revoke"]
+
+
+async def test_seeding_keeps_its_pace_and_pauses_when_the_server_asks(monkeypatch) -> None:
+    from niadra_bench.targets import niadra as target_module
+
+    clock = [100.0]
+    slept: list[float] = []
+
+    async def sleep(seconds: float) -> None:
+        slept.append(round(seconds, 3))
+        clock[0] += seconds
+
+    monkeypatch.setattr(target_module.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(target_module.asyncio, "sleep", sleep)
+    pacer = target_module.Pacer(2.0)
+    for _ in range(3):
+        await pacer.wait()
+    assert slept == [0.5, 0.5]
+    pacer.pause(30)
+    await pacer.wait()
+    assert slept[-1] == 30.0
+    assert target_module.Pacer(None).interval == 0.0
+
+
+async def test_a_stopped_run_closes_its_targets(monkeypatch) -> None:
+    import asyncio
+    import os
+    import signal
+
+    from niadra_bench.cli import until_stopped
+
+    closed: list[str] = []
+
+    async def run() -> None:
+        try:
+            await asyncio.sleep(30)
+        finally:
+            closed.append("targets closed")
+
+    async def main() -> None:
+        loop = asyncio.get_running_loop()
+        loop.call_later(0.1, os.kill, os.getpid(), signal.SIGTERM)
+        with pytest.raises(asyncio.CancelledError):
+            await until_stopped(run())
+
+    await main()
+    assert closed == ["targets closed"]

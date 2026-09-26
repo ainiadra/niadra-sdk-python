@@ -88,6 +88,7 @@ class MemOS(HttpSystem):
     url_env = "MEMOS_URL"
     default_url = "http://memos:8000"
     version = "v2.0.34"
+    min_settle_timeout_s = 4 * 3600.0
     has_open = True
     meter_env = "MEMOS_METER_URL"
     meter_default = "http://memos-gateway:8081"

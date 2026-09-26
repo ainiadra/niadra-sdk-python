@@ -142,6 +142,7 @@ class AiMemory(HttpSystem):
     default_url = "http://ai-memory:49374"
     token_env = "AI_MEMORY_AUTH_TOKEN"  # noqa: S105 - the variable's name, not a token
     version = "2.4.1"
+    min_settle_timeout_s = 2 * 3600.0
     has_open = True
     # The server holds one writer; its batches commit item by item.
     seed_concurrency = 4

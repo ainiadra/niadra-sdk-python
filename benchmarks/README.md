@@ -1,9 +1,10 @@
 # Niadra benchmark
 
-An open, reproducible benchmark of Niadra against Mem0, the memory layer most teams compare it with.
-It measures what an engineer integrating a memory for customer-facing and internal agents needs to
-know, with the same models on both sides, and publishes every result file. Where Niadra loses, the
-number is published the same way.
+An open, reproducible benchmark of Niadra against the memory layers teams compare it with: Mem0, and a
+field of other memory systems added one adapter at a time (ai-memory, Graphiti, Hindsight, Memobase,
+Supermemory local, MemOS). It measures what an engineer integrating a memory for customer-facing and
+internal agents needs to know, with the same models on every side where a system lets them be chosen,
+and publishes every result file. Where Niadra loses, the number is published the same way.
 
 Nothing here is a claim until it is measured inside the cloud region. Numbers from a laptop, from the
 emulator or from a smoke run are never published; the site only imports result files whose
@@ -11,17 +12,20 @@ environment is `region`.
 
 ## What it measures
 
-| # | Metric | Niadra | Mem0 |
-|---|---|---|---|
-| 1 | Latency of the context before the model call (p50, p95, p99), open loop at 10 and 25 reads per second for 30 s over 20 conversations | `POST /v1/context` with the conversation id, from inside the cluster and through the public TLS address | `POST /search` on its own REST server, `top_k` 10, `threshold` 0.1, from inside the cluster |
-| 2 | Tokens the memory adds to the prompt per turn (`o200k_base`) | `system_block` and `turn_block`, `voice` and `chat` views | the search results in the format of Mem0's examples ("Based on previous conversations, I recall:") |
-| 3 | Cost of the memory layer per thousand conversations of 10 exchanges | public price, both ends ($5 and $15), models included | open source: extraction model spend measured from the provider's usage numbers (servers not priced); Platform: public plans over their quotas |
-| 4 | Cross-channel continuity accuracy on the synthetic dataset | the agent answers from Niadra's context | the same agent answers from Mem0's results |
-| 5 | Privacy: sensitive value handed to an unverified (V0) conversation | counted in the memory block | counted in the memory block |
-| 6 | Freshness: a WhatsApp message until the voice agent reads it | `track()` until `context(view="voice")` shows it | `add()` until `search()` shows it |
-| 7 | Memory slow (2 s) or down (503) behind the same fault proxy | the SDK as it ships | an HTTP client at its defaults with `raise_for_status()` |
-| 8 | History navigation (p50, p95, p99), open loop at 10 and 25 calls per second for 30 s over 20 seeded customers | `POST /v1/history/search` and `POST /v1/history/open`, from inside the cluster and through the public TLS address | `POST /search` and `GET /memories/{memory_id}`, from inside the cluster; both searches' question encoding alone as its own line (`encode`) |
-| 9 | Ingestion acknowledgement (p50, p95, p99), open loop at 10 and 25 writes per second for 30 s over 20 seeded customers | `POST /v1/batch` with one exchange until its `200`, from inside the cluster and through the public TLS address | `POST /memories` with the same exchange until its `200`, with `infer` (its default) and with `infer=False`, from inside the cluster |
+"Added systems" are the systems measured through an adapter in `src/niadra_bench/systems/` (the field,
+below); each one is used through the calls its own documentation shows.
+
+| # | Metric | Niadra | Mem0 | Added systems |
+|---|---|---|---|---|
+| 1 | Latency of the context before the model call (p50, p95, p99), open loop at 10 and 25 reads per second for 30 s over 20 conversations | `POST /v1/context` with the conversation id, through the public TLS address and through the private address in the VPC | `POST /search` on its own REST server, `top_k` 10, `threshold` 0.1 | its read of a turn (the field table) |
+| 2 | Tokens the memory adds to the prompt per turn (`o200k_base`) | `system_block` and `turn_block`, `voice` and `chat` views | the search results in the format of Mem0's examples ("Based on previous conversations, I recall:") | the lines its read returns, in the format its documentation shows |
+| 3 | Cost of the memory layer per thousand conversations of 10 exchanges | public price, both ends ($5 and $15), models included | open source: extraction model spend measured from the provider's usage numbers (servers not priced); Platform: public plans over their quotas | the model spend its gateway counted from seeding until its memory settled, per exchange (servers not priced); zero where it calls no model |
+| 4 | Cross-channel continuity accuracy on the synthetic dataset | the agent answers from Niadra's context | the same agent answers from Mem0's results | the same agent answers from its read |
+| 5 | Privacy: sensitive value handed to an unverified (V0) conversation | counted in the memory block | counted in the memory block; "no mechanism" | counted in the memory block; "no mechanism" |
+| 6 | Freshness: a WhatsApp message until the voice agent reads it | `track()` until `context(view="voice")` shows it | `add()` until `search()` shows it | its write until its read shows it (a queue's wait included) |
+| 7 | Memory slow (2 s) or down (503) behind the same fault proxy | the SDK as it ships | an HTTP client at its defaults with `raise_for_status()` | the same as Mem0 |
+| 8 | History navigation (p50, p95, p99), open loop for 30 s over 20 seeded customers | `POST /v1/history/search` and `POST /v1/history/open` at 10 per second (the production cap), both paths | `POST /search` and `GET /memories/{memory_id}` at 10 and 25; the question's encoding alone as its own line (`encode`) | its read as `search`, and its call that opens one item as `open`, at 10 and 25 |
+| 9 | Ingestion acknowledgement (p50, p95, p99), open loop for 30 s over 20 seeded customers | `POST /v1/batch` with one exchange until its `200`, at 10 per second (the production cap), both paths | `POST /memories` with the same exchange until its `200`, with `infer` (its default) and with `infer=False`, at 10 and 25 | its write of one exchange until its 2xx, at 10 and 25 |
 
 Metrics 8 and 9 are timed exactly as metric 1: the same open loop (`latency.open_loop`: constant rate
 whatever the answers do, one warm-up call per customer, the same HTTP client and limits), each line
@@ -46,18 +50,35 @@ of the occurrences by its reference; a deadline day holds only right after a wor
 dia 15", "by the 15th"). The first run's rule stays in the results as `context_has_answer_loose`, and
 `config.context_has_answer_rule` names the rule a run used (`metrics/accuracy.py`).
 
+Each privacy line says whether the system has a verification mechanism at all (`verification`:
+`per conversation` for Niadra, `none` for every other system). A system with none hands the block to
+any caller, so the page shows "no mechanism" for it rather than a score; the count of blocks that held
+the sensitive value is still in the file. Results before 26/09/2026 do not carry the field.
+
 We do not run LoCoMo, LongMemEval or BEAM: they are long personal conversation sets and do not measure
 what a Niadra buyer buys.
 
 ## How the comparison is kept fair
 
-- **Same place.** Everything runs as pods of the cell's k3s cluster in us-east-2 (m7i-flex.large, RDS
-  db.t4g.micro). Mem0 is its own REST server (`server/` of github.com/mem0ai/mem0 at tag v2.2.0) with
-  `mem0ai[nlp]==2.2.0` and the spaCy model its README asks for, pgvector in its own database on the
-  same RDS instance. Systems are measured one after the other, never at the same time.
-- **Same models.** Both extract with `google/gemini-2.5-flash-lite` through OpenRouter. Mem0's
-  embedder is the cell's own embedding server (`niadra-models`, `paraphrase-multilingual-MiniLM-L12-v2`,
-  384 dimensions) through a small OpenAI-compatible proxy (`bench serve embed-proxy`). One agent
+- **Same place, and Niadra's production kept safe.** Since 26/09/2026 the harness and every system but
+  Niadra run on a temporary EC2 host of their own in the cell's VPC in us-east-2 (`deploy/temp-host`),
+  one system at a time, each with its own databases on that host: nothing of theirs touches the cell's
+  machine or its RDS instance. Niadra is measured where it runs, the cell (m7i-flex.large, RDS
+  db.t4g.micro), through its public TLS address (`edge`) and through the cell machine's private address
+  in the VPC with the same TLS name (`vpc`); every other system is on the harness's own host (`host`), so
+  Niadra's lines carry a network hop the others do not, and the page says so. Until 25/09/2026 everything
+  ran as pods of the cell (`cluster`); on that evening the second run saturated PgBouncer and the RDS
+  instance went into recovery (niadra-docs `estudo/09-RODADAS.md`), which is why the benchmark left the
+  cell. What a run may send to the cell is capped (config `[production]`, "Load on production" below).
+- **Same models where a system lets them be chosen.** Every system that extracts with a model uses
+  `google/gemini-2.5-flash-lite` through OpenRouter; every system that takes an embedder uses the one
+  the cell runs (`niadra-models`, `paraphrase-multilingual-MiniLM-L12-v2`, 384 dimensions), the same
+  image and model files, on the harness's host, through a small OpenAI-compatible proxy
+  (`bench serve embed-proxy`). Each system's model calls go through a gateway of its own
+  (`bench serve llm-meter`), which counts the spend from the provider's usage numbers, sends embeddings
+  to that embedder when the system has a single base URL, and, when a system's server fixes some model
+  names that its settings do not reach (Graphiti's small model), asks for the same extraction model. A
+  system whose embedder or reranker cannot be set keeps its own, named in the field table. One agent
   (`openai/gpt-4.1-mini`, temperature 0, fixed prompt in `src/niadra_bench/agent.py`) answers every
   probe, and one judge with a published rubric grades it; an exact check that looks for the expected
   value in the answer is reported beside it.
@@ -65,7 +86,13 @@ what a Niadra buyer buys.
   extraction reads both roles in one call), system records as raw memories (`infer=False`), one
   `search()` per turn. No parameter tuned for this dataset. The rerank column (`mem0_oss_rerank`)
   builds `mem0.Memory` in-process on the same store with an LLM reranker on the same model, because
-  the REST server's `/search` has no rerank parameter.
+  the REST server's `/search` has no rerank parameter. Its server (`server/` of github.com/mem0ai/mem0 at
+  tag v2.2.0, with `mem0ai[nlp]==2.2.0` and the spaCy model its README asks for) keeps pgvector in its own
+  PostgreSQL on the harness's host.
+- **Every added system as documented.** Each adapter drives its system the way that system's own docs,
+  quick start or evaluation harness does, with its defaults, and says so in its module's docstring and in
+  the field table: no parameter tuned for this dataset, nothing changed in its code (with one exception,
+  Graphiti's server, whose two fixes are needed for it to store anything and are listed below).
 - **Niadra as documented.** The SDK is the current release on PyPI (`niadra==0.4.0`; the first run
   installed 0.1.5 and run 2026-09-25-6efee4 0.3.0, whose read path is the same for a read with its own
   `query`). 0.4.0 is the first that puts memory v2's `slots` in `turn_block` (0.3.0 drops the field), so
@@ -81,6 +108,11 @@ what a Niadra buyer buys.
   source, which trusts `credit` only, so Niadra refused 26 of the 32 promise cases' actions while Mem0
   stored them. Nothing else about Niadra is configured: starter policy and extraction schema, the space's
   language and time zone, no predicate added for the dataset.
+- **The run's billing key never outlives it.** A run that is stopped (the container or the host stops,
+  SIGTERM, SIGHUP or Ctrl-C) is cancelled, not killed: every target is closed, so the billing key is
+  revoked and a space flag the run set is put back. And every run first revokes any key of the
+  benchmark's billing sources that an earlier run left active (`ControlPlane.revoke_stale_keys`), since
+  two runs never share a space at the same time.
 - **Mem0 as its open source release.** What is compared is Mem0's open source release (the `mem0ai`
   package and the REST server of github.com/mem0ai/mem0 at tag v2.2.0), not the hosted Mem0 Platform.
   Two features Mem0 describes for the Platform are not in it: the time of an event (`timestamp` and
@@ -94,17 +126,65 @@ what a Niadra buyer buys.
   anything about the Platform's temporal or decay features, and changed fact and order and time in
   particular are measured against a Mem0 without them. The Platform's accuracy is measured only when a
   run includes `mem0_platform` (below), which the default run does not.
-- **Identity in two scenarios.** Mem0 does not resolve identity, so it runs with the same user id on
-  every channel (`known_id`, its best case) and with each channel's own id (`per_channel_id`). Niadra
-  receives the same handles in both.
+- **Identity.** No system but Niadra resolves identity across channels. Mem0 runs with the same user id
+  on every channel (`known_id`, its best case) and with each channel's own id (`per_channel_id`). Every
+  added system gets one store per customer (a user, group, bank, project or tag) with every channel in
+  it: the `known_id` scenario, their best case. Niadra receives the same handles in every scenario.
+- **Time.** Where a system's API takes the time of an event, it gets it (Graphiti's message `timestamp`,
+  Hindsight's `timestamp`, Memobase's `created_at`, MemOS's `chat_time`, and ai-memory the way its own
+  harness replays a dated history, a `[session date: ...]` prefix); where it does not (Mem0's open source
+  release, Supermemory local), the order of the writes is the only time it has.
 - **Fresh customers.** Every repetition seeds new phone numbers, e-mails and ids, so extraction runs
   again and no memory has seen them. Each metric runs three times; the site shows the median and the
   range.
 - **Frozen inputs.** `config/benchmark.toml`, `config/mem0.config.json` and `dataset/cases.jsonl` are
-  committed; every result file carries their hashes, the harness commit, the package versions and the
-  deployed Niadra server version. Dataset v2 adds `config/dataset.v2.toml` and `dataset/v2/cases.jsonl`;
-  a v2 run's configuration hash also covers the v2 settings, and a v1 run's hash is computed exactly as
-  before v2 existed.
+  committed; every result file carries their hashes, the harness commit, the package versions, each
+  added system's pinned version and the deployed Niadra server version. Dataset v2 adds
+  `config/dataset.v2.toml` and `dataset/v2/cases.jsonl`; a v2 run's configuration hash also covers the v2
+  settings, and a v1 run's hash is computed exactly as before v2 existed.
+
+## The field
+
+Each system runs from its own container entry (`deploy/systems/<dir>/compose.yaml`, versions pinned),
+alone on the host, and through its adapter (`src/niadra_bench/systems/<module>.py`). The columns are what
+the adapter does, the way the system's own documentation does it, and what the reader of a number must
+know.
+
+| Key | System and version | Containers | How it is used | Caveats |
+|---|---|---|---|---|
+| `niadra` | Niadra, the cell's deployed server | the cell | `POST /v1/batch` per session with each event's time and channel; `POST /v1/context` per turn with the question as `query`; voice and chat views | The only system with identity across channels and a verification level per conversation; read over a network hop (edge and VPC) |
+| `mem0_oss`, `mem0_oss_rerank` | Mem0 open source, v2.2.0 | its REST server, PostgreSQL with pgvector, its gateway | above | No event time; one extraction call per exchange; the rerank column is in-process (no latency line) |
+| `ai_memory` | ai-memory 2.4.1 (MIT, akitaonrails) | one binary (`akitaonrails/ai-memory:2.4.1`) | One project per customer; each session replayed through `POST /hook/batch` at its hooks' cadence (`session-start`, a `user-prompt-submit` per customer turn, a `stop` with the assistant excerpt per agent turn, `session-end`), the session's date before each text and a system record as its own session, exactly as its LongMemEval harness replays a history (`evals/src/retrieval/ingest.rs`); `memory_query` over MCP with the question and `limit` 10, and the agent receives each hit's title and snippet, the context its harness counts; `memory_read_page` as `open` | Made for coding agents, not customers. Its defaults: no model provider, so pages are written by rule and the text of an agent's answer is kept only as a raw observation, reached through the raw fallback when no page matches; its optional local embeddings, as its own benchmark runs it (`all-MiniLM-L6-v2`, English, in process; its `openai-compat` embedder could take the benchmark's, which is left unused so it runs as documented); assistant capture on, as its harness sets it. A hit's title is the session's first prompt cut at about 80 characters, and the date prefix takes about 40 of them |
+| `ai_memory_llm` | the same, with its optional consolidation by a model at `session-end` (`AI_MEMORY_CONSOLIDATE_ON_SESSION_END`) | the binary and its gateway | as above, plus the settle waits for its consolidation queue to go quiet | The consolidation prompt and page kinds are its own, written for code (decisions, gotchas, procedures) |
+| `graphiti` | Graphiti server 0.30.2 (`zepai/graphiti`) with Neo4j 5.26.2 | server, Neo4j, gateway | `POST /messages` per session with the customer's `group_id`, each message's `role_type`, `role`, `timestamp` and the channel; the settle reads `GET /episodes/{group_id}` until every message is an episode; `POST /search` with `max_facts` 10; `GET /entity-edge/{uuid}` as `open` | Its server needed two fixes to store anything (`deploy/systems/graphiti/patch.py`): the client of a request was closed when the request ended, before the background queue used it, and the queue's worker stopped for good at the first failed episode. Its queue adds one message at a time, with several model calls each: a full dataset v2 repetition is about 5,200 episodes, many hours; run it with `--limit` and say so. One base URL for its model and its embedder; the gateway pins its small model to the extraction model |
+| `hindsight` | Hindsight 0.10.1 (`ghcr.io/vectorize-io/hindsight`, embedded PostgreSQL) | one container, gateway | One bank per customer; one `retain` item per session, the whole conversation as `Name (timestamp): text` lines with its `timestamp`, a `context` label and a `document_id`, as its docs ask for a conversation (not one per turn); `recall` with its defaults; `GET .../memories/{id}` as `open`; a live exchange is an `async` retain | Its reranker is its default local cross-encoder |
+| `hindsight_reflect` | the same, read with `reflect` | its own server and gateway (`deploy/systems/hindsight-reflect`) | the same writes; each read is `POST .../reflect` with the question and its defaults, and the agent receives its answer text | A model call on every read: its latency, its cost and its tokens include the reasoning |
+| `memobase` | Memobase v0.0.42 (built from its repository), PostgreSQL with pgvector, Redis 7.4 | API, database, Redis, gateway | One user per customer (a UUID from the customer's id); one `ChatBlob` per session with each message's `created_at`, then `flush`, as its docs ask at the end of a session; `context()` with `max_token_size` 600 on voice and 1,500 in chat (Niadra's view budgets) and the question as the current chat | No commit since 11/01/2026; profile topics are its defaults (written for companions and assistants, not customer service); a live exchange waits in its buffer until it flushes by size or age, which metric 6 counts |
+| `supermemory` | Supermemory local, `supermemory-server` server-v0.0.8 (MIT binary) | the binary, a forwarder in its network namespace, gateway | One `containerTag` per customer; one document per session (`customId`, the conversation as `user:` and `assistant:` lines, `dreaming: "instant"`, which its docs name for benchmarking); `POST /v4/profile` with the question, and the context its quickstart builds from it (static profile, dynamic profile, related memories) | No event time. The local binary is licensed for 10,000 documents (about 2,800 per repetition of dataset v2): run one repetition per fresh container. It signs requests from its own host with its key, so the harness reaches it through a forwarder (`supermemory-local`) that adds a loopback hop. No search mode "documents" (the dataset has no documents) |
+| `memos` | MemOS v2.0.34 (built from its repository), Neo4j 5.26.6, Qdrant 1.15.3 | API, Neo4j, Qdrant, gateway | One user and cube per customer; `POST /product/add` per exchange with `chat_time` and the session, `async`; the settle calls `POST /product/scheduler/wait` for every customer and then waits for the memory count to stay the same (the wait needs the optional Redis queue, off in its example configuration); `POST /product/search` with its defaults (`fast`, `top_k` 10) | Its activation memory (a KV cache of a local model) is outside the server API and not measured; a CRM or ERP record is a `system` message |
+
+What no system here has, so their rows read "no mechanism" rather than a score: a verification level per
+conversation and a policy by purpose (privacy); identity across channels (every added system gets the
+customer's id already resolved, its best case).
+
+## Load on production
+
+Only Niadra runs on production; the caps are in config `[production]` and apply to every run that is not
+a dry run:
+
+| What | Cap | Why |
+|---|---|---|
+| Seeding | 2 batches per second across all seeding tasks, 4 at a time; a 429 or 503 pauses every seeding task for 30 s (or the Retry-After, if longer) | On 25/09 the afternoon run seeded about 12 batches per second with about 18% of the conversations extracted (174 of 986): about 2 extractions per second reached the workers and the cell held. Since niadra-back bb4ecaa nearly every conversation is extracted, so the same pace became about 10 per second in the evening run and saturated PgBouncer (4 server connections per database and role, 6 per database) and the db.t4g.micro. At 2 batches per second, dataset v2 (2,780 batches, 2,328 of them conversations) sends about 1.7 extractions per second, the rate the cell absorbed on 25/09, and takes about 23 minutes per repetition |
+| Reads outside the timed loops | 4 at a time; the settle pass reads every case at most once per 10 s | The settle, the accuracy pass and the verifications read the context of hundreds of customers; 4 at a time keeps them to tens of reads per second |
+| Metric 1, `context()` | 10 and 25 per second, both paths | `context()` serves the cached pack |
+| Metric 8, history navigation | 10 per second only | Each call opens a transaction on the space's database and writes a receipt |
+| Metric 9, ingestion | 10 per second only | Each call writes two events in one transaction and every 10 calls open a conversation to extract: one 30 s line is 300 calls and 30 conversations per path |
+
+Before a run, the sandbox space's daily extraction ceiling must cover it: at about $0.002 per
+extraction, three repetitions of dataset v2 (about 7,000 conversations) need about $14; the operator sets
+`llm_daily_micros:extraction` to at least 16,000,000 with `PUT /v1/quotas`. Past the ceiling, extraction
+waits for the next day and the settle step sees nothing change, so the accuracy pass would read half-built
+memory.
 
 ## History navigation and ingestion, call by call
 
@@ -133,15 +213,20 @@ How the Niadra side is prepared, before any clock starts:
 - **Fresh writes.** Every ingestion call is a new exchange with a new number and new idempotency
   keys, 10 exchanges per conversation, over the same seeded customers as metric 1, so the server never
   answers from its duplicate check.
-- **Paths.** Inside the cluster the calls go to each service's own address: `NIADRA_CLUSTER_URL`
-  (the `read` service) for navigation and `NIADRA_CLUSTER_INGEST_URL` (the `ingest` service) for the
-  acknowledgement; through the public TLS address they go where the SDK sends them.
+- **Paths.** Through the public TLS address the calls go where the SDK sends them (`edge`); from the
+  benchmark's host in the cell's VPC they also go to the cell machine's private address with the same
+  TLS name (`vpc`, `NIADRA_VPC_ADDRESS`). A harness running as a pod of the cell (no longer done) would
+  also call each service's own address (`cluster`: `NIADRA_CLUSTER_URL` for navigation,
+  `NIADRA_CLUSTER_INGEST_URL` for the acknowledgement).
+- **Rates.** Niadra's lines run at 10 per second only (config `[production]`); the other systems' at 10
+  and 25.
 
-Both searches start by encoding the question on the same embedding server (Niadra's read service calls
-`niadra-models`; Mem0 calls it through the embedding proxy). So that a search's time can be read without
-that step, metric 8 has a third line, `encode`: `POST /v1/embed` on `NIADRA_MODELS_URL` with the same
-probe questions, at the same rates, from inside the cluster (system `embedder`, since both searches pay
-it). Niadra's search line also keeps the steps its server names in `Server-Timing` (`server_timing`,
+Both searches start by encoding the question with the same model (Niadra's read service calls the
+cell's `niadra-models`; Mem0, and every added system that takes the benchmark's embedder, call the same
+image and model files on the harness's host). So that a search's time can be read without that step,
+metric 8 has a third line, `encode`: `POST /v1/embed` on `NIADRA_MODELS_URL` with the same probe
+questions, at the same rates (system `embedder`, path `host`: the copy on the harness's host, not the
+cell's pod). Niadra's search line also keeps the steps its server names in `Server-Timing` (`server_timing`,
 p50 and p95 per step): today only `app`, the whole request; a step the server adds later, such as the
 encoding, shows there with no change here.
 
@@ -198,126 +283,142 @@ How these were kept from favoring either system:
 
 Running v2 costs more than v1: about 2,330 conversations per repetition instead of 986 (the long
 customers are most of the difference), so seeding Mem0 and Niadra's extraction take about twice as
-long and cost about twice as much (below).
+long and cost about twice as much: on 25/09/2026 a v1 repetition cost about $6.50 on OpenRouter (Niadra's
+extraction about $0.35 before niadra-back bb4ecaa, Mem0's seeding about $2.70, the accuracy pass about
+$1.50, Mem0's `add_infer` loop about $2), so a v2 repetition with Niadra and Mem0 is about $11, three
+about $33 (budget $45), before the added systems' own extraction, which their gateways count.
 
 ## Layout
 
 ```
-config/                 frozen configuration and Mem0's configuration
-dataset/                the committed dataset v1 and its manifest; dataset/v2/, the same for v2
-src/niadra_bench/       the harness (`bench` command)
-tests/                  unit tests, and a dry run against niadra-mock
-deploy/Dockerfile       the harness image
-deploy/mem0/Dockerfile  Mem0's REST server at v2.2.0
-deploy/k8s/             secrets, Mem0's databases, Mem0 and the proxies, the run Job
-deploy/run-in-region.sh builds, deploys, runs and collects on the k3s machine
-deploy/local/           the same pipeline on Docker with fakes, for a smoke run
-results/                published runs: results/<date>-<id>/{summary.json,rep-N.json,cases-repN.jsonl}
-results/ab/             A/B runs in the region: results/ab/<date>-<id>/{ab.json,ab.md,baseline/,candidate/}
-results/local/          A/B runs on a local cell or the emulator (not committed)
-config/ab.toml          `bench ab`'s ceiling, apart from benchmark.toml so the published hash stays
+config/                  frozen configuration (benchmark.toml, with the production caps) and Mem0's
+dataset/                 the committed dataset v1 and its manifest; dataset/v2/, the same for v2
+src/niadra_bench/        the harness (`bench` command)
+src/niadra_bench/systems/  one adapter per added system (base.py: what an adapter provides)
+tests/                   unit tests, dry runs against niadra-mock and fakes, the deploy scripts with a stand-in AWS CLI
+deploy/Dockerfile        the harness image
+deploy/compose/base.yaml the embedding proxy and the harness, shared by every run
+deploy/systems/<dir>/    one container entry per system (compose.yaml, pinned; a Dockerfile when built from source)
+deploy/stack.sh          puts base, environment and system files together and runs docker compose
+deploy/local/            the local environment (fakes, niadra-mock) and run.sh, the local pipeline
+deploy/temp-host/        the temporary host: up.sh, down.sh, bench.sh (this computer), host.sh (the host)
+deploy/cell/cleanup.sh   removes what the benchmark left on the cell when it ran there
+results/                 published runs: results/<date>-<id>/{summary.json,rep-N.json,cases-repN.jsonl}
+results/ab/              A/B runs in the region: results/ab/<date>-<id>/{ab.json,ab.md,baseline/,candidate/}
+results/local/           A/B runs on a local cell or the emulator (not committed)
+config/ab.toml           `bench ab`'s ceiling, apart from benchmark.toml so the published hash stays
 deploy/local/cell_server.py  the local cell `bench ab --local-cell` runs in a niadra-back checkout
 ```
 
-## Running it in the region
+## Running it on the temporary host
 
-Requires the AWS session of the account that runs the cell (`aws login --profile niadra`), from a
-checkout of niadra-infra (for its `scripts/lib.sh`). The script runs on the k3s machine through
-Systems Manager, as the infra scripts do; it builds both images there from this repository and imports
-them into k3s (nothing is pushed to a registry).
-
-Secrets it reads, by name only:
-
-- `niadra/platform/openrouter` in AWS Secrets Manager (property `api_key`), through the cluster's
-  `ClusterSecretStore` `niadra`, into the Kubernetes secret `bench-openrouter`;
-- `niadra-sandbox-bootstrap` in the `niadra` namespace (the sandbox tenant's source keys), mounted
-  read-only into the run pod;
-- `niadra-db-init` (the database master user) and the `niadra-cell` config map, only in the job that
-  creates Mem0's databases;
-- `bench-mem0`, created by the script with random values: Mem0's database password, its admin API key
-  and its JWT secret.
+Requires the AWS session of the cell's account (`aws login --profile niadra`; the scripts refuse any other
+account) and, on this computer, the AWS CLI, Python 3 and bash. Nothing needs to be installed on the
+cell. From `benchmarks/`:
 
 ```bash
-cd niadra-infra && source scripts/lib.sh
-RUN=https://raw.githubusercontent.com/ainiadra/niadra-sdk-python/main/benchmarks/deploy/run-in-region.sh
-bench() { printf 'curl -fsSL %s | bash -s -- %s\n' "$RUN" "$*" > /tmp/bench.sh; }
+# 1. See what would be created and what it costs; nothing is created.
+deploy/temp-host/up.sh
 
-# 1. Build both images on the machine, import them into k3s, create Mem0's databases, start Mem0,
-#    the embedding proxy and the meter (about 10 minutes the first time).
-bench up && on_ops /tmp/bench.sh 1800
+# 2. Create it and wait until it is ready (about 10 minutes: Docker, this repository at BENCH_REF,
+#    the secrets read by name, the embedder image, the harness image).
+deploy/temp-host/up.sh --confirm
 
-# 2. A smoke run first: 14 cases, one repetition, short latency (about 10 minutes, under $1).
-bench start run --systems niadra,mem0_oss,mem0_oss_rerank --limit 14 --repetitions 1 --quick && on_ops /tmp/bench.sh 300
-bench status && on_ops /tmp/bench.sh 120        # repeat until the Job is Complete
-bench collect && ops_query /tmp/bench.sh        # read the summary: every metric present, no errors
+# 3. The campaign: each comma-separated list is one run, alone on the host, one after the other.
+deploy/temp-host/bench.sh campaign niadra mem0_oss,mem0_oss_rerank ai_memory ai_memory_llm \
+  hindsight hindsight_reflect memobase supermemory memos -- --dataset v2
+deploy/temp-host/bench.sh start graphiti --dataset v2 --limit 60 --repetitions 1   # Graphiti alone, smaller
+deploy/temp-host/bench.sh status          # repeat: containers, the campaign's progress, the run's log
 
-# 3. The full run: every case, three repetitions (duration and cost below).
-bench start && on_ops /tmp/bench.sh 300
-bench status && on_ops /tmp/bench.sh 120        # repeat until the Job is Complete
+# 4. The results into results/, then one folder for the site (the first folder's references count).
+deploy/temp-host/bench.sh collect
+uv run bench combine results/<niadra run> results/<mem0 run> results/<ai-memory run> ...
 
-# 4. Collect: copies the run folder to s3://<cell bucket>/benchmarks/<date>-<id>/ and prints the summary.
-bench collect && ops_query /tmp/bench.sh
-aws s3 cp --recursive s3://<cell bucket>/benchmarks/<date>-<id>/ ../niadra-sdk-python/benchmarks/results/<date>-<id>/
-
-# 5. When done: remove every benchmark object and Mem0's databases.
-bench down --drop-db && on_ops /tmp/bench.sh 600
+# 5. Delete everything it created, and check that nothing is left (it refuses while a results folder
+#    is still only on S3).
+deploy/temp-host/down.sh
 ```
 
-`start` takes any `bench run` arguments. Without arguments it runs every metric on `niadra`, `mem0_oss`
-and `mem0_oss_rerank`, on dataset v1.
+What `up.sh --confirm` creates, each tagged `niadra:bench-temp-host=<id>`, and `down.sh` deletes and
+checks: the instance (m7i-flex.large, 2 vCPU and 8 GiB, free-tier eligible, Ubuntu 24.04, in the cell
+machine's public subnet with a public address, IMDSv2 only; the VPC's private subnets have no route out,
+by the cell's design, and the host must reach GitHub, the image registries, OpenRouter and Niadra's public
+address), its 40 GiB encrypted gp3 volume (deleted with
+it), a security group with no inbound rule (the host is reached through Systems Manager only), an IAM role
+and instance profile (Systems Manager; `secretsmanager:GetSecretValue` on `niadra/platform/openrouter` and
+`niadra/tenant/bootstrap` only; pull of `niadra/models` only; read and write of
+`s3://<cell bucket>/benchmarks/temp-host/<id>/` only), and that S3 prefix. The host terminates itself after
+`BENCH_MAX_HOURS` (default 24) even if `down.sh` never runs; the role, the group and the prefix cost
+nothing and stay until `down.sh`.
 
-Dataset v2, and Niadra's `memory_v2` space flag (the read path of memory v2 ships behind it, off by
-default). `--niadra-memory-v2 on|off` sets the flag for the run through the control API, with the
-bootstrap's admin account, as a configuration diff the same person approves, before seeding; it puts the
-previous value back when the run ends. The flag lives at `settings/memory_v2` (`<document type>/<dotted
-field>`); `NIADRA_MEMORY_V2_FLAG` overrides that. Without the option the space is left as it is. Two runs
-with different flag values must not overlap in the same space. `summary.json` records the choice
-(`config.niadra_memory_v2`: `on`, `off` or `unchanged`) and the dataset (`dataset.version`).
+Cost, on-demand in us-east-2 (up.sh reads the price list and prints it again): m7i-flex.large $0.0958 per
+hour, 40 GiB of gp3 $0.0044 per hour, a public IPv4 address $0.005 per hour: about $0.105 per hour, $0.84 for
+an 8-hour campaign, $2.52 if it runs the full 24 hours. On the free plan it is paid from the account's
+credits (about $130). c7i-flex.large (4 GiB) is cheaper ($0.085 per hour) but too small for a system
+with Neo4j beside the harness and the embedder; set `BENCH_INSTANCE_TYPE` to change it. The models are
+paid on OpenRouter, outside AWS: Niadra's extraction runs on the cell; each other system's extraction is
+counted by its gateway and reported as its cost line.
+
+Memory on the host, one system at a time: the embedder 1.5 GiB and the harness 1.5 GiB at most, then the
+system (MemOS: Neo4j 2 GiB, Qdrant 768 MiB, its API 2 GiB; Graphiti: Neo4j 2 GiB, its server 1 GiB;
+Hindsight 3 GiB; Supermemory 3 GiB; Mem0 1.8 GiB with its database), under the 7.6 GiB the instance
+gives. Neo4j's heap and page cache are capped in the two compose files that use it, the only setting of
+theirs changed.
+
+Secrets, by name only: the host reads `niadra/platform/openrouter` (property `api_key`) and
+`niadra/tenant/bootstrap` (the sandbox tenant's source keys and admin account, which the billing agent's
+source and the `memory_v2` flag need) with its own role, into root-only files, and gives the harness the
+bootstrap as a read-only file and the provider key through the environment of its gateways and its agent.
+The local systems' own tokens and database passwords are random, generated on the host.
+
+`start` and `campaign` take any `bench run` arguments; `--niadra-memory-v2 on|off` works as before (the
+flag lives at `settings/memory_v2`; `NIADRA_MEMORY_V2_FLAG` overrides that; two runs with different values
+must not overlap in the same space):
 
 ```bash
-bench start run --dataset v2 --niadra-memory-v2 off && on_ops /tmp/bench.sh 300    # memory v2 off
-bench start run --dataset v2 --niadra-memory-v2 on && on_ops /tmp/bench.sh 300     # then on, same cases
+deploy/temp-host/bench.sh start niadra --dataset v2 --niadra-memory-v2 off
+deploy/temp-host/bench.sh start niadra --dataset v2 --niadra-memory-v2 on
 ```
 
-Memory requests of the benchmark's pods are what each one held under the benchmark on 25/09/2026, so a
-run fits beside production with monitoring on: the harness 352 MiB (it held 333, peak 383), Mem0's
-server 384 MiB (379, peak 424), the embedding proxy 48 MiB (44, peak 54), the meter 64 MiB (49, peak
-52). Limits stay above the peaks with room: 1 GiB for the harness and Mem0 (dataset v2's longer customers
-make the harness's rows and Mem0's prompts larger), 128 MiB for the proxy and the meter. A pod past its
-request is the first the node evicts under pressure, never a production pod. `mem0_platform` needs a `MEM0_API_KEY` from a free Mem0 account, added to the
-Job by hand; it is not part of the default run. `BENCH_REF` picks another branch or tag of this
-repository.
+Expected duration per repetition of dataset v2 (356 cases, about 2,330 conversations), not yet measured:
+Niadra's seeding at the production cap about 23 minutes, then its settle; Mem0 about 1 h 15 (seeding both
+scenarios, the accuracy pass, the timed loops); each added system from minutes (ai-memory without a model)
+to hours (Graphiti, whose server adds one message at a time with several model calls each; run it with
+`--limit`). `mem0_platform` needs a `MEM0_API_KEY` from a free Mem0 account, added to the harness's
+environment by hand; it is not part of the default run.
 
-Expected duration and cost of the full run (240 cases, three repetitions), from the smoke run's call
-counts and OpenRouter's public prices on 2026-09-24:
+### What the benchmark left on the cell
 
-| Step, per repetition | Time | OpenRouter spend |
-|---|---|---|
-| Seed Niadra and wait for its extraction to settle | 10 to 20 min | about $0.35 (Niadra's own extraction) |
-| Seed Mem0, both scenarios (about 1,500 `add()` each, about 8,600 prompt tokens per call) | 15 to 20 min | about $2.70 |
-| Accuracy pass: 7 systems x 240 cases, agent and judge, rerank searches | 25 to 30 min | about $1.50 |
-| Latency, freshness, resilience | about 8 min | none |
-| History navigation and ingestion acknowledgement (about 1,100 `add()` with `infer` on Mem0; Niadra extracts the conversations the writes open, in the background) | 13 to 16 min | about $2 (almost all Mem0's `add_infer`) |
-| **Total per repetition** | **about 1 h 15 to 1 h 35** | **about $6.50** |
+Runs until 25/09/2026 ran on the cell. `deploy/cell/cleanup.sh` lists what they may have left there (the
+Kubernetes objects labelled `app.kubernetes.io/part-of=niadra-benchmarks`, the `bench-mem0` secret, Mem0's
+databases `mem0_bench` and `mem0_bench_app` and the role `mem0_bench` on the RDS instance, the benchmark's
+images in the node's containerd); `--confirm` removes them and lists again. The old `bench down --drop-db`
+ran `kubectl run -i` inside the script that Systems Manager fed to bash on its standard input, so kubectl
+read the rest of the script as the pod's input and the `DROP` never ran. Every script sent through Systems
+Manager now is written to a file and run with its standard input closed (`deploy/temp-host/lib.sh`,
+`ssm_run`), and the cleanup's SQL goes in as `psql -c` arguments through `kubectl exec` to a pod that only
+waits.
 
-Since niadra-back bb4ecaa (2026-09-25) the extraction gate sends to the model the short exchanges that
-settle a value, so Niadra extracts about 980 of the 986 conversation sessions of a repetition instead of
-about 174, several times the spend above. Before a run, make sure the sandbox space's daily extraction
-ceiling covers three repetitions (it is $0.50 a day unless the tenant's contract sets
-`llm_daily_micros:extraction`; the operator sets it with `PUT /v1/quotas`). Past the ceiling, extraction
-waits for the next day and the settle step sees nothing change, so the accuracy pass would read
-half-built memory. A prompt change also re-extracts up to 1,000 recent sessions per space after the
-deploy, from the same ceiling.
+## Adding a system
 
-Three repetitions: about 4 h to 4 h 45 and about $20 (budget $30 for retries).
+One module in `src/niadra_bench/systems/` with one `HttpSystem` subclass, and its container entry:
 
-Dataset v2 (356 cases, about 2,330 conversations per repetition instead of 986), estimated from the table
-above by the number of conversations and cases, not yet measured: seeding and settling Niadra 20 to 40
-min, seeding Mem0 35 to 45 min and about $6.20, the accuracy pass 35 to 45 min and about $2.20, the rest
-unchanged. About 2 h to 2 h 30 and about $11 per repetition; three repetitions, 6 to 7 h 30 and about $33
-(budget $45). The sandbox's daily extraction ceiling must cover about 7,000 sessions (three repetitions). No AWS resource is
-created beyond Kubernetes objects and two small databases on the existing RDS instance; the machine
-and the database are the ones already running.
+1. `src/niadra_bench/systems/<name>.py`: the class sets `system` (the results key), `title`, `compose`
+   (its directory under `deploy/systems/`), `url_env` and `default_url` (the service's name in its compose
+   file), `version` (the pinned release), and, if it calls a model, `meter_env` and `meter_default` (its
+   gateway). It implements `seed_calls` (the calls that write a customer's history, as its docs do it),
+   `read_call` and `memories` (a turn's read, and the lines the agent receives), `exchange_call` (one live
+   exchange), and, when the system has them, `open_call`, `ensure_calls` (a user to create first),
+   `health_call` and `settle` (how to know its background work is done). The module's docstring says how
+   the system is used and why that is its documented way. `tests/test_systems.py` checks every adapter.
+2. `deploy/systems/<dir>/compose.yaml`: its first line names the keys it serves (`# systems: <key> ...`);
+   its services, with every image pinned (a test refuses `latest`), its gateway if it calls a model
+   (`bench serve llm-meter` with `LLM_UPSTREAM: ${BENCH_LLM_UPSTREAM}`, `LLM_API_KEY: ${BENCH_LLM_API_KEY}`
+   and `EMBED_UPSTREAM: http://embed:8080/v1`), and `mem_limit` on each, so it fits the host beside the
+   harness.
+3. A dry run: `deploy/local/run.sh <key>`, then its row in the field table above, with its caveats.
+
+The registry finds the class by its key; `bench run --systems <key>` measures it with every metric.
 
 ## A/B: the delta between two settings
 
@@ -366,14 +467,15 @@ Where the two sides run:
   what the region would measure.
 - **The emulator** (`--mock`): niadra-mock on both sides. It has no server settings, so it runs only
   `--same`; the CI runs it.
-- **The region** (neither option, from the run Job): the Niadra of `NIADRA_BOOTSTRAP`. The harness
+- **The region** (neither option, from the temporary host): the Niadra of `NIADRA_BOOTSTRAP`, read and
+  written within the production caps (config `[production]`). The harness
   changes only what the bootstrap's admin account changes through the control API, the space's settings:
   `NIADRA_MEMORY_V2` (as `--niadra-memory-v2` does, put back at the end of each side's repetition). A
   setting of the read deployment's process, such as `NIADRA_SEMANTIC_CHANNEL`, is refused there: that
   deployment also serves production; that A/B runs on a local cell until the region has a read deployment
   of the benchmark's own. The two sides seed different customers (the same cases) into the same space,
   one after the other. `[ab] max_minutes` in `config/ab.toml` (450) stops an A/B before a repetition that
-  would pass it, under the Job's 8 hours, and the report says it is incomplete.
+  would pass it, and the report says it is incomplete.
 
 A local cell imports the checkout's code when it starts and records that commit. Point it at a worktree
 that nothing else pulls during the A/B (`git worktree add ../wt/niadra-back-ab origin/main`, then `uv
@@ -389,9 +491,10 @@ uv run bench ab --local-cell ../../niadra-back --baseline-env NIADRA_MEMORY_V2=o
 uv run bench ab --local-cell ../../niadra-back --candidate-cell ../../wt/niadra-back-mybranch \
     --baseline-env NIADRA_MEMORY_V2=on --dataset v2
 
-# In the region (see "Running it in the region"; `collect` copies results/ab/<date>-<id>/):
-bench start ab --same --dataset v2 && on_ops /tmp/bench.sh 300
-bench start ab --candidate-env NIADRA_MEMORY_V2=on --dataset v2 && on_ops /tmp/bench.sh 300
+# In the region, from the temporary host (see "Running it on the temporary host"; `collect` copies
+# results/ab/<date>-<id>/ too):
+deploy/temp-host/bench.sh ab --same --dataset v2
+deploy/temp-host/bench.sh ab --candidate-env NIADRA_MEMORY_V2=on --dataset v2
 ```
 
 ## Ranking gate
@@ -408,29 +511,30 @@ under `results/ab/`, and the decision cites that file.
 
 ## Publishing
 
-1. Commit `results/<date>-<id>/` here (summary, repetitions, and the per-case rows that let anyone
-   audit every grade).
+1. Put the runs of one campaign together with `bench combine` (one folder, the site's schema, with the
+   list of runs in `combined_from`) and commit `results/<date>-<id>/` here (summary, repetitions, and the
+   per-case rows that let anyone audit every grade), with the runs it came from.
 2. In niadra-frontend: `node scripts/import-benchmark.mjs ../niadra-sdk-python/benchmarks/results/<date>-<id>/summary.json`.
-   The importer refuses anything but a `region` run. The page `/benchmark` then shows the numbers,
-   and the prerender puts it in the sitemap and llms.txt. The menu entry (Recursos) and the footer
-   link are added by hand once the owner has read the results.
+   The importer refuses anything but a `region` run. Each added system appears as a new `system` key in
+   every metric; Niadra's paths are now `edge` and `vpc`, every other system's `host`; privacy lines carry
+   `verification`; the environment adds `harness_host` and `harness_machine_class`.
 3. Where Niadra loses on a metric, add one line with the most likely reason to `site_notes` in the
    imported file (`{"pt": {"latency": "..."}, "en": {...}}`); the page prints it under that chart.
 
-## Local checks and a smoke run without keys
+## Local checks and a dry run without keys
 
 ```bash
 uv sync
-uv run pytest -q                       # unit tests and a dry run against niadra-mock
+uv run pytest -q                       # unit tests, dry runs against niadra-mock and fakes, the deploy scripts
 uv run bench prepare --check           # both committed datasets are what the generator makes, and valid
 uv run bench run --mock --systems niadra --quick --limit 28 --repetitions 1 --output /tmp/bench   # no network
-uv run bench run --mock --systems niadra --dataset v2 --quick --limit 72 --repetitions 1 --output /tmp/bench
 uv run bench ab --same --mock --quick --limit 28 --repetitions 1                    # the A/B plumbing
-docker compose -f deploy/local/compose.yaml up --build --exit-code-from harness harness
+deploy/local/run.sh                    # every system, one at a time, on Docker with fakes; then combined
+deploy/local/run.sh ai_memory -- --dataset v2 --quick --limit 14 --repetitions 1
 ```
 
-The compose file runs the whole pipeline (Mem0's real server, pgvector, the proxies, niadra-mock and
-every metric) with fake LLM and embedding servers, so it needs no key. It proves the plumbing only.
+The local pipeline runs each system's real server and databases with fake model and embedding servers and
+niadra-mock, so it needs no key. It proves the plumbing only; its numbers are never published.
 
 ## Known limits of the comparison
 
@@ -449,13 +553,14 @@ every metric) with fake LLM and embedding servers, so it needs no key. It proves
 - Mem0's ingestion lines are the open source server's two synchronous modes. The hosted Platform's
   asynchronous `add()` (`async_mode`, the answer before the extraction) is the closest to Niadra's
   acknowledgement, but the Platform runs outside the region, so it is not measured.
-- The billing agent's source is created with the bootstrap's admin account only when the run pod has
-  `NIADRA_CONTROL_URL` (the region Job sets it). Without it (a local run, niadra-mock) the actions go
+- The billing agent's source is created with the bootstrap's admin account only when the harness has
+  `NIADRA_CONTROL_URL` (the temporary host sets it to the control plane's public address). Without it (a local run, niadra-mock) the actions go
   through the sandbox's starter billing source; any refused action is still listed under
   `seed.niadra.refused_actions`, and `seed.niadra.declared_operations` says which setup the run used.
 - The agent answers from one read, with no tools. Niadra's voice guide also gives the agent
   `search_customer_history` for older matters; the benchmark measures the pack alone, as it measures one
-  `search()` for Mem0.
+  `search()` for Mem0 and one read for every added system (ai-memory's agents may also call
+  `memory_read_page` on a hit; Hindsight's `reflect` and Honcho-style reasoning reads are not measured).
 - E-mail and app sessions are written with the WhatsApp source's key and their own `channel`, because
   the sandbox has no e-mail or app source; the memory records the event's channel, so the packs are the
   same, but a company would give each channel its own source and key.
@@ -463,3 +568,18 @@ every metric) with fake LLM and embedding servers, so it needs no key. It proves
   does: an unproven call reads at V0, where the starter policy withholds order numbers.
 - The third Mem0 column of the plan (its own defaults, `gpt-4o-mini` and `text-embedding-3-small`)
   needs an OpenAI embeddings key and is not in the default run.
+- Niadra is read across a network (its public address, or its private address in the VPC through the
+  cell's ingress); every other system answers on the harness's own host. Their latency lines have no
+  network in them; Niadra's do.
+- The embedding line `encode` times the copy of the embedder on the harness's host, which Mem0 and the
+  added systems call; Niadra's read service calls the cell's own copy, which that line does not time.
+- Niadra's history navigation and ingestion run at 10 per second only (the production cap); the other
+  systems at 10 and 25. The 25 per second lines have no Niadra counterpart.
+- The added systems' ingestion lines use each system's documented write for a live exchange: an
+  asynchronous one where the system has it (Graphiti's queue, Hindsight's `async` retain, Supermemory's
+  queued document, MemOS's `async` add, ai-memory's hook batch), so like Niadra's they answer before the
+  memory is built; Memobase's insert goes to its buffer. Mem0's open source server has no such mode.
+- Runs of different systems are put together by `bench combine`, with one validity rule for all (the
+  first run's references); each system still ran alone on the host, at a different time, against the
+  same dataset and configuration hash.
+

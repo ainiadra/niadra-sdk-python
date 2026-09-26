@@ -52,6 +52,7 @@ class Supermemory(HttpSystem):
     url_env = "SUPERMEMORY_URL"
     default_url = "http://supermemory:6768"
     version = "server-v0.0.8"
+    min_settle_timeout_s = 4 * 3600.0
     meter_env = "SUPERMEMORY_METER_URL"
     meter_default = "http://supermemory-gateway:8081"
 

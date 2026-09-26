@@ -74,6 +74,7 @@ class Memobase(HttpSystem):
     default_url = "http://memobase:8000"
     token_env = "MEMOBASE_ACCESS_TOKEN"  # noqa: S105 - the variable's name, not a token
     version = "0.0.42"
+    min_settle_timeout_s = 4 * 3600.0
     meter_env = "MEMOBASE_METER_URL"
     meter_default = "http://memobase-gateway:8081"
 

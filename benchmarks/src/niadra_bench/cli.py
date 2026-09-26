@@ -7,6 +7,8 @@ bench run [options]              seed, measure and write results/<date>-<id>/ (-
 bench report <results dir>       rebuild summary.json from the repetitions of a run
 bench ab [options]               a baseline and a candidate on the same cases, and the delta
                                  (--candidate-env KEY=VALUE, --same, --local-cell <niadra-back>)
+bench combine <dir> <dir> ...    one results folder from runs of different systems (the temporary host
+                                 runs one system at a time); the first folder's references decide validity
 bench systems [--compose]        the systems added through adapters and their deploy/systems directory
 bench serve embed-proxy|llm-meter [--port N]    (fake-llm and fake-models: local smoke runs only)
 """
@@ -167,6 +169,17 @@ def _report(args: argparse.Namespace) -> int:
     return 0
 
 
+def _combine(args: argparse.Namespace) -> int:
+    from niadra_bench.combine import combine
+
+    directories = [Path(d) for d in args.directories]
+    first = json.loads((directories[0] / "summary.json").read_text())
+    cases = {c.id: c for c in load_cases(first["dataset"].get("version", bench_config.DEFAULT_DATASET))}
+    output = Path(args.output) if args.output else bench_config.RESULTS_DIR
+    print(f"combined into {combine(directories, output, cases)}")
+    return 0
+
+
 def _systems(args: argparse.Namespace) -> int:
     """The systems added through adapters, one per line: key, deploy/systems directory, name."""
     from niadra_bench.systems import REGISTRY
@@ -318,6 +331,11 @@ def main(argv: list[str] | None = None) -> None:
     report = sub.add_parser("report", help="rebuild summary.json from a run's repetitions")
     report.add_argument("directory")
     report.set_defaults(func=_report)
+
+    combined = sub.add_parser("combine", help="one results folder from runs of different systems")
+    combined.add_argument("directories", nargs="+", help="results folders; the first one's references count")
+    combined.add_argument("--output", default=None, help="where the new folder goes (default: results/)")
+    combined.set_defaults(func=_combine)
 
     systems = sub.add_parser("systems", help="list the systems added through adapters")
     systems.add_argument("--compose", action="store_true", help="key and compose directory only")

@@ -82,6 +82,7 @@ class Graphiti(HttpSystem):
     url_env = "GRAPHITI_URL"
     default_url = "http://graphiti:8000"
     version = "0.30.2"
+    min_settle_timeout_s = 12 * 3600.0
     has_open = True
     meter_env = "GRAPHITI_METER_URL"
     meter_default = "http://graphiti-gateway:8081"

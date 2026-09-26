@@ -115,3 +115,10 @@ jobs:
       - run: uv run mypy
       - run: uv run bench prepare --check
       - run: uv run pytest -q
+      # The deploy scripts (the temporary host, the cell cleanup, the local pipeline) and every system's
+      # container entry, put together the way deploy/stack.sh does it.
+      - run: shellcheck -x -S warning deploy/stack.sh deploy/temp-host/*.sh deploy/cell/cleanup.sh deploy/local/run.sh
+      - run: |
+          all="niadra,mem0_oss,$(uv run --quiet bench systems --compose | awk '{print $1}' | paste -sd, -)"
+          deploy/stack.sh local "$all" config --quiet
+          BENCH_MODELS_IMAGE=registry.example/niadra/models:ci deploy/stack.sh temp-host "$all" config --quiet
