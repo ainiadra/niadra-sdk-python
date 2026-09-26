@@ -9,6 +9,8 @@ with the client as it ships:
 - Mem0: `POST /search` on its REST server with an HTTP client at its defaults (httpx, 5 s) and
   `raise_for_status()`, the way its REST examples call it. Mem0's REST server has no official
   Python client, so there is no budget or fallback to inherit.
+- The systems added through `niadra_bench.systems`: their read, called the same way as Mem0's
+  (`HttpSystem.resilience_trials`).
 
 For each trial: the time until the agent can call its model, whether that fits the voice turn budget,
 whether an exception reached the agent's code, and whether the memory block came back empty.
@@ -18,7 +20,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Protocol
 
 import httpx
 from niadra import AsyncNiadra, CacheOptions
@@ -28,6 +30,17 @@ from niadra_bench.identity import Identities
 from niadra_bench.services.fault_proxy import Fault, FaultProxy
 from niadra_bench.services.serve import background
 from niadra_bench.stats import distribution, rate
+
+
+class Faulty(Protocol):
+    system: str
+    url: str
+    #: How to reach the server (None: the network); in-process fakes in tests.
+    transport: httpx.AsyncBaseTransport | None
+
+    async def resilience_trials(
+        self, proxy_url: str, pairs: Sequence[tuple[Case, Identities]]
+    ) -> list[tuple[float, bool, bool]]: ...
 
 
 async def _niadra_trials(
@@ -111,6 +124,7 @@ async def run(
     top_k: int,
     threshold: float,
     transport: httpx.AsyncBaseTransport | None = None,
+    others: Sequence[Faulty] = (),
 ) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for fault in (Fault(delay_ms=delay_ms), Fault(status=status)):
@@ -122,4 +136,8 @@ async def run(
             async with background(FaultProxy(mem0_upstream, fault)) as url:
                 trials = await _mem0_trials(url, mem0_key, pairs, top_k, threshold)
             out.append(_summary("mem0_oss", fault, trials, budget_ms))
+        for other in others:
+            async with background(FaultProxy(other.url, fault, transport=other.transport)) as url:
+                trials = await other.resilience_trials(url, pairs)
+            out.append(_summary(other.system, fault, trials, budget_ms))
     return out

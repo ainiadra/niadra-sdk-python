@@ -1,0 +1,45 @@
+# systems: memobase
+# Memobase (github.com/memodb-io/memobase, Apache 2.0) at v0.0.42, as src/server/docker-compose.yml runs
+# it: the API, PostgreSQL with pgvector and Redis 7.4. config.yaml sets only the models (the benchmark's
+# extraction model and embedder, through the system's gateway). The access token only guards a server with
+# no published port; the harness sends the same value.
+services:
+  memobase-db:
+    image: pgvector/pgvector:0.8.6-pg17
+    environment:
+      POSTGRES_USER: memobase
+      POSTGRES_PASSWORD: ${MEMOBASE_DB_PASSWORD:-bench-local-only}
+      POSTGRES_DB: memobase
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U memobase -d memobase"], interval: 2s, retries: 30}
+    mem_limit: 768m
+
+  memobase-redis:
+    image: redis:7.4
+    command: [redis-server, --requirepass, "${MEMOBASE_REDIS_PASSWORD:-bench-local-only}"]
+    healthcheck: {test: ["CMD", "redis-cli", "-a", "${MEMOBASE_REDIS_PASSWORD:-bench-local-only}", "ping"], interval: 2s, retries: 30}
+    mem_limit: 256m
+
+  memobase-gateway:
+    image: ${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}
+    command: [serve, llm-meter, --port, "8081"]
+    environment:
+      LLM_UPSTREAM: ${BENCH_LLM_UPSTREAM:-http://fake-llm:9001/v1}
+      LLM_API_KEY: ${BENCH_LLM_API_KEY:-}
+      EMBED_UPSTREAM: http://embed:8080/v1
+    mem_limit: 128m
+
+  memobase:
+    build: {context: .}
+    image: niadra-bench/memobase:v0.0.42
+    depends_on:
+      memobase-db: {condition: service_healthy}
+      memobase-redis: {condition: service_healthy}
+      memobase-gateway: {condition: service_started}
+    environment:
+      DATABASE_URL: postgresql://memobase:${MEMOBASE_DB_PASSWORD:-bench-local-only}@memobase-db:5432/memobase
+      REDIS_URL: redis://:${MEMOBASE_REDIS_PASSWORD:-bench-local-only}@memobase-redis:6379/0
+      ACCESS_TOKEN: ${MEMOBASE_ACCESS_TOKEN:-bench-local-only}
+      PROJECT_ID: niadra_bench
+      USE_CORS: "false"
+    volumes: ["./config.yaml:/app/config.yaml:ro"]
+    mem_limit: 1g

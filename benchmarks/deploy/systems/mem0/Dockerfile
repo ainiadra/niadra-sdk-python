@@ -4,7 +4,7 @@
 # telemetry off, the database migrations before start (as its docker-compose does), and psycopg's
 # binary build: at v2.2.0 requirements.txt lists plain `psycopg`, which has no libpq in python:slim
 # (the server fails at import); the main branch has since changed it to `psycopg[binary]`.
-#   docker build -t niadra-bench/mem0 deploy/mem0
+#   docker build -t niadra-bench/mem0:v2.2.0 deploy/systems/mem0
 FROM python:3.12-slim
 ARG MEM0_REF=v2.2.0
 ARG MEM0_COMMIT=47a69e1e72dc562b6fdd49a9ef892229afc7508a

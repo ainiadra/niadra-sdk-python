@@ -59,6 +59,27 @@ RETRIEVE_TIMEOUT_S = 5.0
 log = logging.getLogger(__name__)
 
 
+class Pacer:
+    """At most `per_s` starts a second across every task that waits on it, and a pause for all of them
+    when the server says it is overloaded. None: no limit (dry runs)."""
+
+    def __init__(self, per_s: float | None) -> None:
+        self.interval = 1 / per_s if per_s else 0.0
+        self._next = 0.0
+        self._lock = asyncio.Lock()
+
+    async def wait(self) -> None:
+        async with self._lock:
+            now = time.monotonic()
+            at = max(now, self._next)
+            self._next = at + self.interval
+        if at > now:
+            await asyncio.sleep(at - now)
+
+    def pause(self, seconds: float) -> None:
+        self._next = max(self._next, time.monotonic() + seconds)
+
+
 class Keys:
     def __init__(self, by_source: dict[str, str], document: dict[str, Any] | None = None) -> None:
         if not by_source:
@@ -167,6 +188,10 @@ class NiadraTarget(Target):
         control_url: str | None = None,
         operations: list[str] | None = None,
         memory_v2: bool | None = None,
+        seed_rate: float | None = None,
+        seed_concurrency: int | None = None,
+        settle_interval_s: float = 0.0,
+        pause_on_overload_s: float = 0.0,
     ) -> None:
         self.keys = keys
         self.base_url = base_url or os.environ.get("NIADRA_BASE_URL") or None
@@ -178,6 +203,13 @@ class NiadraTarget(Target):
         self.settle_quiet_s = settle_quiet_s
         self.settle_timeout_s = settle_timeout_s
         self._limit = asyncio.Semaphore(concurrency)
+        # The caps on what a run sends to production (config [production]); None in dry runs.
+        self._pacer = Pacer(seed_rate)
+        self.seed_concurrency = seed_concurrency
+        self.settle_interval_s = settle_interval_s
+        self.pause_on_overload_s = pause_on_overload_s
+        self.overloads = 0
+        self.stale_keys_revoked: list[str] = []
         self.refused: list[str] = []
         self.control_url = control_url
         self.operations = operations or []
@@ -219,6 +251,11 @@ class NiadraTarget(Target):
             self._flag_before = (before,)
             log.info("memory_v2 %s for this run (was %s)", self.memory_v2, before)
         if self._control is not None and self.operations:
+            self.stale_keys_revoked = await self._control.revoke_stale_keys()
+            if self.stale_keys_revoked:
+                log.warning(
+                    "revoked %s billing keys left active by earlier runs", len(self.stale_keys_revoked)
+                )
             self._billing = await self._control.billing_key(self.operations)
             self.keys.by_source["billing"] = self._billing.secret
             self._clients.pop("billing", None)
@@ -232,11 +269,15 @@ class NiadraTarget(Target):
         _, key = self.keys.for_channel(channel)
         headers = {"authorization": f"Bearer {key}", "content-type": "application/json"}
         for _attempt in range(12):
+            await self._pacer.wait()
             response = await self._http.post(
                 f"{client.base_url}/v1/batch", json={"items": items}, headers=headers
             )
             if response.status_code in (429, 503):
-                await asyncio.sleep(float(response.headers.get("retry-after") or 2))
+                # Every seeding task waits, not only this one: the server asked for less.
+                self.overloads += 1
+                wait = max(float(response.headers.get("retry-after") or 2), self.pause_on_overload_s)
+                self._pacer.pause(wait)
                 continue
             if response.status_code not in (200, 207):
                 raise RuntimeError(f"batch rejected with {response.status_code}: {response.text[:300]}")
@@ -259,10 +300,14 @@ class NiadraTarget(Target):
     def seed_report(self) -> dict[str, Any]:
         refused, self.refused = self.refused, []
         declared = self.operations if self._billing else None
+        overloads, self.overloads = self.overloads, 0
+        stale, self.stale_keys_revoked = self.stale_keys_revoked, []
         return {
             "refused_actions": sorted(refused),
             "declared_operations": declared,
             **({"memory_v2": self.memory_v2} if self.memory_v2 is not None else {}),
+            **({"overload_pauses": overloads} if overloads else {}),
+            **({"stale_keys_revoked": len(stale)} if stale else {}),
         }
 
     async def seed(self, case: Case, ids: Identities) -> None:
@@ -298,7 +343,7 @@ class NiadraTarget(Target):
                 return {"settled": True, "seconds": round(elapsed, 1), "rounds": rounds}
             if elapsed >= self.settle_timeout_s:
                 return {"settled": False, "seconds": round(elapsed, 1), "rounds": rounds}
-            await asyncio.sleep(min(5.0, max(0.5, self.settle_quiet_s / 4)))
+            await asyncio.sleep(max(self.settle_interval_s, min(5.0, max(0.5, self.settle_quiet_s / 4))))
 
     async def retrieve(self, case: Case, ids: Identities, *, view: str | None = None) -> Retrieved:
         self._probe_counter += 1

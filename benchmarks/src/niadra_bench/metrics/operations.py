@@ -16,7 +16,6 @@ that records them (`Operation.timings`) also gets their percentiles, per step, b
 from __future__ import annotations
 
 import contextlib
-import os
 import time
 from collections import Counter
 from collections.abc import Awaitable, Callable, Sequence
@@ -37,15 +36,6 @@ SUCCESS = frozenset({OK, EMPTY, DEGRADED})
 
 #: Reads the answer of a successful call and says whether it was complete, empty or degraded.
 Classify = Callable[[httpx.Response], str]
-
-
-def paths(edge: str | None, cluster_env: str) -> dict[str, str]:
-    """Where a Niadra call goes: the SDK's public TLS address (`edge`) and, when the run is inside the
-    cluster, the service's own address from `cluster_env` (`cluster`)."""
-    out = {"edge": edge} if edge else {}
-    if cluster := os.environ.get(cluster_env):
-        out["cluster"] = cluster
-    return out
 
 
 def plain(_response: httpx.Response) -> str:

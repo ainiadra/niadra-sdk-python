@@ -1,0 +1,48 @@
+# systems: graphiti
+# Graphiti's REST server (github.com/getzep/graphiti, `server/`), the zepai/graphiti image at 0.30.2 with
+# the two fixes of patch.py (without them `POST /messages` adds nothing), and Neo4j 5.26.2 as in the
+# repository's docker-compose.yml. Neo4j's heap and page cache are capped so
+# it fits the benchmark's host beside the harness (the only setting changed from the repository's file).
+# The server's one OpenAI-compatible base URL goes to the system's gateway: model calls to the
+# benchmark's extraction model, embeddings to the benchmark's embedder (384 dimensions).
+services:
+  graphiti-neo4j:
+    image: neo4j:5.26.2
+    environment:
+      NEO4J_AUTH: neo4j/${GRAPHITI_NEO4J_PASSWORD:-bench-local-only}
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1g
+      NEO4J_server_memory_pagecache_size: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 2s
+      retries: 60
+      start_period: 5s
+    mem_limit: 2g
+
+  graphiti-gateway:
+    image: ${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}
+    command: [serve, llm-meter, --port, "8081"]
+    environment:
+      LLM_UPSTREAM: ${BENCH_LLM_UPSTREAM:-http://fake-llm:9001/v1}
+      LLM_API_KEY: ${BENCH_LLM_API_KEY:-}
+      LLM_FORCE_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      EMBED_UPSTREAM: http://embed:8080/v1
+    mem_limit: 128m
+
+  graphiti:
+    build: {context: .}
+    image: niadra-bench/graphiti:0.30.2
+    depends_on: {graphiti-neo4j: {condition: service_healthy}}
+    environment:
+      OPENAI_API_KEY: gateway
+      OPENAI_BASE_URL: http://graphiti-gateway:8081/v1
+      MODEL_NAME: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      EMBEDDING_DIM: "384"
+      NEO4J_URI: bolt://graphiti-neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${GRAPHITI_NEO4J_PASSWORD:-bench-local-only}
+      PORT: "8000"
+      db_backend: neo4j
+      GRAPHITI_TELEMETRY_ENABLED: "false"
+    mem_limit: 1g

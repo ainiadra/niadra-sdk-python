@@ -101,9 +101,17 @@ class Mem0RestTarget(Target):
     async def start(self) -> None:
         self._http = httpx.AsyncClient(transport=self._transport, base_url=self.url, headers=self.headers)
         if self._configure:
-            response = await self._http.post(
-                "/configure", json=bench_config.mem0_config(), timeout=ADD_TIMEOUT_S
-            )
+            # The server may still be starting (its migrations run first): wait for it, up to 3 minutes.
+            for attempt in range(90):
+                try:
+                    response = await self._http.post(
+                        "/configure", json=bench_config.mem0_config(), timeout=ADD_TIMEOUT_S
+                    )
+                    break
+                except httpx.TransportError:
+                    if attempt == 89:
+                        raise
+                    await asyncio.sleep(2)
             response.raise_for_status()
 
     async def _add(self, payload: dict[str, Any]) -> None:

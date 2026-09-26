@@ -7,6 +7,7 @@ bench run [options]              seed, measure and write results/<date>-<id>/ (-
 bench report <results dir>       rebuild summary.json from the repetitions of a run
 bench ab [options]               a baseline and a candidate on the same cases, and the delta
                                  (--candidate-env KEY=VALUE, --same, --local-cell <niadra-back>)
+bench systems [--compose]        the systems added through adapters and their deploy/systems directory
 bench serve embed-proxy|llm-meter [--port N]    (fake-llm and fake-models: local smoke runs only)
 """
 
@@ -14,10 +15,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import logging
+import signal
 import sys
+from collections.abc import Coroutine
 from pathlib import Path
+from typing import Any
 
 from niadra_bench import config as bench_config
 from niadra_bench.dataset import generate
@@ -54,6 +59,23 @@ def _prepare(args: argparse.Namespace) -> int:
     return status
 
 
+async def until_stopped[T](work: Coroutine[Any, Any, T]) -> T:
+    """Runs `work`, turning SIGTERM and SIGHUP (a stopped container or pod, a closed session) into a
+    cancellation, so its `finally` blocks run: the run's billing key is revoked and a space flag it set
+    is put back even when the run is stopped. SIGINT already cancels under asyncio.run."""
+    task = asyncio.ensure_future(work)
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGHUP):
+        with contextlib.suppress(NotImplementedError, RuntimeError, ValueError):
+            loop.add_signal_handler(sig, task.cancel)
+    try:
+        return await task
+    finally:
+        for sig in (signal.SIGTERM, signal.SIGHUP):
+            with contextlib.suppress(NotImplementedError, RuntimeError, ValueError):
+                loop.remove_signal_handler(sig)
+
+
 def _csv(value: str, allowed: tuple[str, ...]) -> set[str]:
     chosen = {v.strip() for v in value.split(",") if v.strip()}
     unknown = chosen - set(allowed)
@@ -88,7 +110,11 @@ def _run(args: argparse.Namespace) -> int:
 
         os.environ.setdefault("NIADRA_API_KEY", MOCK_KEY)
     run = Run(config, load_cases(args.dataset), options)
-    out = asyncio.run(run.execute())
+    try:
+        out = asyncio.run(until_stopped(run.execute()))
+    except asyncio.CancelledError:
+        print("stopped: every target was closed (billing key revoked, flags put back)", file=sys.stderr)
+        return 130
     print(f"results in {out}")
     return 0
 
@@ -141,6 +167,18 @@ def _report(args: argparse.Namespace) -> int:
     return 0
 
 
+def _systems(args: argparse.Namespace) -> int:
+    """The systems added through adapters, one per line: key, deploy/systems directory, name."""
+    from niadra_bench.systems import REGISTRY
+
+    for key, adapter in REGISTRY.items():
+        if args.compose:
+            print(f"{key} {adapter.compose}")
+        else:
+            print(f"{key}\t{adapter.compose}\t{adapter.title} {adapter.version}")
+    return 0
+
+
 def _serve(args: argparse.Namespace) -> int:
     from niadra_bench.services.asgi import App
     from niadra_bench.services.serve import serve_forever
@@ -154,6 +192,14 @@ def _serve(args: argparse.Namespace) -> int:
         from niadra_bench.services.llm_meter import LlmMeter
 
         app = LlmMeter()
+    elif args.service == "forward":
+        # A plain forwarder (the fault proxy with no fault) to FORWARD_UPSTREAM: for a server that only
+        # answers requests from its own host (deploy/systems/supermemory).
+        import os
+
+        from niadra_bench.services.fault_proxy import Fault, FaultProxy
+
+        app = FaultProxy(os.environ["FORWARD_UPSTREAM"], Fault())
     else:
         # Local smoke runs only: never behind a published number.
         from niadra_bench.services.fakes import FakeLlm, FakeModels
@@ -164,7 +210,9 @@ def _serve(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(prog="bench", description="Niadra's public benchmark against Mem0.")
+    parser = argparse.ArgumentParser(
+        prog="bench", description="Niadra's public benchmark against Mem0 and other memory systems."
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     prepare = sub.add_parser("prepare", help="generate the dataset")
@@ -271,8 +319,12 @@ def main(argv: list[str] | None = None) -> None:
     report.add_argument("directory")
     report.set_defaults(func=_report)
 
+    systems = sub.add_parser("systems", help="list the systems added through adapters")
+    systems.add_argument("--compose", action="store_true", help="key and compose directory only")
+    systems.set_defaults(func=_systems)
+
     serve = sub.add_parser("serve", help="run a helper service")
-    serve.add_argument("service", choices=["embed-proxy", "llm-meter", "fake-llm", "fake-models"])
+    serve.add_argument("service", choices=["embed-proxy", "llm-meter", "forward", "fake-llm", "fake-models"])
     serve.add_argument("--host", default="0.0.0.0")  # noqa: S104 - a pod's service port
     serve.add_argument("--port", type=int, default=8080)
     serve.set_defaults(func=_serve)

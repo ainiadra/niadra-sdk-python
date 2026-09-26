@@ -1,0 +1,11 @@
+# Memobase's config.yaml (src/server/api/config.yaml.example), with only the model settings filled: the
+# benchmark's extraction model and embedder, both through the system's gateway. Profile topics, buffer
+# sizes and the rest stay its defaults. The key is a placeholder: the gateway sends the real one.
+llm_api_key: gateway
+llm_base_url: http://memobase-gateway:8081/v1
+best_llm_model: google/gemini-2.5-flash-lite
+embedding_provider: openai
+embedding_api_key: gateway
+embedding_base_url: http://memobase-gateway:8081/v1
+embedding_model: paraphrase-multilingual-minilm-l12-v2-r1
+embedding_dim: 384

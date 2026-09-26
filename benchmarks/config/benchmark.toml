@@ -3,10 +3,41 @@
 
 [environment]
 # What a published run must say about where it ran. `bench run` records what it finds, and the site
-# only imports results whose environment kind is "region".
+# only imports results whose environment kind is "region". `machine_class` and `database_class` are
+# Niadra's cell; `harness_host` is where the harness and every other system run.
 region = "us-east-2"
 machine_class = "m7i-flex.large"
 database_class = "db.t4g.micro"
+harness_host = "temporary EC2 instance in the cell's VPC, one system at a time (deploy/temp-host)"
+
+[production]
+# What a run may send to Niadra's production cell. On 25/09/2026 the second run, on the production node
+# and its db.t4g.micro, saturated PgBouncer (4 server connections per database and role, 6 per database)
+# and the database went into recovery with 52 MB free (niadra-docs estudo/09-RODADAS.md). The afternoon
+# run had seeded about 12 batches a second with about 18% of the conversations extracted (174 of 986),
+# so about 2 extractions a second reached the workers, and the cell held. Since niadra-back bb4ecaa
+# nearly every conversation is extracted: the same 12 a second became about 10 extractions a second.
+#
+# Seeding: at most 2 batches a second across every seeding task (dataset v2: 2,780 batches, 2,328 of
+# them conversations, so about 1.7 extractions a second, the rate the cell absorbed on 25/09), 4 at a
+# time; a 429 or 503 pauses every seeding task for `pause_on_overload_s` (or the Retry-After, if longer).
+# About 23 minutes per repetition of dataset v2.
+seed_batches_per_s = 2.0
+seed_concurrency = 4
+# Reads outside the timed loops (settle, the accuracy pass, verifications): 4 at a time, and the settle
+# pass reads every case at most once per `settle_interval_s`.
+read_concurrency = 4
+settle_interval_s = 10
+# Timed loops against Niadra. `context()` serves the cached pack, so it is read at both rates (10 and
+# 25 a second) through the public address and the VPC. History navigation opens a transaction on the
+# space's database per call (and writes a receipt), and each ingestion call writes two events in one
+# transaction and opens a conversation to extract every 10 calls: both only at 10 a second, where one
+# 30 s line is 300 calls and 30 new conversations per path. The other systems run on the benchmark's own
+# host and keep the rates of [latency], [history] and [ingest].
+latency_rates = [10, 25]
+history_rates = [10]
+ingest_rates = [10]
+pause_on_overload_s = 30
 
 [run]
 repetitions = 3
@@ -109,7 +140,8 @@ temperature = 0
 max_tokens = 150
 
 [models]
-# The model both memory systems extract with, through OpenRouter, and the embedder both use.
+# The model every memory system extracts with, through OpenRouter, and the embedder every system that
+# takes one uses (a system whose model is fixed keeps its own, and the README says which).
 extraction = "google/gemini-2.5-flash-lite"
 embedder = "paraphrase-multilingual-minilm-l12-v2-r1"
 embedding_dims = 384

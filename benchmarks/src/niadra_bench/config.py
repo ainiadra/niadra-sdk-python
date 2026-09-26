@@ -32,8 +32,24 @@ class _Frozen(BaseModel):
 
 class Environment(_Frozen):
     region: str
+    # Niadra's cell: the machine and the database that serve it.
     machine_class: str
     database_class: str
+    # Where the harness and every other system run (a temporary host of their own since 26/09/2026).
+    harness_host: str | None = None
+
+
+class ProductionSettings(_Frozen):
+    """What a run may send to Niadra's production cell (config [production], and its reasons there)."""
+
+    seed_batches_per_s: float = Field(gt=0)
+    seed_concurrency: int = Field(ge=1)
+    read_concurrency: int = Field(ge=1)
+    settle_interval_s: float = Field(ge=0)
+    latency_rates: list[int]
+    history_rates: list[int]
+    ingest_rates: list[int]
+    pause_on_overload_s: float = Field(ge=0)
 
 
 class RunSettings(_Frozen):
@@ -153,6 +169,7 @@ class CostSettings(_Frozen):
 
 class BenchConfig(_Frozen):
     environment: Environment
+    production: ProductionSettings
     run: RunSettings
     dataset: DatasetSettings
     latency: LatencySettings

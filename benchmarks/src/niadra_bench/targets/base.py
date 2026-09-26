@@ -29,6 +29,8 @@ class Target(ABC):
     scenario: str | None = None
     #: False for targets that read what another target seeded (the rerank target reads the REST store).
     seeds: bool = True
+    #: How many cases this target seeds at the same time; None: the run's `concurrency`.
+    seed_concurrency: int | None = None
 
     async def start(self) -> None:  # noqa: B027 - optional hook
         """Connects and configures. Called once per run."""

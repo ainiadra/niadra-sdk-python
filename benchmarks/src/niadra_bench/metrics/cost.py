@@ -8,12 +8,15 @@ exchanges, with public prices (config [prices]) and the usage the run measured.
   model as Niadra's and the servers and database are not priced: this is the model spend only.
 - Mem0 Platform: each monthly plan divided by the conversations its add() and search() quotas allow,
   with one add() and one search() per exchange.
+- A system added through `niadra_bench.systems`: the line its adapter gives (`cost_row`), for example
+  the model spend its extraction made, or none in a configuration that calls no model.
 - For every system, separately: what the injected memory block costs in the agent's own model (median
   tokens per turn x turns x the agent model's input price).
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from niadra_bench.config import BenchConfig
@@ -49,6 +52,7 @@ def compute(
     rerank_usage: dict[str, dict[str, int]],
     rerank_searches: int,
     platform_measured: bool,
+    others: Sequence[tuple[str, dict[str, Any]]] = (),
 ) -> list[dict[str, Any]]:
     turns = config.cost.turns_per_conversation
     per_thousand = turns * 1000
@@ -111,4 +115,6 @@ def compute(
                 "conversations_per_month": capacity,
             }
         )
+    for system, row in others:
+        rows.append({"system": system, **row, "agent_prompt_usd_per_1000": agent_prompt(system)})
     return rows

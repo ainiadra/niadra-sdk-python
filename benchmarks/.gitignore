@@ -1,3 +1,6 @@
 deploy/local/results/
 results/local/
+deploy/local/secrets/
+deploy/.stack/
+deploy/temp-host/.state/
 .venv/

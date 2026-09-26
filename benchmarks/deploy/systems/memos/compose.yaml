@@ -1,0 +1,72 @@
+# systems: memos
+# MemOS (github.com/MemTensor/MemOS, Apache 2.0) at v2.0.34 (Dockerfile here), with Neo4j 5.26.6 and Qdrant
+# 1.15.3 as its docker/docker-compose.yml runs them. The settings are its docker/.env.example with the
+# models changed: every model setting names the benchmark's extraction model and the embedder is the
+# benchmark's, both through the system's gateway. Neo4j's heap and page cache are capped to fit the host.
+services:
+  memos-neo4j:
+    image: neo4j:5.26.6
+    environment:
+      NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
+      NEO4J_AUTH: neo4j/${MEMOS_NEO4J_PASSWORD:-bench-local-only}
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1g
+      NEO4J_server_memory_pagecache_size: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 2s
+      retries: 60
+      start_period: 5s
+    mem_limit: 2g
+
+  memos-qdrant:
+    image: qdrant/qdrant:v1.15.3
+    mem_limit: 768m
+
+  memos-gateway:
+    image: ${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}
+    command: [serve, llm-meter, --port, "8081"]
+    environment:
+      LLM_UPSTREAM: ${BENCH_LLM_UPSTREAM:-http://fake-llm:9001/v1}
+      LLM_API_KEY: ${BENCH_LLM_API_KEY:-}
+      EMBED_UPSTREAM: http://embed:8080/v1
+    mem_limit: 128m
+
+  memos:
+    build: {context: .}
+    image: niadra-bench/memos:v2.0.34
+    depends_on:
+      memos-neo4j: {condition: service_healthy}
+      memos-qdrant: {condition: service_started}
+      memos-gateway: {condition: service_started}
+    environment:
+      OPENAI_API_KEY: gateway
+      OPENAI_API_BASE: http://memos-gateway:8081/v1
+      MOS_CHAT_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      MOS_CHAT_MODEL_PROVIDER: openai
+      MEMRADER_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      MEMRADER_API_KEY: gateway
+      MEMRADER_API_BASE: http://memos-gateway:8081/v1
+      MEMREADER_GENERAL_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      PREFERENCE_EXTRACTOR_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      FEEDBACK_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      SUGGESTION_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      MEMSCHEDULER_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      MOS_EMBEDDER_BACKEND: universal_api
+      MOS_EMBEDDER_PROVIDER: openai
+      MOS_EMBEDDER_API_BASE: http://memos-gateway:8081/v1
+      MOS_EMBEDDER_API_KEY: gateway
+      MOS_EMBEDDER_MODEL: paraphrase-multilingual-minilm-l12-v2-r1
+      EMBEDDING_DIMENSION: "384"
+      MOS_RERANKER_BACKEND: cosine_local
+      NEO4J_BACKEND: neo4j-community
+      NEO4J_URI: bolt://memos-neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${MEMOS_NEO4J_PASSWORD:-bench-local-only}
+      NEO4J_DB_NAME: neo4j
+      MOS_NEO4J_SHARED_DB: "false"
+      QDRANT_HOST: memos-qdrant
+      QDRANT_PORT: "6333"
+      MEMSCHEDULER_USE_REDIS_QUEUE: "false"
+      ENABLE_CHAT_API: "false"
+    mem_limit: 2g

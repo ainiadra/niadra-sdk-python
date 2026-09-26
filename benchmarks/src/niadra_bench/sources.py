@@ -145,6 +145,27 @@ class ControlPlane:
         issued = _expect(await self._call("POST", f"/v1/sources/{found['source_id']}/keys", json={}), 201)
         return IssuedKey(str(found["source_id"]), str(issued["key"]["key_id"]), str(issued["secret"]))
 
+    async def revoke_stale_keys(self) -> list[str]:
+        """Revokes every active key of the benchmark's billing sources. A run revokes its own key when it
+        ends; a run killed before that (a pod or a host stopped mid-run) leaves it active, so each run
+        starts by revoking what earlier runs left. Runs never overlap in the same space."""
+        space_id = self.document["space_id"]
+        listed = _expect(await self._call("GET", "/v1/sources", params={"space_id": space_id}), 200)
+        revoked: list[str] = []
+        for source in listed:
+            if not str(source.get("name", "")).startswith(SOURCE_PREFIX) or source.get("revoked_at"):
+                continue
+            source_id = source["source_id"]
+            keys = _expect(await self._call("GET", f"/v1/sources/{source_id}/keys"), 200)
+            for key in keys:
+                if key.get("status") != "active" or key.get("revoked_at"):
+                    continue
+                path = f"/v1/sources/{source_id}/keys/{key['key_id']}/revoke"
+                reason = "benchmark key left active by a run that did not finish"
+                _expect(await self._call("POST", path, json={"reason": reason}), 200)
+                revoked.append(str(key["key_id"]))
+        return revoked
+
     async def set_flag(self, flag: str, value: bool | None) -> bool | None:
         """Sets a space flag (`<document type>/<dotted field>`), or removes it with None, and returns the
         value it had (None when the document did not set it). No diff when nothing changes."""

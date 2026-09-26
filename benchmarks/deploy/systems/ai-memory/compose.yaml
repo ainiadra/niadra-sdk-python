@@ -1,0 +1,43 @@
+# systems: ai_memory ai_memory_llm
+# ai-memory (github.com/akitaonrails/ai-memory, MIT) at 2.4.1, the image its README runs, in two
+# variants that are two system keys:
+#   ai_memory      its defaults: no model provider (the zero-LLM path), local embeddings in process
+#   ai_memory_llm  the same, plus its optional consolidation by a model at the end of each session
+#                  (AI_MEMORY_CONSOLIDATE_ON_SESSION_END), through its own model gateway
+# Both with the two settings its own LongMemEval harness sets: assistant capture on, and local
+# embeddings asked for explicitly (fetched once at start, checksum-pinned). Nothing else is set.
+# The bearer token only guards a server with no published port; the harness sends the same value.
+x-ai-memory: &ai-memory
+  image: docker.io/akitaonrails/ai-memory:2.4.1
+  command: [serve, --transport, http, --bind, "0.0.0.0:49374"]
+  mem_limit: 1g
+
+services:
+  ai-memory:
+    <<: *ai-memory
+    environment:
+      AI_MEMORY_AUTH_TOKEN: ${AI_MEMORY_AUTH_TOKEN:-bench-local-only}
+      AI_MEMORY_ALLOWED_HOSTS: ai-memory,localhost,127.0.0.1
+      AI_MEMORY_CAPTURE_ASSISTANT: "true"
+      AI_MEMORY_EMBEDDING_PROVIDER: local
+
+  ai-memory-llm:
+    <<: *ai-memory
+    environment:
+      AI_MEMORY_AUTH_TOKEN: ${AI_MEMORY_AUTH_TOKEN:-bench-local-only}
+      AI_MEMORY_ALLOWED_HOSTS: ai-memory-llm,localhost,127.0.0.1
+      AI_MEMORY_CAPTURE_ASSISTANT: "true"
+      AI_MEMORY_EMBEDDING_PROVIDER: local
+      AI_MEMORY_LLM_PROVIDER: openai-compat
+      AI_MEMORY_LLM_BASE_URL: http://ai-memory-gateway:8081/v1
+      AI_MEMORY_LLM_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      AI_MEMORY_CONSOLIDATE_ON_SESSION_END: "true"
+      LLM_API_KEY: gateway
+
+  ai-memory-gateway:
+    image: ${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}
+    command: [serve, llm-meter, --port, "8081"]
+    environment:
+      LLM_UPSTREAM: ${BENCH_LLM_UPSTREAM:-http://fake-llm:9001/v1}
+      LLM_API_KEY: ${BENCH_LLM_API_KEY:-}
+    mem_limit: 128m

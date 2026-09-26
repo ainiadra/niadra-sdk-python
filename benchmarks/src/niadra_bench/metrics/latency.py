@@ -2,9 +2,12 @@
 
 Open loop, like niadra-infra's scripts/latency.sh: requests leave at a constant rate for `duration_s`
 whatever the answers do, spread over `conversations` seeded customers, after one warm-up call per
-conversation. Niadra: `POST /v1/context` with the conversation id, the call an agent makes every turn.
+conversation. Niadra: `POST /v1/context` with the conversation id, the call an agent makes every turn,
+over each path of `net.niadra_routes` (the public address, and the VPC from the benchmark's host).
 Mem0: `POST /search` with the probe question, `top_k` and `threshold` from the config, the call its
-documentation makes every turn. Both through the same HTTP client, from the same pod.
+documentation makes every turn; the systems added through `niadra_bench.systems`, their own read. All
+through the same HTTP client, from the same process; every system but Niadra runs on the harness's own
+host (`host` path).
 """
 
 from __future__ import annotations
@@ -23,11 +26,14 @@ from niadra_bench.stats import distribution
 
 Call = Callable[[httpx.AsyncClient, int], Awaitable[tuple[float, str]]]
 
+#: The path of a system that runs beside the harness, on the same host (every system but Niadra).
+HOST = "host"
+
 
 @dataclass
 class Probe:
     system: str
-    path: str  # how the request travels: "cluster" (pod to service) or "edge" (public TLS address)
+    path: str  # how the request travels: "edge", "vpc" or "cluster" (net.py), or "host" (same host)
     call: Call
     # Only for dry runs against the in-process emulator.
     transport: Callable[[], httpx.AsyncBaseTransport] | None = None
@@ -80,7 +86,7 @@ def mem0_probe(
         }
         return _timed(client.post(url, json=body, headers=headers))
 
-    return Probe("mem0_oss", "cluster", call)
+    return Probe("mem0_oss", HOST, call)
 
 
 async def open_loop(

@@ -162,6 +162,20 @@ class CaseRow:
         return asdict(self)
 
 
+#: Systems whose read depends on how well the caller proved who the customer is.
+VERIFIED = frozenset({"niadra"})
+REFERENCES = frozenset({"no_memory", "full_history"})
+
+
+def verification(system: str) -> str | None:
+    """The privacy column's mechanism: "per conversation" (a level proven per conversation), "none" (the
+    system hands the block to any caller, so its row reads "no mechanism", not a score), or None for the
+    two references."""
+    if system in REFERENCES:
+        return None
+    return "per conversation" if system in VERIFIED else "none"
+
+
 def views_for(target: Target, case: Case, niadra_views: Sequence[str]) -> list[tuple[str | None, str]]:
     """(view, purpose): the probe channel's view is answered; other Niadra views only count tokens."""
     if target.system != "niadra":
@@ -323,6 +337,9 @@ def summarize(rows: Sequence[CaseRow], valid: set[str]) -> list[dict[str, Any]]:
                     "cases": len(privacy),
                     "leaks": sum(bool(r.leak) for r in privacy),
                     "leak_rate": rate(sum(bool(r.leak) for r in privacy), len(privacy)),
+                    # Whether the system reads by a level the caller proved (the harness's runs since
+                    # 26/09/2026; earlier results do not carry it).
+                    "verification": verification(system),
                 },
                 "retrieve_errors": sum(1 for r in group if r.error),
                 "retrieve_ms_p50": percentile([r.retrieve_ms for r in group if not r.error], 50),

@@ -1,0 +1,28 @@
+# systems: hindsight
+# Hindsight (github.com/vectorize-io/hindsight, MIT): its one-container image at 0.10.1 with the embedded
+# PostgreSQL (pg0), as its README's Docker quick start runs it. Its model and its embedder are
+# OpenAI-compatible settings, pointed at the system's gateway: the benchmark's extraction model, and the
+# benchmark's embedder (384 dimensions). The reranker stays its default, a local cross-encoder.
+services:
+  hindsight-gateway:
+    image: ${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}
+    command: [serve, llm-meter, --port, "8081"]
+    environment:
+      LLM_UPSTREAM: ${BENCH_LLM_UPSTREAM:-http://fake-llm:9001/v1}
+      LLM_API_KEY: ${BENCH_LLM_API_KEY:-}
+      EMBED_UPSTREAM: http://embed:8080/v1
+    mem_limit: 128m
+
+  hindsight:
+    image: ghcr.io/vectorize-io/hindsight:0.10.1
+    environment:
+      HINDSIGHT_API_LLM_PROVIDER: openai
+      HINDSIGHT_API_LLM_API_KEY: gateway
+      HINDSIGHT_API_LLM_BASE_URL: http://hindsight-gateway:8081/v1
+      HINDSIGHT_API_LLM_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      HINDSIGHT_API_EMBEDDINGS_PROVIDER: openai
+      HINDSIGHT_API_EMBEDDINGS_OPENAI_API_KEY: gateway
+      HINDSIGHT_API_EMBEDDINGS_OPENAI_BASE_URL: http://hindsight-gateway:8081/v1
+      HINDSIGHT_API_EMBEDDINGS_OPENAI_MODEL: paraphrase-multilingual-minilm-l12-v2-r1
+      HINDSIGHT_API_EMBEDDINGS_OPENAI_DIMENSIONS: "384"
+    mem_limit: 3g

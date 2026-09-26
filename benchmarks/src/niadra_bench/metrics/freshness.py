@@ -4,16 +4,19 @@ Each trial is a new customer. The customer writes on WhatsApp a message with a f
 starts when the application hands the write to the memory (`track()` for Niadra, `add()` for Mem0)
 and stops at the first read, from the voice agent's side, whose text holds the number: Niadra's
 `context(view="voice")` in another conversation, verified at V1 before the clock starts, Mem0's
-`search()` with the same user id.
+`search()` with the same user id; a system added through `niadra_bench.systems`, its own write and
+read (`HttpSystem.freshness_trial`). A system that extracts in the background (a queue) is read as it
+is: the wait for its queue is part of the time.
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 import random
 import time
-from collections.abc import Awaitable, Callable
-from typing import Any
+from collections.abc import Awaitable, Callable, Sequence
+from typing import Any, Protocol
 
 from niadra import Content, EventItem, Speaker, SpeakerRef
 
@@ -23,6 +26,17 @@ from niadra_bench.stats import distribution
 from niadra_bench.targets.mem0 import Mem0RestTarget
 from niadra_bench.targets.niadra import NiadraTarget
 from niadra_bench.text import contains
+
+
+class Fresh(Protocol):
+    system: str
+
+    async def freshness_trial(
+        self, case: Case, ids: Identities, interval_s: float, timeout_s: float
+    ) -> float | None: ...
+
+
+log = logging.getLogger("niadra_bench")
 
 MESSAGES = {
     "pt": "Oi, o número do meu pedido novo é {code}, pode anotar?",
@@ -113,11 +127,17 @@ async def run(
     trials: int,
     interval_ms: int,
     timeout_s: float,
+    others: Sequence[Fresh] = (),
 ) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     picked = [cases[i % len(cases)] for i in range(trials)]
     interval = interval_ms / 1000
-    for system, target in (("niadra", niadra), ("mem0_oss", mem0)):
+    systems: list[tuple[str, NiadraTarget | Mem0RestTarget | Fresh | None]] = [
+        ("niadra", niadra),
+        ("mem0_oss", mem0),
+        *((o.system, o) for o in others),
+    ]
+    for system, target in systems:
         if target is None:
             continue
         samples: list[float] = []
@@ -126,8 +146,14 @@ async def run(
             ids = Identities.for_case(case, f"{tag}f{n}")
             if isinstance(target, NiadraTarget):
                 ms = await niadra_trial(target, case, ids, interval, timeout_s)
-            else:
+            elif isinstance(target, Mem0RestTarget):
                 ms = await mem0_trial(target, case, ids, interval, timeout_s)
+            else:
+                try:
+                    ms = await target.freshness_trial(case, ids, interval, timeout_s)
+                except Exception as exc:  # one system's failed write must not end the run
+                    log.warning("freshness: %s trial failed: %s: %s", system, type(exc).__name__, exc)
+                    ms = None
             if ms is None:
                 timeouts += 1
             else:

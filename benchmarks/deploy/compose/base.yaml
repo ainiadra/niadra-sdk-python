@@ -1,0 +1,59 @@
+# What every run shares, wherever it runs: the embedding proxy in front of the benchmark's embedder and
+# the harness. The embedder itself (`models`) and the model provider (`BENCH_LLM_UPSTREAM`) come from the
+# environment's own file: deploy/local/env.yaml (fakes, no key) or deploy/temp-host/env.yaml (the same
+# niadra-models image the cell runs, and OpenRouter). Each measured system adds its own file,
+# deploy/systems/<system>/compose.yaml. deploy/stack.sh puts them together.
+name: niadra-bench
+
+services:
+  # OpenAI-compatible `/v1/embeddings` in front of `models` (POST /v1/embed): every system that takes an
+  # embedder uses this one, directly or through its model gateway.
+  embed:
+    image: ${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}
+    command: [serve, embed-proxy, --port, "8080"]
+    environment: {NIADRA_MODELS_URL: "http://models:8080"}
+    depends_on: [models]
+    mem_limit: 128m
+
+  # The harness: `bench run` with the arguments deploy/stack.sh passes. Every system's address has its
+  # default in the adapter (the service names of deploy/systems); only Niadra's comes from outside.
+  harness:
+    image: ${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}
+    profiles: [run]
+    init: true
+    # bench run turns SIGTERM into a cancellation and closes every target (the billing key is revoked).
+    stop_grace_period: 90s
+    environment:
+      BENCH_ENVIRONMENT: ${BENCH_ENVIRONMENT:-local}
+      BENCH_NIADRA_SERVER_VERSION: ${BENCH_NIADRA_SERVER_VERSION:-}
+      NIADRA_BASE_URL: ${NIADRA_BASE_URL:-}
+      NIADRA_API_KEY: ${NIADRA_API_KEY:-}
+      NIADRA_BOOTSTRAP: ${NIADRA_BOOTSTRAP:-}
+      NIADRA_CONTROL_URL: ${NIADRA_CONTROL_URL:-}
+      NIADRA_VPC_ADDRESS: ${NIADRA_VPC_ADDRESS:-}
+      # Metric 8's `encode` line: the question's encoding alone, on the embedder every system uses here.
+      NIADRA_MODELS_URL: http://models:8080
+      # The agent and the judge call OpenRouter directly (never a measured system's gateway).
+      OPENROUTER_API_KEY: ${BENCH_LLM_API_KEY:-not-a-key}
+      OPENROUTER_BASE_URL: ${BENCH_AGENT_BASE_URL:-https://openrouter.ai/api/v1}
+      # Mem0 (deploy/systems/mem0): its server, its gateway and, for the rerank column, its store.
+      MEM0_URL: http://mem0:8000
+      MEM0_SERVER_KEY: ${MEM0_ADMIN_API_KEY:-local-admin-key-0123456789}
+      MEM0_SERVER_VERSION: v2.2.0
+      MEM0_METER_URL: http://mem0-gateway:8081
+      MEM0_LLM_BASE_URL: http://mem0-gateway:8081/v1
+      MEM0_EMBEDDER_BASE_URL: http://embed:8080/v1
+      POSTGRES_HOST: mem0-db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: mem0_bench
+      POSTGRES_USER: bench
+      POSTGRES_PASSWORD: ${MEM0_DB_PASSWORD:-bench-local-only}
+      OPENAI_API_KEY: not-used
+      # The tokens of the systems that take one: each guards a server with no published port, and the
+      # compose file of the system reads the same variable.
+      AI_MEMORY_AUTH_TOKEN: ${AI_MEMORY_AUTH_TOKEN:-bench-local-only}
+      MEMOBASE_ACCESS_TOKEN: ${MEMOBASE_ACCESS_TOKEN:-bench-local-only}
+      SUPERMEMORY_API_KEY_FILE: /shared/supermemory/api-key
+    volumes:
+      - ${BENCH_RESULTS_DIR:-../local/results}:/app/results
+      - ${BENCH_SECRETS_DIR:-../local/secrets}:/secrets:ro

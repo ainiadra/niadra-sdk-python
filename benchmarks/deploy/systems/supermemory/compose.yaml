@@ -1,0 +1,37 @@
+# systems: supermemory
+# Supermemory local (the MIT supermemory-server binary, release server-v0.0.8; Dockerfile here). Its model
+# and its embedder are the benchmark's, through the system's gateway (OPENAI_* and
+# SUPERMEMORY_EMBEDDING_*, the settings its self-hosting docs list for Docker). The binary signs requests
+# from its own host with the key it prints at first boot, so the harness reaches it through a forwarder in
+# the same network namespace (`supermemory-local`, reached as supermemory:6768): the key never leaves the container.
+services:
+  supermemory-gateway:
+    image: ${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}
+    command: [serve, llm-meter, --port, "8081"]
+    environment:
+      LLM_UPSTREAM: ${BENCH_LLM_UPSTREAM:-http://fake-llm:9001/v1}
+      LLM_API_KEY: ${BENCH_LLM_API_KEY:-}
+      EMBED_UPSTREAM: http://embed:8080/v1
+    mem_limit: 128m
+
+  supermemory:
+    build: {context: .}
+    image: niadra-bench/supermemory:server-v0.0.8
+    environment:
+      OPENAI_API_KEY: gateway
+      OPENAI_BASE_URL: http://supermemory-gateway:8081/v1
+      OPENAI_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      SUPERMEMORY_EMBEDDING_PROVIDER: openai
+      SUPERMEMORY_EMBEDDING_BASE_URL: http://supermemory-gateway:8081/v1
+      SUPERMEMORY_EMBEDDING_API_KEY: gateway
+      SUPERMEMORY_EMBEDDING_MODEL: paraphrase-multilingual-minilm-l12-v2-r1
+      SUPERMEMORY_EMBEDDING_DIMENSIONS: "384"
+    mem_limit: 3g
+
+  supermemory-local:
+    image: ${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}
+    command: [serve, forward, --port, "6768"]
+    environment: {FORWARD_UPSTREAM: "http://127.0.0.1:6767"}
+    network_mode: service:supermemory
+    depends_on: [supermemory]
+    mem_limit: 128m

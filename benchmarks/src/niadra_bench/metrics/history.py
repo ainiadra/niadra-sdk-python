@@ -13,14 +13,15 @@ clock starts, as every accuracy probe and the freshness reader do):
 
 The bodies are the SDK's own request models, sent through a plain HTTP client, so the time is the
 server's answer and not the SDK's navigation budget (the SDK gives up at 0.6 s, 0.3 s on voice, and
-returns an empty result). Both from inside the cluster (`NIADRA_CLUSTER_URL`, the `read` service) and
-through the public TLS address.
+returns an empty result). Over each path of `net.niadra_routes`: the public TLS address, the VPC from the
+benchmark's host, and a service's own address when the harness runs in the cluster
+(`NIADRA_CLUSTER_URL`, the `read` service).
 
 Mem0 has one read, `search`, used for both the turn's memory and any lookup: the closest equivalent of
 a history search is the same `POST /search` metric 1 times, with the same probe question, `top_k` and
 `threshold`, for the same seeded user (`known_id`). Mem0 has no episode or conversation to open; the
-nearest call to `open` is `GET /memories/{memory_id}`, reading one memory a search returned. From
-inside the cluster only: Mem0's server has no public address here.
+nearest call to `open` is `GET /memories/{memory_id}`, reading one memory a search returned. Mem0 and
+the systems added through `niadra_bench.systems` run on the harness's host (`host` path).
 
 Both searches start by encoding the question with the same embedding server (`niadra-models`: Niadra's
 read service calls it, Mem0 through the embedding proxy). So that a search's time can be read without
@@ -50,10 +51,10 @@ from niadra_bench.metrics.operations import (
     OK,
     Operation,
     measure,
-    paths,
     recording,
     timed,
 )
+from niadra_bench.net import Route, niadra_routes
 from niadra_bench.targets.mem0 import Mem0RestTarget
 from niadra_bench.targets.niadra import NiadraTarget
 
@@ -104,8 +105,7 @@ async def niadra_operations(
     pairs: Sequence[tuple[Case, Identities]],
     tag: str,
     settings: HistorySettings,
-    where: dict[str, str],
-    transport: Callable[[], httpx.AsyncBaseTransport] | None = None,
+    routes: Sequence[Route],
 ) -> list[Operation]:
     """Proves every conversation at V1 and finds an item to open, then builds the timed calls."""
     voice = target.client("voice")
@@ -113,19 +113,19 @@ async def niadra_operations(
     headers = {"authorization": f"Bearer {key}", "content-type": "application/json"}
     ops_search: list[Operation] = []
     ops_open: list[Operation] = []
-    async with httpx.AsyncClient(
-        transport=transport() if transport else None, timeout=settings.request_timeout_s
-    ) as http:
-        for path, address in where.items():
-            base = address.rstrip("/")
+    for route in routes:
+        path, base, transport = route.path, route.base.rstrip("/"), route.transport
+        async with httpx.AsyncClient(
+            transport=transport() if transport else None, timeout=settings.request_timeout_s
+        ) as http:
             slots = [
                 NiadraConversation(c, i, f"bench-{tag}-his-{path}-{n}") for n, (c, i) in enumerate(pairs)
             ]
             for slot in slots:
                 await voice.verify(METHOD, LEVEL, handle=slot.subject, conversation_id=slot.conversation)
                 slot.item = await _find_item(http, base, headers, slot, settings.max_tokens)
-            ops_search.append(_niadra_search(path, base, headers, slots, settings.max_tokens, transport))
-            ops_open.append(_niadra_open(path, base, headers, slots, transport))
+        ops_search.append(_niadra_search(path, base, headers, slots, settings.max_tokens, transport))
+        ops_open.append(_niadra_open(path, base, headers, slots, transport))
     return ops_search + ops_open
 
 
@@ -204,7 +204,7 @@ def encode_operation(
     async def call(client: httpx.AsyncClient, n: int) -> tuple[float, str]:
         return await timed(client.post(url, json=bodies[n % len(bodies)]), 200)
 
-    return Operation(latency.Probe("embedder", "cluster", call, transport), "encode", "POST /v1/embed")
+    return Operation(latency.Probe("embedder", latency.HOST, call, transport), "encode", "POST /v1/embed")
 
 
 def _niadra_open(
@@ -261,9 +261,9 @@ async def mem0_operations(
         return await timed(client.get(f"{base}/memories/{memory}", headers=headers), 200)
 
     return [
-        Operation(latency.Probe("mem0_oss", "cluster", search, transport), "search", "POST /search"),
+        Operation(latency.Probe("mem0_oss", latency.HOST, search, transport), "search", "POST /search"),
         Operation(
-            latency.Probe("mem0_oss", "cluster", get, transport),
+            latency.Probe("mem0_oss", latency.HOST, get, transport),
             "open",
             "GET /memories/{memory_id}",
             None if memory_ids else "no memory returned by any search",
@@ -281,23 +281,33 @@ async def run(
     *,
     rates: Sequence[int],
     duration_s: float,
+    niadra_rates: Sequence[int] | None = None,
     transport: Callable[[], httpx.AsyncBaseTransport] | None = None,
     mem0_transport: Callable[[], httpx.AsyncBaseTransport] | None = None,
     models_url: str | None = None,
     models_transport: Callable[[], httpx.AsyncBaseTransport] | None = None,
+    others: Sequence[Operation] = (),
 ) -> list[dict[str, Any]]:
-    ops: list[Operation] = []
+    """Niadra's lines at `niadra_rates` (the production caps, config [production]); every other
+    system's, and the encoder's, at `rates`. `others` are the lines of the systems added through
+    `niadra_bench.systems`."""
+    local: list[Operation] = []
     models_url = models_url or os.environ.get("NIADRA_MODELS_URL")
-    if models_url and (niadra is not None or mem0 is not None):
-        ops.append(encode_operation(models_url, pairs, models_transport))
+    if models_url and (niadra is not None or mem0 is not None or others):
+        local.append(encode_operation(models_url, pairs, models_transport))
+    remote: list[Operation] = []
     if niadra is not None:
-        where = paths(niadra.client("voice").base_url, "NIADRA_CLUSTER_URL")
-        ops += await niadra_operations(niadra, pairs, tag, settings, where, transport)
+        routes = niadra_routes(
+            niadra.client("voice").base_url, "NIADRA_CLUSTER_URL", edge_transport=transport
+        )
+        remote += await niadra_operations(niadra, pairs, tag, settings, routes)
     if mem0 is not None:
-        ops += await mem0_operations(mem0, pairs, mem0_settings, mem0_transport)
-    for op in ops:
+        local += await mem0_operations(mem0, pairs, mem0_settings, mem0_transport)
+    local += others
+    for op in (*remote, *local):
         if op.skipped:
             log.warning(
                 "history: %s %s %s not measured: %s", op.probe.system, op.probe.path, op.operation, op.skipped
             )
-    return await measure(ops, rates, duration_s, len(pairs), settings.request_timeout_s)
+    out = await measure(remote, niadra_rates or rates, duration_s, len(pairs), settings.request_timeout_s)
+    return out + await measure(local, rates, duration_s, len(pairs), settings.request_timeout_s)

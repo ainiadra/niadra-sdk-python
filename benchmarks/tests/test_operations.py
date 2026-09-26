@@ -266,7 +266,7 @@ async def test_the_encode_line_times_the_question_alone_on_the_embedding_server(
         models_transport=lambda: httpx.ASGITransport(app=FakeModels()),
     )
     encode = next(line for line in lines if line["operation"] == "encode")
-    assert (encode["system"], encode["path"], encode["call"]) == ("embedder", "cluster", "POST /v1/embed")
+    assert (encode["system"], encode["path"], encode["call"]) == ("embedder", "host", "POST /v1/embed")
     assert encode["sent"] > 0 and encode["errors"] == {}
 
 

@@ -9,15 +9,18 @@ write repeats another.
   the SDK's queue (the SDK's own `EventItem` models), timed until the `200` that acknowledges them.
   `track()` itself never waits: it queues and returns; this is the acknowledgement the queue waits
   for. Niadra writes the events durably before it answers and extracts memory later, in the
-  background. From inside the cluster (`NIADRA_CLUSTER_INGEST_URL`, the `ingest` service) and
-  through the public TLS address.
+  background. Over each path of `net.niadra_routes`: the public TLS address, the VPC from the
+  benchmark's host, and the `ingest` service's own address when the harness runs in the cluster
+  (`NIADRA_CLUSTER_INGEST_URL`). At the production caps (config [production]).
 - Mem0: `POST /memories` on its REST server with the same two messages, the call its README makes
   per exchange, timed until its `200`. The server has no asynchronous mode (the hosted Platform's
   `async_mode` is not in the open source server), so it is measured both ways it offers: `add_infer`
   (its default, `infer` true: the extraction model runs before the answer, as its documentation
   recommends for conversations) and `add_raw` (`infer=False`: the text is embedded and stored as is,
-  with no extraction ever, the nearest to an acknowledgement that defers the work). From inside the
-  cluster only.
+  with no extraction ever, the nearest to an acknowledgement that defers the work). On the harness's
+  host (`host` path).
+- The systems added through `niadra_bench.systems`: their `exchange_call`, the write their documentation
+  makes per exchange, until its 2xx.
 """
 
 from __future__ import annotations
@@ -35,7 +38,8 @@ from niadra_bench.config import IngestSettings
 from niadra_bench.dataset.model import Case
 from niadra_bench.identity import Identities
 from niadra_bench.metrics import latency
-from niadra_bench.metrics.operations import Operation, measure, paths, timed
+from niadra_bench.metrics.operations import Operation, measure, timed
+from niadra_bench.net import TransportFactory, niadra_routes
 from niadra_bench.targets.mem0 import Mem0RestTarget
 from niadra_bench.targets.niadra import NiadraTarget
 
@@ -91,7 +95,7 @@ def niadra_operation(
     pairs: Sequence[tuple[Case, Identities]],
     tag: str,
     turns: int,
-    transport: Callable[[], httpx.AsyncBaseTransport] | None = None,
+    transport: TransportFactory | None = None,
 ) -> Operation:
     headers = {"authorization": f"Bearer {key}", "content-type": "application/json"}
     url = f"{base.rstrip('/')}/v1/batch"
@@ -133,7 +137,7 @@ def mem0_operation(
         return await timed(client.post(url, json=payload, headers=headers), 200)
 
     call_name = "POST /memories infer=false" if mode == "raw" else "POST /memories"
-    return Operation(latency.Probe("mem0_oss", "cluster", call, transport), f"add_{mode}", call_name)
+    return Operation(latency.Probe("mem0_oss", latency.HOST, call, transport), f"add_{mode}", call_name)
 
 
 async def run(
@@ -146,17 +150,23 @@ async def run(
     rates: Sequence[int],
     duration_s: float,
     cooldown_s: float = 0.0,
+    niadra_rates: Sequence[int] | None = None,
     transport: Callable[[], httpx.AsyncBaseTransport] | None = None,
     mem0_transport: Callable[[], httpx.AsyncBaseTransport] | None = None,
+    others: Sequence[Operation] = (),
 ) -> list[dict[str, Any]]:
+    """Niadra's lines at `niadra_rates` (the production caps), every other system's at `rates`."""
     turns = settings.turns_per_conversation
     ops: list[Operation] = []
     if niadra is not None:
         _, key = niadra.keys.for_channel("whatsapp")
-        where = paths(niadra.client("whatsapp").base_url, "NIADRA_CLUSTER_INGEST_URL")
-        for path, base in where.items():
-            ops.append(niadra_operation(path, base, key, pairs, tag, turns, transport))
-    out = await measure(ops, rates, duration_s, len(pairs), settings.request_timeout_s)
+        routes = niadra_routes(
+            niadra.client("whatsapp").base_url, "NIADRA_CLUSTER_INGEST_URL", edge_transport=transport
+        )
+        for route in routes:
+            ops.append(niadra_operation(route.path, route.base, key, pairs, tag, turns, route.transport))
+    out = await measure(ops, niadra_rates or rates, duration_s, len(pairs), settings.request_timeout_s)
+    out += await measure(list(others), rates, duration_s, len(pairs), settings.request_timeout_s)
     if mem0 is not None:
         # raw before infer, and a pause after each infer rate: the infer loop leaves Mem0's server busy
         # with requests the client gave up on, which must not slow the next line down.

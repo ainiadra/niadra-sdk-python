@@ -35,15 +35,19 @@ from niadra_bench.dataset import generate
 from niadra_bench.dataset.model import Case
 from niadra_bench.identity import SCENARIOS, Identities
 from niadra_bench.metrics import accuracy, cost, freshness, history, ingest, latency, operations, resilience
+from niadra_bench.net import niadra_routes
 from niadra_bench.sources import ControlPlane, dataset_operations
+from niadra_bench.systems import REGISTRY, HttpSystem
 from niadra_bench.targets.base import Target
-from niadra_bench.targets.mem0 import Mem0LibTarget, Mem0PlatformTarget, Mem0RestTarget
+from niadra_bench.targets.mem0 import Mem0LibTarget, Mem0PlatformTarget, Mem0RestTarget, exchanges
 from niadra_bench.targets.niadra import Keys, NiadraTarget
 from niadra_bench.targets.reference import FullHistory, NoMemory
 
 SCHEMA = "niadra-bench.results.v1"
 METRICS = ("latency", "tokens", "cost", "accuracy", "privacy", "freshness", "resilience", "history", "ingest")
-SYSTEMS = ("niadra", "mem0_oss", "mem0_oss_rerank", "mem0_platform")
+BUILT_IN = ("niadra", "mem0_oss", "mem0_oss_rerank", "mem0_platform")
+#: Every system `--systems` accepts: the built-in targets and one per adapter in `niadra_bench.systems`.
+SYSTEMS = (*BUILT_IN, *REGISTRY)
 log = logging.getLogger("niadra_bench")
 
 
@@ -75,6 +79,8 @@ class Options:
     # What every repetition's tag starts with (default: the end of the run id). The tag makes the
     # customers' handles, so two runs with the same tag seed the same people.
     tag: str | None = None
+    # Tests only: an in-process transport per system added through `niadra_bench.systems`.
+    system_transports: dict[str, httpx.AsyncBaseTransport] = field(default_factory=dict)
     extra: dict[str, Any] = field(default_factory=dict)
 
 
@@ -159,6 +165,10 @@ class Run:
         if quiet is None:
             quiet = 0 if options.dry_run else self.config.run.settle_quiet_s
         now = options.niadra_now
+        # The caps on what the run sends to Niadra's production cell (config [production]). A dry run
+        # talks to niadra-mock, and `bench ab --local-cell` to a cell of its own (its bootstrap): both keep
+        # the run's own settings.
+        caps = None if options.dry_run or options.niadra_bootstrap else self.config.production
         return NiadraTarget(
             keys,
             base_url=options.niadra_base_url,
@@ -166,11 +176,20 @@ class Run:
             now=(lambda: now) if now is not None else None,
             settle_quiet_s=quiet,
             settle_timeout_s=self.config.run.settle_timeout_s,
-            concurrency=self.config.run.concurrency,
+            concurrency=caps.read_concurrency if caps else self.config.run.concurrency,
             control_url=ControlPlane.available(keys.document),
             operations=dataset_operations(self.cases),
             memory_v2=self.options.memory_v2,
+            seed_rate=caps.seed_batches_per_s if caps else None,
+            seed_concurrency=caps.seed_concurrency if caps else None,
+            settle_interval_s=caps.settle_interval_s if caps else 0.0,
+            pause_on_overload_s=caps.pause_on_overload_s if caps else 0.0,
         )
+
+    def _niadra_rates(self, rates: list[int], capped: list[int]) -> list[int]:
+        """Niadra's rates for a timed loop: the production cap, or the first rate of a quick run."""
+        chosen = rates if self.options.dry_run else capped
+        return chosen[:1] if self.options.quick else chosen
 
     def build_targets(self) -> list[Target]:
         systems = self.options.systems
@@ -186,6 +205,15 @@ class Run:
                 targets.append(Mem0LibTarget(scenario, self.config.mem0))
             if "mem0_platform" in systems:
                 targets.append(Mem0PlatformTarget(scenario, self.config.mem0))
+        for key, adapter in REGISTRY.items():
+            if key in systems:
+                targets.append(
+                    adapter(
+                        transport=self.options.system_transports.get(key),
+                        concurrency=self.config.run.concurrency,
+                        settle_timeout_s=self.config.run.settle_timeout_s,
+                    )
+                )
         return targets
 
     async def _meter(self) -> dict[str, Any] | None:
@@ -200,7 +228,7 @@ class Run:
     # Phases
 
     async def _seed(self, target: Target, pairs: list[tuple[Case, Identities]]) -> dict[str, Any]:
-        limit = asyncio.Semaphore(self.config.run.concurrency)
+        limit = asyncio.Semaphore(target.seed_concurrency or self.config.run.concurrency)
         started = time.monotonic()
         failures: list[str] = []
 
@@ -225,6 +253,9 @@ class Run:
 
         mem0_usage: dict[str, dict[str, int]] = {}
         mem0_adds = 0
+        others = [t for t in targets if isinstance(t, HttpSystem)]
+        # Each added system's model gateway, before its seeding and after its memory settled.
+        meters_before = {o.system: await o.meter_snapshot() for o in others}
         for target in targets:
             if not target.seeds or isinstance(target, NoMemory | FullHistory):
                 continue
@@ -241,6 +272,13 @@ class Run:
         for target in targets:
             if target.seeds:
                 rep["settle"][target.label] = await target.settle(pairs)
+        spend: dict[str, dict[str, dict[str, int]]] = {}
+        for other in others:
+            if meters_before[other.system] is not None:
+                spend[other.system] = cost.meter_delta(
+                    meters_before[other.system], await other.meter_snapshot()
+                )
+                rep["seed"][other.label]["model_usage"] = spend[other.system]
 
         rows: list[accuracy.CaseRow] = []
         rerank_usage: dict[str, dict[str, int]] = {}
@@ -284,21 +322,24 @@ class Run:
                 rerank_usage=rerank_usage,
                 rerank_searches=rerank_searches,
                 platform_measured="mem0_platform" in self.options.systems,
+                others=[(o.system, row) for o in others if (row := self._cost_row(o, spend, pairs))],
             )
 
         niadra = next((t for t in targets if isinstance(t, NiadraTarget)), None)
         mem0 = next((t for t in targets if isinstance(t, Mem0RestTarget) and t.scenario == "known_id"), None)
         lat = self.config.latency
+        caps = self.config.production
         quick = self.options.quick
         if "latency" in metrics:
-            probes = self._latency_probes(niadra, mem0, pairs[: lat.conversations], tag)
-            rep["latency"] = await latency.run(
-                probes,
-                [lat.rates[0]] if quick else lat.rates,
-                3.0 if quick else lat.duration_s,
-                min(lat.conversations, len(pairs)),
-                lat.request_timeout_s,
-            )
+            rep["latency"] = []
+            duration = 3.0 if quick else lat.duration_s
+            count = min(lat.conversations, len(pairs))
+            remote = self._niadra_probes(niadra, pairs[: lat.conversations], tag)
+            local = self._local_probes(mem0, others, pairs[: lat.conversations])
+            niadra_rates = self._niadra_rates(lat.rates, caps.latency_rates)
+            rates = [lat.rates[0]] if quick else lat.rates
+            rep["latency"] += await latency.run(remote, niadra_rates, duration, count, lat.request_timeout_s)
+            rep["latency"] += await latency.run(local, rates, duration, count, lat.request_timeout_s)
         if "freshness" in metrics:
             fresh = self.config.freshness
             rep["freshness"] = await freshness.run(
@@ -309,6 +350,7 @@ class Run:
                 3 if quick else fresh.trials,
                 fresh.poll_interval_ms,
                 2.0 if quick else fresh.timeout_s,
+                others=others,
             )
         if "resilience" in metrics:
             res = self.config.resilience
@@ -328,60 +370,94 @@ class Run:
                 top_k=self.config.mem0.top_k,
                 threshold=self.config.mem0.threshold,
                 transport=transport,
+                others=others,
             )
         # Metrics 8 and 9 run last, so the earlier metrics see the same conditions as in earlier runs.
         if "history" in metrics:
             his = self.config.history
+            chosen = pairs[: his.conversations]
             rep["history"] = await history.run(
                 niadra,
                 mem0,
-                pairs[: his.conversations],
+                chosen,
                 tag,
                 his,
                 self.config.mem0,
                 rates=[his.rates[0]] if quick else his.rates,
+                niadra_rates=self._niadra_rates(his.rates, caps.history_rates),
                 duration_s=3.0 if quick else his.duration_s,
                 transport=self.options.niadra_transport,
+                others=[op for other in others for op in await other.history_operations(chosen)],
             )
         if "ingest" in metrics:
             ing = self.config.ingest
+            chosen = pairs[: ing.conversations]
+            turns = ing.turns_per_conversation
             rep["ingest"] = await ingest.run(
                 niadra,
                 mem0,
-                pairs[: ing.conversations],
+                chosen,
                 tag,
                 ing,
                 rates=[ing.rates[0]] if quick else ing.rates,
+                niadra_rates=self._niadra_rates(ing.rates, caps.ingest_rates),
                 duration_s=3.0 if quick else ing.duration_s,
                 cooldown_s=0.0 if quick else ing.cooldown_s,
                 transport=self.options.niadra_transport,
+                others=[o.ingest_operation(chosen, tag, turns, ingest.exchange) for o in others],
             )
         return rep
 
-    def _latency_probes(
+    def _cost_row(
         self,
-        niadra: NiadraTarget | None,
-        mem0: Mem0RestTarget | None,
+        system: HttpSystem,
+        spend: dict[str, dict[str, dict[str, int]]],
         pairs: list[tuple[Case, Identities]],
-        tag: str,
+    ) -> dict[str, Any] | None:
+        """Metric 3 for an added system: its adapter's line, or the model spend its gateway counted
+        from seeding until the memory settled, per exchange written, for a thousand conversations."""
+        if (row := system.cost_row()) is not None:
+            return row
+        usage = spend.get(system.system)
+        written = sum(len(exchanges(s)) for case, _ in pairs for s in case.sessions if s.turns)
+        if usage is None or not written:
+            return None
+        per_exchange = cost.model_usd(self.config, usage) / written
+        turns = self.config.cost.turns_per_conversation
+        return {
+            "variant": "models_only",
+            "memory_usd_per_1000": round(per_exchange * turns * 1000, 4),
+            "basis": "measured model spend from seeding until the memory settled, servers not priced",
+            "usd_per_exchange": round(per_exchange, 8),
+        }
+
+    def _niadra_probes(
+        self, niadra: NiadraTarget | None, pairs: list[tuple[Case, Identities]], tag: str
     ) -> list[latency.Probe]:
+        """Niadra's context over each path (net.niadra_routes), at the production caps."""
+        if niadra is None:
+            return []
+        key = niadra.keys.for_channel("voice")[1]
+        edge = niadra.client("voice").base_url
+        probes = []
+        for route in niadra_routes(edge, "NIADRA_CLUSTER_URL", edge_transport=self.options.niadra_transport):
+            probe = latency.niadra_probe(route.path, route.base, key, pairs, tag)
+            probe.transport = route.transport
+            probes.append(probe)
+        return probes
+
+    def _local_probes(
+        self, mem0: Mem0RestTarget | None, others: list[HttpSystem], pairs: list[tuple[Case, Identities]]
+    ) -> list[latency.Probe]:
+        """Every system on the harness's host: Mem0's search and each added system's read."""
         probes: list[latency.Probe] = []
-        if niadra is not None:
-            key = niadra.keys.for_channel("voice")[1]
-            paths = {"edge": niadra.client("voice").base_url}
-            if cluster := os.environ.get("NIADRA_CLUSTER_URL"):
-                paths["cluster"] = cluster
-            for path, base in paths.items():
-                probe = latency.niadra_probe(path, base, key, pairs, tag)
-                probe.transport = self.options.niadra_transport
-                probes.append(probe)
         if mem0 is not None:
             probes.append(
                 latency.mem0_probe(
                     mem0.url, mem0.api_key, pairs, self.config.mem0.top_k, self.config.mem0.threshold
                 )
             )
-        return probes
+        return probes + [other.read_probe(pairs) for other in others]
 
     def _write_rows(self, n: int, rows: Sequence[accuracy.CaseRow]) -> None:
         self.out.mkdir(parents=True, exist_ok=True)
@@ -391,9 +467,12 @@ class Run:
 
     async def execute(self) -> Path:
         targets = self.build_targets()
-        for target in targets:
-            await target.start()
         try:
+            # Inside the try: a target that started (a billing key issued, a flag set) is closed even
+            # when a later one fails to start, or the run is stopped (bench run turns SIGTERM into a
+            # cancellation, so this block still runs).
+            for target in targets:
+                await target.start()
             for n in range(1, self.options.repetitions + 1):
                 rep = await self.repetition(n, targets)
                 self.reps.append(rep)
@@ -414,6 +493,8 @@ class Run:
         kind = "dry-run" if self.options.dry_run else os.environ.get("BENCH_ENVIRONMENT", "local")
         dataset_dir = bench_config.dataset_dir(self.options.dataset)
         memory_v2 = self.options.memory_v2
+        # Where the harness ran, from the instance metadata; Niadra's machine and database are the
+        # cell's (config [environment]): the harness runs on a host of its own since 26/09/2026.
         identity = await _instance_identity() if kind == "region" else {}
         env = self.config.environment
         return {
@@ -425,9 +506,10 @@ class Run:
             "environment": {
                 "kind": kind,
                 "region": identity.get("region") or (env.region if kind == "region" else None),
-                "machine_class": identity.get("instance_type")
-                or (env.machine_class if kind == "region" else None),
+                "machine_class": env.machine_class if kind == "region" else None,
                 "database_class": env.database_class if kind == "region" else None,
+                "harness_host": env.harness_host if kind == "region" else None,
+                "harness_machine_class": identity.get("instance_type"),
                 "verified_by_instance_metadata": bool(identity),
                 "host": socket.gethostname() if kind != "region" else None,
                 "python": platform.python_version(),
@@ -572,6 +654,12 @@ def aggregate(reps: list[dict[str, Any]]) -> dict[str, Any]:
                 {
                     "system": system,
                     "scenario": scenario,
+                    **(
+                        {"verification": first_privacy["verification"]}
+                        if "verification"
+                        in (first_privacy := next((x for x in lines if x), {}).get("privacy", {}))
+                        else {}
+                    ),
                     "cases": stats.across(_pick(lines, "privacy", "cases"), 0),
                     "leaks": stats.across(_pick(lines, "privacy", "leaks"), 0),
                     "leak_rate": stats.across(_pick(lines, "privacy", "leak_rate"), 4),
