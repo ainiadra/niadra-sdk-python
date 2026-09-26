@@ -30,8 +30,13 @@ def hashed_vector(text: str, dim: int = 384) -> list[float]:
 
 
 class FakeModels:
-    def __init__(self, dim: int = 384) -> None:
+    """niadra-models' `/v1/embed`, with its limits per request (413 past them)."""
+
+    def __init__(self, dim: int = 384, max_texts: int = 256, max_chars: int = 20_000) -> None:
         self.dim = dim
+        self.max_texts = max_texts
+        self.max_chars = max_chars
+        self.requests = 0
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "lifespan":
@@ -42,6 +47,10 @@ class FakeModels:
             return
         body = json.loads(await read_body(receive) or b"{}")
         texts = body.get("texts") or []
+        self.requests += 1
+        if len(texts) > self.max_texts or any(len(t) > self.max_chars for t in texts):
+            await respond_json(send, 413, {"detail": "too many texts or characters"})
+            return
         await respond_json(
             send,
             200,
