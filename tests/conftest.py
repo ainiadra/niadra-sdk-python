@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import AsyncIterator, Iterator
-from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -43,10 +42,6 @@ def context_payload(**overrides: Any) -> dict[str, Any]:
 
 def batch_ok(accepted: int = 1) -> dict[str, Any]:
     return {"accepted": accepted, "duplicates": 0, "errors": []}
-
-
-def fixed_clock() -> datetime:
-    return datetime(2026, 9, 22, 14, 7, tzinfo=timezone.utc)
 
 
 @pytest.fixture(autouse=True)

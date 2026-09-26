@@ -144,7 +144,6 @@ def _stamp(at: datetime) -> str:
 class StoredEvent:
     seq: int
     item: EventItem
-    received_at: datetime
 
     @property
     def id(self) -> str:
@@ -362,7 +361,7 @@ class MockCell:
         for ref in item.object_refs:
             if owner is not None:
                 self._objects.setdefault(_object_key(ref), owner)
-        self.events.append(StoredEvent(len(self.events) + 1, item, self.clock()))
+        self.events.append(StoredEvent(len(self.events) + 1, item))
         self._channel_proof(item)
 
     def _channel_proof(self, item: EventItem) -> None:
