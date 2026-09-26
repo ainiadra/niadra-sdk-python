@@ -3,8 +3,8 @@ readable, and measures. Results go to `results/<date>-<run id>/`:
 
 - `summary.json`: what the site reads, with the run's metadata and every metric across repetitions;
 - `rep-<n>.json`: each repetition's raw metric output;
-- `cases-rep<n>.jsonl`: one line per system, case and view, with the memory block's size, the agent's
-  answer and both grades, so every accuracy number can be audited.
+- `cases-rep<n>.jsonl`: one line per system, case and view, with the memory block (since 26/09/2026) and
+  its size, the agent's answer and both grades, so every accuracy number can be audited.
 """
 
 from __future__ import annotations
