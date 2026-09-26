@@ -572,7 +572,8 @@ under `results/ab/`, and the decision cites that file.
 
 1. Put the runs of one campaign together with `bench combine` (one folder, the site's schema, with the
    list of runs in `combined_from`) and commit `results/<date>-<id>/` here (summary, repetitions, and the
-   per-case rows that let anyone audit every grade), with the runs it came from.
+   per-case rows that let anyone audit every grade, each with the memory block the agent received since
+   26/09/2026), with the runs it came from.
 2. In niadra-frontend: `node scripts/import-benchmark.mjs ../niadra-sdk-python/benchmarks/results/<date>-<id>/summary.json`.
    The importer refuses anything but a `region` run. Each added system appears as a new `system` key in
    every metric; Niadra's paths are now `edge` and `vpc`, every other system's `host`; privacy lines carry

@@ -441,6 +441,10 @@ async def test_runs_with_fewer_repetitions_and_cases_combine_after_the_first(
     for n in (1, 2):
         rows = (combined / f"cases-rep{n}.jsonl").read_text().splitlines()
         assert sum('"system": "no_memory"' in r for r in rows) == 8
+    # Each row keeps the block the agent received (the references' is the case itself, never kept).
+    first = [json.loads(r) for r in (combined / "cases-rep1.jsonl").read_text().splitlines()]
+    assert all(r["context"] for r in first if r["system"] == "niadra" and r["purpose"] == "answer")
+    assert all(r["context"] is None for r in first if r["system"] in ("no_memory", "full_history"))
 
 
 def test_the_production_caps_apply_to_the_region_only(config, cases, monkeypatch) -> None:

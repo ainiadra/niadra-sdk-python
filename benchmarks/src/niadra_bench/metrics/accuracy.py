@@ -162,6 +162,9 @@ class CaseRow:
     # source. None on rows written before 26/09/2026 and on rows that were not answered.
     backing_checked: int | None = None
     unbacked_kinds: list[str] | None = None
+    # The memory block the agent received, so a verdict can be audited against what the memory held
+    # (since 26/09/2026; None for the references, whose block is empty or the case's whole history).
+    context: str | None = None
 
     def dump(self) -> dict[str, Any]:
         return asdict(self)
@@ -224,6 +227,7 @@ async def _one(
         judge=None,
         judge_reason=None,
         meta=got.meta,
+        context=None if target.system in REFERENCES else block,
     )
     if purpose != "answer":
         return row
