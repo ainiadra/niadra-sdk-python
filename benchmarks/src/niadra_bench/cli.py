@@ -5,6 +5,8 @@ bench prepare [--check] [--dataset v1|v2]   write dataset/ (v1) and dataset/v2/ 
 bench run [options]              seed, measure and write results/<date>-<id>/ (--dataset v1|v2,
                                  --niadra-memory-v2 on|off)
 bench report <results dir>       rebuild summary.json from the repetitions of a run
+bench ab [options]               a baseline and a candidate on the same cases, and the delta
+                                 (--candidate-env KEY=VALUE, --same, --local-cell <niadra-back>)
 bench serve embed-proxy|llm-meter [--port N]    (fake-llm and fake-models: local smoke runs only)
 """
 
@@ -91,6 +93,43 @@ def _run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _ab(args: argparse.Namespace) -> int:
+    from datetime import datetime
+
+    from niadra_bench import ab
+
+    try:
+        options = ab.AbOptions(
+            baseline_env=ab.parse_env(args.baseline_env),
+            candidate_env=ab.parse_env(args.candidate_env),
+            same=args.same,
+            candidate_config=Path(args.candidate_config) if args.candidate_config else None,
+            dataset=args.dataset,
+            metrics=_csv(args.metrics, METRICS),
+            repetitions=args.repetitions,
+            limit=args.limit,
+            quick=args.quick,
+            agent=args.agent,
+            local_cell=Path(args.local_cell).resolve() if args.local_cell else None,
+            candidate_cell=Path(args.candidate_cell).resolve() if args.candidate_cell else None,
+            mock=args.mock,
+            output=Path(args.output) if args.output else None,
+            now=datetime.fromisoformat(args.now) if args.now else None,
+            max_minutes=args.max_minutes,
+            label=args.label,
+        )
+        runner = ab.Ab(load_cases(args.dataset), options)
+        out = asyncio.run(runner.execute())
+    except ab.AbError as exc:
+        print(f"bench ab: {exc}", file=sys.stderr)
+        return 2
+    document = json.loads((out / "ab.json").read_text())
+    print((out / "ab.md").read_text())
+    print(f"results in {out}")
+    verdict = document.get("determinism")
+    return 1 if verdict is not None and not verdict["passed"] else 0
+
+
 def _report(args: argparse.Namespace) -> int:
     directory = Path(args.directory)
     summary_path = directory / "summary.json"
@@ -166,6 +205,65 @@ def main(argv: list[str] | None = None) -> None:
         "at the end (default: leave the space as it is)",
     )
     run.set_defaults(func=_run)
+
+    ab = sub.add_parser("ab", help="a baseline and a candidate on the same cases, and the delta")
+    ab.add_argument(
+        "--candidate-env",
+        action="append",
+        metavar="KEY=VALUE",
+        help="a Niadra server setting the candidate runs with (repeatable), e.g. NIADRA_MEMORY_V2=on",
+    )
+    ab.add_argument(
+        "--baseline-env",
+        action="append",
+        metavar="KEY=VALUE",
+        help="a setting of the baseline (default: the setting's default for every key the candidate sets)",
+    )
+    ab.add_argument(
+        "--candidate-config", default=None, help="a TOML file whose sections override benchmark.toml's"
+    )
+    ab.add_argument(
+        "--same", action="store_true", help="determinism check: the candidate is the baseline again"
+    )
+    ab.add_argument(
+        "--local-cell",
+        default=None,
+        metavar="NIADRA_BACK",
+        help="run each side on a local cell of this niadra-back checkout (deploy/local/cell_server.py)",
+    )
+    ab.add_argument(
+        "--candidate-cell",
+        default=None,
+        metavar="NIADRA_BACK",
+        help="the candidate's own niadra-back checkout (a branch), beside --local-cell's for the baseline",
+    )
+    ab.add_argument("--mock", action="store_true", help="both sides are niadra-mock (only with --same)")
+    ab.add_argument(
+        "--agent",
+        choices=["context", "llm"],
+        default=None,
+        help="context: the memory block is the answer, no model; llm: the benchmark's agent and judge "
+        "(default: context with --local-cell or --mock, else llm)",
+    )
+    ab.add_argument(
+        "--dataset",
+        choices=bench_config.DATASET_VERSIONS,
+        default=bench_config.DEFAULT_DATASET,
+        help="dataset version (default: v1)",
+    )
+    ab.add_argument(
+        "--metrics",
+        default="accuracy,tokens,privacy,cost,latency,history,ingest",
+        help=f"comma list of {', '.join(METRICS)}",
+    )
+    ab.add_argument("--repetitions", type=int, default=None)
+    ab.add_argument("--limit", type=int, default=None, help="only N cases spread over the dataset")
+    ab.add_argument("--quick", action="store_true", help="short latency lines (smoke runs)")
+    ab.add_argument("--output", default=None, help="results root (default: results/ab, or results/local/ab)")
+    ab.add_argument("--now", default=None, help="a local cell's clock, ISO 8601 (default: this hour)")
+    ab.add_argument("--max-minutes", type=float, default=None, help="default: [ab] max_minutes")
+    ab.add_argument("--label", default=None, help="a name for the A/B, in the report")
+    ab.set_defaults(func=_ab)
 
     report = sub.add_parser("report", help="rebuild summary.json from a run's repetitions")
     report.add_argument("directory")

@@ -63,6 +63,18 @@ class Options:
     # Dry runs only: an in-process transport to niadra-mock instead of the network.
     niadra_transport: Callable[[], httpx.AsyncBaseTransport] | None = None
     niadra_base_url: str | None = None
+    # A bootstrap document of Niadra keys instead of NIADRA_BOOTSTRAP (`bench ab` against a local cell).
+    niadra_bootstrap: Path | None = None
+    # The instant Niadra's history is seeded from (default: the clock at each seeding).
+    niadra_now: datetime | None = None
+    # Seconds of no change the settle step waits for (default: `run.settle_quiet_s`, 0 in a dry run).
+    settle_quiet_s: float | None = None
+    # The two references of the validity rule (no memory, full history). `bench ab` asks them once per
+    # repetition, on its baseline side, and grades both sides on the same valid cases.
+    references: bool = True
+    # What every repetition's tag starts with (default: the end of the run id). The tag makes the
+    # customers' handles, so two runs with the same tag seed the same people.
+    tag: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
 
@@ -132,17 +144,27 @@ class Run:
         root = options.output or bench_config.RESULTS_DIR
         self.out = root / f"{self.started:%Y-%m-%d}-{self.run_id[-6:]}"
         self.reps: list[dict[str, Any]] = []
+        # Each repetition's per-case rows, for `bench ab`.
+        self.rows: dict[int, list[accuracy.CaseRow]] = {}
         self.meter_url = os.environ.get("MEM0_METER_URL")
 
     # Targets
 
     def _niadra(self) -> NiadraTarget:
-        keys = Keys.from_env()
+        options = self.options
+        keys = Keys.from_env(
+            {"NIADRA_BOOTSTRAP": str(options.niadra_bootstrap)} if options.niadra_bootstrap else None
+        )
+        quiet = options.settle_quiet_s
+        if quiet is None:
+            quiet = 0 if options.dry_run else self.config.run.settle_quiet_s
+        now = options.niadra_now
         return NiadraTarget(
             keys,
-            base_url=self.options.niadra_base_url,
-            transport_factory=self.options.niadra_transport,
-            settle_quiet_s=0 if self.options.dry_run else self.config.run.settle_quiet_s,
+            base_url=options.niadra_base_url,
+            transport_factory=options.niadra_transport,
+            now=(lambda: now) if now is not None else None,
+            settle_quiet_s=quiet,
             settle_timeout_s=self.config.run.settle_timeout_s,
             concurrency=self.config.run.concurrency,
             control_url=ControlPlane.available(keys.document),
@@ -152,7 +174,7 @@ class Run:
 
     def build_targets(self) -> list[Target]:
         systems = self.options.systems
-        targets: list[Target] = [NoMemory(), FullHistory()]
+        targets: list[Target] = [NoMemory(), FullHistory()] if self.options.references else []
         if "niadra" in systems:
             targets.append(self._niadra())
         for scenario in SCENARIOS:
@@ -195,7 +217,7 @@ class Run:
         return {"seconds": round(time.monotonic() - started, 1), "failures": failures, **target.seed_report()}
 
     async def repetition(self, n: int, targets: list[Target]) -> dict[str, Any]:
-        tag = f"{self.run_id[-6:]}r{n}"
+        tag = f"{self.options.tag or self.run_id[-6:]}r{n}"
         pairs = [(case, Identities.for_case(case, tag)) for case in self.cases]
         metrics = self.options.metrics
         rep: dict[str, Any] = {"repetition": n, "tag": tag, "seed": {}, "settle": {}}
@@ -245,6 +267,7 @@ class Run:
             valid, excluded = accuracy.valid_cases(rows, self.by_id)
             rep["validity"] = {"valid": len(valid), "excluded": excluded}
             rep["accuracy"] = accuracy.summarize(rows, valid)
+            self.rows[n] = rows
             self._write_rows(n, rows)
 
         if "cost" in metrics and rep.get("accuracy"):

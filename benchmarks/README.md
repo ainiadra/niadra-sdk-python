@@ -213,6 +213,10 @@ deploy/k8s/             secrets, Mem0's databases, Mem0 and the proxies, the run
 deploy/run-in-region.sh builds, deploys, runs and collects on the k3s machine
 deploy/local/           the same pipeline on Docker with fakes, for a smoke run
 results/                published runs: results/<date>-<id>/{summary.json,rep-N.json,cases-repN.jsonl}
+results/ab/             A/B runs in the region: results/ab/<date>-<id>/{ab.json,ab.md,baseline/,candidate/}
+results/local/          A/B runs on a local cell or the emulator (not committed)
+config/ab.toml          `bench ab`'s ceiling, apart from benchmark.toml so the published hash stays
+deploy/local/cell_server.py  the local cell `bench ab --local-cell` runs in a niadra-back checkout
 ```
 
 ## Running it in the region
@@ -315,6 +319,92 @@ unchanged. About 2 h to 2 h 30 and about $11 per repetition; three repetitions, 
 created beyond Kubernetes objects and two small databases on the existing RDS instance; the machine
 and the database are the ones already running.
 
+## A/B: the delta between two settings
+
+`bench ab` runs a baseline and a candidate over the same prepared dataset and reports the delta,
+figure by figure. The candidate differs from the baseline by `--candidate-env KEY=VALUE` (repeatable), a
+setting of the Niadra server under test, or by `--candidate-config <file.toml>`, whose sections override
+`benchmark.toml`'s. A key only the candidate sets runs on the baseline at its default
+(`NIADRA_MEMORY_V2=off`, `NIADRA_SEMANTIC_CHANNEL=off`; any other key needs `--baseline-env`), so both
+sides say what they ran with. Everything else is equal: the same cases in the same order, the same agent
+and judge, repetition by repetition (baseline 1, candidate 1, baseline 2, ...). Both sides are graded on
+the same valid cases: the two references of the validity rule answer once per repetition, on the baseline
+side, and their verdict holds for both.
+
+What the delta covers (`ab.md`, and `ab.json` with schema `niadra-bench.ab.v1`): accuracy overall and by
+category (the judge when there is one, else the exact check), `context_has_answer` overall and by category,
+tokens per view (median and p95), privacy leaks, the p50 and p95 of metrics 1, 8 and 9, and cost. Each
+side shows its median over the repetitions and the range between them; the delta is the candidate's
+median minus the baseline's. `ab.json` also lists the valid cases that changed verdict (`flips`: the
+answer, and whether the memory block held it), by category. An A/B folder has no `summary.json`, so the
+site's importer never takes one.
+
+`bench ab --same` is the determinism check: the candidate is the baseline again, and every accuracy,
+`context_has_answer`, privacy and token figure must come out identical, per repetition and case by case
+(latency may differ). It exits with 1 and lists what differed otherwise. Run it on the same checkout and
+place before trusting a delta.
+
+Where the two sides run:
+
+- **A local cell** (`--local-cell <niadra-back checkout>`): no AWS, no key. Each side starts
+  `deploy/local/cell_server.py` inside that checkout (`uv run --project <checkout>`, with the checkout as
+  the working directory), with the side's settings in its process environment: niadra-back's in-memory
+  flow harness (`tests/unit/flow/harness.py`, every real service and task handler) behind its own HTTP
+  routes, which the harness reads through the SDK as it reads the region. A batch answers after the
+  pipeline ran every task it started, so nothing is left to settle. What stands in for the cloud, the
+  same on both sides: a rule extractor in place of the extraction model (the session's ask and each line
+  that settles a new number as the episode summary, the category and intent by keywords, no facts), the
+  hash embeddings and the real rule gate of `models/`, a clock fixed at `--now` (default: the hour the
+  A/B started), and one in-memory cell per customer and repetition (the in-memory store is copied to open
+  each transaction; a cell per customer keeps a side of dataset v2 at about five minutes a repetition on
+  a laptop). What a space learns across customers (memory v2's nightly weights) does not run here. The
+  agent is `context` unless `--agent llm` (which needs `OPENROUTER_API_KEY`).
+  `NIADRA_SEMANTIC_CHANNEL=models` gives the read path the hash encoder; `inprocess` needs the model
+  files and is refused. Results go to `results/local/ab/`, which is not committed. These numbers compare
+  two settings of the same code: they are never published, and no absolute figure of a local cell says
+  what the region would measure.
+- **The emulator** (`--mock`): niadra-mock on both sides. It has no server settings, so it runs only
+  `--same`; the CI runs it.
+- **The region** (neither option, from the run Job): the Niadra of `NIADRA_BOOTSTRAP`. The harness
+  changes only what the bootstrap's admin account changes through the control API, the space's settings:
+  `NIADRA_MEMORY_V2` (as `--niadra-memory-v2` does, put back at the end of each side's repetition). A
+  setting of the read deployment's process, such as `NIADRA_SEMANTIC_CHANNEL`, is refused there: that
+  deployment also serves production; that A/B runs on a local cell until the region has a read deployment
+  of the benchmark's own. The two sides seed different customers (the same cases) into the same space,
+  one after the other. `[ab] max_minutes` in `config/ab.toml` (450) stops an A/B before a repetition that
+  would pass it, under the Job's 8 hours, and the report says it is incomplete.
+
+A local cell imports the checkout's code when it starts and records that commit. Point it at a worktree
+that nothing else pulls during the A/B (`git worktree add ../wt/niadra-back-ab origin/main`, then `uv
+sync` there): a checkout that moves mid-run leaves the cell with code from two commits.
+
+```bash
+# On a laptop, against a niadra-back checkout (its environment synced with `uv sync`):
+uv run bench ab --local-cell ../../niadra-back --same --dataset v2
+uv run bench ab --local-cell ../../niadra-back --candidate-env NIADRA_MEMORY_V2=on --dataset v2
+uv run bench ab --local-cell ../../niadra-back --baseline-env NIADRA_MEMORY_V2=on \
+    --candidate-env NIADRA_SEMANTIC_CHANNEL=models --dataset v2
+# A branch against main: the candidate runs on its own checkout.
+uv run bench ab --local-cell ../../niadra-back --candidate-cell ../../wt/niadra-back-mybranch \
+    --baseline-env NIADRA_MEMORY_V2=on --dataset v2
+
+# In the region (see "Running it in the region"; `collect` copies results/ab/<date>-<id>/):
+bench start ab --same --dataset v2 && on_ops /tmp/bench.sh 300
+bench start ab --candidate-env NIADRA_MEMORY_V2=on --dataset v2 && on_ops /tmp/bench.sh 300
+```
+
+## Ranking gate
+
+No change to how memory v2 picks and orders what a pack carries enters niadra-back's `main` without its
+delta attached to the pull request: `domain/serve/slots.py`, `domain/compile/scoring.py`,
+`domain/measure/weights.py`, `DEFAULT_WEIGHTS`, and any flag that turns a retrieval channel on. The delta
+is `bench ab` with the change as the candidate (a flag, or the branch's checkout as `--candidate-cell`
+against `main`'s as `--local-cell`), on dataset v2, three repetitions, with `bench ab --same` passing on
+the same checkout first; the PR carries `ab.md`. A category that loses accuracy or `context_has_answer`
+beyond the range of its repetitions blocks the change, as do median tokens that rise without an accuracy
+gain. Turning `memory_v2` or the semantic channel on by default also needs the region's A/B, committed
+under `results/ab/`, and the decision cites that file.
+
 ## Publishing
 
 1. Commit `results/<date>-<id>/` here (summary, repetitions, and the per-case rows that let anyone
@@ -334,6 +424,7 @@ uv run pytest -q                       # unit tests and a dry run against niadra
 uv run bench prepare --check           # both committed datasets are what the generator makes, and valid
 uv run bench run --mock --systems niadra --quick --limit 28 --repetitions 1 --output /tmp/bench   # no network
 uv run bench run --mock --systems niadra --dataset v2 --quick --limit 72 --repetitions 1 --output /tmp/bench
+uv run bench ab --same --mock --quick --limit 28 --repetitions 1                    # the A/B plumbing
 docker compose -f deploy/local/compose.yaml up --build --exit-code-from harness harness
 ```
 

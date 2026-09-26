@@ -7,7 +7,8 @@
 #   run-in-region.sh start [bench args] start the run Job (default: every system, every metric)
 #   run-in-region.sh status             the Job's state and the last lines of its log
 #   run-in-region.sh collect            copy the newest results folder to the cell's bucket
-#                                       (s3://<bucket>/benchmarks/<folder>/) and print its summary.json
+#                                       (s3://<bucket>/benchmarks/<folder>/, an A/B under benchmarks/ab/)
+#                                       and print its summary.json (an A/B: its ab.md)
 #   run-in-region.sh down [--drop-db]   remove every benchmark object (and Mem0's databases)
 #
 # Environment: BENCH_REPO (default the public SDK repository), BENCH_REF (default main).
@@ -88,17 +89,26 @@ status() {
 
 collect() {
   local latest
-  latest="$(ls -1dt "$WORK"/results/*/ 2>/dev/null | head -1)"
+  # A run's folder, or an A/B's under results/ab/ (`bench start ab ...`), whichever is newest. The
+  # folders are named <date>-<id> by the harness.
+  # shellcheck disable=SC2010
+  latest="$(ls -1dt "$WORK"/results/*/ "$WORK"/results/ab/*/ 2>/dev/null | grep -v '/results/ab/$' | head -1)"
   [ -n "$latest" ] || { echo "no results yet"; exit 1; }
   echo "==> $latest"
   ls -la "$latest"
-  local bucket target
+  local bucket target prefix=""
+  case "$latest" in */results/ab/*) prefix="ab/" ;; esac
   bucket="$(kubectl -n "$NS" get configmap niadra-cell -o jsonpath='{.data.NIADRA_S3_BUCKET}')"
-  target="${BENCH_S3_URI:-s3://$bucket/benchmarks}/$(basename "$latest")/"
+  target="${BENCH_S3_URI:-s3://$bucket/benchmarks}/$prefix$(basename "$latest")/"
   aws s3 cp --recursive --only-show-errors "$latest" "$target"
   echo "copied to $target"
-  echo "==> summary.json"
-  cat "$latest/summary.json"
+  if [ -n "$prefix" ]; then
+    echo "==> ab.md"
+    cat "$latest/ab.md"
+  else
+    echo "==> summary.json"
+    cat "$latest/summary.json"
+  fi
 }
 
 down() {
