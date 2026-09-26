@@ -66,8 +66,11 @@ what a Niadra buyer buys.
   `search()` per turn. No parameter tuned for this dataset. The rerank column (`mem0_oss_rerank`)
   builds `mem0.Memory` in-process on the same store with an LLM reranker on the same model, because
   the REST server's `/search` has no rerank parameter.
-- **Niadra as documented.** The SDK is the current release on PyPI (`niadra==0.3.0`; the first run
-  installed 0.1.5, whose read path is the same). Each exchange is a batch of `message` events with its
+- **Niadra as documented.** The SDK is the current release on PyPI (`niadra==0.4.0`; the first run
+  installed 0.1.5 and run 2026-09-25-6efee4 0.3.0, whose read path is the same for a read with its own
+  `query`). 0.4.0 is the first that puts memory v2's `slots` in `turn_block` (0.3.0 drops the field), so
+  a run with `memory_v2` on measures what an agent gets only from 0.4.0 on; its turn block is the live
+  turns, the slots, then the delta, where 0.3.0 put the delta first. Each exchange is a batch of `message` events with its
   `occurred_at` and a `conversation.ended`, system records are `system_event`s, the billing agent's
   records are `action`s, and every probe verifies the call or chat before `context()`, as the voice
   and WhatsApp guides show; the question goes in `query`, which only ranks the pack's items by its words. The billing agent has a source of its own that
