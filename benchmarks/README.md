@@ -426,7 +426,11 @@ bootstrap as a read-only file and the provider key through the environment of it
 The local systems' own tokens and database passwords are random, generated on the host.
 
 `start` and `campaign` take any `bench run` arguments, `--niadra-memory-v2 on|off` among them (the flag
-lives at `settings/memory_v2`; two runs with different values must not overlap in the same space).
+lives at `settings/memory_v2`; two runs with different values must not overlap in the same space). The
+flag is a configuration diff, and the four-eyes rule lets its author approve it only while no other
+person of the tenant can: since the sandbox's tenant has a second admin (26/09/2026), a run that would
+change the flag withdraws its diff and stops (`FlagRefusedError`), and so does `bench ab` in the region.
+A person of the tenant sets the flag in the Console, and the run is started without the option.
 Every run but the first of a campaign can take `--no-references`: `bench combine` decides validity with the
 first folder's references only, so asking them again in each run spends the agent and the judge on answers
 nothing reads (two target passes per repetition). The first run keeps them, needs every case and the most

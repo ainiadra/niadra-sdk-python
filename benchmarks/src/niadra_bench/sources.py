@@ -8,8 +8,10 @@ address, the harness does the same: one source for the dataset's operations, reu
 key per run, revoked when the run ends.
 
 The same account sets Niadra's `memory_v2` space flag when a run asks for it (`--niadra-memory-v2`): a
-configuration diff on the space's document, approved by the same person (the sandbox has no second
-admin, so the four-eyes rule lets the author approve), and put back when the run ends. The flag is
+configuration diff on the space's document, approved by the same person, and put back when the run ends.
+The four-eyes rule lets the author approve only while no other person of the tenant can: since the
+sandbox's tenant has a second admin, the approval is refused, the run withdraws (rejects) its own diff
+and stops with `FlagRefusedError`, and the flag is set by a person in the Console instead. The flag is
 `settings/memory_v2` (`<document type>/<dotted field>`).
 """
 
@@ -61,6 +63,10 @@ def totp(secret_b32: str, at: float | None = None) -> str:
     offset = digest[-1] & 0x0F
     code = struct.unpack(">I", digest[offset : offset + 4])[0] & 0x7FFFFFFF
     return f"{code % 1_000_000:06d}"
+
+
+class FlagRefusedError(RuntimeError):
+    """A space flag's diff that the four-eyes rule keeps the run from approving (withdrawn)."""
 
 
 @dataclass(frozen=True)
@@ -194,7 +200,17 @@ class ControlPlane:
         body = {"space_id": space_id, "type": doc_type, "document": document, "reason": reason}
         diff = _expect(await self._call("POST", "/v1/config/diffs", json=body), 201)
         if diff.get("status") != "applied":
-            diff = _expect(await self._call("POST", f"/v1/config/diffs/{diff['diff_id']}/approve"), 200)
+            approved = await self._call("POST", f"/v1/config/diffs/{diff['diff_id']}/approve")
+            if approved.status_code == 403:
+                # Another person of the tenant can approve, so the four-eyes rule keeps the author from
+                # it: the run withdraws its diff rather than leave it waiting in the Console.
+                _expect(await self._call("POST", f"/v1/config/diffs/{diff['diff_id']}/reject"), 200)
+                raise FlagRefusedError(
+                    f"the {flag} diff needs another person's approval (four eyes): withdrawn. A person "
+                    "of the tenant sets the flag in the Console, and the run leaves it as it is "
+                    "(no --niadra-memory-v2)"
+                )
+            diff = _expect(approved, 200)
         if diff.get("status") != "applied":
             raise RuntimeError(f"the {flag} diff was not applied: {diff.get('status')}")
         return previous if isinstance(previous, bool) else None
