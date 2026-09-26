@@ -594,6 +594,9 @@ class Run:
                 # `context_has_answer` by whole token for values of three or more digits and by the
                 # category's pattern otherwise; the first run's rule is `context_has_answer_loose`.
                 "context_has_answer_rule": "specific-v2",
+                # "off": the run asked no reference (`--no-references`); its cases count only when
+                # `bench combine` puts it after a run that did, whose references decide validity.
+                "references": "on" if self.options.references else "off",
             },
             "dataset": {
                 "version": self.options.dataset,

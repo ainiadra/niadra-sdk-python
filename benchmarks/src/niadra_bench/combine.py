@@ -6,6 +6,11 @@ the two references (no memory, full history) of the first run decide which cases
 system. The other metrics' lines are put together as they are; a line two runs share (the embedder's
 `encode` line, Niadra's public prices) is kept once, from the first run that has it. The combined
 `summary.json` has the schema the site imports, with the list of runs it came from.
+
+The runs may differ in repetitions and in cases (`--limit`), since the slow and the costly systems run
+fewer: the first run needs the most repetitions and every case, a run without references
+(`--no-references`) can only come after it, and each source in `combined_from` says how many repetitions
+and cases it measured, so a system measured on fewer is shown as such.
 """
 
 from __future__ import annotations
@@ -40,13 +45,22 @@ def _rows(directory: Path, n: int) -> list[accuracy.CaseRow]:
 
 def _check_same(summaries: list[dict[str, Any]]) -> None:
     first = summaries[0]
+    if first["config"].get("references", "on") == "off":
+        raise ValueError(f"{first['run_id']} has no references: the first run's decide validity")
     for other in summaries[1:]:
-        for section, field in (("dataset", "hash"), ("config", "hash"), ("config", "repetitions")):
+        for section, field in (("dataset", "hash"), ("config", "hash")):
             if other[section][field] != first[section][field]:
                 raise ValueError(
                     f"{other['run_id']} has another {section} {field} than {first['run_id']}: "
                     "only runs of the same dataset and configuration combine"
                 )
+        if other["config"]["repetitions"] > first["config"]["repetitions"]:
+            raise ValueError(
+                f"{other['run_id']} has more repetitions than {first['run_id']}: the first run's "
+                "references cover only its own repetitions"
+            )
+        if other["dataset"]["cases"] > first["dataset"]["cases"]:
+            raise ValueError(f"{other['run_id']} has more cases than {first['run_id']}")
 
 
 def combine(directories: list[Path], output: Path, cases: dict[str, Case]) -> Path:
@@ -65,6 +79,9 @@ def combine(directories: list[Path], output: Path, cases: dict[str, Case]) -> Pa
         seen_systems: set[tuple[str, str | None]] = set()
         rep: dict[str, Any] = {"repetition": n, "seed": {}, "settle": {}, "combined": True}
         for index, directory in enumerate(directories):
+            if not (directory / f"rep-{n}.json").exists():
+                # A run with fewer repetitions (a costly or slow system) counts in its own only.
+                continue
             run_rows = _rows(directory, n)
             systems = {(r.system, r.scenario) for r in run_rows}
             keep = {s for s in systems if s[0] not in REFERENCES or index == 0} - seen_systems
@@ -86,6 +103,8 @@ def combine(directories: list[Path], output: Path, cases: dict[str, Case]) -> Pa
                     {
                         "run_id": summaries[index]["run_id"],
                         "systems": sorted({s for s, _ in systems} - REFERENCES),
+                        "repetitions": summaries[index]["config"]["repetitions"],
+                        "cases": summaries[index]["dataset"]["cases"],
                         "started_at": summaries[index]["started_at"],
                         "finished_at": summaries[index]["finished_at"],
                     }

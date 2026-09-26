@@ -101,6 +101,7 @@ def _run(args: argparse.Namespace) -> int:
         dataset=args.dataset,
         memory_v2=None if args.niadra_memory_v2 is None else args.niadra_memory_v2 == "on",
         niadra_record_answers=args.niadra_guards == "measure",
+        references=not args.no_references,
     )
     if args.mock:
         import httpx
@@ -253,6 +254,12 @@ def main(argv: list[str] | None = None) -> None:
         "--mock", action="store_true", help="Niadra is the in-process niadra-mock (implies --dry-run)"
     )
     run.add_argument("--output", default=None, help="results directory (default: results/)")
+    run.add_argument(
+        "--no-references",
+        action="store_true",
+        help="skip the two references (no memory, full history): for a run that `bench combine` puts "
+        "after one that asked them, whose references decide validity for every system",
+    )
     run.add_argument(
         "--dataset",
         choices=bench_config.DATASET_VERSIONS,

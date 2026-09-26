@@ -397,6 +397,52 @@ async def test_runs_of_different_systems_combine_into_one_summary(config, tmp_pa
     assert sum('"system": "no_memory"' in r for r in rows) == 8
 
 
+async def test_runs_with_fewer_repetitions_and_cases_combine_after_the_first(
+    config, tmp_path, monkeypatch
+) -> None:
+    from niadra_bench.combine import combine
+
+    monkeypatch.setenv("NIADRA_API_KEY", MOCK_KEY)
+    monkeypatch.delenv("NIADRA_BOOTSTRAP", raising=False)
+    monkeypatch.delenv("MEM0_METER_URL", raising=False)
+    cases = load_cases("v2")
+    outs = []
+    for systems, repetitions, limit, references in (({"niadra"}, 2, 8, True), ({"ai_memory"}, 1, 4, False)):
+        mock = MockApp()
+        options = Options(
+            systems=systems,
+            metrics={"latency", "accuracy", "tokens", "privacy", "cost"},
+            repetitions=repetitions,
+            dry_run=True,
+            limit=limit,
+            quick=True,
+            output=tmp_path / "runs",
+            dataset="v2",
+            references=references,
+            niadra_transport=lambda mock=mock: httpx.ASGITransport(app=mock.asgi),
+            niadra_base_url="http://niadra-mock",
+            system_transports={"ai_memory": httpx.ASGITransport(app=FakeAiMemory())},
+            extra={"tokenizer": word_tokenizer},
+        )
+        outs.append(await Run(config, cases, options).execute())
+    by_id = {c.id: c for c in cases}
+    second = json.loads((outs[1] / "summary.json").read_text())
+    assert second["config"]["references"] == "off"
+    with pytest.raises(ValueError, match="no references"):
+        combine(list(reversed(outs)), tmp_path / "wrong", by_id)
+    combined = combine(outs, tmp_path / "combined", by_id)
+    summary = json.loads((combined / "summary.json").read_text())
+    sources = [(s["systems"], s["repetitions"], s["cases"]) for s in summary["combined_from"]]
+    assert sources == [(["niadra"], 2, 8), (["ai_memory"], 1, 4)]
+    assert summary["config"]["repetitions"] == 2
+    line = next(r for r in summary["metrics"]["accuracy"]["results"] if r["system"] == "ai_memory")
+    assert line["cases"]["runs"][1] is None
+    assert '"system": "ai_memory"' not in (combined / "cases-rep2.jsonl").read_text()
+    for n in (1, 2):
+        rows = (combined / f"cases-rep{n}.jsonl").read_text().splitlines()
+        assert sum('"system": "no_memory"' in r for r in rows) == 8
+
+
 def test_the_production_caps_apply_to_the_region_only(config, cases, monkeypatch) -> None:
     def run(**options) -> Run:
         return Run(config, cases[:2], Options(systems={"niadra"}, metrics=set(), repetitions=1, **options))
