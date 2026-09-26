@@ -122,7 +122,9 @@ class LlmMeter:
             try:
                 model = str(json.loads(body or b"{}").get("model") or model)
                 answer = upstream.json()
-                self._count(model, answer.get("usage"), upstream.status_code != 200 or "error" in answer)
+                # The Responses API (Graphiti's client) answers with `"error": null` when it went well.
+                failed = upstream.status_code != 200 or bool(answer.get("error"))
+                self._count(model, answer.get("usage"), failed)
             except (json.JSONDecodeError, ValueError, AttributeError):
                 self._count(model, None, True)
         out_headers = [

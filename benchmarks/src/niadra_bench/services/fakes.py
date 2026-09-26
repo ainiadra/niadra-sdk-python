@@ -206,6 +206,7 @@ class FakeLlm:
                 "object": "response",
                 "created_at": 0,
                 "status": "completed",
+                "error": None,
                 "model": body.get("model", "fake"),
                 "output": [
                     {
