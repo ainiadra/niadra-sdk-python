@@ -278,7 +278,7 @@
           "title": "Derived"
         },
         "channels": {
-          "description": "The channels that ranked the item: `exact`, `lexical`, `temporal`, `values`, `semantic`.",
+          "description": "The channels that ranked the item: `exact`, `lexical`, `temporal`, `values`, `semantic`, `linked`.",
           "items": {
             "type": "string"
           },
@@ -289,6 +289,18 @@
           "description": "The line as `slots` prints it.",
           "title": "Text",
           "type": "string"
+        },
+        "why": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SlotWhy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "With `explain`: why this line was chosen."
         }
       },
       "required": [
@@ -341,6 +353,133 @@
         "version"
       ],
       "title": "PackStamp",
+      "type": "object"
+    },
+    "SlotChannelRank": {
+      "additionalProperties": false,
+      "description": "One retrieval channel's part in a slot's fused score (weighted reciprocal rank fusion).",
+      "properties": {
+        "channel": {
+          "description": "`exact`, `values`, `lexical`, `temporal`, `semantic` or `linked`.",
+          "title": "Channel",
+          "type": "string"
+        },
+        "position": {
+          "description": "1-based, in that channel's own ranking for the turn.",
+          "title": "Position",
+          "type": "integer"
+        },
+        "weight": {
+          "description": "The channel's weight in this fusion.",
+          "title": "Weight",
+          "type": "number"
+        },
+        "contribution": {
+          "description": "`weight / (60 + position)`: what the channel added to `score`.",
+          "title": "Contribution",
+          "type": "number"
+        }
+      },
+      "required": [
+        "channel",
+        "position",
+        "weight",
+        "contribution"
+      ],
+      "title": "SlotChannelRank",
+      "type": "object"
+    },
+    "SlotWhy": {
+      "additionalProperties": false,
+      "description": "Why a line took a slot (`explain`). Ids, positions and numbers; never a line or a value.",
+      "properties": {
+        "item_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The item, as manifests and context-use name it; absent for a derived line.",
+          "title": "Item Id"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The fused score: the sum of the channels' contributions.",
+          "title": "Score"
+        },
+        "channels": {
+          "description": "Each channel that ranked the item, in fusion order.",
+          "items": {
+            "$ref": "#/$defs/SlotChannelRank"
+          },
+          "title": "Channels",
+          "type": "array"
+        },
+        "weights_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The space's learned fusion weights used; absent for the defaults.",
+          "title": "Weights Version"
+        },
+        "via": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For an item the `linked` channel brought: the exact match it is tied to, as `item_id`.",
+          "title": "Via"
+        },
+        "excerpt": {
+          "default": false,
+          "description": "The line was cut to the sentences that answer the turn.",
+          "title": "Excerpt",
+          "type": "boolean"
+        },
+        "rule": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For a derived line: `count_complaints`, `count_conversations`, `no_record` or `withheld_may_hold`.",
+          "title": "Rule"
+        },
+        "basis": {
+          "additionalProperties": true,
+          "description": "For a derived line, what the rule counted or missed: `basis` (the conversation that chose the category), `category`, `counted`, `window_days`; `asked_types`, `identifiers` (how many numbers the turn named, never which), `withheld`.",
+          "title": "Basis",
+          "type": "object"
+        }
+      },
+      "title": "SlotWhy",
       "type": "object"
     },
     "SourceCoverage": {

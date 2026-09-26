@@ -1,6 +1,7 @@
 """Typed models of the Niadra wire format, mirroring the server contracts field for field."""
 
 from niadra.models.admin import (
+    ContextUseEntry,
     CorrectionRequest,
     Erasure,
     ExportPackage,
@@ -50,6 +51,8 @@ from niadra.models.context import (
     Recurrence,
     SearchRequest,
     SearchResponse,
+    SlotChannelRank,
+    SlotWhy,
     TargetModel,
     TimelineRequest,
     TimelineResponse,
@@ -107,6 +110,7 @@ __all__ = [
     "ContextRequest",
     "ContextResponse",
     "ContextStamp",
+    "ContextUseEntry",
     "ConversationEndedItem",
     "CorrectionRequest",
     "CreateAgentNoteRequest",
@@ -154,6 +158,8 @@ __all__ = [
     "SearchRequest",
     "SearchResponse",
     "SearchResult",
+    "SlotChannelRank",
+    "SlotWhy",
     "SourceCoverage",
     "SpeakerRef",
     "Subject",

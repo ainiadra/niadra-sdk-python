@@ -56,6 +56,8 @@ from niadra.models.context import (
     Recurrence,
     SearchRequest,
     SearchResponse,
+    SlotChannelRank,
+    SlotWhy,
     TimelineRequest,
     TimelineResponse,
     TimeWindow,
@@ -474,7 +476,8 @@ class MockCell:
                     delta = '<delta source="niadra">\n' + "\n".join(e.line() for e in unseen) + "\n</delta>"
                 mark = max((e.seq for e in events), default=mark)
             self._marks[root] = mark
-            slots = self._slots(turn, events, pin, verification.effective) if turn else []
+            explain = bool(request.explain) and request.format == "json"
+            slots = self._slots(turn, events, pin, verification.effective, explain) if turn else []
             slots_text = _render_slots(slots)
             timing = {"total": 0.1, "slots": 0.05} if turn else {"total": 0.1}
             if request.known_etag == pin.etag:
@@ -530,21 +533,45 @@ class MockCell:
                 path=path,
             )
 
-    def _slots(self, turn: str, events: list[StoredEvent], pin: _Pin, level: Verification) -> list[PackSlot]:
+    def _slots(
+        self, turn: str, events: list[StoredEvent], pin: _Pin, level: Verification, explain: bool = False
+    ) -> list[PackSlot]:
         """What the turn selects: lines outside the pinned pack sharing a word with it, most shared
-        first, then a `no_record` line for each number in the turn that no visible event holds."""
+        first, then a `no_record` line for each number in the turn that no visible event holds.
+
+        With `explain`, each item carries `why`: its one channel (`lexical`, the only one this
+        emulator ranks with), its position in that channel and the fused score; each derived line
+        carries the rule that wrote it and the basis behind it.
+        """
         visible = [e for e in events if not self._expired(e) and self._visible(e, level)]
         terms = {w for w in _words(turn) if len(w) >= 4 or any(c.isdigit() for c in w)}
         scored = [(len(terms & _words(e.line())), e.seq, e) for e in visible if e.line() not in pin.text]
         picked = sorted((s for s in scored if s[0]), key=lambda s: (-s[0], -s[1]))[:MAX_SLOTS]
+        numbers = dict.fromkeys(_NUMBER.findall(turn))
         slots: list[PackSlot] = []
-        for number in dict.fromkeys(_NUMBER.findall(turn)):
+        for number in numbers:
             if not any(number in e.line() for e in visible):
                 line = f"[Note] no record of {number} in this customer's history"
-                slots.append(PackSlot(section="derived", derived="no_record", text=line))
-        for _, _, event in picked:
+                why = SlotWhy(rule="no_record", basis={"identifiers": len(numbers)}) if explain else None
+                slots.append(PackSlot(section="derived", derived="no_record", text=line, why=why))
+        for position, (_, _, event) in enumerate(picked, start=1):
             section, label = _LABELS[event.item.kind]
-            slots.append(PackSlot(section=section, channels=["lexical"], text=f"[{label}] {event.line()}"))
+            why = None
+            if explain:
+                weight = 1.0
+                contribution = weight / (60 + position)
+                why = SlotWhy(
+                    item_id=event.id,
+                    score=contribution,
+                    channels=[
+                        SlotChannelRank(
+                            channel="lexical", position=position, weight=weight, contribution=contribution
+                        )
+                    ],
+                )
+            slots.append(
+                PackSlot(section=section, channels=["lexical"], text=f"[{label}] {event.line()}", why=why)
+            )
         return slots
 
     def _compile(

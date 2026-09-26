@@ -38,6 +38,11 @@ class IngestStatus(ResponseModel):
     closed_at: datetime | None = None
     close_reason: str | None = None
     extraction: str | None = Field(default=None, description="`ok`, `minimal`, `invalid` or `failed`.")
+    masked: dict[str, int] | None = Field(
+        default=None,
+        description="Values held back from this conversation's or task's events before storage, by type "
+        "(`card`, `cvv`, `password`, `secret`); absent when none was.",
+    )
 
 
 class Origin(ResponseModel):
@@ -205,6 +210,36 @@ class Erasure(ResponseModel):
 class ExportRequest(Model):
     profile_id: str | None = None
     handle: Handle | None = None
+
+
+class ContextUseEntry(ResponseModel):
+    """One measured delivery of context (`GET /v1/context-use/{conversation_id}`): what it carried,
+    whether the conversation used it, and, with `explain`, why each slot was chosen."""
+
+    manifest_hash: str
+    source_id: str
+    measure_version: str
+    channel: str
+    view: str
+    experiment_group: str
+    items: list[dict[str, Any]] = Field(default_factory=list)
+    questions: int
+    repeated: int
+    used: int
+    contradicted: int
+    late: bool
+    measured_at: datetime
+    not_measured_reason: str | None = None
+    transfer_unread: bool | None = None
+    tokens_saved: int = Field(default=0, description="Tokens this delivery's pack left out for lack of use.")
+    slots: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Memory v2: one entry per read of this delivery that carried slots: `channels` (hits "
+        "per retrieval channel, `skipped`), `items` (per slot: `id`, `kind`, `channels`, `position`, `used`, "
+        "`repeated`, `contradicted`, and `why`: `score`, per channel its `position`, `weight` and "
+        "`contribution`, `via` for a linked item), `derived` (the rule of each derived line) and "
+        "`weights_version`. The same numbers as the slots receipt, never a line.",
+    )
 
 
 class ExportPackage(ResponseModel):

@@ -132,6 +132,45 @@ def test_the_pack_as_data_types_the_slots(recording: MockApp, on_mock: Niadra) -
     assert second.pack is not None and second.pack.slots == [] and second.slots is None
 
 
+def test_explain_adds_why_to_each_slot(recording: MockApp, on_mock: Niadra) -> None:
+    recording.cell.enable_memory_v2()
+    _history(on_mock)
+    with on_mock.conversation("wa-explain", subject=MARINA) as chat:
+        chat.customer("Is order 99123 the one with protocol 81220?")
+        answer = chat.context(format="json", explain=True)
+    assert answer.pack is not None
+    derived = [s for s in answer.pack.slots if s.section == "derived"]
+    assert derived and derived[0].why is not None
+    assert derived[0].why.rule == "no_record"
+    assert derived[0].why.basis.get("identifiers") == 2
+    items = [s for s in answer.pack.slots if s.section != "derived"]
+    assert items and items[0].why is not None
+    why = items[0].why
+    assert why.item_id is not None
+    assert why.score is not None and why.score > 0
+    assert why.channels and why.channels[0].channel == "lexical"
+    assert why.channels[0].position == 1
+    assert why.channels[0].contribution == why.score
+    # `explain` changes nothing else: the bytes are the same as an unexplained read.
+    without_explain = _bodies(recording)[-1] | {"explain": False}
+    del without_explain["explain"]
+    assert "explain" not in without_explain
+
+
+def test_explain_requires_json_format() -> None:
+    strict = Niadra(MOCK_KEY, base_url="http://mock", strict=True)
+    with pytest.raises(ValueError, match='explain requires format="json"'):
+        strict.context(MARINA, explain=True)
+    strict.close()
+
+
+def test_explain_fails_open_without_strict() -> None:
+    lenient = Niadra(MOCK_KEY, base_url="http://mock", channel="whatsapp")
+    answer = lenient.context(MARINA, explain=True)
+    assert answer.error == "invalid_arguments"
+    lenient.close()
+
+
 def test_a_space_without_memory_v2_keeps_its_pinned_reads(recording: MockApp, on_mock: Niadra) -> None:
     _history(on_mock)
     plain = on_mock.context(MARINA, conversation_id="reference")

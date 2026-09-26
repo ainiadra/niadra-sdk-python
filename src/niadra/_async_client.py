@@ -122,6 +122,7 @@ class AsyncNiadra:
         use_cache: bool = True,
         format: Literal["text", "json"] = "text",
         turn: str | None = None,
+        explain: bool = False,
     ) -> Context:
         """The context pack for a subject or a business object. See `Niadra.context`."""
         requested = Verification.V0
@@ -139,6 +140,7 @@ class AsyncNiadra:
                 delta,
                 target,
                 format,
+                explain,
             )
         except (TypeError, ValueError) as exc:
             return self._core.fail(
