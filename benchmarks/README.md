@@ -426,7 +426,11 @@ bootstrap as a read-only file and the provider key through the environment of it
 The local systems' own tokens and database passwords are random, generated on the host.
 
 `start` and `campaign` take any `bench run` arguments, `--niadra-memory-v2 on|off` among them (the flag
-lives at `settings/memory_v2`; two runs with different values must not overlap in the same space):
+lives at `settings/memory_v2`; two runs with different values must not overlap in the same space).
+Every run but the first of a campaign can take `--no-references`: `bench combine` decides validity with the
+first folder's references only, so asking them again in each run spends the agent and the judge on answers
+nothing reads (two target passes per repetition). The first run keeps them, needs every case and the most
+repetitions, and `bench combine` refuses a first folder without them:
 
 ```bash
 deploy/temp-host/bench.sh start niadra --dataset v2 --niadra-memory-v2 off
@@ -639,4 +643,7 @@ niadra-mock, so it needs no key. It proves the plumbing only; its numbers are ne
 - Runs of different systems are put together by `bench combine`, with one validity rule for all (the
   first run's references); each system still ran alone on the host, at a different time, against the
   same dataset and configuration hash.
+- A costly or slow system may run fewer repetitions or fewer cases (`--repetitions 1`, `--limit`) than the
+  first run: `bench combine` takes it after the first run, and its source in `combined_from` carries its
+  `repetitions` and `cases`, so the page marks it rather than setting it beside the others as equal.
 
