@@ -112,6 +112,9 @@ class FakeLlm:
         last = str(messages[-1].get("content", "")) if messages else ""
         schema = _schema(body)
         wants_json = (body.get("response_format") or {}).get("type") == "json_object"
+        if body.get("tools"):
+            await self._tool_call(send, body)
+            return
         if schema is not None:
             content = json.dumps(minimal(schema))
         elif wants_json:
@@ -142,6 +145,42 @@ class FakeLlm:
                     "completion_tokens": len(content) // 4,
                     "total_tokens": prompt_tokens + len(content) // 4,
                 },
+            },
+        )
+
+    async def _tool_call(self, send: Send, body: dict[str, Any]) -> None:
+        """A model that must call a tool (an agent loop): it calls the one that ends the loop when there
+        is one (`done`, `final_answer`...), else the first, with the smallest arguments it accepts."""
+        tools = [t.get("function", t) for t in body["tools"] if isinstance(t, dict)]
+        ending = ("done", "final_answer", "answer", "finish", "respond", "submit")
+        chosen = next((t for t in tools if str(t.get("name", "")).lower() in ending), tools[0])
+        arguments = json.dumps(minimal(chosen.get("parameters") or {"type": "object"}) or {})
+        await respond_json(
+            send,
+            200,
+            {
+                "id": "fake",
+                "object": "chat.completion",
+                "created": 0,
+                "model": body.get("model", "fake"),
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": "call_fake",
+                                    "type": "function",
+                                    "function": {"name": chosen.get("name", "tool"), "arguments": arguments},
+                                }
+                            ],
+                        },
+                        "finish_reason": "tool_calls",
+                    }
+                ],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
             },
         )
 

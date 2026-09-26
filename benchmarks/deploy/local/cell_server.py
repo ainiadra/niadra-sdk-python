@@ -21,7 +21,12 @@ The process environment picks the variant, as the read deployment's would:
 - `NIADRA_MEMORY_V2` on/off: the space's `memory_v2` setting (off by default, as a new space);
 - `NIADRA_SEMANTIC_CHANNEL` off/models: `models` gives the read path the query encoder, here the hash
   encoder above (`inprocess` needs the model files and is refused);
-- `NIADRA_SEMANTIC_DEADLINE_MS`: the semantic channel's deadline.
+- `NIADRA_SEMANTIC_DEADLINE_MS`: the semantic channel's deadline;
+- `NIADRA_BENCH_GUARD_TYPES` (comma list of value types, e.g. `amount,date,protocol`; empty by default):
+  every customer's cell starts with one contradiction of each type measured today in
+  `context_use_guard_daily` (the guards arm), which is what makes a memory v2 space write guard lines for
+  those types; without it a space writes none until its measurement has counted agents contradicting
+  them (in the region, `bench run --niadra-guards measure` records the answers that measurement reads).
 Any other `NIADRA_*` variable stays in the environment for backend code that reads it directly.
 
 Numbers from this cell are never published: no network, no real model, one process.
@@ -99,6 +104,21 @@ ON = ("on", "true", "1", "yes")
 
 def _flag(name: str, default: str) -> str:
     return os.environ.get(name, default).strip().lower()
+
+
+GUARD_TYPES = tuple(t.strip() for t in os.environ.get("NIADRA_BENCH_GUARD_TYPES", "").split(",") if t.strip())
+
+
+async def seed_guards(flow: Flow) -> None:
+    """One contradiction of each of `GUARD_TYPES` measured today on the voice source, in the guards arm:
+    the row `context_use_guard_daily` holds when agents contradicted a value of that type."""
+    from niadra.domain.measure.slots import GuardCounters, GuardDailyKey
+
+    day = flow.cell.clock.now().date()
+    async with flow.cell.uow(SPACE_ID) as uow:
+        for value_type in GUARD_TYPES:
+            key = GuardDailyKey(day, SOURCES["voice"][0], value_type, "guards")
+            await uow.measure.add_guard_daily(key, GuardCounters(slots=1, contradicted=1))
 
 
 class RulesModels(DeterministicModels):
@@ -341,6 +361,7 @@ class IngestRouter:
 
     def __init__(self, shards: Shards) -> None:
         self._shards = shards
+        self._guards_seeded: set[str] = set()
 
     async def ingest_items(self, caller: SourcePrincipal, items: Any, rejected: Any = (), **kw: Any) -> Any:
         parsed = [item for _, item in items]
@@ -355,6 +376,9 @@ class IngestRouter:
         self._shards.learn(key, conversations=conversations, handles=handles)
         flow = self._shards.flow(key)
         async with self._shards.locks[key]:
+            if GUARD_TYPES and key not in self._guards_seeded:
+                await seed_guards(flow)
+                self._guards_seeded.add(key)
             result = await flow.ingest.ingest_items(caller, items, rejected, **kw)
             await flow.drain()
             return result
@@ -424,6 +448,7 @@ def build(now: datetime, operations: frozenset[str]) -> tuple[Any, dict[str, Any
         "semantic_channel": semantic,
         "semantic_encoder": "hash-64" if semantic == "models" else None,
         "semantic_deadline_ms": deadline_ms,
+        "guard_types_seeded": list(GUARD_TYPES),
         "extractor": "rule-extractor",
         "cells": "one per customer",
         "now": now.isoformat(),

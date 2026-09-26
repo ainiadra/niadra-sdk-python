@@ -29,6 +29,7 @@ from typing import Any, Protocol
 from niadra_bench.agent import Judge
 from niadra_bench.dataset.model import BASE_CATEGORIES, CATEGORIES, COUNT_CATEGORIES, Case
 from niadra_bench.identity import Identities
+from niadra_bench.metrics import backing
 from niadra_bench.stats import percentile, rate
 from niadra_bench.targets.base import Target
 from niadra_bench.text import contains, matches_all, matches_none, normalize, passes
@@ -157,6 +158,10 @@ class CaseRow:
     judge: bool | None
     judge_reason: str | None
     meta: dict[str, Any]
+    # The answer's values (metrics/backing.py): how many it stated, and the kind of each one without a
+    # source. None on rows written before 26/09/2026 and on rows that were not answered.
+    backing_checked: int | None = None
+    unbacked_kinds: list[str] | None = None
 
     def dump(self) -> dict[str, Any]:
         return asdict(self)
@@ -223,6 +228,8 @@ async def _one(
     if purpose != "answer":
         return row
     row.answer = await agent.answer(case, block)
+    row.backing_checked, row.unbacked_kinds = backing.check(row.answer, block, case.probe.question)
+    await target.after_answer(case, ids, got.meta, row.answer, row.backing_checked, row.unbacked_kinds)
     if target.system == "full_history" and privacy:
         # The validity side of a privacy case: with the history, the agent can say the value.
         row.deterministic = matches_all(row.answer, case.expect.verified_all_of)

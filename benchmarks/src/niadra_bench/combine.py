@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from niadra_bench.dataset.model import Case
-from niadra_bench.metrics import accuracy
+from niadra_bench.metrics import accuracy, backing
 
 #: The fields that make two lines of a metric the same line.
 KEYS: dict[str, tuple[str, ...]] = {
@@ -94,6 +94,7 @@ def combine(directories: list[Path], output: Path, cases: dict[str, Case]) -> Pa
             valid, excluded = accuracy.valid_cases(rows, cases)
             rep["validity"] = {"valid": len(valid), "excluded": excluded}
             rep["accuracy"] = accuracy.summarize(rows, valid)
+            rep["backing"] = backing.summarize(rows)
             with (target / f"cases-rep{n}.jsonl").open("w") as handle:
                 for row in rows:
                     handle.write(json.dumps(row.dump(), ensure_ascii=False) + "\n")

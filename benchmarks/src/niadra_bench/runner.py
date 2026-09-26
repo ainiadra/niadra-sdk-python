@@ -34,7 +34,17 @@ from niadra_bench.config import BenchConfig
 from niadra_bench.dataset import generate
 from niadra_bench.dataset.model import Case
 from niadra_bench.identity import SCENARIOS, Identities
-from niadra_bench.metrics import accuracy, cost, freshness, history, ingest, latency, operations, resilience
+from niadra_bench.metrics import (
+    accuracy,
+    backing,
+    cost,
+    freshness,
+    history,
+    ingest,
+    latency,
+    operations,
+    resilience,
+)
 from niadra_bench.net import niadra_routes
 from niadra_bench.sources import ControlPlane, dataset_operations
 from niadra_bench.systems import REGISTRY, HttpSystem
@@ -79,6 +89,8 @@ class Options:
     # What every repetition's tag starts with (default: the end of the run id). The tag makes the
     # customers' handles, so two runs with the same tag seed the same people.
     tag: str | None = None
+    # `--niadra-guards measure`: Niadra's probe answers go back to it as the agent's messages (guard lines).
+    niadra_record_answers: bool = False
     # Tests only: an in-process transport per system added through `niadra_bench.systems`.
     system_transports: dict[str, httpx.AsyncBaseTransport] = field(default_factory=dict)
     extra: dict[str, Any] = field(default_factory=dict)
@@ -194,6 +206,7 @@ class Run:
             seed_concurrency=caps.seed_concurrency if caps else None,
             settle_interval_s=caps.settle_interval_s if caps else 0.0,
             pause_on_overload_s=caps.pause_on_overload_s if caps else 0.0,
+            record_answers=options.niadra_record_answers,
         )
 
     def _niadra_rates(self, rates: list[int], capped: list[int]) -> list[int]:
@@ -323,6 +336,7 @@ class Run:
             valid, excluded = accuracy.valid_cases(rows, self.by_id)
             rep["validity"] = {"valid": len(valid), "excluded": excluded}
             rep["accuracy"] = accuracy.summarize(rows, valid)
+            rep["backing"] = backing.summarize(rows)
             self.rows[n] = rows
             self._write_rows(n, rows)
 
@@ -575,6 +589,8 @@ class Run:
                 # Whether the run set Niadra's `memory_v2` space flag, and to what ("unchanged": the
                 # space kept its own setting, as in every run before the flag existed).
                 "niadra_memory_v2": "unchanged" if memory_v2 is None else ("on" if memory_v2 else "off"),
+                # Whether Niadra's probe answers were recorded back to it, for guard lines to appear.
+                "niadra_guards": "measure" if self.options.niadra_record_answers else "off",
                 # `context_has_answer` by whole token for values of three or more digits and by the
                 # category's pattern otherwise; the first run's rule is `context_has_answer_loose`.
                 "context_has_answer_rule": "specific-v2",
@@ -744,6 +760,8 @@ def aggregate(reps: list[dict[str, Any]]) -> dict[str, Any]:
     for name in ("history", "ingest"):
         if (summary := operations.aggregate(reps, name)) is not None:
             metrics[name] = summary
+    if (summary := backing.aggregate(reps)) is not None:
+        metrics["backing"] = summary
     return metrics
 
 

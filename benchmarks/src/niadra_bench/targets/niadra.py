@@ -18,6 +18,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
@@ -55,6 +56,8 @@ CHANNEL_SOURCE = {
 OBJECT_NAMESPACE = {"ticket": "crm", "claim": "core", "dispute": "core", "order": "erp", "shipment": "tms"}
 TURN_SPACING_S = 40
 RETRIEVE_TIMEOUT_S = 5.0
+#: A guard line in a turn block: "[Guarda] ..." in Portuguese, "[Guard] ..." in English.
+GUARD_LINE = re.compile(r"\[(?:Guarda|Guard)\]")
 
 log = logging.getLogger(__name__)
 
@@ -190,6 +193,7 @@ class NiadraTarget(Target):
         memory_v2: bool | None = None,
         seed_rate: float | None = None,
         seed_concurrency: int | None = None,
+        record_answers: bool = False,
         settle_interval_s: float = 0.0,
         pause_on_overload_s: float = 0.0,
     ) -> None:
@@ -210,6 +214,11 @@ class NiadraTarget(Target):
         self.pause_on_overload_s = pause_on_overload_s
         self.overloads = 0
         self.stale_keys_revoked: list[str] = []
+        # `bench run --niadra-guards measure`: every probe's answer goes back to Niadra as the agent's
+        # message, so its measurement counts the values the agent contradicted and memory v2 writes guard
+        # lines for those kinds of value in the reads after it.
+        self.record_answers = record_answers
+        self.answers_recorded = 0
         self.refused: list[str] = []
         self.control_url = control_url
         self.operations = operations or []
@@ -381,8 +390,52 @@ class NiadraTarget(Target):
                 "withheld": context.withheld,
                 "verification": context.verification.effective.value,
                 "view": view,
+                "conversation": conversation,
+                # Guard lines the read carried (memory v2's slots, in the turn block from SDK 0.4.0).
+                "guards": sum(
+                    1 for line in (context.turn_block or "").splitlines() if GUARD_LINE.search(line)
+                ),
             },
         )
+
+    async def after_answer(
+        self,
+        case: Case,
+        ids: Identities,
+        meta: dict[str, Any],
+        answer: str,
+        checked: int,
+        unbacked_kinds: list[str],
+    ) -> None:
+        """With `record_answers`, the agent's answer as its outbound message in the probe's conversation,
+        with the backed-answers fields a checked turn carries (kinds and counts, never a value), and the
+        conversation's end, so the session is measured."""
+        conversation = meta.get("conversation")
+        if not self.record_answers or not conversation or not answer:
+            return
+        channel = case.probe.channel
+        prefix = f"{conversation}-answer"
+        message = EventItem(
+            kind="message",
+            idempotency_key=f"{prefix}-m",
+            channel=channel,
+            conversation_id=conversation,
+            handles=[ids.channel_handle(channel)],
+            speaker=SpeakerRef(role=Speaker.AI_AGENT),
+            direction="outbound",
+            content=Content(text=answer),
+            occurred_at=self._now(),
+        ).model_dump(mode="json", exclude_none=True)
+        message["backing"] = {
+            "checked": checked,
+            "unbacked_values": [{"kind": kind} for kind in unbacked_kinds],
+            "guard_violations": [],
+        }
+        ended = ConversationEndedItem(
+            idempotency_key=f"{prefix}-end", conversation_id=conversation, occurred_at=self._now()
+        ).model_dump(mode="json", exclude_none=True)
+        await self._post_batch(channel, [message, ended])
+        self.answers_recorded += 1
 
     async def close(self) -> None:
         for client in self._clients.values():

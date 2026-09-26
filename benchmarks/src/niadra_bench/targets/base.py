@@ -51,6 +51,18 @@ class Target(ABC):
     async def retrieve(self, case: Case, ids: Identities, *, view: str | None = None) -> Retrieved:
         """The memory block for the case's probe question."""
 
+    async def after_answer(  # noqa: B027 - optional hook
+        self,
+        case: Case,
+        ids: Identities,
+        meta: dict[str, Any],
+        answer: str,
+        checked: int,
+        unbacked_kinds: list[str],
+    ) -> None:
+        """Called with the agent's answer to the probe the target just served (`meta` is what `retrieve`
+        returned with it). Niadra records it back when a run measures guard lines."""
+
     async def close(self) -> None:  # noqa: B027 - optional hook
         """Releases clients."""
 

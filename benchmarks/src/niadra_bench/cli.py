@@ -100,6 +100,7 @@ def _run(args: argparse.Namespace) -> int:
         output=Path(args.output) if args.output else None,
         dataset=args.dataset,
         memory_v2=None if args.niadra_memory_v2 is None else args.niadra_memory_v2 == "on",
+        niadra_record_answers=args.niadra_guards == "measure",
     )
     if args.mock:
         import httpx
@@ -264,6 +265,13 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         help="set Niadra's memory_v2 space flag for the run through the control API, and put it back "
         "at the end (default: leave the space as it is)",
+    )
+    run.add_argument(
+        "--niadra-guards",
+        choices=["off", "measure"],
+        default="off",
+        help="measure: record every Niadra probe answer back to it as the agent's message, so its "
+        "measurement counts the values agents contradicted and memory v2 writes guard lines in later reads",
     )
     run.set_defaults(func=_run)
 

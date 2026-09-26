@@ -41,6 +41,7 @@ async def test_a_dry_run_against_niadra_mock_writes_a_complete_summary(
         "resilience",
         "history",
         "ingest",
+        "backing",
     }
     systems = {r["system"] for r in summary["metrics"]["accuracy"]["results"]}
     assert systems == {"niadra", "no_memory", "full_history"}
@@ -58,6 +59,9 @@ async def test_a_dry_run_against_niadra_mock_writes_a_complete_summary(
     assert all(r["errors"] == 0 and r["sent"] > 0 and "skipped" not in r for r in navigation.values())
     [ack] = summary["metrics"]["ingest"]["results"]
     assert (ack["operation"], ack["errors"]) == ("batch", 0) and ack["sent"] > 0
+    # The context-only agent answers with the block itself, so every value it states has a source.
+    backed = {r["system"]: r for r in summary["metrics"]["backing"]["results"]}
+    assert backed["niadra"]["answers"] == 56 and backed["niadra"]["unbacked"] == 0
     rows = (out / "cases-rep1.jsonl").read_text().splitlines()
     assert len(rows) == 28 * 3 + 28  # three systems answer every case; Niadra also reads its second view
 

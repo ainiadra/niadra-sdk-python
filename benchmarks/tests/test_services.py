@@ -148,3 +148,24 @@ async def test_the_vpc_path_connects_to_the_private_address_with_the_public_name
         "edge",
         "cluster",
     ]
+
+
+async def test_the_fake_llm_ends_an_agent_loop_with_a_tool_call() -> None:
+    tools = [
+        {"type": "function", "function": {"name": "recall", "parameters": {"type": "object"}}},
+        {
+            "type": "function",
+            "function": {
+                "name": "done",
+                "parameters": {
+                    "type": "object",
+                    "required": ["answer"],
+                    "properties": {"answer": {"type": "string"}},
+                },
+            },
+        },
+    ]
+    async with _client(FakeLlm()) as client:
+        answer = await client.post("/v1/chat/completions", json={"messages": [], "tools": tools})
+    [call] = answer.json()["choices"][0]["message"]["tool_calls"]
+    assert call["function"]["name"] == "done" and json.loads(call["function"]["arguments"]) == {"answer": ""}

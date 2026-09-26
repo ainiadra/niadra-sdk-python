@@ -70,6 +70,8 @@ LOCAL_RESULTS = bench_config.RESULTS_DIR / "local" / "ab"
 DEFAULTS = {
     "NIADRA_MEMORY_V2": "off",
     "NIADRA_SEMANTIC_CHANNEL": "off",
+    # A local cell's seeded guard types (deploy/local/cell_server.py): none by default.
+    "NIADRA_BENCH_GUARD_TYPES": "",
 }
 #: Keys that are a space setting, which the harness sets through the control API in the region.
 SPACE_SETTINGS = {"NIADRA_MEMORY_V2": "memory_v2"}

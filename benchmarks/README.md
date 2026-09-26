@@ -50,6 +50,21 @@ of the occurrences by its reference; a deadline day holds only right after a wor
 dia 15", "by the 15th"). The first run's rule stays in the results as `context_has_answer_loose`, and
 `config.context_has_answer_rule` names the rule a run used (`metrics/accuracy.py`).
 
+Beside the grades, every answered probe of every system is checked for **values without a source**
+(`metrics/backing.py`, the metric line "valores sem lastro por mil respostas"): the numbers, dates,
+codes and amounts the agent's answer states that neither that system's memory block nor the customer's
+words in the turn back (the probes call no tool, so there are no tool results). The rule is the SDK's
+backed-answers check (`niadra.backing.check`: amounts, dates, codes of letters with three or more digits,
+numbers of three or more digits; never words, one or two digits, times or a year alone; sums and counts of
+backed amounts are backed), applied by the harness to every system's answers with the same inputs, so it
+measures what each memory gave the agent, not an SDK; no system's agent runs it during the pass. Each line
+(`metrics.backing`) gives the answers, the values they stated, the values without a source per thousand
+answers (median and range over the repetitions), by kind and by category. The accuracy, contradiction
+(`contradiction` category) and privacy figures are unchanged by it. The harness installs the SDK from PyPI
+(`niadra==0.4.0`), which predates `niadra.backing`, so it runs a verbatim copy
+(`src/niadra_bench/vendor/niadra_backing.py`; a test fails when it differs from `src/niadra/backing.py`)
+until the release that has it is the one installed.
+
 Each privacy line says whether the system has a verification mechanism at all (`verification`:
 `per conversation` for Niadra, `none` for every other system). A system with none hands the block to
 any caller, so the page shows "no mechanism" for it rather than a score; the count of blocks that held
@@ -142,6 +157,32 @@ what a Niadra buyer buys.
   added system's pinned version and the deployed Niadra server version. Dataset v2 adds
   `config/dataset.v2.toml` and `dataset/v2/cases.jsonl`; a v2 run's configuration hash also covers the v2
   settings, and a v1 run's hash is computed exactly as before v2 existed.
+
+### Guard lines
+
+A memory v2 space writes a guard line (`[Guarda]` / `[Guard]`, in the turn block's slots) for a kind of
+value (a date, an amount, a protocol, an order...) only after its measurement counted agents contradicting
+a value of that kind in the last 30 days (`context_use_guard_daily`), and only when a system of record or a
+human agent settled the value the customer's turn asks for. A fresh benchmark space has no such count, so a
+run sees no guard lines unless it makes them appear, and says how:
+
+- **In the region, measure first:** `bench run --niadra-guards measure` sends every Niadra probe's answer
+  back to Niadra as the agent's outbound message in the probe's conversation, with the backed-answers
+  fields a checked turn carries (`backing`: the count and the kinds of the values without a source, never a
+  value), and ends the conversation. Niadra's measurement then counts the contradictions, and the read path
+  (which rereads the contradicted types once a minute) writes guards in the reads after it: in practice the
+  repetitions after the first. Needs `memory_v2` on (`--niadra-memory-v2 on`); the writes go through the
+  production caps. `summary.json` records it (`config.niadra_guards`).
+- **On a local cell, seed:** `NIADRA_BENCH_GUARD_TYPES=<types>` in a side's settings (for example
+  `bench ab --local-cell ... --baseline-env NIADRA_MEMORY_V2=on --candidate-env
+  NIADRA_BENCH_GUARD_TYPES=date,amount,protocol,order`) starts every customer's cell with one contradiction
+  of each type measured today; the cell's `cell.json` lists the seeded types. The region's rows are never
+  written by the harness.
+
+Each Niadra row of `cases-rep<n>.jsonl` counts the guard lines its read carried (`meta.guards`). On dataset
+v2 most values are stated by the AI agent in the conversations, which a guard never holds the agent to, so
+few probes get one: an A/B on a local cell (28 cases, every type seeded) showed none, while the seeded types
+did reach the read path's query (`contradicted_value_types`).
 
 ## The field
 
@@ -519,7 +560,9 @@ under `results/ab/`, and the decision cites that file.
 2. In niadra-frontend: `node scripts/import-benchmark.mjs ../niadra-sdk-python/benchmarks/results/<date>-<id>/summary.json`.
    The importer refuses anything but a `region` run. Each added system appears as a new `system` key in
    every metric; Niadra's paths are now `edge` and `vpc`, every other system's `host`; privacy lines carry
-   `verification`; the environment adds `harness_host` and `harness_machine_class`.
+   `verification`; the environment adds `harness_host` and `harness_machine_class`; `metrics.backing` is
+   the new line of values without a source per thousand answers; `config.niadra_guards` says whether guard
+   lines were measured.
 3. Where Niadra loses on a metric, add one line with the most likely reason to `site_notes` in the
    imported file (`{"pt": {"latency": "..."}, "en": {...}}`); the page prints it under that chart.
 
