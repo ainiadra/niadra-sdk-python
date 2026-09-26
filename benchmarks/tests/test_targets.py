@@ -8,7 +8,7 @@ from pydantic import TypeAdapter
 
 from niadra_bench import sources
 from niadra_bench.identity import Identities
-from niadra_bench.sources import ControlPlane, dataset_operations, source_name
+from niadra_bench.sources import ControlPlane, FlagRefusedError, dataset_operations, source_name
 from niadra_bench.targets.mem0 import add_payloads, exchanges, render
 from niadra_bench.targets.niadra import Keys, NiadraTarget, session_items
 
@@ -214,10 +214,13 @@ async def _no_wait(seconds: float) -> None:
 class FakeConfig:
     """The control API's configuration documents and diffs, as far as the flag switch calls them."""
 
-    def __init__(self, document: dict) -> None:
+    def __init__(self, document: dict, *, four_eyes: bool = False) -> None:
         self.document = document
         self.diffs: list[dict] = []
         self.approved = 0
+        self.rejected = 0
+        # Another person of the tenant can approve: the author's approval is refused.
+        self.four_eyes = four_eyes
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path
@@ -229,6 +232,11 @@ class FakeConfig:
             body = json.loads(request.content)
             self.diffs.append(body)
             return httpx.Response(201, json={"diff_id": "d1", "status": "pending"})
+        if path == "/v1/config/diffs/d1/approve" and self.four_eyes:
+            return httpx.Response(403, json={"detail": "the author cannot approve the own diff"})
+        if path == "/v1/config/diffs/d1/reject":
+            self.rejected += 1
+            return httpx.Response(200, json={"diff_id": "d1", "status": "rejected"})
         if path == "/v1/config/diffs/d1/approve":
             self.approved += 1
             self.document = self.diffs[-1]["document"]
@@ -253,6 +261,15 @@ async def test_the_flag_switch_sets_memory_v2_and_puts_the_old_value_back() -> N
         assert fake.document == {"timezone": "America/Sao_Paulo"} and fake.approved == 2
         await control.set_flag("settings/read.memory_v2", False)
         assert fake.document["read"] == {"memory_v2": False}
+
+
+async def test_a_flag_diff_another_person_must_approve_is_withdrawn() -> None:
+    fake = FakeConfig({"memory_v2": False}, four_eyes=True)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(fake)) as http:
+        control = ControlPlane("http://control", DOCUMENT, http)
+        with pytest.raises(FlagRefusedError, match="four eyes"):
+            await control.set_flag("settings/memory_v2", True)
+    assert fake.rejected == 1 and fake.approved == 0 and fake.document == {"memory_v2": False}
 
 
 async def test_the_flag_switch_needs_the_control_plane() -> None:
