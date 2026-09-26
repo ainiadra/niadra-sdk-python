@@ -1,0 +1,30 @@
+# systems: redis_agent_memory
+# Redis Agent Memory Server (github.com/redis/agent-memory-server, Apache 2.0; its repository keeps it under
+# V0/ as an open research artifact), the all-in-one image its V0/Dockerfile.standalone builds, at 0.15.2:
+# Redis 8 with its search modules, the API and the task worker (concurrency 5, its setting), under
+# supervisord. Its settings are its defaults but the models: the generation, fast and slow models are the
+# benchmark's extraction model and the embedder is the benchmark's (384 dimensions), both through the
+# system's gateway (LiteLLM's `openai/` route with OPENAI_API_BASE). Auth is off, its default, on a server
+# with no published port. Memory: the container 1.5 GiB, the gateway 128 MiB (1.6 GiB).
+services:
+  redis-agent-memory-gateway:
+    image: ${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}
+    command: [serve, llm-meter, --port, "8081"]
+    environment:
+      LLM_UPSTREAM: ${BENCH_LLM_UPSTREAM:-http://fake-llm:9001/v1}
+      LLM_API_KEY: ${BENCH_LLM_API_KEY:-}
+      EMBED_UPSTREAM: http://embed:8080/v1
+    mem_limit: 128m
+
+  redis-agent-memory:
+    image: redislabs/agent-memory-server:0.15.2-standalone
+    depends_on: [redis-agent-memory-gateway]
+    environment:
+      OPENAI_API_KEY: gateway
+      OPENAI_API_BASE: http://redis-agent-memory-gateway:8081/v1
+      GENERATION_MODEL: openai/${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      FAST_MODEL: openai/${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      SLOW_MODEL: openai/${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      EMBEDDING_MODEL: openai/paraphrase-multilingual-minilm-l12-v2-r1
+      REDISVL_VECTOR_DIMENSIONS: "384"
+    mem_limit: 1536m

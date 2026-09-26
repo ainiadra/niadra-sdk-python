@@ -2,9 +2,10 @@
 
 An open, reproducible benchmark of Niadra against the memory layers teams compare it with: Mem0, and a
 field of other memory systems added one adapter at a time (ai-memory, Graphiti, Hindsight, Memobase,
-Supermemory local, MemOS). It measures what an engineer integrating a memory for customer-facing and
-internal agents needs to know, with the same models on every side where a system lets them be chosen,
-and publishes every result file. Where Niadra loses, the number is published the same way.
+Supermemory local, MemOS; then Redis Agent Memory Server, Honcho, LangMem, Cognee). It measures what an
+engineer integrating a memory for customer-facing and internal agents needs to know, with the same models
+on every side where a system lets them be chosen, and publishes every result file. Where Niadra loses,
+the number is published the same way.
 
 Nothing here is a claim until it is measured inside the cloud region. Numbers from a laptop, from the
 emulator or from a smoke run are never published; the site only imports result files whose
@@ -107,7 +108,10 @@ what a Niadra buyer buys.
 - **Every added system as documented.** Each adapter drives its system the way that system's own docs,
   quick start or evaluation harness does, with its defaults, and says so in its module's docstring and in
   the field table: no parameter tuned for this dataset, nothing changed in its code (with one exception,
-  Graphiti's server, whose two fixes are needed for it to store anything and are listed below).
+  Graphiti's server, whose two fixes are needed for it to store anything and are listed below). LangMem is a
+  library with no server: it runs in a small service of the harness's (`deploy/systems/langmem/server.py`)
+  that calls only its documented API. Honcho is AGPL: the harness runs its published image and calls its
+  REST API, and no line of it is in this repository.
 - **Niadra as documented.** The SDK is the current release on PyPI (`niadra==0.4.0`; the first run
   installed 0.1.5 and run 2026-09-25-6efee4 0.3.0, whose read path is the same for a read with its own
   `query`). 0.4.0 is the first that puts memory v2's `slots` in `turn_block` (0.3.0 drops the field), so
@@ -143,12 +147,14 @@ what a Niadra buyer buys.
   run includes `mem0_platform` (below), which the default run does not.
 - **Identity.** No system but Niadra resolves identity across channels. Mem0 runs with the same user id
   on every channel (`known_id`, its best case) and with each channel's own id (`per_channel_id`). Every
-  added system gets one store per customer (a user, group, bank, project or tag) with every channel in
-  it: the `known_id` scenario, their best case. Niadra receives the same handles in every scenario.
+  added system gets one store per customer (a user, group, bank, project, tag, peer, namespace or
+  dataset) with every channel in it: the `known_id` scenario, their best case. Niadra receives the same handles in every scenario.
 - **Time.** Where a system's API takes the time of an event, it gets it (Graphiti's message `timestamp`,
-  Hindsight's `timestamp`, Memobase's `created_at`, MemOS's `chat_time`, and ai-memory the way its own
-  harness replays a dated history, a `[session date: ...]` prefix); where it does not (Mem0's open source
-  release, Supermemory local), the order of the writes is the only time it has.
+  Hindsight's `timestamp`, Memobase's `created_at`, MemOS's `chat_time`, Redis Agent Memory Server's and
+  Honcho's message `created_at`, and ai-memory the way its own harness replays a dated history, a
+  `[session date: ...]` prefix); where it does not (Mem0's open source release, Supermemory local, LangMem,
+  Cognee), the order of the writes is the only time it has. Redis Agent Memory Server stores each
+  message's time, but its extraction prompt grounds relative dates on the time the extraction runs.
 - **Fresh customers.** Every repetition seeds new phone numbers, e-mails and ids, so extraction runs
   again and no memory has seen them. Each metric runs three times; the site shows the median and the
   range.
@@ -203,6 +209,11 @@ know.
 | `memobase` | Memobase v0.0.42 (built from its repository), PostgreSQL with pgvector, Redis 7.4 | API, database, Redis, gateway | One user per customer (a UUID from the customer's id); one `ChatBlob` per session with each message's `created_at`, then `flush`, as its docs ask at the end of a session; `context()` with `max_token_size` 600 on voice and 1,500 in chat (Niadra's view budgets) and the question as the current chat | No commit since 11/01/2026; profile topics are its defaults (written for companions and assistants, not customer service); a live exchange waits in its buffer until it flushes by size or age, which metric 6 counts |
 | `supermemory` | Supermemory local, `supermemory-server` server-v0.0.8 (MIT binary) | the binary, a forwarder in its network namespace, gateway | One `containerTag` per customer; one document per session (`customId`, the conversation as `user:` and `assistant:` lines, `dreaming: "instant"`, which its docs name for benchmarking); `POST /v4/profile` with the question, and the context its quickstart builds from it (static profile, dynamic profile, related memories) | No event time. The local binary is licensed for 10,000 documents (about 2,800 per repetition of dataset v2): run one repetition per fresh container. It signs requests from its own host with its key, so the harness reaches it through a forwarder (`supermemory-local`) that adds a loopback hop. No search mode "documents" (the dataset has no documents) |
 | `memos` | MemOS v2.0.34 (built from its repository), Neo4j 5.26.6, Qdrant 1.15.3 | API, Neo4j, Qdrant, gateway | One user and cube per customer; `POST /product/add` per exchange with `chat_time` and the session, `async`; the settle calls `POST /product/scheduler/wait` for every customer and then waits for the memory count to stay the same (the wait needs the optional Redis queue, off in its example configuration); `POST /product/search` with its defaults (`fast`, `top_k` 10) | Its activation memory (a KV cache of a local model) is outside the server API and not measured; a CRM or ERP record is a `system` message |
+| `redis_agent_memory` | Redis Agent Memory Server 0.15.2 (Apache 2.0; `redislabs/agent-memory-server:0.15.2-standalone`, the open server its repository keeps under `V0/`) | one container (Redis 8, API, task worker), gateway | One user per customer; one working memory per conversation (`PUT /v1/working-memory/{session}`) with every message's role and `created_at`, which the server promotes to long-term memory in the background with its default `discrete` strategy (its "background extraction" pattern); the settle waits until every message is marked extracted and the memory count stays the same; `POST /v1/long-term-memory/search` with the question and the `user_id` and its defaults (semantic, `limit` 10, recency boost); `GET /v1/long-term-memory/{id}` as `open` | A research artifact, not Redis's product (Agent Memory in Redis Iris runs only in its cloud). Its extraction waits 30 s after a conversation's last write (its debounce), which metric 6 counts; its prompt grounds relative dates on the time the extraction runs, not on the messages' time. A CRM or ERP record is a `system` message. Topic and entity extraction run through the same model |
+| `honcho` | Honcho v3.2.1 (AGPL 3.0; `ghcr.io/plastic-labs/honcho`), PostgreSQL 15 with pgvector, Redis 8.2 | API, deriver, database, Redis, gateway | One workspace; a peer per customer and two peers for the company (its agents, its systems of record) with `observe_me` false, as its design patterns ask; one session per conversation, each message with its peer and `created_at`; the settle waits for the workspace's queue to empty; the customer peer's context (`GET .../peers/{id}/context`, peer card and representation) with the question as `search_query` | Run as a service only: no line of Honcho is in this repository. Its deriver reasons only once a work unit holds 512 tokens or is 30 minutes old (its defaults), so a short live exchange waits up to 30 minutes, which metric 6 counts (it times out at 30 s). No `open`: the context carries no item ids. The pgvector columns are set to 384 dimensions at first start with its own script, as its docs ask |
+| `honcho_dialectic` | the same, read with the dialectic API | the same containers, another workspace | the same writes; each read is `POST .../peers/{id}/chat` with the question and its defaults (`reasoning_level` low), the quickstart's `peer.chat()`, and the agent receives its answer text | A model call on every read: its latency, its cost and its tokens include the reasoning. Shares the containers and the gateway with `honcho`: run the two keys one at a time |
+| `langmem` | LangMem 0.0.30 (MIT), LangGraph's `AsyncPostgresStore` in PostgreSQL 17 with pgvector | the harness's LangMem service, database, gateway | One namespace per customer (`("memories", "{user_id}")`); each conversation to `create_memory_store_manager` with its defaults, queued and processed in order by one worker (as its `ReflectionExecutor` does), the service answering 202 once queued; the store's search with the question and `limit` 10 (its `search_memory` tool's default); the store's `get` as `open` | A library with no server: the service that runs it is the harness's (`deploy/systems/langmem/server.py`), calling only its documented API. No event time. One worker in order means seeding a full repetition of dataset v2 takes hours: run it with `--limit` and say so. A CRM or ERP record is a `system` message |
+| `cognee` | Cognee 1.6.1 (Apache 2.0; `cognee/cognee`), its default local stores (SQLite, LanceDB, its embedded graph) | one container, gateway | One dataset per customer, access control on (its default: each dataset has its own stores; the harness logs in as its default user); each session added as a text (`POST /api/v1/add`), then one `cognify` of the dataset, which returns when the graph is built; `POST /api/v1/search` with `GRAPH_COMPLETION` (its guide's search), the question, the dataset and a session of the customer's own, and the agent receives the answer text | A model call on every read (its answer, plus its automatic turn analysis): latency, cost and tokens include them, and its image serves with one process (`gunicorn -w 1`, its entrypoint), so reads wait for each other. No event time. The server's default search is now `HYBRID_COMPLETION`; the guide's `GRAPH_COMPLETION` is used. A live exchange is `remember` (add, cognify and its improve step) with `run_in_background`. The benchmark's embedder is not a HuggingFace model id, so its chunk sizing counts tokens with TikToken (it logs a warning). Made for documents and code, not customers |
 
 What no system here has, so their rows read "no mechanism" rather than a score: a verification level per
 conversation and a policy by purpose (privacy); identity across channels (every added system gets the
@@ -369,7 +380,8 @@ deploy/temp-host/up.sh --confirm
 
 # 3. The campaign: each comma-separated list is one run, alone on the host, one after the other.
 deploy/temp-host/bench.sh campaign niadra mem0_oss,mem0_oss_rerank ai_memory ai_memory_llm \
-  hindsight hindsight_reflect memobase supermemory memos -- --dataset v2
+  hindsight hindsight_reflect memobase supermemory memos \
+  redis_agent_memory honcho honcho_dialectic langmem cognee -- --dataset v2
 deploy/temp-host/bench.sh start graphiti --dataset v2 --limit 60 --repetitions 1   # Graphiti alone, smaller
 deploy/temp-host/bench.sh status          # repeat: containers, the campaign's progress, the run's log
 
@@ -404,7 +416,9 @@ counted by its gateway and reported as its cost line.
 
 Memory on the host, one system at a time: the embedder 1.5 GiB and the harness 1.5 GiB at most, then the
 system (MemOS: Neo4j 2 GiB, Qdrant 768 MiB, its API 2 GiB; Graphiti: Neo4j 2 GiB, its server 1 GiB;
-Hindsight 3 GiB; Supermemory 3 GiB; Mem0 1.8 GiB with its database), under the 7.6 GiB the instance
+Hindsight 3 GiB; Supermemory 3 GiB; Mem0 1.8 GiB with its database; Redis Agent Memory Server 1.5 GiB;
+Honcho: its API 1 GiB, its deriver 1 GiB, PostgreSQL 768 MiB, Redis 256 MiB; LangMem: its service 768 MiB,
+PostgreSQL 768 MiB; Cognee 4 GiB; each system's gateway 128 MiB), under the 7.6 GiB the instance
 gives. Neo4j's heap and page cache are capped in the two compose files that use it, the only setting of
 theirs changed.
 
@@ -605,7 +619,9 @@ niadra-mock, so it needs no key. It proves the plumbing only; its numbers are ne
 - The agent answers from one read, with no tools. Niadra's voice guide also gives the agent
   `search_customer_history` for older matters; the benchmark measures the pack alone, as it measures one
   `search()` for Mem0 and one read for every added system (ai-memory's agents may also call
-  `memory_read_page` on a hit; Hindsight's `reflect` and Honcho-style reasoning reads are not measured).
+  `memory_read_page` on a hit). The reads that reason with a model (Hindsight's `reflect`, Honcho's
+  dialectic, Cognee's graph completion) are measured as what they are: one read, whose latency, cost and
+  tokens include the model call.
 - E-mail and app sessions are written with the WhatsApp source's key and their own `channel`, because
   the sandbox has no e-mail or app source; the memory records the event's channel, so the packs are the
   same, but a company would give each channel its own source and key.
@@ -622,8 +638,10 @@ niadra-mock, so it needs no key. It proves the plumbing only; its numbers are ne
   systems at 10 and 25. The 25 per second lines have no Niadra counterpart.
 - The added systems' ingestion lines use each system's documented write for a live exchange: an
   asynchronous one where the system has it (Graphiti's queue, Hindsight's `async` retain, Supermemory's
-  queued document, MemOS's `async` add, ai-memory's hook batch), so like Niadra's they answer before the
-  memory is built; Memobase's insert goes to its buffer. Mem0's open source server has no such mode.
+  queued document, MemOS's `async` add, ai-memory's hook batch, Redis Agent Memory Server's working memory,
+  Honcho's message batch, the LangMem service's queue, Cognee's `remember` in the background), so like
+  Niadra's they answer before the memory is built; Memobase's insert goes to its buffer. Mem0's open source
+  server has no such mode.
 - Runs of different systems are put together by `bench combine`, with one validity rule for all (the
   first run's references); each system still ran alone on the host, at a different time, against the
   same dataset and configuration hash.

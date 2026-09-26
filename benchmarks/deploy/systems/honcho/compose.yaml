@@ -1,0 +1,102 @@
+# systems: honcho honcho_dialectic
+# Honcho (github.com/plastic-labs/honcho, AGPL 3.0): its published image at v3.2.1, run as its
+# docker-compose.yml.example runs it (the API, the deriver, PostgreSQL 15 with pgvector, Redis 8.2 as its
+# cache). The benchmark only runs it and calls its API: no line of Honcho is copied into this repository.
+# Its settings are its defaults but the models: every model setting (deriver, summary, the five dialectic
+# levels, both dream models) names the benchmark's extraction model and the embedder is the benchmark's
+# (384 dimensions), all through the system's gateway, which also pins any model name no setting reaches to
+# the extraction model. The pgvector columns are set to 384 dimensions once, at the first start, with its
+# own scripts/configure_embeddings.py, as its configuration docs ask for a non-default dimension. The two
+# keys use the same containers in two workspaces and share the gateway: run them one at a time.
+# Memory: the API 1 GiB, the deriver 1 GiB, the database 768 MiB, Redis 256 MiB, the gateway 128 MiB
+# (3.2 GiB).
+x-honcho-env: &honcho-env
+  DB_CONNECTION_URI: postgresql+psycopg://honcho:${HONCHO_DB_PASSWORD:-bench-local-only}@honcho-db:5432/honcho
+  CACHE_URL: redis://honcho-redis:6379/0?suppress=true
+  CACHE_ENABLED: "true"
+  AUTH_USE_AUTH: "false"
+  LLM_OPENAI_API_KEY: gateway
+  EMBEDDING_VECTOR_DIMENSIONS: "384"
+  EMBEDDING_MODEL_CONFIG__TRANSPORT: openai
+  EMBEDDING_MODEL_CONFIG__MODEL: paraphrase-multilingual-minilm-l12-v2-r1
+  EMBEDDING_MODEL_CONFIG__OVERRIDES__BASE_URL: http://honcho-gateway:8081/v1
+  DERIVER_MODEL_CONFIG__TRANSPORT: openai
+  DERIVER_MODEL_CONFIG__MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+  DERIVER_MODEL_CONFIG__OVERRIDES__BASE_URL: http://honcho-gateway:8081/v1
+  SUMMARY_MODEL_CONFIG__TRANSPORT: openai
+  SUMMARY_MODEL_CONFIG__MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+  SUMMARY_MODEL_CONFIG__OVERRIDES__BASE_URL: http://honcho-gateway:8081/v1
+  DREAM_DEDUCTION_MODEL_CONFIG__TRANSPORT: openai
+  DREAM_DEDUCTION_MODEL_CONFIG__MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+  DREAM_DEDUCTION_MODEL_CONFIG__OVERRIDES__BASE_URL: http://honcho-gateway:8081/v1
+  DREAM_INDUCTION_MODEL_CONFIG__TRANSPORT: openai
+  DREAM_INDUCTION_MODEL_CONFIG__MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+  DREAM_INDUCTION_MODEL_CONFIG__OVERRIDES__BASE_URL: http://honcho-gateway:8081/v1
+  DIALECTIC_LEVELS__minimal__MODEL_CONFIG__TRANSPORT: openai
+  DIALECTIC_LEVELS__minimal__MODEL_CONFIG__MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+  DIALECTIC_LEVELS__minimal__MODEL_CONFIG__OVERRIDES__BASE_URL: http://honcho-gateway:8081/v1
+  DIALECTIC_LEVELS__low__MODEL_CONFIG__TRANSPORT: openai
+  DIALECTIC_LEVELS__low__MODEL_CONFIG__MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+  DIALECTIC_LEVELS__low__MODEL_CONFIG__OVERRIDES__BASE_URL: http://honcho-gateway:8081/v1
+  DIALECTIC_LEVELS__medium__MODEL_CONFIG__TRANSPORT: openai
+  DIALECTIC_LEVELS__medium__MODEL_CONFIG__MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+  DIALECTIC_LEVELS__medium__MODEL_CONFIG__OVERRIDES__BASE_URL: http://honcho-gateway:8081/v1
+  DIALECTIC_LEVELS__high__MODEL_CONFIG__TRANSPORT: openai
+  DIALECTIC_LEVELS__high__MODEL_CONFIG__MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+  DIALECTIC_LEVELS__high__MODEL_CONFIG__OVERRIDES__BASE_URL: http://honcho-gateway:8081/v1
+  DIALECTIC_LEVELS__max__MODEL_CONFIG__TRANSPORT: openai
+  DIALECTIC_LEVELS__max__MODEL_CONFIG__MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+  DIALECTIC_LEVELS__max__MODEL_CONFIG__OVERRIDES__BASE_URL: http://honcho-gateway:8081/v1
+
+services:
+  honcho-db:
+    image: pgvector/pgvector:0.8.6-pg15
+    command: [postgres, -c, max_connections=200]
+    environment:
+      POSTGRES_USER: honcho
+      POSTGRES_PASSWORD: ${HONCHO_DB_PASSWORD:-bench-local-only}
+      POSTGRES_DB: honcho
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U honcho -d honcho"], interval: 2s, retries: 30}
+    mem_limit: 768m
+
+  honcho-redis:
+    image: redis:8.2
+    healthcheck: {test: ["CMD", "redis-cli", "ping"], interval: 2s, retries: 30}
+    mem_limit: 256m
+
+  honcho-gateway:
+    image: ${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}
+    command: [serve, llm-meter, --port, "8081"]
+    environment:
+      LLM_UPSTREAM: ${BENCH_LLM_UPSTREAM:-http://fake-llm:9001/v1}
+      LLM_API_KEY: ${BENCH_LLM_API_KEY:-}
+      LLM_FORCE_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      EMBED_UPSTREAM: http://embed:8080/v1
+    mem_limit: 128m
+
+  honcho:
+    image: ghcr.io/plastic-labs/honcho:v3.2.1
+    # Its docker/entrypoint.sh (migrations, then the API), with its embedding bootstrap in between.
+    entrypoint:
+      - sh
+      - -c
+      - python scripts/provision_db.py && python scripts/configure_embeddings.py --yes && exec fastapi run --host 0.0.0.0 --workers 1 src/main.py
+    depends_on:
+      honcho-db: {condition: service_healthy}
+      honcho-redis: {condition: service_healthy}
+      honcho-gateway: {condition: service_started}
+    environment: *honcho-env
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2).read()"]
+      interval: 5s
+      retries: 60
+      start_period: 10s
+    mem_limit: 1g
+
+  honcho-deriver:
+    image: ghcr.io/plastic-labs/honcho:v3.2.1
+    entrypoint: [python, -m, src.deriver]
+    depends_on:
+      honcho: {condition: service_healthy}
+    environment: *honcho-env
+    mem_limit: 1g

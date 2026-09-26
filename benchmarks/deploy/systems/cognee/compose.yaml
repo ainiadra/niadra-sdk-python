@@ -1,0 +1,44 @@
+# systems: cognee
+# Cognee (github.com/topoteretes/cognee, Apache 2.0), its published image at 1.6.1, as its
+# docs/minimal-docker-compose.md runs it, with its default local stores (SQLite, LanceDB and its embedded
+# graph database, files inside the container) and its default posture, access control on: every dataset
+# gets its own stores, and every call is made as its default user, whose password is set here (its compose
+# file's DEFAULT_USER_PASSWORD) and sent by the harness to its login route. Its settings are its defaults
+# but the models, set the way its .env.template shows for an OpenAI-compatible endpoint: the language model
+# is the benchmark's extraction model (LLM_PROVIDER custom, the "openrouter/" route to the system's
+# gateway), the embedder is the benchmark's (openai_compatible, 384 dimensions; its model id is not a
+# HuggingFace repository, so Cognee counts tokens for chunk sizing with TikToken, and says so in its log).
+# The gateway pins any model name no setting reaches to the extraction model. Auth tokens last a day
+# (JWT_LIFETIME_SECONDS), so a run is not logged out halfway, and the JWT secret is 32 bytes or more (the
+# host's is random); its telemetry is off. Memory: the server 4 GiB (its compose file allows 8; a dry run
+# with 14 datasets used 2.3), the gateway 128 MiB (4.1 GiB).
+services:
+  cognee-gateway:
+    image: ${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}
+    command: [serve, llm-meter, --port, "8081"]
+    environment:
+      LLM_UPSTREAM: ${BENCH_LLM_UPSTREAM:-http://fake-llm:9001/v1}
+      LLM_API_KEY: ${BENCH_LLM_API_KEY:-}
+      LLM_FORCE_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      EMBED_UPSTREAM: http://embed:8080/v1
+    mem_limit: 128m
+
+  cognee:
+    image: cognee/cognee:1.6.1
+    depends_on: [cognee-gateway]
+    environment:
+      ENV: production
+      LLM_PROVIDER: custom
+      LLM_MODEL: openrouter/${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      LLM_ENDPOINT: http://cognee-gateway:8081/v1
+      LLM_API_KEY: gateway
+      EMBEDDING_PROVIDER: openai_compatible
+      EMBEDDING_MODEL: paraphrase-multilingual-minilm-l12-v2-r1
+      EMBEDDING_ENDPOINT: http://cognee-gateway:8081/v1
+      EMBEDDING_API_KEY: gateway
+      EMBEDDING_DIMENSIONS: "384"
+      DEFAULT_USER_PASSWORD: ${COGNEE_DEFAULT_USER_PASSWORD:-bench-local-only}
+      FASTAPI_USERS_JWT_SECRET: ${COGNEE_JWT_SECRET:-bench-local-only-jwt-secret-0123456789}
+      JWT_LIFETIME_SECONDS: "86400"
+      TELEMETRY_DISABLED: "1"
+    mem_limit: 4g

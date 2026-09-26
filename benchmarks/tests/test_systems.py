@@ -1,6 +1,7 @@
 """The systems added through adapters: the registry, the container entries, each adapter's calls, and a
 dry run with one of them against an in-process fake of its documented routes."""
 
+import inspect
 import json
 import re
 from datetime import UTC, datetime
@@ -16,10 +17,14 @@ from niadra_bench.services.asgi import lifespan, read_body, respond_json
 from niadra_bench.systems import REGISTRY
 from niadra_bench.systems.ai_memory import AiMemory, cap_excerpt, session_items
 from niadra_bench.systems.base import Call, HttpSystem
+from niadra_bench.systems.cognee import Cognee, answer_lines
 from niadra_bench.systems.graphiti import Graphiti, fact_line
 from niadra_bench.systems.hindsight import Hindsight, retain_item
+from niadra_bench.systems.honcho import AGENT_PEER, Honcho, HonchoDialectic, session_messages
+from niadra_bench.systems.langmem import LangMem
 from niadra_bench.systems.memobase import Memobase
 from niadra_bench.systems.memos import MemOS, found_memories
+from niadra_bench.systems.redis_agent_memory import RedisAgentMemory, working_memory
 from niadra_bench.systems.supermemory import Supermemory
 from tests.conftest import word_tokenizer
 
@@ -47,9 +52,9 @@ def test_every_adapter_has_a_container_entry_and_every_entry_an_adapter() -> Non
     for key in keys:
         assert key in REGISTRY or key in BUILT_IN, f"{key} has a container entry but no adapter"
     assert set(REGISTRY) <= set(SYSTEMS)
-    assert {"ai_memory", "ai_memory_llm", "graphiti", "hindsight", "memobase", "supermemory", "memos"} <= set(
-        REGISTRY
-    )
+    first_row = {"ai_memory", "ai_memory_llm", "graphiti", "hindsight", "memobase", "supermemory", "memos"}
+    second_row = {"redis_agent_memory", "honcho", "honcho_dialectic", "langmem", "cognee"}
+    assert first_row | second_row <= set(REGISTRY)
 
 
 def test_every_compose_file_pins_its_images() -> None:
@@ -62,16 +67,14 @@ def test_every_compose_file_pins_its_images() -> None:
 
 @pytest.mark.parametrize("key", sorted(REGISTRY))
 def test_each_adapter_writes_every_session_and_reads_one_customer(key, cases) -> None:
-    adapter = (
-        REGISTRY[key](url="http://system.test", now=NOW)
-        if key != "supermemory"
-        else Supermemory(url="http://system.test")
-    )
+    cls = REGISTRY[key]
+    dated = "now" in inspect.signature(cls.__init__).parameters
+    adapter = cls(url="http://system.test", **({"now": NOW} if dated else {}))
     for case in cases[::40]:
         ids = Identities.for_case(case, "t1")
         calls = adapter.seed_calls(case, ids)
         assert calls and all(isinstance(c, Call) and c.path.startswith("/") for c in calls)
-        body = json.dumps([c.json for c in calls], ensure_ascii=False)
+        body = json.dumps([c.body for c in calls], ensure_ascii=False)
         # every turn of the history reaches the system, and no other customer's id does
         for session in case.sessions:
             for turn in session.turns:
@@ -81,7 +84,7 @@ def test_each_adapter_writes_every_session_and_reads_one_customer(key, cases) ->
         read = adapter.read_call(case, ids, case.probe.question)
         assert adapter.store(ids) in json.dumps(read.json or {}) + read.path + json.dumps(read.params or {})
         write = adapter.exchange_call(case, ids, "conv-1", "my order is 123456", "noted")
-        assert "123456" in json.dumps(write.json, ensure_ascii=False)
+        assert "123456" in json.dumps(write.body, ensure_ascii=False)
 
 
 def test_ai_memory_replays_sessions_at_the_hook_cadence(cases) -> None:
@@ -139,6 +142,55 @@ def test_the_read_answers_become_the_lines_the_agent_receives() -> None:
     nested = {"data": {"text_mem": [{"cube_id": "u", "memories": [{"id": "1", "memory": "d"}]}]}}
     assert MemOS(url="http://x").memories(answer(nested)) == ["d"]
     assert found_memories({"a": [{"memory": "e", "id": "2"}]}) == [{"memory": "e", "id": "2"}]
+
+
+def test_the_second_row_reads_become_the_lines_the_agent_receives() -> None:
+    def answer(payload) -> httpx.Response:
+        return httpx.Response(200, json=payload, request=httpx.Request("POST", "http://x"))
+
+    found = {"memories": [{"id": "m1", "text": "order 1 shipped", "event_date": "2026-09-01T00:00:00Z"}]}
+    redis = RedisAgentMemory(url="http://x")
+    assert redis.memories(answer(found)) == ["order 1 shipped (event date: 2026-09-01T00:00:00Z)"]
+    assert redis.open_call(None, None, answer(found)).path == "/v1/long-term-memory/m1"
+    context = {"peer_card": ["Name: Ana"], "representation": "Ana moved to Recife.\n\nShe asked."}
+    honcho = Honcho(url="http://x")
+    lines = honcho.memories(answer(context))
+    assert lines == ["## Peer card", "Name: Ana", "## Representation", "Ana moved to Recife.", "She asked."]
+    assert honcho.render(lines).splitlines()[1] == "- Name: Ana"
+    assert HonchoDialectic(url="http://x").memories(answer({"content": "Protocol 123.\nAnything else?"})) == [
+        "Protocol 123.",
+        "Anything else?",
+    ]
+    stored = {"memories": [{"key": "k1", "content": "User's order is 991"}]}
+    langmem = LangMem(url="http://x")
+    assert langmem.memories(answer(stored)) == ["User's order is 991"]
+    results = [{"search_result": ["The protocol is 4411."], "dataset_id": None, "dataset_name": "d"}]
+    assert Cognee(url="http://x").memories(answer(results)) == ["The protocol is 4411."]
+    assert answer_lines(["a\nb", {"text": "c"}]) == ["a", "b", "c"]
+
+
+def test_the_second_row_writes_as_each_system_documents_it(cases) -> None:
+    case = next(c for c in cases if any(s.record for s in c.sessions))
+    ids = Identities.for_case(case, "t1")
+    session = next(s for s in case.sessions if s.turns)
+    memory = working_memory(case, ids, session, NOW, "u1")
+    assert memory["user_id"] == "u1" and len(memory["messages"]) == len(session.turns)
+    assert all(m["created_at"].startswith("2026-") for m in memory["messages"])
+    record = next(s for s in case.sessions if s.record)
+    assert working_memory(case, ids, record, NOW, "u1")["messages"][0]["role"] == "system"
+    messages = session_messages(case, ids, session, NOW, "peer-1")
+    agents = sum(t.role == "agent" for t in session.turns)
+    assert sum(m["peer_id"] == AGENT_PEER for m in messages) == agents
+    honcho = Honcho(url="http://x", now=NOW)
+    ensure = honcho.ensure_calls(case, ids)
+    assert [c.json.get("configuration") for c in ensure[2:]] == [{"observe_me": False}] * 2
+    assert HonchoDialectic.workspace != Honcho.workspace
+    seeded = Cognee(url="http://x").seed_calls(case, ids)
+    assert seeded[-1].path == "/api/v1/cognify" and all(c.form for c in seeded[:-1])
+    live = Cognee(url="http://x").exchange_call(case, ids, "conv", "hi", None)
+    assert live.path == "/api/v1/remember" and live.form and live.form["run_in_background"] == "true"
+    queued = LangMem(url="http://x").seed_calls(case, ids)
+    assert len(queued) == len(case.sessions) and queued[0].json["messages"]
 
 
 def test_hindsight_retains_a_conversation_as_one_dated_item(cases) -> None:

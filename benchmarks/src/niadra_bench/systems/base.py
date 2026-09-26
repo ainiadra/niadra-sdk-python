@@ -15,8 +15,8 @@ shows), metric 7 (the read behind the fault proxy with a plain HTTP client at it
 `raise_for_status()`, as Mem0's REST server is called), metric 8 (the read as `search`, `open_call` as
 `open`) and metric 9 (`exchange_call`, open loop).
 
-To add a system: one module in this package with one `HttpSystem` subclass, and its container in
-`deploy/compose/systems.yaml`. The registry (`niadra_bench.systems`) finds the class by its `system`
+To add a system: one module in this package with one `HttpSystem` subclass, and its container entry in
+`deploy/systems/<dir>/compose.yaml`. The registry (`niadra_bench.systems`) finds the class by its `system`
 key, `bench run --systems` accepts that key, and results name it the same way.
 """
 
@@ -56,13 +56,15 @@ FRESH_QUERIES = {"pt": "número do pedido novo", "en": "new order number"}
 
 @dataclass(frozen=True)
 class Call:
-    """One HTTP request, relative to the system's base URL."""
+    """One HTTP request, relative to the system's base URL: a JSON body, or form fields (`form`, sent
+    as a form, for a route that takes form fields, as Cognee's do)."""
 
     method: str
     path: str
     json: Any = None
     params: dict[str, str] | None = None
     headers: dict[str, str] = field(default_factory=dict)
+    form: dict[str, str | list[str]] | None = None
 
     def send(
         self, client: httpx.AsyncClient, base: str, headers: dict[str, str]
@@ -71,9 +73,15 @@ class Call:
             self.method,
             f"{base}{self.path}",
             json=self.json,
+            data=self.form,
             params=self.params,
             headers={**headers, **self.headers},
         )
+
+    @property
+    def body(self) -> Any:
+        """What the request carries, JSON or form, for tests and logs."""
+        return self.form if self.form is not None else self.json
 
 
 class HttpSystem(Target):
@@ -90,7 +98,7 @@ class HttpSystem(Target):
     default_url: ClassVar[str]
     #: The environment variable with the bearer token, when the server takes one.
     token_env: ClassVar[str | None] = None
-    #: The release the container entry pins (deploy/compose/systems.yaml), recorded in the results.
+    #: The release the container entry pins (deploy/systems/<dir>/compose.yaml), recorded in the results.
     version: ClassVar[str]
     #: The line before the memory lines, when the system's documentation shows one.
     header: ClassVar[str] = ""

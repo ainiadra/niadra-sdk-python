@@ -1,0 +1,37 @@
+# systems: langmem
+# LangMem (github.com/langchain-ai/langmem, MIT) 0.0.30, a library: server.py (Dockerfile here) is the
+# process that runs it, with LangGraph's AsyncPostgresStore in its own PostgreSQL with pgvector on this host.
+# Its model is the benchmark's extraction model and its embedder the benchmark's, through the system's
+# gateway. Memory: the service 768 MiB, the database 768 MiB, the gateway 128 MiB (1.7 GiB).
+services:
+  langmem-db:
+    image: pgvector/pgvector:0.8.6-pg17
+    environment:
+      POSTGRES_USER: langmem
+      POSTGRES_PASSWORD: ${LANGMEM_DB_PASSWORD:-bench-local-only}
+      POSTGRES_DB: langmem
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U langmem -d langmem"], interval: 2s, retries: 30}
+    mem_limit: 768m
+
+  langmem-gateway:
+    image: ${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}
+    command: [serve, llm-meter, --port, "8081"]
+    environment:
+      LLM_UPSTREAM: ${BENCH_LLM_UPSTREAM:-http://fake-llm:9001/v1}
+      LLM_API_KEY: ${BENCH_LLM_API_KEY:-}
+      EMBED_UPSTREAM: http://embed:8080/v1
+    mem_limit: 128m
+
+  langmem:
+    build: {context: .}
+    image: niadra-bench/langmem:0.0.30
+    depends_on:
+      langmem-db: {condition: service_healthy}
+      langmem-gateway: {condition: service_started}
+    environment:
+      DATABASE_URL: postgresql://langmem:${LANGMEM_DB_PASSWORD:-bench-local-only}@langmem-db:5432/langmem
+      LLM_BASE_URL: http://langmem-gateway:8081/v1
+      EXTRACTION_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      EMBEDDING_MODEL: paraphrase-multilingual-minilm-l12-v2-r1
+      EMBEDDING_DIMS: "384"
+    mem_limit: 768m
