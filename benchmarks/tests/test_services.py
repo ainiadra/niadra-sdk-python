@@ -56,6 +56,16 @@ async def test_meter_counts_tokens_per_model() -> None:
         assert counts["calls"] == 2 and counts["prompt_tokens"] == 200 and counts["failed"] == 0
 
 
+async def test_meter_counts_a_responses_call_with_a_null_error_as_answered() -> None:
+    meter = LlmMeter("http://llm/v1", transport=httpx.ASGITransport(app=FakeLlm()))
+    async with _client(meter) as client:
+        body = {"model": "google/gemini-2.5-flash-lite", "input": "x" * 400}
+        answer = await client.post("/v1/responses", json=body)
+        assert answer.status_code == 200 and answer.json()["error"] is None
+        counts = (await client.get("/_meter")).json()["models"]["google/gemini-2.5-flash-lite"]
+        assert counts["calls"] == 1 and counts["failed"] == 0 and counts["prompt_tokens"] > 0
+
+
 async def test_fake_llm_answers_mem0_extraction_in_its_json_shape() -> None:
     async with _client(FakeLlm()) as client:
         body = {
