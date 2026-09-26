@@ -321,15 +321,16 @@ and the database are the ones already running.
 
 ## A/B: the delta between two settings
 
-`bench ab` runs a baseline and a candidate over the same prepared dataset and reports the delta,
-figure by figure. The candidate differs from the baseline by `--candidate-env KEY=VALUE` (repeatable), a
-setting of the Niadra server under test, or by `--candidate-config <file.toml>`, whose sections override
+`bench ab` runs a baseline and a candidate over the same prepared dataset and reports the delta, figure
+by figure. The candidate differs from the baseline by `--candidate-env KEY=VALUE` (repeatable), a setting
+of the Niadra server under test, or by `--candidate-config <file.toml>`, whose sections override
 `benchmark.toml`'s. A key only the candidate sets runs on the baseline at its default
 (`NIADRA_MEMORY_V2=off`, `NIADRA_SEMANTIC_CHANNEL=off`; any other key needs `--baseline-env`), so both
-sides say what they ran with. Everything else is equal: the same cases in the same order, the same agent
-and judge, repetition by repetition (baseline 1, candidate 1, baseline 2, ...). Both sides are graded on
-the same valid cases: the two references of the validity rule answer once per repetition, on the baseline
-side, and their verdict holds for both.
+sides say what they ran with. Everything else is equal: the same cases in the same order, seeded from the
+same instant (the start of the hour the A/B began, `--now`), the same agent and judge, repetition by
+repetition (baseline 1, candidate 1, baseline 2, ...). Both sides are graded on the same valid cases: the
+two references of the validity rule answer once per repetition, on the baseline side, and their verdict
+holds for both.
 
 What the delta covers (`ab.md`, and `ab.json` with schema `niadra-bench.ab.v1`): accuracy overall and by
 category (the judge when there is one, else the exact check), `context_has_answer` overall and by category,

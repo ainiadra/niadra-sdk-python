@@ -260,7 +260,9 @@ def main(argv: list[str] | None = None) -> None:
     ab.add_argument("--limit", type=int, default=None, help="only N cases spread over the dataset")
     ab.add_argument("--quick", action="store_true", help="short latency lines (smoke runs)")
     ab.add_argument("--output", default=None, help="results root (default: results/ab, or results/local/ab)")
-    ab.add_argument("--now", default=None, help="a local cell's clock, ISO 8601 (default: this hour)")
+    ab.add_argument(
+        "--now", default=None, help="the instant both sides seed from, ISO 8601 (default: this hour)"
+    )
     ab.add_argument("--max-minutes", type=float, default=None, help="default: [ab] max_minutes")
     ab.add_argument("--label", default=None, help="a name for the A/B, in the report")
     ab.set_defaults(func=_ab)

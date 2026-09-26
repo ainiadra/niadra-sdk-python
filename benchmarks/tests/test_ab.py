@@ -113,6 +113,7 @@ def test_in_the_region_each_side_sets_the_space_flag_and_seeds_its_own_customers
     base, cand = runner._run_for(runner.baseline), runner._run_for(runner.candidate)
     assert (base.options.memory_v2, cand.options.memory_v2) == (False, True)
     assert base.options.tag != cand.options.tag
+    assert base.options.niadra_now == cand.options.niadra_now == runner.now
     assert base.options.references and not cand.options.references
     assert not base.options.dry_run and runner.kind != "local-cell"
 

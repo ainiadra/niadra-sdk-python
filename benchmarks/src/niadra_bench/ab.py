@@ -309,7 +309,7 @@ class Ab:
         self.kind = environment_kind(options)
         default_root = LOCAL_RESULTS if self.kind != "region" else bench_config.RESULTS_DIR / "ab"
         self.out = (options.output or default_root) / f"{self.started:%Y-%m-%d}-{self.ab_id[-6:]}"
-        # The instant a local cell's clock stands at and the harness seeds from, the same on both sides.
+        # The instant both sides seed from (and a local cell's clock stands at): the start of the hour.
         self.now = options.now or self.started.replace(minute=0, second=0, microsecond=0)
         self.cells: dict[str, LocalCell] = {}
         self.valid: dict[int, set[str]] = {}
@@ -355,7 +355,10 @@ class Ab:
             memory_v2=memory_v2,
             references=side.name == "baseline",
             tag=tag,
-            niadra_now=self.now if opts.local_cell else None,
+            # Both sides seed from the same instant, so every event carries the same time on both: a
+            # time in the pack never differs between them (the exact check's loose match reads the
+            # minutes of a time as a day).
+            niadra_now=self.now,
             settle_quiet_s=self.settings.local_settle_quiet_s if opts.local_cell else None,
             extra=dict(opts.extra),
         )
