@@ -49,6 +49,7 @@ from niadra.models.context import (
     LiveTurn,
     ObjectState,
     OpenedItem,
+    PackGuard,
     PackSection,
     PackSlot,
     PackStamp,
@@ -130,6 +131,14 @@ def _render_slots(slots: list[PackSlot]) -> str | None:
         return None
     lines = "\n".join(slot.text for slot in slots)
     return f'<turn source="niadra">\n{SLOTS_HEADER}\n{lines}\n</turn>'
+
+
+def _guard_slot(guard: PackGuard, explain: bool) -> PackSlot:
+    line = f"[Guard] {guard.value_type} {guard.value}: state no other; another from the customer is pending"
+    why = (
+        SlotWhy(rule=f"guard_{guard.value_type}", basis={"value_type": guard.value_type}) if explain else None
+    )
+    return PackSlot(section="guard", id=guard.id, text=line, why=why)
 
 
 def _b64(hex_digest: str) -> str:
@@ -226,6 +235,8 @@ class MockCell:
     """Keys holding the `agent_memory:write` scope: `remember` is offered to them, the others get 403."""
     memory_v2: bool = False
     """The space setting `memory_v2`: a read's `query` picks this turn's `slots` instead of the pack."""
+    guards: dict[HandleKey, dict[str, PackGuard]] = field(default_factory=dict)
+    """Guard lines per profile and kind of value (`add_guard`), served with the slots of memory v2."""
     prefetches: list[PrefetchRequest] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -250,6 +261,7 @@ class MockCell:
             self.uploads.clear()
             self.media.clear()
             self.prefetches.clear()
+            self.guards.clear()
             self.agent_memory.notes.clear()
             self.agent_memory.proposals.clear()
 
@@ -264,6 +276,16 @@ class MockCell:
     def enable_memory_v2(self, enabled: bool = True) -> None:
         """Turns memory v2 on, as the `memory_v2` setting of a space does (the default is off)."""
         self.memory_v2 = enabled
+
+    def add_guard(self, handle: Handle, value_type: str, value: str) -> str:
+        """Makes memory v2 reads about this customer open their slots with a guard line: the value an
+        authority stated for `value_type` (`date`, `amount`, `protocol`...), which the agent must not
+        state otherwise. Returns the guard's short id, as `PackSlot.id` and `PackGuard.id` carry it."""
+        with self._lock:
+            ident = _digest(f"{value_type}:{value}", 8)
+            guard = PackGuard(id=ident, value_type=value_type, value=value)
+            self.guards.setdefault(self._find(_key(handle)), {})[value_type] = guard
+            return ident
 
     def prefetch(self, request: PrefetchRequest) -> None:
         with self._lock:
@@ -477,6 +499,8 @@ class MockCell:
             self._marks[root] = mark
             explain = bool(request.explain) and request.format == "json"
             slots = self._slots(turn, events, pin, verification.effective, explain) if turn else []
+            guards = list(self.guards.get(root, {}).values()) if turn else []
+            slots = [_guard_slot(g, explain) for g in guards] + slots
             slots_text = _render_slots(slots)
             timing = {"total": 0.1, "slots": 0.05} if turn else {"total": 0.1}
             if request.known_etag == pin.etag:
@@ -490,6 +514,7 @@ class MockCell:
                     live=live,
                     delta=delta,
                     slots=slots_text,
+                    guards=guards,
                     timing=timing,
                     path=DeliveryPath.NOT_MODIFIED,
                 )
@@ -522,6 +547,7 @@ class MockCell:
                 live=live,
                 delta=delta,
                 slots=slots_text,
+                guards=guards,
                 cache=CacheDirectives(
                     breakpoints=[header_end] if request.target else [],
                     floor_tokens=1024 if request.target else None,

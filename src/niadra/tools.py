@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping
+from contextlib import suppress
 from dataclasses import dataclass
 from importlib.resources import files
 from typing import TYPE_CHECKING, Any
@@ -296,9 +297,19 @@ def _remembered(plan: _Plan, call: Callable[[], Any]) -> str:
 
 
 class ToolKit(_ToolKitBase):
-    def __init__(self, client: Niadra, definitions: list[dict[str, Any]], **binding: Any) -> None:
+    def __init__(
+        self,
+        client: Niadra,
+        definitions: list[dict[str, Any]],
+        *,
+        observe: Callable[[str], None] | None = None,
+        **binding: Any,
+    ) -> None:
+        """`observe` receives each tool result: a conversation's kit records them as sources of the
+        agent's answers (`niadra.backing`)."""
         super().__init__(definitions, **binding)
         self._client = client
+        self._observe = observe
 
     def call(self, name: str, arguments: Arguments = None) -> str:
         """Runs one tool call from the model and returns the text to send back as the tool result."""
@@ -306,13 +317,21 @@ class ToolKit(_ToolKitBase):
         if isinstance(plan, str):
             return plan
         method = getattr(self._client, plan.method)
-        return _remembered(plan, lambda: method(*plan.args, **plan.kwargs))
+        return _observed(self._observe, _remembered(plan, lambda: method(*plan.args, **plan.kwargs)))
 
 
 class AsyncToolKit(_ToolKitBase):
-    def __init__(self, client: AsyncNiadra, definitions: list[dict[str, Any]], **binding: Any) -> None:
+    def __init__(
+        self,
+        client: AsyncNiadra,
+        definitions: list[dict[str, Any]],
+        *,
+        observe: Callable[[str], None] | None = None,
+        **binding: Any,
+    ) -> None:
         super().__init__(definitions, **binding)
         self._client = client
+        self._observe = observe
 
     async def call(self, name: str, arguments: Arguments = None) -> str:
         """Runs one tool call from the model and returns the text to send back as the tool result."""
@@ -323,4 +342,11 @@ class AsyncToolKit(_ToolKitBase):
             result = await getattr(self._client, plan.method)(*plan.args, **plan.kwargs)
         except Exception as exc:
             return _failed(plan, exc)
-        return plan.render(result)
+        return _observed(self._observe, plan.render(result))
+
+
+def _observed(observe: Callable[[str], None] | None, text: str) -> str:
+    if observe is not None:
+        with suppress(Exception):  # recording a source never fails the tool call
+            observe(text)
+    return text

@@ -137,6 +137,32 @@ class ModelUsage(Model):
             return None
 
 
+class UnbackedKind(Model):
+    """A value an agent's turn states that nothing it had backs, as the turn reports it: the kind
+    only, never the value (`niadra.backing.UnbackedValue` holds the value, on the agent's side)."""
+
+    kind: Literal["amount", "date", "number", "code"]
+
+
+class Backing(Model):
+    """What the backing check found in an agent's turn (`niadra.backing`): kinds and counts, never a
+    value. `Conversation.agent()` sets it for you."""
+
+    checked: int = Field(ge=0, le=500, description="Values the check read in the turn.")
+    unbacked_values: list[UnbackedKind] = Field(default_factory=list, max_length=100)
+    guard_violations: list[Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{8}$")]] = Field(
+        default_factory=list,
+        max_length=8,
+        description="Short ids of the guard lines (`PackGuard.id`) the turn went against.",
+    )
+
+    @model_validator(mode="after")
+    def _within_checked(self) -> Backing:
+        if len(self.unbacked_values) > self.checked:
+            raise ValueError("unbacked_values cannot outnumber the values checked")
+        return self
+
+
 class EventItem(Model):
     """A message, a system event or an agent action."""
 
@@ -174,6 +200,11 @@ class EventItem(Model):
     usage: ModelUsage | None = Field(
         default=None, description="The model call behind an `ai_agent` message: tokens and prompt cache."
     )
+    backing: Backing | None = Field(
+        default=None,
+        description="An agent's message: which of the values it states have no source, and which guards "
+        "it went against, as the backing check found them.",
+    )
 
     @field_validator("object_refs", mode="before")
     @classmethod
@@ -201,6 +232,11 @@ class EventItem(Model):
             self.kind is not EventKind.MESSAGE or self.speaker.role is not Speaker.AI_AGENT
         ):
             raise ValueError("`usage` is only valid on a message of the `ai_agent`")
+        if self.backing is not None and (
+            self.kind is not EventKind.MESSAGE
+            or self.speaker.role not in (Speaker.AI_AGENT, Speaker.HUMAN_AGENT)
+        ):
+            raise ValueError("`backing` is only valid on a message of an agent")
         return self
 
 

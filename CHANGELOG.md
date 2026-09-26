@@ -20,6 +20,28 @@ All notable changes to this project are documented here. The format follows
   type (`card`, `cvv`, `password`, `secret`), counts only, never the values.
 - `niadra_mock`: `explain` support in `MockCell.context()` (the emulator's own retrieval channel,
   scored the way the server scores `lexical`).
+- Backed answers (`niadra.backing`). `agent()` now reads every number, date, code and amount the
+  answer states (amounts with a currency or a money word, dates in PT, EN and ES, codes with three
+  or more digits, numbers of three or more digits; never words, one or two digits, times or a year
+  on its own) and looks each up in what the agent had in the conversation: the packs and turn
+  blocks it read, the customer's words, a human attendant's, the results of `action(result=...)`,
+  the history tools of `tools()`, and `tool_result()` for tools of your own. A sum or difference of
+  two backed amounts, a sum of three, or a backed amount times a count are backed too. The turn
+  carries the result as `backing` (`checked`, `unbacked_values` by kind, `guard_violations` by
+  short id), never a value; `last_backing` keeps the full `BackingReport`. `agent(text,
+  strict=True)` returns the values with no source (a list of `UnbackedValue`, a card or document
+  number masked) instead of sending the turn, and an empty list when it sent it. The check never
+  fails a turn and costs well under 5 ms an answer.
+- Guard lines (memory v2): `ContextResponse.guards` (`PackGuard`: `id`, `value_type`, `value`),
+  `PackSlot.id` (the short id of the item a slot line states) and `section="guard"` for a guard
+  line. `agent()` checks the answer against the latest guard of each kind and names the ones it went
+  against on the turn, which the server turns into a `guard.violated` webhook at once; with
+  `strict=True` the conflicting values come back too.
+- Models: `Backing`, `UnbackedKind`, `EventItem.backing`, `PackGuard`; `niadra.BackingReport` and
+  `niadra.UnbackedValue`. `ToolKit` and `AsyncToolKit` take `observe=`, called with each tool
+  result.
+- `niadra_mock`: `MockCell.add_guard(handle, value_type, value)` serves a guard line with the slots of
+  memory v2 reads.
 
 ## [0.4.0] - 2026-09-25
 

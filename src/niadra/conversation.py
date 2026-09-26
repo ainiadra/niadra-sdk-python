@@ -16,6 +16,12 @@
   without one. `prefetch()` sends a partial transcript while the customer is still speaking.
 - `customer()`, `agent()` and `human_agent()` record turns, and `action()` records what an
   agent did in a system of record. None of them block.
+- `agent()` checks the answer first (`niadra.backing`): every number, date, code and amount it
+  states is looked up in what the agent had in this conversation (the packs and turn blocks it
+  read, the customer's words, a human attendant's, the results of actions and tools it recorded),
+  and against the pack's guard lines. The turn carries what was found as `backing`, kinds and
+  counts only; `strict=True` returns the values with no source instead of sending the turn.
+  `tool_result()` records what a tool of your own returned, so its values count as sources.
 - Leaving the block emits `conversation.ended` (or `task.ended`), even when the block raised.
 
 `mark_injected()` records the moment the pack went into the model's prompt. The agent's later
@@ -26,16 +32,21 @@ calls it for you; without it, call it when you build the prompt.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Mapping, Sequence
+from contextlib import suppress
 from contextvars import ContextVar, Token
 from datetime import datetime, timezone
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, Union, overload
 
 from niadra._base import HandleLike, ItemLike, ObjectLike, TargetLike, VerificationLike, as_handle, as_object
 from niadra._ids import new_key
+from niadra.backing import BackingReport, Sources, UnbackedValue, check
 from niadra.models.agent_memory import AgentMemory, AgentNoteKind, RememberResult
+from niadra.models.context import PackGuard
 from niadra.models.events import (
+    Backing,
     BatchResponse,
     Content,
     ContextStamp,
@@ -46,7 +57,7 @@ from niadra.models.events import (
     TaskEndedItem,
     VerifyMethod,
 )
-from niadra.models.results import Context
+from niadra.models.results import Context, render_turn
 from niadra.tools import AsyncToolKit, ToolKit, definitions
 from niadra.vocabulary import Speaker, Verification
 
@@ -124,6 +135,9 @@ class _Session:
         self._etag: str | None = None
         self._deltas: list[str] = []
         self.last_turn: str | None = None
+        self.last_backing: BackingReport | None = None
+        self._sources = Sources()
+        self._guards: dict[str, PackGuard] = {}
         self._prefetched: str | None = None
         self._track = track
         self._fail = fail
@@ -148,26 +162,72 @@ class _Session:
         """
         if text and text.strip():
             self.last_turn = text
+            self._sources.add(text)
         return self._turn(Speaker.CUSTOMER, "inbound", text, event, stt_confidence=stt_confidence)
 
-    def agent(self, text: str, *, usage: Any = None, **event: Any) -> bool:
-        """Records the AI agent's answer, stamped with the context its prompt carried.
+    @overload
+    def agent(self, text: str, *, usage: Any = ..., strict: Literal[False] = ..., **event: Any) -> bool: ...
+
+    @overload
+    def agent(
+        self, text: str, *, usage: Any = ..., strict: Literal[True], **event: Any
+    ) -> list[UnbackedValue]: ...
+
+    def agent(self, text: str, *, usage: Any = None, strict: bool = False, **event: Any) -> Any:
+        """Records the AI agent's answer, stamped with the context its prompt carried, with what the
+        backing check found in it.
 
         `usage` is what the model provider reported for the call behind the answer: the
         provider's response (OpenAI or Anthropic) or a `ModelUsage`. `wrap()` passes it for you.
         A response without usage is left out; the turn is recorded either way.
+
+        Every number, date, code and amount the answer states is looked up in what the agent had
+        (see `niadra.backing`); the turn carries the kinds of those with no source as `backing`,
+        never the values, and `last_backing` keeps the full report. With `strict=True` an answer
+        with a value no source backs, or one that goes against a guard line, is not sent: the
+        values come back (a card or document number masked), for the agent to rephrase or ask,
+        and an empty list means the turn was sent.
         """
+        report = self._check(text)
+        self.last_backing = report
+        if strict and report is not None and report.problems:
+            return report.problems
         if self.first_agent_turn_at is None:
             self.first_agent_turn_at = datetime.now(timezone.utc)
         if self.context_stamp is not None:
             event.setdefault("context_stamp", self.context_stamp)
         if usage is not None and (reported := _as_usage(usage)) is not None:
             event["usage"] = reported
-        return self._turn(Speaker.AI_AGENT, "outbound", text, event)
+        if report is not None:
+            event.setdefault("backing", Backing(**report.event_fields()))
+        sent = self._turn(Speaker.AI_AGENT, "outbound", text, event)
+        return [] if strict else sent
 
     def human_agent(self, text: str, **event: Any) -> bool:
-        """Records a turn by a human attendant."""
+        """Records a turn by a human attendant. What they say is a source for the agent's answers."""
+        self._sources.add(text)
         return self._turn(Speaker.HUMAN_AGENT, "outbound", text, event)
+
+    def tool_result(self, result: Any) -> None:
+        """Records what a tool the agent called returned (text, or anything JSON can write), so the
+        values in it back the agent's answers. Nothing is sent; the history tools of `tools()` are
+        recorded for you."""
+        with suppress(TypeError, ValueError):
+            self._sources.add(result if isinstance(result, str) else json.dumps(result, default=str))
+
+    def _check(self, text: str) -> BackingReport | None:
+        """The backing check; it never fails the turn."""
+        try:
+            return check(text or "", self._sources, self._guards.values())
+        except Exception:
+            return None
+
+    def _observe(self, context: Context) -> None:
+        """What a read gave the agent: the pack, the turn block and the guards back its answers."""
+        self._sources.add(context.text)
+        self._sources.add(render_turn(context))
+        # The guards of the last read hold the answers to the turn they were written for.
+        self._guards = {g.value_type: g for g in context.guards}
 
     def mark_injected(self, context: Context | None = None, *, at: datetime | None = None) -> None:
         """Records that `context` (by default the last one this session returned) went into the prompt.
@@ -194,6 +254,8 @@ class _Session:
         # Only the AI agent acted on the injected context; a human's action carries no stamp.
         if self.context_stamp is not None and options.get("speaker", Speaker.AI_AGENT) == Speaker.AI_AGENT:
             defaults["context_stamp"] = self.context_stamp
+        # What the system of record answered backs the agent's next words.
+        self._sources.add(options.get("result") if isinstance(options.get("result"), str) else None)
         return {**defaults, **options}
 
     def _context_arguments(self) -> dict[str, Any]:
@@ -342,6 +404,7 @@ class _SyncSession(_Session):
         focused read.
         """
         context = self._client.context(**self._read_arguments(overrides))
+        self._observe(context)
         return self._absorb(context) if self._is_pinned(overrides, context) else context
 
     def prefetch(self, text: str) -> bool:
@@ -366,7 +429,7 @@ class _SyncSession(_Session):
         if binding is None:
             return None
         chosen = definitions(agent_memory=agent_memory, write_agent_memory=write_agent_memory)
-        return ToolKit(self._client, chosen, **binding)
+        return ToolKit(self._client, chosen, observe=self._sources.add, **binding)
 
     def agent_memory(self, max_tokens: int = 300, *, tags: Sequence[str] | None = None) -> AgentMemory:
         """The agent's own notes for this session's view. See `Niadra.agent_memory`."""
@@ -425,6 +488,7 @@ class _AsyncSession(_Session):
         in a space with memory v2, what the customer's last turn selected in `slots`. See
         `Conversation.context`."""
         context = await self._client.context(**self._read_arguments(overrides))
+        self._observe(context)
         return self._absorb(context) if self._is_pinned(overrides, context) else context
 
     def prefetch(self, text: str) -> bool:
@@ -443,7 +507,7 @@ class _AsyncSession(_Session):
         if binding is None:
             return None
         chosen = definitions(agent_memory=agent_memory, write_agent_memory=write_agent_memory)
-        return AsyncToolKit(self._client, chosen, **binding)
+        return AsyncToolKit(self._client, chosen, observe=self._sources.add, **binding)
 
     async def agent_memory(self, max_tokens: int = 300, *, tags: Sequence[str] | None = None) -> AgentMemory:
         """The agent's own notes for this session's view. See `AsyncNiadra.agent_memory`."""

@@ -43,6 +43,7 @@ from niadra.models.context import (
     ObjectState,
     OpenedItem,
     OpenItemRequest,
+    PackGuard,
     PackSection,
     PackSlot,
     PackStamp,
@@ -62,6 +63,7 @@ from niadra.models.context import (
 )
 from niadra.models.events import (
     ActionInfo,
+    Backing,
     BatchItem,
     BatchRequest,
     BatchResponse,
@@ -81,6 +83,7 @@ from niadra.models.events import (
     ModelUsage,
     SpeakerRef,
     TaskEndedItem,
+    UnbackedKind,
     VerifyItem,
     VoiceInfo,
 )
@@ -99,6 +102,7 @@ __all__ = [
     "AgentNotePage",
     "AgentNoteProposal",
     "AgentNoteProposalPage",
+    "Backing",
     "BatchItem",
     "BatchRequest",
     "BatchResponse",
@@ -145,6 +149,7 @@ __all__ = [
     "ObjectTimeline",
     "OpenItemRequest",
     "OpenedItem",
+    "PackGuard",
     "PackSection",
     "PackSlot",
     "PackStamp",
@@ -172,6 +177,7 @@ __all__ = [
     "TimelineRequest",
     "TimelineResponse",
     "ToolDefinition",
+    "UnbackedKind",
     "UpdateAgentNoteRequest",
     "VerificationResult",
     "VerifyItem",

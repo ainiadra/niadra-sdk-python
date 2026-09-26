@@ -198,6 +198,34 @@
       "title": "LiveTurn",
       "type": "object"
     },
+    "PackGuard": {
+      "additionalProperties": false,
+      "description": "What one guard line states: the value memory holds for a kind the turn asked about, by the precedence of who stated it, so the agent's answer can be checked against it at once.",
+      "properties": {
+        "id": {
+          "description": "The value's short id, as the guard line's `PackSlot.id`.",
+          "title": "Id",
+          "type": "string"
+        },
+        "value_type": {
+          "description": "`protocol`, `ticket`, `order`, `record`, `receipt`, `postal_code`, `amount`, `date` or `code`.",
+          "title": "Value Type",
+          "type": "string"
+        },
+        "value": {
+          "description": "The value as the line writes it.",
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "value_type",
+        "value"
+      ],
+      "title": "PackGuard",
+      "type": "object"
+    },
     "PackSection": {
       "additionalProperties": false,
       "properties": {
@@ -253,12 +281,25 @@
     },
     "PackSlot": {
       "additionalProperties": false,
-      "description": "One line of the per-turn slots (memory v2): an item the customer's last turn selected, or a line derived from memory (`count`, `no_record`, `withheld`).",
+      "description": "One line of the per-turn slots (memory v2): an item the customer's last turn selected, a guard (a value the agent must not state otherwise), or a line derived from memory (`count`, `no_record`, `withheld`).",
       "properties": {
         "section": {
-          "description": "The pack section the item comes from (`episodes`, `objects`...), or `derived`.",
+          "description": "The pack section the item comes from (`episodes`, `objects`...), `guard` for a guard line, or `derived`.",
           "title": "Section",
           "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The short id of the item the line states: the last eight hex digits of its public id. An agent's turn names a guard it went against by it. Absent for a derived line.",
+          "title": "Id"
         },
         "derived": {
           "anyOf": [
@@ -469,12 +510,12 @@
             }
           ],
           "default": null,
-          "description": "For a derived line: `count_complaints`, `count_conversations`, `no_record` or `withheld_may_hold`.",
+          "description": "For a derived line: `guard_<value type>` (a guard line), `count_complaints`, `count_conversations`, `no_record` or `withheld_may_hold`.",
           "title": "Rule"
         },
         "basis": {
           "additionalProperties": true,
-          "description": "For a derived line, what the rule counted or missed: `basis` (the conversation that chose the category), `category`, `counted`, `window_days`; `asked_types`, `identifiers` (how many numbers the turn named, never which), `withheld`.",
+          "description": "For a derived line, what the rule counted or missed: `basis` (the conversation that chose the category, or the value a guard states), `category`, `counted`, `window_days`; `asked_types`, `identifiers` (how many numbers the turn named, never which), `withheld`; for a guard, `value_type` and `origin` (who stated the value).",
           "title": "Basis",
           "type": "object"
         }
@@ -685,6 +726,14 @@
       "default": null,
       "description": "Memory v2, with `query`: what the customer's last turn selected from memory for this turn. It goes in the turn block after `text`, in this order: the `live` turns, then `slots`, then `delta`. Never part of `text`, which stays the same bytes for the whole conversation.",
       "title": "Slots"
+    },
+    "guards": {
+      "description": "Memory v2: what the guard lines among `slots` state, typed. An SDK checks the agent's answer against them and names a guard the answer went against on the agent's turn (`backing.guard_violations`).",
+      "items": {
+        "$ref": "#/$defs/PackGuard"
+      },
+      "title": "Guards",
+      "type": "array"
     },
     "cache": {
       "anyOf": [

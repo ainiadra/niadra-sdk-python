@@ -222,7 +222,7 @@ def sent(session: Session, reply: str, response: Any = None) -> bool:
         extra: dict[str, Any] = {}
         if message_id := text(first.get("id")):
             extra["idempotency_key"] = message_id
-        return session.agent(reply, **extra)
+        return session.agent(reply, strict=False, **extra)
     except Exception as exc:
         warn("record the agent's WhatsApp message", exc)
         return False

@@ -9,6 +9,7 @@ from pathlib import Path
 from niadra.models.context import (
     ContextPack,
     ContextResponse,
+    PackGuard,
     PackSection,
     PackSectionName,
     PackSlot,
@@ -29,6 +30,7 @@ def test_the_schema_is_the_context_pack_v1() -> None:
     assert SCHEMA["properties"]["pack"]["anyOf"][0] == {"$ref": "#/$defs/ContextPack"}
     assert DEFS["ContextPack"]["properties"]["spec"]["const"] == ContextPack.model_fields["spec"].default
     assert "slots" in SCHEMA["properties"] and "slots" in ContextResponse.model_fields
+    assert "guards" in SCHEMA["properties"] and "guards" in ContextResponse.model_fields
 
 
 def test_each_pack_model_has_exactly_the_fields_of_its_schema() -> None:
@@ -39,6 +41,7 @@ def test_each_pack_model_has_exactly_the_fields_of_its_schema() -> None:
         (PackSlot, "PackSlot"),
         (SlotWhy, "SlotWhy"),
         (SlotChannelRank, "SlotChannelRank"),
+        (PackGuard, "PackGuard"),
     )
     for model, name in models:
         assert set(model.model_fields) == set(DEFS[name]["properties"]), name

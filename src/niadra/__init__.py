@@ -11,6 +11,7 @@ context = niadra.context(phone("+5511912345678"), conversation_id="thread-81")
 from niadra._async_client import AsyncNiadra
 from niadra._client import Niadra
 from niadra._version import __version__
+from niadra.backing import BackingReport, UnbackedValue
 from niadra.conversation import AsyncConversation, AsyncTask, Conversation, Task, current_session
 from niadra.errors import (
     APIConnectionError,
@@ -79,6 +80,7 @@ __all__ = [
     "AsyncTask",
     "AsyncToolKit",
     "AuthenticationError",
+    "BackingReport",
     "BadRequestError",
     "BatchResponse",
     "CacheOptions",
@@ -121,6 +123,7 @@ __all__ = [
     "TimelinePage",
     "Timeouts",
     "ToolKit",
+    "UnbackedValue",
     "UnprocessableEntityError",
     "Verification",
     "Visibility",

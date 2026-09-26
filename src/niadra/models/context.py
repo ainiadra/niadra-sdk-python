@@ -185,18 +185,37 @@ class PackSlot(ResponseModel):
     """One line of this turn's slots (memory v2): an item the customer's last turn selected, or a
     line derived from memory. The same line as in `ContextResponse.slots`.
 
-    `section` names the pack section the item comes from (`episodes`, `objects`...), or is
-    `derived` for a line the server derived: `derived` then says which (`count`, how many times a
+    `section` names the pack section the item comes from (`episodes`, `objects`...), is `guard`
+    for a guard line (a value the agent must not state otherwise, typed in `ContextResponse.guards`),
+    or is `derived` for a line the server derived: `derived` then says which (`count`, how many times a
     topic came back, with the dates; `no_record`, that memory holds nothing about what was asked;
     `withheld`, that items held back until verification may hold it). `channels` are the ways the
     item was found: `exact`, `lexical`, `temporal`, `values`, `semantic`, `linked`.
     """
 
     section: PackSectionName | str
+    id: str | None = Field(
+        default=None,
+        description="The short id of the item the line states (the last eight hex digits of its public "
+        "id); a guard line's names its guard in `Backing.guard_violations`. None on a derived line.",
+    )
     derived: PackSlotDerived | str | None = None
     channels: list[str] = Field(default_factory=list)
     text: str
     why: SlotWhy | None = Field(default=None, description="With `explain`: why this line was chosen.")
+
+
+class PackGuard(ResponseModel):
+    """What one guard line states (memory v2): the value memory holds for a kind the customer's turn
+    asked about, by the precedence of who stated it (the system of record, then a human agent). The
+    agent must not state another; `Conversation.agent()` checks its answer against it."""
+
+    id: str = Field(description="The value's short id, as the guard line's `PackSlot.id`.")
+    value_type: str = Field(
+        description="`protocol`, `ticket`, `order`, `record`, `receipt`, `postal_code`, `amount`, `date` "
+        "or `code`."
+    )
+    value: str = Field(description="The value as the line writes it.")
 
 
 class ContextPack(ResponseModel):
@@ -236,6 +255,11 @@ class ContextResponse(ResponseModel):
         description="Memory v2, on a read with `query`: what the customer's last turn selected from memory "
         "for this turn, a tagged block for the end of the prompt. Never part of `text`. Servers without "
         "memory v2 do not send it.",
+    )
+    guards: list[PackGuard] = Field(
+        default_factory=list,
+        description="Memory v2: what the guard lines among `slots` state, typed. `Conversation.agent()` "
+        "checks the answer against them and names a guard it went against on the turn.",
     )
     cache: CacheDirectives | None = None
     timing: dict[str, float] = Field(default_factory=dict)
