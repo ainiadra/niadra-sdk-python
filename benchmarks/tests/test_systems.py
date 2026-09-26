@@ -343,3 +343,18 @@ async def test_runs_of_different_systems_combine_into_one_summary(config, tmp_pa
     assert [s["systems"] for s in summary["combined_from"]] == [["niadra"], ["ai_memory"]]
     rows = (combined / "cases-rep1.jsonl").read_text().splitlines()
     assert sum('"system": "no_memory"' in r for r in rows) == 8
+
+
+def test_the_production_caps_apply_to_the_region_only(config, cases, monkeypatch) -> None:
+    def run(**options) -> Run:
+        return Run(config, cases[:2], Options(systems={"niadra"}, metrics=set(), repetitions=1, **options))
+
+    monkeypatch.setenv("BENCH_ENVIRONMENT", "region")
+    assert run(dry_run=True).against_production  # bench ab's context agent still reaches the cell
+    assert not run(
+        niadra_transport=lambda: httpx.MockTransport(lambda r: httpx.Response(200))
+    ).against_production
+    assert not run(niadra_bootstrap=Path("cell/bootstrap.json")).against_production
+    assert run()._niadra_rates([10, 25], [10]) == [10]
+    monkeypatch.setenv("BENCH_ENVIRONMENT", "local")
+    assert not run().against_production and run()._niadra_rates([10, 25], [10]) == [10, 25]

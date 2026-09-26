@@ -169,8 +169,10 @@ customer's id already resolved, its best case).
 
 ## Load on production
 
-Only Niadra runs on production; the caps are in config `[production]` and apply to every run that is not
-a dry run:
+Only Niadra runs on production; the caps are in config `[production]` and apply to every run in the
+region that reaches the cell (`BENCH_ENVIRONMENT=region`, the temporary host's setting), `bench ab` in the
+region included, whatever its agent; niadra-mock, the local pipeline and a local cell keep the run's own
+settings:
 
 | What | Cap | Why |
 |---|---|---|

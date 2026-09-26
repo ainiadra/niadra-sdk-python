@@ -156,6 +156,19 @@ class Run:
 
     # Targets
 
+    @property
+    def against_production(self) -> bool:
+        """Whether Niadra here is the production cell, so the caps of config [production] apply: a run in
+        the region (`BENCH_ENVIRONMENT=region`) that reaches Niadra over the network, whatever its agent
+        (a `bench ab` with the context agent is a dry run of the agent, not of Niadra). niadra-mock in the
+        process, a local run and `bench ab --local-cell` (its own bootstrap) keep the run's own settings."""
+        options = self.options
+        return (
+            os.environ.get("BENCH_ENVIRONMENT") == "region"
+            and options.niadra_transport is None
+            and options.niadra_bootstrap is None
+        )
+
     def _niadra(self) -> NiadraTarget:
         options = self.options
         keys = Keys.from_env(
@@ -165,10 +178,7 @@ class Run:
         if quiet is None:
             quiet = 0 if options.dry_run else self.config.run.settle_quiet_s
         now = options.niadra_now
-        # The caps on what the run sends to Niadra's production cell (config [production]). A dry run
-        # talks to niadra-mock, and `bench ab --local-cell` to a cell of its own (its bootstrap): both keep
-        # the run's own settings.
-        caps = None if options.dry_run or options.niadra_bootstrap else self.config.production
+        caps = self.config.production if self.against_production else None
         return NiadraTarget(
             keys,
             base_url=options.niadra_base_url,
@@ -188,7 +198,7 @@ class Run:
 
     def _niadra_rates(self, rates: list[int], capped: list[int]) -> list[int]:
         """Niadra's rates for a timed loop: the production cap, or the first rate of a quick run."""
-        chosen = rates if self.options.dry_run else capped
+        chosen = capped if self.against_production else rates
         return chosen[:1] if self.options.quick else chosen
 
     def build_targets(self) -> list[Target]:
