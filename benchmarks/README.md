@@ -267,9 +267,8 @@ How the Niadra side is prepared, before any clock starts:
   answers from its duplicate check.
 - **Paths.** Through the public TLS address the calls go where the SDK sends them (`edge`); from the
   benchmark's host in the cell's VPC they also go to the cell machine's private address with the same
-  TLS name (`vpc`, `NIADRA_VPC_ADDRESS`). A harness running as a pod of the cell (no longer done) would
-  also call each service's own address (`cluster`: `NIADRA_CLUSTER_URL` for navigation,
-  `NIADRA_CLUSTER_INGEST_URL` for the acknowledgement).
+  TLS name (`vpc`, `NIADRA_VPC_ADDRESS`). Runs before 26/09/2026, when the harness ran as a pod of the
+  cell, have a third path, `cluster`: each service's own address.
 - **Rates.** Niadra's lines run at 10 per second only (config `[production]`); the other systems' at 10
   and 25.
 
@@ -426,9 +425,8 @@ source and the `memory_v2` flag need) with its own role, into root-only files, a
 bootstrap as a read-only file and the provider key through the environment of its gateways and its agent.
 The local systems' own tokens and database passwords are random, generated on the host.
 
-`start` and `campaign` take any `bench run` arguments; `--niadra-memory-v2 on|off` works as before (the
-flag lives at `settings/memory_v2`; `NIADRA_MEMORY_V2_FLAG` overrides that; two runs with different values
-must not overlap in the same space):
+`start` and `campaign` take any `bench run` arguments, `--niadra-memory-v2 on|off` among them (the flag
+lives at `settings/memory_v2`; two runs with different values must not overlap in the same space):
 
 ```bash
 deploy/temp-host/bench.sh start niadra --dataset v2 --niadra-memory-v2 off
@@ -447,12 +445,10 @@ environment by hand; it is not part of the default run.
 Runs until 25/09/2026 ran on the cell. `deploy/cell/cleanup.sh` lists what they may have left there (the
 Kubernetes objects labelled `app.kubernetes.io/part-of=niadra-benchmarks`, the `bench-mem0` secret, Mem0's
 databases `mem0_bench` and `mem0_bench_app` and the role `mem0_bench` on the RDS instance, the benchmark's
-images in the node's containerd); `--confirm` removes them and lists again. The old `bench down --drop-db`
-ran `kubectl run -i` inside the script that Systems Manager fed to bash on its standard input, so kubectl
-read the rest of the script as the pod's input and the `DROP` never ran. Every script sent through Systems
-Manager now is written to a file and run with its standard input closed (`deploy/temp-host/lib.sh`,
+images in the node's containerd); `--confirm` removes them and lists again. Every script sent through
+Systems Manager is written to a file and run with its standard input closed (`deploy/temp-host/lib.sh`,
 `ssm_run`), and the cleanup's SQL goes in as `psql -c` arguments through `kubectl exec` to a pod that only
-waits.
+waits, so no command can read the rest of a script as its own input.
 
 ## Adding a system
 

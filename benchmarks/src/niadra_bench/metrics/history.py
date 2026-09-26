@@ -13,9 +13,8 @@ clock starts, as every accuracy probe and the freshness reader do):
 
 The bodies are the SDK's own request models, sent through a plain HTTP client, so the time is the
 server's answer and not the SDK's navigation budget (the SDK gives up at 0.6 s, 0.3 s on voice, and
-returns an empty result). Over each path of `net.niadra_routes`: the public TLS address, the VPC from the
-benchmark's host, and a service's own address when the harness runs in the cluster
-(`NIADRA_CLUSTER_URL`, the `read` service).
+returns an empty result). Over each path of `net.niadra_routes`: the public TLS address and the VPC from
+the benchmark's host.
 
 Mem0 has one read, `search`, used for both the turn's memory and any lookup: the closest equivalent of
 a history search is the same `POST /search` metric 1 times, with the same probe question, `top_k` and
@@ -26,7 +25,7 @@ the systems added through `niadra_bench.systems` run on the harness's host (`hos
 Both searches start by encoding the question with the same embedding server (`niadra-models`: Niadra's
 read service calls it, Mem0 through the embedding proxy). So that a search's time can be read without
 it, a third line times that step alone: `encode`, `POST /v1/embed` with the same probe questions at the
-same rates, from inside the cluster (`NIADRA_MODELS_URL`; no line without it). Niadra's search line
+same rates, on the harness's host (`NIADRA_MODELS_URL`; no line without it). Niadra's search line
 also keeps the steps its server names in `Server-Timing` (`server_timing`), so an encoding step the
 server reports shows there too.
 """
@@ -297,9 +296,7 @@ async def run(
         local.append(encode_operation(models_url, pairs, models_transport))
     remote: list[Operation] = []
     if niadra is not None:
-        routes = niadra_routes(
-            niadra.client("voice").base_url, "NIADRA_CLUSTER_URL", edge_transport=transport
-        )
+        routes = niadra_routes(niadra.client("voice").base_url, edge_transport=transport)
         remote += await niadra_operations(niadra, pairs, tag, settings, routes)
     if mem0 is not None:
         local += await mem0_operations(mem0, pairs, mem0_settings, mem0_transport)

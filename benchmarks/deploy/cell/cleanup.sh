@@ -10,10 +10,9 @@
 # Removed: the Kubernetes objects labelled app.kubernetes.io/part-of=niadra-benchmarks and the bench-mem0
 # secret in the niadra namespace; the databases mem0_bench and mem0_bench_app and the role mem0_bench on
 # the RDS instance (as the master user, from a pod with the niadra-db-init secret); the benchmark's images in
-# the node's containerd. The old `bench down --drop-db` ran `kubectl run -i` inside a script that Systems
-# Manager fed to bash on its standard input, so kubectl read the rest of the script as the pod's input and
-# the DROP never ran. Here the script is a file run with its standard input closed (lib.sh, ssm_run), the
-# pod only waits, and the SQL goes in as `psql -c` arguments through `kubectl exec` with no standard input.
+# the node's containerd. The script is a file run with its standard input closed (lib.sh, ssm_run), the
+# pod only waits, and the SQL goes in as `psql -c` arguments through `kubectl exec` with no standard input,
+# so no command inside it can read the rest of the script as its own input.
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../temp-host" && pwd)/lib.sh"
 
 confirm=false

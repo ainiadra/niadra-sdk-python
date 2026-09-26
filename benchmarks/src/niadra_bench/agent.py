@@ -67,19 +67,6 @@ Reply with JSON only: {{"correct": true or false, "reason": "one short sentence"
 
 
 @dataclass
-class Usage:
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    calls: int = 0
-
-    def add(self, data: dict[str, Any] | None) -> None:
-        self.calls += 1
-        if data:
-            self.prompt_tokens += int(data.get("prompt_tokens") or 0)
-            self.completion_tokens += int(data.get("completion_tokens") or 0)
-
-
-@dataclass
 class ChatClient:
     """A minimal OpenAI-compatible client with retries on 429 and 5xx."""
 
@@ -88,7 +75,6 @@ class ChatClient:
     )
     api_key: str = field(default_factory=lambda: os.environ.get("OPENROUTER_API_KEY", ""))
     transport: httpx.AsyncBaseTransport | None = None
-    usage: dict[str, Usage] = field(default_factory=dict)
     _http: httpx.AsyncClient | None = None
 
     async def complete(self, call: ModelCall, messages: list[dict[str, str]], **extra: Any) -> str:
@@ -116,7 +102,6 @@ class ChatClient:
             if "error" in data:
                 await asyncio.sleep(min(30.0, 2.0 * 2**attempt))
                 continue
-            self.usage.setdefault(call.model, Usage()).add(data.get("usage"))
             return str(data["choices"][0]["message"].get("content") or "").strip()
         raise RuntimeError(f"{call.model} kept failing")
 

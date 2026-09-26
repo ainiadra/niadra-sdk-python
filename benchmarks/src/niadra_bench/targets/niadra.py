@@ -225,7 +225,6 @@ class NiadraTarget(Target):
         self._billing: IssuedKey | None = None
         self._control: ControlPlane | None = None
         self.memory_v2 = memory_v2
-        self.memory_v2_flag = os.environ.get("NIADRA_MEMORY_V2_FLAG") or MEMORY_V2_FLAG
         # What the space had before the run set the flag, to put back at the end.
         self._flag_before: tuple[bool | None] | None = None
 
@@ -256,7 +255,7 @@ class NiadraTarget(Target):
                 )
             # Before the billing key: the key's wait below ends when the cell serves a configuration
             # snapshot that also carries the flag.
-            before = await self._control.set_flag(self.memory_v2_flag, self.memory_v2)
+            before = await self._control.set_flag(MEMORY_V2_FLAG, self.memory_v2)
             self._flag_before = (before,)
             log.info("memory_v2 %s for this run (was %s)", self.memory_v2, before)
         if self._control is not None and self.operations:
@@ -450,7 +449,7 @@ class NiadraTarget(Target):
         if self._control is not None and self._flag_before is not None:
             (before,) = self._flag_before
             try:
-                await self._control.set_flag(self.memory_v2_flag, before)
+                await self._control.set_flag(MEMORY_V2_FLAG, before)
             except (httpx.HTTPError, RuntimeError) as exc:
                 log.warning("memory_v2 was not put back to %s: %s", before, exc)
             self._flag_before = None

@@ -4,9 +4,9 @@
 [ab]
 # The ceiling of a whole A/B, both sides and every repetition. Before each repetition the harness checks
 # that the one it is about to start, at the pace of the ones before it, still ends under the ceiling, and
-# otherwise stops there and reports the repetitions it finished (`incomplete`). The region Job is killed
-# at 8 hours (deploy/k8s/30-run.yaml). Niadra alone on dataset v2 should take about an hour per side and
-# repetition there (estimated from the README's table without Mem0, not measured).
+# otherwise stops there and reports the repetitions it finished (`incomplete`). The temporary host
+# terminates itself after BENCH_MAX_HOURS (24 by default). Niadra alone on dataset v2 should take about
+# an hour per side and repetition there (estimated from the README's table without Mem0, not measured).
 max_minutes = 450
 
 [ab.local]

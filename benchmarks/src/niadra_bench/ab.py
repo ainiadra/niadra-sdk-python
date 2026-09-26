@@ -16,11 +16,11 @@ Where the two sides run:
   no key; the numbers are for the team and never published.
 - `--mock`: both sides are niadra-mock in-process. It has no server settings, so only `--same` runs;
   it is the check the CI runs.
-- neither: the Niadra of NIADRA_BOOTSTRAP (the region Job). There the harness can change only what the
-  bootstrap's admin account changes through the control API, the space's settings (`SPACE_SETTINGS`):
-  `NIADRA_MEMORY_V2`. A setting of the read deployment's process is refused, because the region's read
-  deployment also serves production. The two sides seed different customers (the same cases) into the
-  same space, one after the other.
+- neither: the Niadra of NIADRA_BOOTSTRAP (the region, from the temporary host). There the harness can
+  change only what the bootstrap's admin account changes through the control API, the space's settings
+  (`SPACE_SETTINGS`): `NIADRA_MEMORY_V2`. A setting of the read deployment's process is refused, because
+  the region's read deployment also serves production. The two sides seed different customers (the same
+  cases) into the same space, one after the other.
 
 `--same` is the determinism check: the candidate is the baseline again. Every accuracy figure and every
 token count must come out identical, case by case and in the summary; latency may differ. The run fails

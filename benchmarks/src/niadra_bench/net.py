@@ -5,10 +5,7 @@
 - `vpc`: the same names and the same TLS, but connected to the cell machine's private address inside
   its VPC (`NIADRA_VPC_ADDRESS`), from the benchmark's separate host in the same VPC: the request skips
   the internet gateway and still goes through the cell's ingress, as a customer's agent in the region
-  on a private link would;
-- `cluster`: a service's own address inside the cluster (`NIADRA_CLUSTER_URL`,
-  `NIADRA_CLUSTER_INGEST_URL`), for a harness that runs as a pod of the cell. Runs from the separate
-  host (since 26/09/2026) do not set it.
+  on a private link would.
 
 The `vpc` path keeps the public host name in the request (Host header and TLS server name) and only
 changes where the connection goes, so the certificate is checked against the real name.
@@ -55,19 +52,16 @@ class Route:
 
 def niadra_routes(
     edge: str | None,
-    cluster_env: str,
     *,
     edge_transport: TransportFactory | None = None,
     env: dict[str, str] | None = None,
 ) -> list[Route]:
-    """`edge` (the SDK's public address), `vpc` when `NIADRA_VPC_ADDRESS` is set, and `cluster` when
-    `cluster_env` names a service's address. `edge_transport` stands in for the network in dry runs."""
+    """`edge` (the SDK's public address), and `vpc` when `NIADRA_VPC_ADDRESS` is set. `edge_transport`
+    stands in for the network in dry runs."""
     source = os.environ if env is None else env
     routes: list[Route] = []
     if edge:
         routes.append(Route("edge", edge, edge_transport))
         if address := source.get("NIADRA_VPC_ADDRESS"):
             routes.append(Route("vpc", edge, lambda: PinnedTransport(address)))
-    if cluster := source.get(cluster_env):
-        routes.append(Route("cluster", cluster, edge_transport))
     return routes

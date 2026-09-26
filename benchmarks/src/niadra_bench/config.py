@@ -54,7 +54,6 @@ class ProductionSettings(_Frozen):
 
 class RunSettings(_Frozen):
     repetitions: int = Field(ge=1)
-    reseed_each_repetition: bool = True
     concurrency: int = Field(ge=1)
     settle_quiet_s: float = Field(ge=0)
     settle_timeout_s: float = Field(ge=0)
@@ -133,7 +132,6 @@ class ModelCall(_Frozen):
 class Models(_Frozen):
     extraction: str
     embedder: str
-    embedding_dims: int
 
 
 class NiadraPrices(_Frozen):

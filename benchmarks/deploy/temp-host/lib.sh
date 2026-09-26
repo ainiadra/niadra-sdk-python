@@ -137,8 +137,8 @@ prefix_of() { echo "benchmarks/temp-host/$1"; }
 
 # Runs a script on an instance through Systems Manager and prints its standard output (at most the
 # 24,000 characters SSM keeps). Fails when the script fails. The script is written to a file on the other
-# side and run with its standard input closed: a command inside it that reads standard input (the
-# `kubectl run -i` of the old `bench down --drop-db`) can never read, and so never eat, the script.
+# side and run with its standard input closed: a command inside it that reads standard input (such as
+# `kubectl run -i`) can never read, and so never eat, the script.
 ssm_run() {
   local instance="$1" script="$2" timeout="${3:-600}" command state
   command="$(aws_ ssm send-command --instance-ids "$instance" --document-name AWS-RunShellScript \

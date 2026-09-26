@@ -33,7 +33,9 @@ HOST = "host"
 @dataclass
 class Probe:
     system: str
-    path: str  # how the request travels: "edge", "vpc" or "cluster" (net.py), or "host" (same host)
+    # How the request travels: "edge" or "vpc" (net.py), or "host" (same host); runs before 26/09/2026
+    # also have "cluster".
+    path: str
     call: Call
     # Only for dry runs against the in-process emulator.
     transport: Callable[[], httpx.AsyncBaseTransport] | None = None

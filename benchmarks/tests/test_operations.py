@@ -150,8 +150,7 @@ async def test_niadra_ingest_sends_the_items_track_sends_each_once(config, cases
     assert set(exchanges.values()) <= {1, 2, 3}  # `turns_per_conversation` exchanges per conversation
 
 
-async def test_niadra_ingest_against_the_mock_is_acknowledged(config, cases, monkeypatch) -> None:
-    monkeypatch.delenv("NIADRA_CLUSTER_INGEST_URL", raising=False)
+async def test_niadra_ingest_against_the_mock_is_acknowledged(config, cases) -> None:
     mock = MockApp()
     target = NiadraTarget(
         Keys({"whatsapp": MOCK_KEY}),
@@ -284,7 +283,6 @@ async def test_niadra_search_keeps_the_steps_its_server_names(config, cases, mon
 
         await mock.asgi(scope, receive, stamped)
 
-    monkeypatch.delenv("NIADRA_CLUSTER_URL", raising=False)
     monkeypatch.delenv("NIADRA_MODELS_URL", raising=False)
     target = NiadraTarget(
         Keys({"whatsapp": MOCK_KEY}),

@@ -9,9 +9,8 @@ write repeats another.
   the SDK's queue (the SDK's own `EventItem` models), timed until the `200` that acknowledges them.
   `track()` itself never waits: it queues and returns; this is the acknowledgement the queue waits
   for. Niadra writes the events durably before it answers and extracts memory later, in the
-  background. Over each path of `net.niadra_routes`: the public TLS address, the VPC from the
-  benchmark's host, and the `ingest` service's own address when the harness runs in the cluster
-  (`NIADRA_CLUSTER_INGEST_URL`). At the production caps (config [production]).
+  background. Over each path of `net.niadra_routes`: the public TLS address and the VPC from the
+  benchmark's host. At the production caps (config [production]).
 - Mem0: `POST /memories` on its REST server with the same two messages, the call its README makes
   per exchange, timed until its `200`. The server has no asynchronous mode (the hosted Platform's
   `async_mode` is not in the open source server), so it is measured both ways it offers: `add_infer`
@@ -160,9 +159,7 @@ async def run(
     ops: list[Operation] = []
     if niadra is not None:
         _, key = niadra.keys.for_channel("whatsapp")
-        routes = niadra_routes(
-            niadra.client("whatsapp").base_url, "NIADRA_CLUSTER_INGEST_URL", edge_transport=transport
-        )
+        routes = niadra_routes(niadra.client("whatsapp").base_url, edge_transport=transport)
         for route in routes:
             ops.append(niadra_operation(route.path, route.base, key, pairs, tag, turns, route.transport))
     out = await measure(ops, niadra_rates or rates, duration_s, len(pairs), settings.request_timeout_s)

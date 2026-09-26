@@ -9,9 +9,8 @@ key per run, revoked when the run ends.
 
 The same account sets Niadra's `memory_v2` space flag when a run asks for it (`--niadra-memory-v2`): a
 configuration diff on the space's document, approved by the same person (the sandbox has no second
-admin, so the four-eyes rule lets the author approve), and put back when the run ends. The flag's
-document and field are `NIADRA_MEMORY_V2_FLAG` (`<document type>/<dotted field>`, default
-`settings/memory_v2`).
+admin, so the four-eyes rule lets the author approve), and put back when the run ends. The flag is
+`settings/memory_v2` (`<document type>/<dotted field>`).
 """
 
 from __future__ import annotations

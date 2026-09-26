@@ -142,12 +142,9 @@ async def test_the_vpc_path_connects_to_the_private_address_with_the_public_name
     [request] = seen
     assert request.url.host == "10.40.1.10" and request.headers["host"] == "space.us-east-2.api.niadra.com"
     assert request.extensions["sni_hostname"] == "space.us-east-2.api.niadra.com"
-    routes = niadra_routes("https://edge", "NIADRA_CLUSTER_URL", env={"NIADRA_VPC_ADDRESS": "10.40.1.10"})
+    routes = niadra_routes("https://edge", env={"NIADRA_VPC_ADDRESS": "10.40.1.10"})
     assert [r.path for r in routes] == ["edge", "vpc"] and routes[1].base == "https://edge"
-    assert [r.path for r in niadra_routes("https://edge", "X", env={"X": "http://read:8000"})] == [
-        "edge",
-        "cluster",
-    ]
+    assert [r.path for r in niadra_routes("https://edge", env={})] == ["edge"]
 
 
 async def test_the_fake_llm_ends_an_agent_loop_with_a_tool_call() -> None:

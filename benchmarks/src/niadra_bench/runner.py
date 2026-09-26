@@ -480,7 +480,7 @@ class Run:
         key = niadra.keys.for_channel("voice")[1]
         edge = niadra.client("voice").base_url
         probes = []
-        for route in niadra_routes(edge, "NIADRA_CLUSTER_URL", edge_transport=self.options.niadra_transport):
+        for route in niadra_routes(edge, edge_transport=self.options.niadra_transport):
             probe = latency.niadra_probe(route.path, route.base, key, pairs, tag)
             probe.transport = route.transport
             probes.append(probe)

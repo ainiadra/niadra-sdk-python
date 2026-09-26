@@ -40,9 +40,8 @@ ingest_rates = [10]
 pause_on_overload_s = 30
 
 [run]
-repetitions = 3
 # Every repetition seeds fresh customers (new handles and user ids), so extraction runs again.
-reseed_each_repetition = true
+repetitions = 3
 # How many cases are seeded and asked at the same time, per system.
 concurrency = 8
 # After seeding Niadra, wait until the context of every case stops changing for `settle_quiet_s`
@@ -144,7 +143,6 @@ max_tokens = 150
 # takes one uses (a system whose model is fixed keeps its own, and the README says which).
 extraction = "google/gemini-2.5-flash-lite"
 embedder = "paraphrase-multilingual-minilm-l12-v2-r1"
-embedding_dims = 384
 
 # Public prices on 2026-09-24. Check them again before a run that will be published and bump the date.
 [prices]
