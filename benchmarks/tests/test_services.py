@@ -31,6 +31,21 @@ async def test_embed_proxy_serves_floats_and_base64() -> None:
         ).status_code == 200
 
 
+async def test_embed_proxy_splits_what_the_embedder_refuses_in_one_request() -> None:
+    models = FakeModels(max_texts=4, max_chars=50)
+    transport = httpx.ASGITransport(app=models)
+    texts = [f"memoria {i}" for i in range(10)] + ["x" * 80]
+    async with _client(EmbedProxy("http://models", transport=transport)) as client:
+        # The embedder's limits as they are: the whole list at once is refused.
+        assert (await client.post("/v1/embeddings", json={"input": texts})).status_code == 502
+    proxy = EmbedProxy("http://models", transport=transport, max_texts=4, max_chars=50)
+    async with _client(proxy) as client:
+        answer = await client.post("/v1/embeddings", json={"input": texts})
+    assert answer.status_code == 200 and models.requests == 1 + 3
+    vectors = [d["embedding"] for d in answer.json()["data"]]
+    assert vectors == [hashed_vector(t) for t in texts[:10]] + [hashed_vector("x" * 50)]
+
+
 async def test_meter_counts_tokens_per_model() -> None:
     meter = LlmMeter("http://llm/v1", transport=httpx.ASGITransport(app=FakeLlm()))
     async with _client(meter) as client:
