@@ -408,6 +408,68 @@ async def test_runs_with_fewer_repetitions_and_cases_combine_after_the_first(
     assert all(r["context"] is None for r in first if r["system"] in ("no_memory", "full_history"))
 
 
+async def test_separate_runs_of_one_system_stack_into_repetitions(config, tmp_path, monkeypatch) -> None:
+    from niadra_bench.combine import combine
+    from niadra_bench.stack import stack
+
+    monkeypatch.setenv("NIADRA_API_KEY", MOCK_KEY)
+    monkeypatch.delenv("NIADRA_BOOTSTRAP", raising=False)
+    monkeypatch.delenv("MEM0_METER_URL", raising=False)
+    cases = load_cases("v2")
+
+    async def one(systems: set[str], repetitions: int, references: bool) -> Path:
+        mock = MockApp()
+        options = Options(
+            systems=systems,
+            metrics={"latency", "accuracy", "tokens", "privacy", "cost"},
+            repetitions=repetitions,
+            dry_run=True,
+            limit=8,
+            quick=True,
+            output=tmp_path / "runs",
+            dataset="v2",
+            references=references,
+            niadra_transport=lambda mock=mock: httpx.ASGITransport(app=mock.asgi),
+            niadra_base_url="http://niadra-mock",
+            system_transports={"hindsight": httpx.ASGITransport(app=FakeHindsight())},
+            extra={"tokenizer": word_tokenizer},
+        )
+        return await Run(config, cases, options).execute()
+
+    first, second = await one({"niadra"}, 1, True), await one({"niadra"}, 1, True)
+    other = await one({"hindsight"}, 2, False)
+    with pytest.raises(ValueError, match="at least two"):
+        stack([first], tmp_path / "stacked")
+    with pytest.raises(ValueError, match="another config references"):
+        stack([first, other], tmp_path / "stacked")
+    stacked = stack([first, second], tmp_path / "stacked")
+    summary = json.loads((stacked / "summary.json").read_text())
+    runs = [json.loads((d / "summary.json").read_text())["run_id"] for d in (first, second)]
+    assert summary["config"]["repetitions"] == 2
+    assert [(s["run_id"], s["repetitions"]) for s in summary["stacked_from"]] == [(runs[0], 1), (runs[1], 1)]
+    assert json.loads((stacked / "rep-2.json").read_text())["stacked_from"] == {
+        "run_id": runs[1],
+        "repetition": 1,
+    }
+    second_rows = [json.loads(r) for r in (stacked / "cases-rep2.jsonl").read_text().splitlines()]
+    assert second_rows and all(r["repetition"] == 2 for r in second_rows)
+    assert second_rows == [
+        {**json.loads(r), "repetition": 2} for r in (second / "cases-rep1.jsonl").read_text().splitlines()
+    ]
+    line = next(r for r in summary["metrics"]["accuracy"]["results"] if r["system"] == "niadra")
+    assert len(line["cases"]["runs"]) == 2
+    # The stack is a run like any other: a combine takes it first, beside a run of two repetitions.
+    combined = json.loads(
+        (
+            combine([stacked, other], tmp_path / "combined", {c.id: c for c in cases}) / "summary.json"
+        ).read_text()
+    )
+    assert [(s["systems"], s["repetitions"]) for s in combined["combined_from"]] == [
+        (["niadra"], 2),
+        (["hindsight"], 2),
+    ]
+
+
 def test_the_production_caps_apply_to_the_region_only(config, cases, monkeypatch) -> None:
     def run(**options) -> Run:
         return Run(config, cases[:2], Options(systems={"niadra"}, metrics=set(), repetitions=1, **options))
