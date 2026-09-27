@@ -112,6 +112,9 @@ class HttpSystem(Target):
     #: `settle_timeout_s` (a system that extracts one message at a time). A settle that times out is
     #: recorded as `settled: false` and the run goes on.
     min_settle_timeout_s: ClassVar[float] = 0.0
+    #: How long one call may take before the client gives up: longer for a system whose documented write
+    #: answers only when its memory is built (Cognee's `cognify` of a customer with months of history).
+    call_timeout_s: ClassVar[float] = 60.0
     #: One store per customer: the application knows who the customer is (Mem0's best case).
     scenario = "known_id"
 
@@ -221,7 +224,7 @@ class HttpSystem(Target):
         return self.customer(ids)
 
     async def start(self) -> None:
-        self._http = httpx.AsyncClient(transport=self.transport, timeout=60.0)
+        self._http = httpx.AsyncClient(transport=self.transport, timeout=self.call_timeout_s)
         call = self.health_call()
         if call is None:
             return
