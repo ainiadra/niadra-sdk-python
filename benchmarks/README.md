@@ -663,7 +663,15 @@ Where the two sides run:
   store; the space's daily AI ceiling is not enforced, and an extraction whose model call failed is
   retried at once, since the clock does not move. The rule extractor scored 97.7% (judge) on dataset v2
   where the region's first run with the real models scored 73.7%: this mode is how the team measures a
-  write-path or read-path change against what the region runs, without the region.
+  write-path or read-path change against what the region runs, without the region. Its first run (27/09,
+  dataset v2, one repetition, niadra-back f1c87c8, the commit the region measured) scored 76.9% on the
+  region's 338 valid cases, per category within a few points of the region's repetition 1 except
+  continuity (+10), recurrence (+12.5) and unanswerable (-12, judge only; the blocks held the answer
+  equally often). Most of the gap is the extraction itself: Luna does not always give a conversation the
+  same category, and a `billing` category is withheld at V1 by the starter policy, so the two runs held a
+  different number of items back in 20 of the 33 cases whose block changed. Read a local delta against
+  that spread. It cost US$ 0.58 for the cell's models on the first side, US$ 0.001 on the second (9,975
+  of 9,996 calls from the cache), and US$ 0.12 for the agent and the judge over both sides.
 
   Every model call goes through a cache (`deploy/local/model_cache.py`): an answer is kept in
   `results/local/model-cache/` under a hash of the model, the prompt version (niadra-back's
