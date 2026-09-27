@@ -3,7 +3,7 @@
 bench prepare [--check] [--dataset v1|v2]   write dataset/ (v1) and dataset/v2/ from the generator
                                             (or check the committed copies)
 bench run [options]              seed, measure and write results/<date>-<id>/ (--dataset v1|v2)
-bench report <results dir>       rebuild summary.json from the repetitions of a run
+bench report <results dir>       rebuild summary.json and summary.md from the repetitions of a run
 bench ab [options]               a baseline and a candidate on the same cases, and the delta
                                  (--candidate-env KEY=VALUE, --same, --local-cell <niadra-back>)
 bench combine <dir> <dir> ...    one results folder from runs of different systems (the temporary host
@@ -167,7 +167,10 @@ def _report(args: argparse.Namespace) -> int:
     reps = [json.loads(p.read_text()) for p in sorted(directory.glob("rep-*.json"))]
     summary["metrics"] = aggregate(reps)
     summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n")
-    print(f"rewrote {summary_path} from {len(reps)} repetitions")
+    from niadra_bench import report_summary
+
+    (directory / "summary.md").write_text(report_summary.markdown(summary, reps))
+    print(f"rewrote {summary_path} and summary.md from {len(reps)} repetitions")
     return 0
 
 
@@ -356,7 +359,7 @@ def main(argv: list[str] | None = None) -> None:
     ab.add_argument("--label", default=None, help="a name for the A/B, in the report")
     ab.set_defaults(func=_ab)
 
-    report = sub.add_parser("report", help="rebuild summary.json from a run's repetitions")
+    report = sub.add_parser("report", help="rebuild summary.json and summary.md from a run's repetitions")
     report.add_argument("directory")
     report.set_defaults(func=_report)
 

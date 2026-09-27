@@ -111,6 +111,12 @@ class ControlPlane:
             response = await self.http.request(method, f"{self.url}{path}", headers=self._person, **kwargs)
         return response
 
+    async def person_headers(self) -> dict[str, str]:
+        """The admin person's authorization, for the governance reads (receipts and lineage)."""
+        if self._person is None:
+            self._person = await self._login()
+        return dict(self._person)
+
     async def billing_key(self, operations: list[str]) -> IssuedKey:
         space_id = self.document["space_id"]
         name = source_name(operations)

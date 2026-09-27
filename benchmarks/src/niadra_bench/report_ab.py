@@ -338,6 +338,19 @@ def markdown(document: Mapping[str, Any]) -> str:
                 f"${cell['spend_usd']:.4f} | ${cell['saved_usd']:.4f} | ${agent['cost_usd']:.4f} | "
                 f"${spend['spend_usd']:.4f} |"
             )
+    causes = [(name, document[name].get("lost_by_cause")) for name in ("baseline", "candidate")]
+    if any(found for _, found in causes):
+        lines += ["", "## Lost answers by cause", "", "From each probe's exclusion manifest: `withheld`, the "
+                  "pack held an item back by policy or verification; `not_withheld`, nothing was held back.",
+                  "", "| Side | Answers | With manifest | withheld | not_withheld | unknown |",
+                  "|---|---|---|---|---|---|"]  # fmt: skip
+        for name, found in causes:
+            if found:
+                lost = found["lost"]
+                lines.append(
+                    f"| {name} | {found['answers']} | {found['with_manifest']} | {lost.get('withheld', 0)} | "
+                    f"{lost.get('not_withheld', 0)} | {lost.get('unknown', 0)} |"
+                )
     flipped = document.get("flips") or {}
     if any(flipped.get(k) for k in ("answer", "context")):
         lines += ["", "## Cases that changed", "", "| Category | What | Gained | Lost |", "|---|---|---|---|"]

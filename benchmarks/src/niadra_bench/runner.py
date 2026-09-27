@@ -27,7 +27,7 @@ from typing import Any
 
 import httpx
 
-from niadra_bench import __version__, stats
+from niadra_bench import __version__, report_summary, stats
 from niadra_bench import config as bench_config
 from niadra_bench.agent import Agent, ChatClient, ContextOnlyAgent, Judge
 from niadra_bench.config import BenchConfig
@@ -38,6 +38,7 @@ from niadra_bench.metrics import (
     accuracy,
     backing,
     cost,
+    exclusions,
     freshness,
     history,
     ingest,
@@ -330,8 +331,13 @@ class Run:
                         cost.meter_delta(gateway, await target.meter_snapshot()),
                         len(pairs),
                     )
+            niadra_target = next((t for t in targets if isinstance(t, NiadraTarget)), None)
+            if niadra_target is not None:
+                rep["exclusions"] = await niadra_target.annotate([r for r in rows if r.system == "niadra"])
             valid, excluded = accuracy.valid_cases(rows, self.by_id)
             rep["validity"] = {"valid": len(valid), "excluded": excluded}
+            if niadra_target is not None and rep["exclusions"]["recorded"]:
+                rep["exclusions"]["attribution"] = exclusions.attribute(rows, valid)
             rep["accuracy"] = accuracy.summarize(rows, valid)
             rep["backing"] = backing.summarize(rows)
             self.rows[n] = rows
@@ -529,6 +535,7 @@ class Run:
             await self.chat.close()
         summary = await self.summary(versions)
         (self.out / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n")
+        (self.out / "summary.md").write_text(report_summary.markdown(summary, self.reps))
         return self.out
 
     async def summary(self, versions: dict[str, str]) -> dict[str, Any]:

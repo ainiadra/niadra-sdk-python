@@ -57,11 +57,11 @@ from typing import Any
 import httpx
 
 from niadra_bench import config as bench_config
-from niadra_bench import report_ab
+from niadra_bench import report_ab, report_summary
 from niadra_bench.config import BenchConfig
 from niadra_bench.dataset import generate
 from niadra_bench.dataset.model import Case
-from niadra_bench.metrics import accuracy
+from niadra_bench.metrics import accuracy, exclusions
 from niadra_bench.runner import Options, Run, aggregate
 from niadra_bench.sources import dataset_operations
 from niadra_bench.targets.base import Target
@@ -490,6 +490,8 @@ class Ab:
             rep["validity"] = {"valid": len(valid), "excluded": excluded}
             rep["accuracy"] = accuracy.summarize(graded, valid)
             rep["context_by_category"] = report_ab.context_by_category(rows, valid)
+            if (rep.get("exclusions") or {}).get("recorded"):
+                rep["exclusions"]["attribution"] = exclusions.attribute(rows, valid)
 
     def _write(self, side: Side) -> None:
         directory = self.out / side.name
@@ -607,6 +609,7 @@ class Ab:
             "commit": cell.commit if cell else None,
             "seed": [rep.get("seed", {}).get("niadra") for rep in side.reps],
             "model_spend": spend_total(side.reps),
+            "lost_by_cause": report_summary.attribution(side.reps),
             "metrics": metrics,
         }
 

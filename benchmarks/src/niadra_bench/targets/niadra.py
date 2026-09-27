@@ -39,6 +39,7 @@ from niadra.models.events import ActionInfo, ConversationEndedItem
 
 from niadra_bench.dataset.model import Case, Session
 from niadra_bench.identity import Identities
+from niadra_bench.metrics import exclusions
 from niadra_bench.sources import ControlPlane, IssuedKey, wait_until_served
 from niadra_bench.targets.base import Retrieved, Stopwatch, Target
 
@@ -377,6 +378,55 @@ class NiadraTarget(Target):
                 ),
             },
         )
+
+    async def _governance_headers(self) -> dict[str, str] | None:
+        """An admin credential for the receipts and their lineage: the local cell's admin key, or the
+        sandbox's admin person in the region; None when the run has neither."""
+        if admin := (self.keys.document or {}).get("admin_key"):
+            return {"authorization": f"Bearer {admin}"}
+        if self._control is not None:
+            return await self._control.person_headers()
+        return None
+
+    async def annotate(self, rows: list[Any], rounds: int = 4, wait_s: float = 10.0) -> dict[str, Any]:
+        """Puts each probe's exclusion manifest in its row (`meta.exclusions`, metrics/exclusions.py).
+        A receipt not written yet is asked again after `wait_s`, for `rounds` rounds."""
+        pending = [r for r in rows if (r.meta or {}).get("conversation")]
+        try:
+            headers = await self._governance_headers()
+        except Exception as exc:  # attribution never stops a run
+            return {"recorded": 0, "rows": len(pending), "unavailable": f"admin login: {type(exc).__name__}"}
+        if headers is None or not pending:
+            return {"recorded": 0, "rows": len(pending), "unavailable": "no admin credential"}
+        http = self._http or self._new_http()
+        base = self.base_url or self.client("chat").base_url
+        unavailable: str | None = None
+
+        async def one(row: Any) -> bool:
+            async with self._limit:
+                got = await exclusions.fetch(http, base, headers, row.meta["conversation"])
+            if got is not None:
+                row.meta["exclusions"] = got
+            return got is not None
+
+        for attempt in range(rounds):
+            try:
+                done = await asyncio.gather(*(one(r) for r in pending))
+            except exclusions.GovernanceUnavailableError as exc:
+                unavailable = str(exc)
+                break
+            except Exception as exc:  # attribution never stops a run
+                log.warning("exclusion manifests: %s", type(exc).__name__)
+                done = [False] * len(pending)
+            pending = [r for r, ok in zip(pending, done, strict=True) if not ok]
+            if not pending or attempt == rounds - 1:
+                break
+            await asyncio.sleep(wait_s)
+        recorded = sum(1 for r in rows if "exclusions" in (r.meta or {}))
+        report: dict[str, Any] = {"recorded": recorded, "rows": len(rows), "missing": len(pending)}
+        if unavailable:
+            report["unavailable"] = unavailable
+        return report
 
     async def after_answer(
         self,

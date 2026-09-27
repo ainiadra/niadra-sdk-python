@@ -69,6 +69,20 @@ Each privacy line says whether the system has a verification mechanism at all (`
 any caller, so the page shows "no mechanism" for it rather than a score; the count of blocks that held
 the sensitive value is still in the file. Results before 26/09/2026 do not carry the field.
 
+Since 27/09/2026 every Niadra probe's row also carries what its pack left out and why
+(`meta.exclusions`, `metrics/exclusions.py`): after the accuracy pass the harness reads the probe's read
+receipt and its lineage (`POST /v1/receipts/search`, `GET /v1/lineage/receipt/{id}`), whose manifest lists
+each excluded item with its reason (`policy`, `verification`, `quarantine`, `budget`) and rule (for
+example `min_verification`, `skeleton`, `view`); ids, kinds and categories only, never a value. Each
+repetition then attributes Niadra's lost answers by data (`exclusions.attribution`): `withheld` when the
+pack held something back by policy or verification, `not_withheld` when it held nothing back, `unknown`
+without a manifest. The reads need an admin credential: the sandbox's admin person in the region (the same
+login that issues the billing key), or a local cell's `admin_key`; a run without one records none. Every
+run also writes `summary.md` beside `summary.json` (`bench report` rebuilds both): accuracy by category
+for every system, with Mem0's two identity conditions side by side, `shared id` (`known_id`, one user id
+on every channel, its best case) and `id per channel` (`per_channel_id`), and Niadra's lost answers by
+cause.
+
 We do not run LoCoMo, LongMemEval or BEAM: they are long personal conversation sets and do not measure
 what a Niadra buyer buys.
 

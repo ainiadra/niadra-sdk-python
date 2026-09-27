@@ -44,6 +44,11 @@ since the clock does not move. Every model call goes through `model_cache.Cachin
 read from there, and every new answer is written there; `GET /_bench/models` returns the calls, the
 answers read from disk, and the spend OpenRouter reported.
 
+The cell also serves the governance reads a run uses to attribute what a pack left out: `POST
+/v1/receipts/search` and `GET /v1/lineage/receipt/{id}` (the manifest's `excluded`, with each item's
+reason and rule), with the admin key the bootstrap document carries as `admin_key`, as the region serves
+them to the sandbox's admin.
+
 Numbers from this cell are never published: one process, and no real models unless `--real-models`.
 
     uv run --project ../niadra-back python deploy/local/cell_server.py --port 18900 \
@@ -71,6 +76,7 @@ sys.path[:0] = [os.getcwd()]
 
 import uvicorn  # noqa: E402
 from model_cache import CachingTransport, Ledger  # noqa: E402  (beside this file)
+from niadra.adapters.inbound.http import governance as governance_routes  # noqa: E402
 from niadra.adapters.inbound.http import ingest as ingest_routes  # noqa: E402
 from niadra.adapters.inbound.http import read as read_routes  # noqa: E402
 from niadra.adapters.inbound.http.app import create_app  # noqa: E402
@@ -471,6 +477,29 @@ class IngestRouter:
         return getattr(self._shards.flow(SHARED).ingest, name)
 
 
+class AuditRouter:
+    """Receipts and lineage from the customer's cell: a search names its conversation, and a lineage read
+    goes to the cell whose search returned that receipt."""
+
+    def __init__(self, shards: Shards) -> None:
+        self._shards = shards
+        self._receipts: dict[str, str] = {}
+
+    async def list_receipts(self, space_id: UUID, query: Any) -> Any:
+        key = self._shards.key(texts=[query.conversation_id], handles=[])
+        page = await self._shards.flow(key).audit.list_receipts(space_id, query)
+        for item in page.items:
+            self._receipts[str(item.receipt_id)] = key
+        return page
+
+    async def receipt_lineage(self, space_id: UUID, receipt_id: UUID) -> Any:
+        key = self._receipts.get(str(receipt_id), SHARED)
+        return await self._shards.flow(key).audit.receipt_lineage(space_id, receipt_id)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._shards.flow(SHARED).audit, name)
+
+
 class ExtractRouter:
     def __init__(self, shards: Shards) -> None:
         self._shards = shards
@@ -519,16 +548,20 @@ def build(
         key = f"nia_sk_test_local_cell_{name}1_localcellsecret"
         keys[name] = key
         principals[key] = principal(source_id, space, frozenset(Scope) - {Scope.ADMIN, Scope.ANALYTICS})
+    admin_key = "nia_sk_test_local_cell_admin1_localcellsecret"
+    principals[admin_key] = principal(SOURCES["billing"][0], space, frozenset(Scope))
     container = SimpleNamespace(
         edge=LocalEdge(principals),
         serve=ServeRouter(shards),
         ingest=IngestRouter(shards, retry_extractions=models is not None),
         extract=ExtractRouter(shards),
+        audit=AuditRouter(shards),
         clock=clock,
         admin_audit=RecordingAdminAudit(),
         config=config,
     )
-    app = create_app("local-cell", container, [read_routes.router, ingest_routes.router])
+    routers = [read_routes.router, ingest_routes.router, governance_routes.router]
+    app = create_app("local-cell", container, routers)
     if models is not None:
         app.add_api_route("/_bench/models", models.report, methods=["GET"], include_in_schema=False)
     applied = {
@@ -545,7 +578,7 @@ def build(
         "operations": sorted(operations),
         "env": {k: v for k, v in sorted(os.environ.items()) if k.startswith("NIADRA_") and not _secret(k)},
     }
-    return app, {"keys": keys, "cell": applied}
+    return app, {"keys": keys, "admin_key": admin_key, "cell": applied}
 
 
 def _secret(name: str) -> bool:
