@@ -423,6 +423,10 @@ What the estimate assumes, none of it measured yet:
 | `graphiti` | 1 | six calls (2,500 in, 300 out) per episode, one episode per message, 6,290 | 18.02 |
 | **Total** | | | **about 91** |
 
+The least certain line is Supermemory's: in the local dry run of 27/09 (fake model) it made about 40 model
+calls per document, not two; if it does the same with Luna, the reasoning tokens alone put its line near
+$12. The gateways' `calls` in each run's `model_usage` settle it.
+
 Niadra's extraction and decisions (about $4.95 of its line) are paid by the cell's production key; everything
 else, about $86 (Niadra's agent and judge passes included), by the benchmark's own key,
 `niadra/bench/openrouter`. That key's limit, US$60, is below this estimate: OpenRouter refuses calls past it,
