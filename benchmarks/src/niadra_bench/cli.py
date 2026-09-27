@@ -140,6 +140,8 @@ def _ab(args: argparse.Namespace) -> int:
             agent=args.agent,
             local_cell=Path(args.local_cell).resolve() if args.local_cell else None,
             candidate_cell=Path(args.candidate_cell).resolve() if args.candidate_cell else None,
+            real_models=args.real_models,
+            model_cache=not args.no_model_cache,
             mock=args.mock,
             output=Path(args.output) if args.output else None,
             now=datetime.fromisoformat(args.now) if args.now else None,
@@ -312,6 +314,17 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         metavar="NIADRA_BACK",
         help="the candidate's own niadra-back checkout (a branch), beside --local-cell's for the baseline",
+    )
+    ab.add_argument(
+        "--real-models",
+        action="store_true",
+        help="with --local-cell: extract and decide with production's Luna and Jev over OpenRouter (the "
+        "benchmark's key from Secrets Manager), caching every answer under results/local/model-cache/",
+    )
+    ab.add_argument(
+        "--no-model-cache",
+        action="store_true",
+        help="with --real-models: ask the provider every time, and read or write no cached answer",
     )
     ab.add_argument("--mock", action="store_true", help="both sides are niadra-mock (only with --same)")
     ab.add_argument(

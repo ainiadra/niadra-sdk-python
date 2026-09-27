@@ -177,3 +177,73 @@ def test_bench_ab_same_against_the_emulator_passes_with_a_zero_delta(tmp_path, c
     assert not list(out.rglob("summary.json"))
     assert (out / "baseline" / "cases-rep1.jsonl").exists() and (out / "candidate" / "rep-1.json").exists()
     assert "Determinism: passed" in capsys.readouterr().out
+
+
+def test_real_models_run_on_a_local_cell_with_its_cache(monkeypatch, tmp_path, cases) -> None:
+    from datetime import UTC, datetime
+
+    with pytest.raises(ab.AbError, match="--local-cell"):
+        ab.Ab(cases, ab.AbOptions(baseline_env={}, candidate_env={}, same=True, real_models=True))
+    now = datetime(2026, 9, 27, 12, tzinfo=UTC)
+    cell = ab.LocalCell(
+        tmp_path, {}, now, [], tmp_path / "side", real_models=True, model_cache=tmp_path / "c"
+    )
+    command = cell.command()
+    assert "--real-models" in command and command[command.index("--model-cache") + 1] == str(tmp_path / "c")
+    assert "--real-models" not in ab.LocalCell(tmp_path, {}, now, [], tmp_path).command()
+    uncached = ab.LocalCell(tmp_path, {}, now, [], tmp_path, real_models=True, model_cache=None).command()
+    assert "--model-cache" not in uncached
+    # The same clock gives the same customers in every A/B, so a rerun sends the same model requests.
+    first = ab.Ab(
+        cases, ab.AbOptions(baseline_env={}, candidate_env={}, same=True, local_cell=tmp_path, now=now)
+    )
+    again = ab.Ab(
+        cases, ab.AbOptions(baseline_env={}, candidate_env={}, same=True, local_cell=tmp_path, now=now)
+    )
+    tags = {r._run_for(side).options.tag for r in (first, again) for side in (r.baseline, r.candidate)}
+    assert tags == {ab.local_tag(now)}
+    assert ab.local_tag(now.replace(hour=13)) not in tags
+
+
+def test_the_benchmark_key_is_read_by_name_and_only_when_missing(monkeypatch) -> None:
+    import subprocess
+
+    calls: list[list[str]] = []
+
+    def aws(command, **kw):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, stdout='{"api_key": "sk-test"}\n', stderr="")
+
+    monkeypatch.setattr(ab.subprocess, "run", aws)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "already")
+    ab.bench_key()
+    assert calls == []
+    monkeypatch.delenv("OPENROUTER_API_KEY")
+    monkeypatch.setenv("NIADRA_PROFILE", "niadra")
+    ab.bench_key()
+    assert ab.os.environ["OPENROUTER_API_KEY"] == "sk-test"
+    assert calls[0][calls[0].index("--secret-id") + 1] == "niadra/bench/openrouter"
+    assert calls[0][calls[0].index("--profile") + 1] == "niadra"
+    monkeypatch.delenv("OPENROUTER_API_KEY")
+    monkeypatch.setattr(
+        ab.subprocess, "run", lambda command, **kw: subprocess.CompletedProcess(command, 255, "", "denied")
+    )
+    with pytest.raises(ab.AbError, match="exited with 255"):
+        ab.bench_key()
+
+
+def test_the_spend_of_a_repetition_is_the_ledger_it_added_and_the_side_sums_them() -> None:
+    tally = {"calls": 10, "hits": 4, "misses": 6, "failed": 0, "spend_usd": 0.01, "saved_usd": 0.005}
+    before = {"models": {"luna": dict(tally)}, **tally}
+    after_tally = {**tally, "calls": 30, "hits": 24, "spend_usd": 0.012, "saved_usd": 0.02}
+    after = {"models": {"luna": after_tally}, **after_tally}
+    added = ab.ledger_delta(after, before)
+    assert (added["calls"], added["hits"], added["spend_usd"], added["saved_usd"]) == (20, 20, 0.002, 0.015)
+    assert added["models"]["luna"]["hits"] == 20
+    agent = {"calls": 2, "input_tokens": 10, "output_tokens": 4, "cost_usd": 0.001}
+    reps = [{"model_spend": {"cell": added, "agent_judge": agent}}] * 2
+    total = ab.spend_total(reps)
+    assert total is not None
+    assert total["cell"]["hits"] == 40 and total["agent_judge"]["cost_usd"] == 0.002
+    assert total["spend_usd"] == 0.006
+    assert ab.spend_total([{}]) is None

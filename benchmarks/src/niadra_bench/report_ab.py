@@ -27,10 +27,19 @@ NOTES = {
         "itself, so its exact check matches loosely (any 2 in a date counts for a count of 2): for "
         "recurrence and deadlines read context_has_answer."
     ),
+    "local-cell-real-models": (
+        "Local cell with production's models: niadra-back's in-memory flow harness, extracting with Luna "
+        "and deciding with Jev over OpenRouter as the region does, with hash embeddings and regex PII in "
+        "place of the models server. Closer to the region than the rule extractor, still never published: "
+        "one process, a fixed clock, and the answers of a model cached by request."
+    ),
     "dry-run": "niadra-mock in-process: the harness's plumbing only.",
     "local": "Outside the region: never published.",
     "region": "Measured inside the cloud region; the site imports no A/B, only a run's summary.json.",
 }
+_SPEND_HEADER = (
+    "| Side | Cell calls | From cache | Failed | Cell spend | Saved by the cache | Agent and judge | Total |"
+)
 _CASE_FIELDS = ("tokens", "context_has_answer", "context_has_answer_loose", "leak", "deterministic", "judge")
 
 
@@ -295,6 +304,9 @@ def markdown(document: Mapping[str, Any]) -> str:
         if (cand.get("checkout"), cand.get("commit")) != (base.get("checkout"), base.get("commit")):
             where = f"baseline {where}, candidate `{cand.get('commit')}` at `{cand.get('checkout')}`"
         lines.append(f"- niadra-back {where}; clock {cell['now']}.")
+    if document.get("models") == "real":
+        cache = document["model_cache"]
+        lines.append(f"- Models: production's (Luna and Jev over OpenRouter); answers cached in `{cache}`.")
     if document.get("incomplete"):
         lines.append(f"- Incomplete: {document['incomplete']}")
     if (verdict := document.get("determinism")) is not None:
@@ -313,6 +325,18 @@ def markdown(document: Mapping[str, Any]) -> str:
             lines.append(
                 f"| {c['line']} | {c['field']} | {_side(c['baseline'], c['unit'])} | "
                 f"{_side(c['candidate'], c['unit'])} | {_delta(c)} |"
+            )
+    spends = [(name, document[name].get("model_spend")) for name in ("baseline", "candidate")]
+    if any(spend for _, spend in spends):
+        lines += ["", "## Model spend", "", _SPEND_HEADER, "|---|---|---|---|---|---|---|---|"]
+        for name, spend in spends:
+            if not spend:
+                continue
+            cell, agent = spend["cell"], spend["agent_judge"]
+            lines.append(
+                f"| {name} | {cell['calls']} | {cell['hits']} | {cell['failed']} | "
+                f"${cell['spend_usd']:.4f} | ${cell['saved_usd']:.4f} | ${agent['cost_usd']:.4f} | "
+                f"${spend['spend_usd']:.4f} |"
             )
     flipped = document.get("flips") or {}
     if any(flipped.get(k) for k in ("answer", "context")):

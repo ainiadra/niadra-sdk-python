@@ -13,7 +13,12 @@ Where the two sides run:
   (`deploy/local/cell_server.py`: niadra-back's in-memory flow harness behind its HTTP routes, a rule
   extractor in place of the model), started with the side's settings in its process environment. Both
   cells get the same clock and the same customers, so any difference comes from the setting. No network,
-  no key; the numbers are for the team and never published.
+  no key; the numbers are for the team and never published. With `--real-models` the cells extract and
+  decide with production's adapters (Luna and Jev over OpenRouter, the benchmark's key from Secrets
+  Manager), and every answer is cached on disk under `results/local/model-cache/` by model, prompt version
+  and request body, so the second side and a rerun with the same `--now` read what the first paid for
+  (`--no-model-cache` asks the provider every time). Each repetition records what the models cost
+  (`model_spend`: the cell's calls, answers read from disk and spend, and the agent's and judge's).
 - `--mock`: both sides are niadra-mock in-process. It has no server settings, so only `--same` runs;
   it is the check the CI runs.
 - neither: the Niadra of NIADRA_BOOTSTRAP (the region, from the temporary host). There the sides differ
@@ -65,6 +70,10 @@ SCHEMA = "niadra-bench.ab.v1"
 AB_CONFIG = bench_config.CONFIG_DIR / "ab.toml"
 CELL_SERVER = bench_config.ROOT / "deploy" / "local" / "cell_server.py"
 LOCAL_RESULTS = bench_config.RESULTS_DIR / "local" / "ab"
+#: The local cell's cached model answers (`--real-models`), shared by every A/B on this machine.
+MODEL_CACHE = bench_config.RESULTS_DIR / "local" / "model-cache"
+#: The benchmark's own OpenRouter key, read by name (`deploy/temp-host/lib.sh` reads the same secret).
+BENCH_SECRET = "niadra/bench/openrouter"  # noqa: S105 - a secret's name, not its value
 #: The value a side runs with when it does not set a key the other side sets: the server's default.
 DEFAULTS = {
     "NIADRA_SEMANTIC_CHANNEL": "off",
@@ -157,6 +166,32 @@ def candidate_config(path: Path, config_dir: Path = bench_config.CONFIG_DIR) -> 
     return config, digest + "+" + hashlib.sha256(path.read_bytes()).hexdigest()[:16]
 
 
+def bench_key() -> None:
+    """Puts the benchmark's OpenRouter key in this process's `OPENROUTER_API_KEY` (the agent's and the
+    judge's client read it there, and a local cell inherits it), unless it is already set. Read from
+    Secrets Manager by name with the AWS CLI, as `NIADRA_PROFILE` (default `niadra`) in `NIADRA_REGION`
+    (default us-east-2); never printed or written."""
+    if os.environ.get("OPENROUTER_API_KEY"):
+        return
+    command = [
+        "aws", "secretsmanager", "get-secret-value", "--secret-id", BENCH_SECRET,
+        "--query", "SecretString", "--output", "text",
+        "--profile", os.environ.get("NIADRA_PROFILE", "niadra"),
+        "--region", os.environ.get("NIADRA_REGION", "us-east-2"),
+    ]  # fmt: skip
+    try:
+        out = subprocess.run(command, capture_output=True, text=True, timeout=60, check=False)  # noqa: S603
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise AbError(f"could not read {BENCH_SECRET}: {type(exc).__name__}") from None
+    if out.returncode != 0:
+        raise AbError(f"could not read {BENCH_SECRET}: the AWS CLI exited with {out.returncode}")
+    try:
+        key = str(json.loads(out.stdout)["api_key"])
+    except (ValueError, KeyError, TypeError):
+        raise AbError(f"{BENCH_SECRET} has no api_key property") from None
+    os.environ["OPENROUTER_API_KEY"] = key
+
+
 def _free_port() -> int:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
@@ -169,13 +204,23 @@ class LocalCell:
     settings in its process environment and nothing else of the harness's NIADRA_* environment."""
 
     def __init__(
-        self, checkout: Path, env: dict[str, str], now: datetime, operations: list[str], workdir: Path
+        self,
+        checkout: Path,
+        env: dict[str, str],
+        now: datetime,
+        operations: list[str],
+        workdir: Path,
+        *,
+        real_models: bool = False,
+        model_cache: Path | None = None,
     ) -> None:
         self.checkout = checkout
         self.env = env
         self.now = now
         self.operations = operations
         self.workdir = workdir
+        self.real_models = real_models
+        self.model_cache = model_cache
         self.port = 0
         self.process: asyncio.subprocess.Process | None = None
         self.document: dict[str, Any] = {}
@@ -191,11 +236,26 @@ class LocalCell:
         return self.workdir / "cell.json"
 
     def command(self) -> list[str]:
-        return [
+        command = [
             "uv", "run", "--frozen", "--quiet", "--project", str(self.checkout), "--with", "numpy>=2.1",
             "python", str(CELL_SERVER), "--port", str(self.port), "--now", self.now.isoformat(),
             "--keys-out", str(self.bootstrap), "--operations", ",".join(self.operations),
         ]  # fmt: skip
+        if self.real_models:
+            command.append("--real-models")
+            if self.model_cache is not None:
+                command += ["--model-cache", str(self.model_cache)]
+        return command
+
+    async def model_ledger(self) -> dict[str, Any] | None:
+        """The cell's model calls so far (`GET /_bench/models`), or None without `--real-models`."""
+        if not self.real_models:
+            return None
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{self.base_url}/_bench/models")
+            response.raise_for_status()
+            ledger: dict[str, Any] = response.json()["ledger"]
+            return ledger
 
     def process_env(self) -> dict[str, str]:
         inherited = {k: v for k, v in os.environ.items() if not k.startswith("NIADRA_")}
@@ -255,6 +315,10 @@ class AbOptions:
     local_cell: Path | None = None
     # The candidate's own niadra-back checkout (a branch against the baseline's), on a local cell.
     candidate_cell: Path | None = None
+    # The local cells extract and decide with production's models (Luna and Jev over OpenRouter).
+    real_models: bool = False
+    # With real_models: read and write the answers cached under MODEL_CACHE (False asks every time).
+    model_cache: bool = True
     mock: bool = False
     output: Path | None = None
     now: datetime | None = None
@@ -305,6 +369,8 @@ class Ab:
     def _check_where(self, env: dict[str, str]) -> None:
         if self.options.candidate_cell is not None and self.options.local_cell is None:
             raise AbError("--candidate-cell is the candidate's checkout beside --local-cell's")
+        if self.options.real_models and self.options.local_cell is None:
+            raise AbError("--real-models is a mode of the local cell: give --local-cell")
         if self.options.mock and env:
             raise AbError("niadra-mock has no server settings: with --mock, only --same runs")
         if self.options.local_cell or self.options.mock:
@@ -328,6 +394,10 @@ class Ab:
         # region both sides share the space and seed different people.
         same_people = bool(opts.local_cell or opts.mock)
         tag = self.ab_id[-6:] if same_people else f"{self.ab_id[-5:]}{side.name[0]}"
+        if opts.local_cell:
+            # Every A/B starts fresh cells, so the tag need not differ between runs: one fixed by the
+            # clock gives a rerun with the same --now the same customers, and so the same model requests.
+            tag = local_tag(self.now)
         options = Options(
             systems={"niadra"},
             metrics=set(opts.metrics),
@@ -365,7 +435,15 @@ class Ab:
         checkout = self.options.local_cell
         if side is self.candidate and self.options.candidate_cell is not None:
             checkout = self.options.candidate_cell
-        cell = LocalCell(checkout, side.env, self.now, operations, self.out / side.name)
+        cell = LocalCell(
+            checkout,
+            side.env,
+            self.now,
+            operations,
+            self.out / side.name,
+            real_models=self.options.real_models,
+            model_cache=MODEL_CACHE if self.options.model_cache else None,
+        )
         await cell.start()
         self.cells[side.name] = cell
         assert side.run is not None
@@ -376,6 +454,9 @@ class Ab:
         run = side.run
         assert run is not None
         targets: list[Target] = run.build_targets()
+        cell = self.cells.get(side.name)
+        ledger = await cell.model_ledger() if cell else None
+        chat = run.chat.usage()
         for target in targets:
             await target.start()
         try:
@@ -384,6 +465,12 @@ class Ab:
             for target in targets:
                 await target.close()
         rep["repetition"] = n
+        if self.options.real_models and cell is not None:
+            after = await cell.model_ledger()
+            rep["model_spend"] = {
+                "cell": ledger_delta(after or {}, ledger),
+                "agent_judge": chat_delta(run.chat.usage(), chat),
+            }
         side.reps.append(rep)
         side.rows[n] = run.rows.get(n, [])
 
@@ -417,6 +504,8 @@ class Ab:
         ceiling = (opts.max_minutes or self.settings.max_minutes) * 60
         started = time.monotonic()
         self.out.mkdir(parents=True, exist_ok=True)
+        if opts.real_models or (self._agent_is_llm() and opts.local_cell):
+            bench_key()
         for side in (self.baseline, self.candidate):
             side.run = self._run_for(side)
         try:
@@ -473,7 +562,10 @@ class Ab:
             "environment": {
                 "kind": self.kind,
                 "publishable": False,
-                "note": report_ab.NOTES.get(self.kind, report_ab.NOTES["region"]),
+                "note": report_ab.NOTES.get(
+                    "local-cell-real-models" if self.options.real_models else self.kind,
+                    report_ab.NOTES["region"],
+                ),
                 "local_cell": self._cell_info(),
             },
             "agent": "llm" if self._agent_is_llm() else "context_only",
@@ -487,6 +579,10 @@ class Ab:
             "repetitions": len(self.baseline.reps),
             "incomplete": self.incomplete,
             "metrics_run": sorted(self.options.metrics),
+            "models": "real" if self.options.real_models else ("local" if self.options.local_cell else None),
+            "model_cache": (str(MODEL_CACHE) if self.options.model_cache else "off")
+            if self.options.real_models
+            else None,
             "baseline": self._side(self.baseline, base),
             "candidate": self._side(self.candidate, cand),
             "delta": cells,
@@ -510,8 +606,51 @@ class Ab:
             "checkout": str(cell.checkout) if cell else None,
             "commit": cell.commit if cell else None,
             "seed": [rep.get("seed", {}).get("niadra") for rep in side.reps],
+            "model_spend": spend_total(side.reps),
             "metrics": metrics,
         }
+
+
+def local_tag(now: datetime) -> str:
+    return hashlib.sha256(now.isoformat().encode()).hexdigest()[:6]
+
+
+def ledger_delta(after: dict[str, Any], before: dict[str, Any] | None) -> dict[str, Any]:
+    """What a repetition added to the cell's model ledger (`deploy/local/model_cache.py`'s snapshot)."""
+    before = before or {"models": {}}
+    models = {
+        name: chat_delta(tally, before["models"].get(name, {}))
+        for name, tally in after.get("models", {}).items()
+    }
+    return {"models": models, **chat_delta({k: v for k, v in after.items() if k != "models"}, before)}
+
+
+def chat_delta(after: dict[str, Any], before: dict[str, Any]) -> dict[str, Any]:
+    return {
+        k: round(v - before.get(k, 0), 6) if isinstance(v, float) else v - before.get(k, 0)
+        for k, v in after.items()
+    }
+
+
+def spend_total(reps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """A side's model spend over its repetitions: the cell's (fresh calls and answers read from disk) and
+    the agent's and judge's, in US dollars as OpenRouter reported them."""
+    spends = [rep["model_spend"] for rep in reps if rep.get("model_spend")]
+    if not spends:
+        return None
+    cell = {
+        k: round(sum(s["cell"].get(k, 0) for s in spends), 6)
+        for k in ("calls", "hits", "misses", "failed", "spend_usd", "saved_usd")
+    }
+    agent = {
+        k: round(sum(s["agent_judge"].get(k, 0) for s in spends), 6)
+        for k in ("calls", "input_tokens", "output_tokens", "cost_usd")
+    }
+    return {
+        "cell": cell,
+        "agent_judge": agent,
+        "spend_usd": round(cell["spend_usd"] + agent["cost_usd"], 6),
+    }
 
 
 def _commit(checkout: Path) -> str | None:

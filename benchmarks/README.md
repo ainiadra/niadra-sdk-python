@@ -453,9 +453,10 @@ deploy/temp-host/        the temporary host: up.sh, down.sh, bench.sh (this comp
 deploy/cell/cleanup.sh   removes what the benchmark left on the cell when it ran there
 results/                 published runs: results/<date>-<id>/{summary.json,rep-N.json,cases-repN.jsonl}
 results/ab/              A/B runs in the region: results/ab/<date>-<id>/{ab.json,ab.md,baseline/,candidate/}
-results/local/           A/B runs on a local cell or the emulator (not committed)
+results/local/           A/B runs on a local cell or the emulator, and results/local/model-cache/ (not committed)
 config/ab.toml           `bench ab`'s ceiling, apart from benchmark.toml so the published hash stays
 deploy/local/cell_server.py  the local cell `bench ab --local-cell` runs in a niadra-back checkout
+deploy/local/model_cache.py  the local cell's cache of model answers and its spend ledger (`--real-models`)
 ```
 
 ## Running it on the temporary host
@@ -633,7 +634,34 @@ Where the two sides run:
   `NIADRA_SEMANTIC_CHANNEL=models` gives the read path the hash encoder; `inprocess` needs the model
   files and is refused. Results go to `results/local/ab/`, which is not committed. These numbers compare
   two settings of the same code: they are never published, and no absolute figure of a local cell says
-  what the region would measure.
+  what the region would measure. The customers' tag comes from `--now`, not from the A/B's id (every A/B
+  starts fresh cells), so two A/Bs with the same `--now` seed the same customers.
+- **A local cell with production's models** (`--local-cell <checkout> --real-models`): the same cell, but
+  the extraction model and the decisions port are niadra-back's own adapters, `OpenRouterLlm` (GPT-6
+  Luna at the effort `app/extract.py` asks for, `low`, with the prompts, schema and settings the region
+  runs) and `JevDecider` (`typesafe/jev-1.13`, the questions and thresholds of `domain/decide`), built
+  with their defaults, which are the region's (the deployment sets no provider order or base URL). The
+  harness reads the benchmark's OpenRouter key from Secrets Manager by name (`niadra/bench/openrouter`,
+  AWS profile `NIADRA_PROFILE`, default `niadra`, region `NIADRA_REGION`, default us-east-2) into
+  `OPENROUTER_API_KEY`, unless that is already set; the agent and the judge use it too and stay as
+  `benchmark.toml` sets them (`--agent llm` for graded answers). The key is never printed or written.
+  What is still local: the models server (hash embeddings, regex PII), the fixed clock and the in-memory
+  store; the space's daily AI ceiling is not enforced, and an extraction whose model call failed is
+  retried at once, since the clock does not move. The rule extractor scored 97.7% (judge) on dataset v2
+  where the region's first run with the real models scored 73.7%: this mode is how the team measures a
+  write-path or read-path change against what the region runs, without the region.
+
+  Every model call goes through a cache (`deploy/local/model_cache.py`): an answer is kept in
+  `results/local/model-cache/` under a hash of the model, the prompt version (niadra-back's
+  `EXTRACTOR_VERSION.PROMPT_VERSION`) and the exact request body, and a request with the same key is
+  answered from disk. The cell's models see the same requests on both sides of an A/B that changes only
+  the read path, and in a rerun with the same `--now` and checkout, so those cost nothing after the first
+  run; anything that changes what a model reads (a prompt, the extraction schema, a write-path change
+  that alters an earlier answer, another `--now`) asks again. A failed call is never kept.
+  `--no-model-cache` asks the provider every time and reads or writes nothing. Each repetition records
+  `model_spend` (the cell's calls, answers from the cache, failures, spend and what the cache saved, per
+  model, and the agent's and judge's calls and cost, all from OpenRouter's `usage`), and `ab.md` adds a
+  "Model spend" table.
 - **The emulator** (`--mock`): niadra-mock on both sides. It has no server settings, so it runs only
   `--same`; the CI runs it.
 - **The region** (neither option, from the temporary host): the Niadra of `NIADRA_BOOTSTRAP`, read and
@@ -657,6 +685,9 @@ uv run bench ab --local-cell ../../niadra-back --candidate-env NIADRA_SEMANTIC_C
 # A branch against main: the candidate runs on its own checkout.
 uv run bench ab --local-cell ../../niadra-back --candidate-cell ../../wt/niadra-back-mybranch \
     --dataset v2
+# The same with production's models and graded answers; a fixed --now lets a rerun reuse the cache.
+uv run bench ab --local-cell ../../wt/niadra-back-main --same --real-models --agent llm --dataset v2 \
+    --repetitions 1 --metrics accuracy,tokens,privacy --now 2026-09-27T12:00:00+00:00
 
 # In the region, from the temporary host (see "Running it on the temporary host"; `collect` copies
 # results/ab/<date>-<id>/ too):

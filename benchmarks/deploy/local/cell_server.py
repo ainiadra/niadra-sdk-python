@@ -30,7 +30,21 @@ The process environment picks the variant, as the read deployment's would:
   them (in the region, `bench run --niadra-guards measure` records the answers that measurement reads).
 Any other `NIADRA_*` variable stays in the environment for backend code that reads it directly.
 
-Numbers from this cell are never published: no network, no real model, one process.
+With `--real-models` the extraction model and the decisions port are production's instead: niadra-back's
+own `OpenRouterLlm` (GPT-6 Luna, at the effort `app/extract.py` asks for, `low`) and `JevDecider`
+(`typesafe/jev-1.13`, the questions and thresholds of `domain/decide`), built with their default settings,
+which are the ones the region's deployment runs (no provider order, no base URL override), and the same
+extraction settings. They call OpenRouter with the key in `OPENROUTER_API_KEY` (`bench ab --real-models`
+reads the benchmark's key from Secrets Manager into it; it is never logged or written). What stays local:
+the models server (hash embeddings, regex PII), the clock and the in-memory store. Two things differ from
+the region on purpose: the space's daily AI ceiling is not enforced (the benchmark space's is raised past
+what a run spends), and an extraction the model failed is retried at once instead of after its backoff,
+since the clock does not move. Every model call goes through `model_cache.CachingTransport`: with
+`--model-cache <dir>` an answer already on disk for the same model, prompt version and request body is
+read from there, and every new answer is written there; `GET /_bench/models` returns the calls, the
+answers read from disk, and the spend OpenRouter reported.
+
+Numbers from this cell are never published: one process, and no real models unless `--real-models`.
 
     uv run --project ../niadra-back python deploy/local/cell_server.py --port 18900 \
         --now 2026-09-25T12:00:00+00:00 --keys-out /tmp/cell-keys.json --operations credit,refund
@@ -56,6 +70,7 @@ from uuid import UUID
 sys.path[:0] = [os.getcwd()]
 
 import uvicorn  # noqa: E402
+from model_cache import CachingTransport, Ledger  # noqa: E402  (beside this file)
 from niadra.adapters.inbound.http import ingest as ingest_routes  # noqa: E402
 from niadra.adapters.inbound.http import read as read_routes  # noqa: E402
 from niadra.adapters.inbound.http.app import create_app  # noqa: E402
@@ -72,6 +87,8 @@ from niadra.app.retrieval import RetrievalCache, RetrievalService  # noqa: E402
 from niadra.config.models import SourceConfig, SpaceConfig, TenantSettings  # noqa: E402
 from niadra.domain.common.errors import Unauthenticated  # noqa: E402
 from niadra.domain.common.space import SourcePrincipal  # noqa: E402
+from niadra.domain.extract.budget import SpendHold  # noqa: E402
+from niadra.domain.pipeline.delay import DelayReason  # noqa: E402
 from niadra.domain.vocabulary import Audience, Scope, Verification  # noqa: E402
 from niadra.testing.cell import SPACE_ID, TENANT_ID, Cell, principal  # noqa: E402
 from tests.unit.audit.fakes import RecordingAdminAudit  # noqa: E402
@@ -196,6 +213,80 @@ class RuleExtractor:
         )
         usage = LlmUsage(input_tokens=len(kw["user"]) // 4, output_tokens=len(content) // 4)
         return LlmResult(content=content, model="rule-extractor", provider="local", usage=usage)
+
+
+class LocalSpend:
+    """The daily AI budget's port without a ceiling: reserves nothing, refuses nothing. The spend is counted
+    from OpenRouter's usage numbers by the transport's `Ledger` instead."""
+
+    def __init__(self, clock: FixedClock) -> None:
+        self._clock = clock
+
+    async def reserve(self, space_id: UUID, purpose: str, estimate_micros: int | None = None) -> SpendHold:  # noqa: ARG002
+        return SpendHold(space_id, purpose, self._clock.now().date(), 0)
+
+    async def settle(self, hold: SpendHold, cost_micros: int) -> None:  # noqa: ARG002
+        return None
+
+    async def release(self, hold: SpendHold) -> None:  # noqa: ARG002
+        return None
+
+
+class RealModels:
+    """Production's Luna and Jev adapters over one caching transport, shared by every customer's cell as
+    one worker process shares them (Jev's concurrency of 8 included)."""
+
+    def __init__(self, clock: FixedClock, cache: Path | None) -> None:
+        import httpx
+        from niadra.adapters.outbound.llm import jev, openrouter
+        from niadra.app import extract
+        from niadra.domain.extract.rules import EXTRACTOR_VERSION, PROMPT_VERSION
+
+        api_key = os.environ.get("OPENROUTER_API_KEY", "")
+        if not api_key:
+            raise SystemExit("--real-models needs OPENROUTER_API_KEY (bench ab --real-models sets it)")
+        self.ledger = Ledger()
+        self.cache = cache
+        self.prompt_version = f"{EXTRACTOR_VERSION}.{PROMPT_VERSION}"
+        transport = CachingTransport(
+            httpx.AsyncHTTPTransport(), cache, self.ledger, default_version=self.prompt_version
+        )
+        budget = LocalSpend(clock)
+        luna_settings = openrouter.OpenRouterSettings()
+        jev_settings = jev.JevSettings()
+        self.llm = openrouter.OpenRouterLlm(
+            api_key,
+            budget,
+            luna_settings,
+            http=httpx.AsyncClient(transport=transport, timeout=luna_settings.timeout_s),
+        )
+        self.decider = jev.JevDecider(
+            api_key,
+            budget,
+            jev_settings,
+            http=httpx.AsyncClient(transport=transport, timeout=jev_settings.timeout_s),
+        )
+        del api_key
+        self.applied = {
+            "extractor": f"{openrouter.MODEL} (reasoning {extract.REASONING})",
+            "decisions": jev.MODEL,
+            "prompt_version": self.prompt_version,
+            "model_cache": str(cache) if cache else "off",
+        }
+
+    def report(self) -> dict[str, Any]:
+        return {"ledger": self.ledger.snapshot(), "model_cache": str(self.cache) if self.cache else None}
+
+
+async def retry_failed_extractions(flow: Flow) -> None:
+    """The region retries an extraction whose model call failed after a backoff (`LLM_RETRY`); the fixed
+    clock never reaches it, so the cell moves those retries to the outbox at once and drains again, until
+    none is left (each one counts its attempts, so this ends at the task's last attempt)."""
+    rows = flow.cell.uow.store.module("pipeline").setdefault("scheduled", [])
+    while retries := [row for row in rows if row[2] == DelayReason.LLM_RETRY]:
+        rows[:] = [row for row in rows if row[2] != DelayReason.LLM_RETRY]
+        flow.cell.uow.store.module("pipeline").setdefault("outbox", []).extend(task for task, _, _ in retries)
+        await flow.drain()
 
 
 def space_config(operations: frozenset[str]) -> SpaceConfig:
@@ -349,9 +440,10 @@ class IngestRouter:
     """The ingest service of the customer's cell, but a batch answers after the pipeline ran every task
     it started (session close, the gate, extraction, memory, compilation)."""
 
-    def __init__(self, shards: Shards) -> None:
+    def __init__(self, shards: Shards, retry_extractions: bool = False) -> None:
         self._shards = shards
         self._guards_seeded: set[str] = set()
+        self._retry = retry_extractions
 
     async def ingest_items(self, caller: SourcePrincipal, items: Any, rejected: Any = (), **kw: Any) -> Any:
         parsed = [item for _, item in items]
@@ -371,6 +463,8 @@ class IngestRouter:
                 self._guards_seeded.add(key)
             result = await flow.ingest.ingest_items(caller, items, rejected, **kw)
             await flow.drain()
+            if self._retry:
+                await retry_failed_extractions(flow)
             return result
 
     def __getattr__(self, name: str) -> Any:
@@ -390,7 +484,9 @@ class ExtractRouter:
         return call
 
 
-def build(now: datetime, operations: frozenset[str]) -> tuple[Any, dict[str, Any]]:
+def build(
+    now: datetime, operations: frozenset[str], models: RealModels | None = None
+) -> tuple[Any, dict[str, Any]]:
     semantic = _flag("NIADRA_SEMANTIC_CHANNEL", "off")
     if semantic not in ("off", "models"):
         raise SystemExit(
@@ -401,8 +497,9 @@ def build(now: datetime, operations: frozenset[str]) -> tuple[Any, dict[str, Any
     clock = FixedClock(now)
 
     def new_flow() -> Flow:
-        cell = Cell(clock=clock, config=config, models=DeterministicModels(), decider=DeterministicDecider())
-        flow = Flow.build(cell, RuleExtractor())  # type: ignore[arg-type]
+        decider = models.decider if models else DeterministicDecider()
+        cell = Cell(clock=clock, config=config, models=DeterministicModels(), decider=decider)  # type: ignore[arg-type]
+        flow = Flow.build(cell, models.llm if models else RuleExtractor())  # type: ignore[arg-type]
         if semantic == "models":
             flow.serve.retrieval = RetrievalService(
                 cell.uow,
@@ -425,26 +522,34 @@ def build(now: datetime, operations: frozenset[str]) -> tuple[Any, dict[str, Any
     container = SimpleNamespace(
         edge=LocalEdge(principals),
         serve=ServeRouter(shards),
-        ingest=IngestRouter(shards),
+        ingest=IngestRouter(shards, retry_extractions=models is not None),
         extract=ExtractRouter(shards),
         clock=clock,
         admin_audit=RecordingAdminAudit(),
         config=config,
     )
     app = create_app("local-cell", container, [read_routes.router, ingest_routes.router])
+    if models is not None:
+        app.add_api_route("/_bench/models", models.report, methods=["GET"], include_in_schema=False)
     applied = {
         "semantic_channel": semantic,
         "semantic_encoder": "hash-64" if semantic == "models" else None,
         "semantic_deadline_ms": deadline_ms,
         "guard_types_seeded": list(GUARD_TYPES),
+        "models": "real" if models else "local",
         "extractor": "rule-extractor",
         "decisions": "deterministic-decider",
+        **(models.applied if models else {}),
         "cells": "one per customer",
         "now": now.isoformat(),
         "operations": sorted(operations),
-        "env": {k: v for k, v in sorted(os.environ.items()) if k.startswith("NIADRA_")},
+        "env": {k: v for k, v in sorted(os.environ.items()) if k.startswith("NIADRA_") and not _secret(k)},
     }
     return app, {"keys": keys, "cell": applied}
+
+
+def _secret(name: str) -> bool:
+    return any(word in name for word in ("KEY", "SECRET", "TOKEN", "PASSWORD"))
 
 
 def main() -> None:
@@ -453,10 +558,19 @@ def main() -> None:
     parser.add_argument("--now", required=True, help="the cell's fixed clock, ISO 8601 with offset")
     parser.add_argument("--keys-out", required=True, help="where to write the bootstrap document")
     parser.add_argument("--operations", default="", help="the billing source's operations, comma list")
+    parser.add_argument(
+        "--real-models", action="store_true", help="production's Luna and Jev adapters over OpenRouter"
+    )
+    parser.add_argument(
+        "--model-cache", default=None, help="with --real-models: the directory of cached answers (none: off)"
+    )
     args = parser.parse_args()
     now = datetime.fromisoformat(args.now)
     operations = frozenset(o for o in args.operations.split(",") if o)
-    app, document = build(now, operations)
+    models = None
+    if args.real_models:
+        models = RealModels(FixedClock(now), Path(args.model_cache) if args.model_cache else None)
+    app, document = build(now, operations, models)
     out = Path(args.keys_out)
     out.write_text(json.dumps(document, indent=2) + "\n")
     uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning", access_log=False)

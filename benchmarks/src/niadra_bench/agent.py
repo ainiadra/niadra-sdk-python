@@ -12,6 +12,7 @@ so its score is whether the block holds the answer. It needs no model and no key
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import os
 from dataclasses import dataclass, field
@@ -78,6 +79,21 @@ class ChatClient:
     api_key: str = field(default_factory=lambda: os.environ.get("OPENROUTER_API_KEY", ""))
     transport: httpx.AsyncBaseTransport | None = None
     _http: httpx.AsyncClient | None = None
+    # What the answered calls cost, from each answer's `usage` (OpenRouter's `cost` in US dollars).
+    _usage: dict[str, Any] = field(
+        default_factory=lambda: {"calls": 0, "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+    )
+
+    def usage(self) -> dict[str, Any]:
+        return {**self._usage, "cost_usd": round(self._usage["cost_usd"], 6)}
+
+    def _count(self, data: dict[str, Any]) -> None:
+        usage = data.get("usage") or {}
+        self._usage["calls"] += 1
+        with contextlib.suppress(TypeError, ValueError):
+            self._usage["input_tokens"] += int(usage.get("prompt_tokens") or 0)
+            self._usage["output_tokens"] += int(usage.get("completion_tokens") or 0)
+            self._usage["cost_usd"] += float(usage.get("cost") or 0.0)
 
     async def complete(self, call: ModelCall, messages: list[dict[str, str]], **extra: Any) -> str:
         if not self.api_key:
@@ -105,6 +121,7 @@ class ChatClient:
             if "error" in data:
                 await asyncio.sleep(min(30.0, 2.0 * 2**attempt))
                 continue
+            self._count(data)
             return str(data["choices"][0]["message"].get("content") or "").strip()
         raise RuntimeError(f"{call.model} kept failing")
 
