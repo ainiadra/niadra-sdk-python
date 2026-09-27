@@ -112,12 +112,13 @@ what a Niadra buyer buys.
   REST API, and no line of it is in this repository.
 - **Niadra as documented.** The SDK is the current release on PyPI (`niadra==0.5.0`; the first run
   installed 0.1.5 and run 2026-09-25-6efee4 0.3.0, whose read path is the same for a read with its own
-  `query`). 0.4.0 is the first that puts memory v2's `slots` in `turn_block` (0.3.0 drops the field), so
-  a run with `memory_v2` on measures what an agent gets only from 0.4.0 on; its turn block is the live
-  turns, the slots, then the delta, where 0.3.0 put the delta first. Each exchange is a batch of `message` events with its
+  `query`). 0.4.0 is the first that puts the turn's `slots` in `turn_block` (0.3.0 drops the field), so
+  a run measures what an agent gets only from 0.4.0 on; its turn block is the live turns, the slots,
+  then the delta, where 0.3.0 put the delta first. Each exchange is a batch of `message` events with its
   `occurred_at` and a `conversation.ended`, system records are `system_event`s, the billing agent's
   records are `action`s, and every probe verifies the call or chat before `context()`, as the voice
-  and WhatsApp guides show; the question goes in `query`, which only ranks the pack's items by its words. The billing agent has a source of its own that
+  and WhatsApp guides show; the question goes in `query`, which picks the turn's slots and never changes
+  the pinned pack. The billing agent has a source of its own that
   declares the operations it records (`credit`, `refund`, `refund_fee`, `reimburse`, `redeliver`), the
   way the internal agents guide tells a company to set it up: the harness creates it once through the
   control API with the sandbox's admin account and issues a key per run, revoked at the end
@@ -164,7 +165,7 @@ what a Niadra buyer buys.
 
 ### Guard lines
 
-A memory v2 space writes a guard line (`[Guarda]` / `[Guard]`, in the turn block's slots) for a kind of
+A space writes a guard line (`[Guarda]` / `[Guard]`, in the turn block's slots) for a kind of
 value (a date, an amount, a protocol, an order...) only after its measurement counted agents contradicting
 a value of that kind in the last 30 days (`context_use_guard_daily`), and only when a system of record or a
 human agent settled the value the customer's turn asks for. A fresh benchmark space has no such count, so a
@@ -175,11 +176,9 @@ run sees no guard lines unless it makes them appear, and says how:
   fields a checked turn carries (`backing`: the count and the kinds of the values without a source, never a
   value), and ends the conversation. Niadra's measurement then counts the contradictions, and the read path
   (which rereads the contradicted types once a minute) writes guards in the reads after it: in practice the
-  repetitions after the first. Needs `memory_v2` on (`--niadra-memory-v2 on`); the writes go through the
-  production caps. `summary.json` records it (`config.niadra_guards`).
+  repetitions after the first. The writes go through the production caps. `summary.json` records it (`config.niadra_guards`).
 - **On a local cell, seed:** `NIADRA_BENCH_GUARD_TYPES=<types>` in a side's settings (for example
-  `bench ab --local-cell ... --baseline-env NIADRA_MEMORY_V2=on --candidate-env
-  NIADRA_BENCH_GUARD_TYPES=date,amount,protocol,order`) starts every customer's cell with one contradiction
+  `bench ab --local-cell ... --candidate-env NIADRA_BENCH_GUARD_TYPES=date,amount,protocol,order`) starts every customer's cell with one contradiction
   of each type measured today; the cell's `cell.json` lists the seeded types. The region's rows are never
   written by the harness.
 
@@ -421,24 +420,18 @@ theirs changed.
 
 Secrets, by name only: the host reads `niadra/platform/openrouter` (property `api_key`) and
 `niadra/tenant/bootstrap` (the sandbox tenant's source keys and admin account, which the billing agent's
-source and the `memory_v2` flag need) with its own role, into root-only files, and gives the harness the
+source needs) with its own role, into root-only files, and gives the harness the
 bootstrap as a read-only file and the provider key through the environment of its gateways and its agent.
 The local systems' own tokens and database passwords are random, generated on the host.
 
-`start` and `campaign` take any `bench run` arguments, `--niadra-memory-v2 on|off` among them (the flag
-lives at `settings/memory_v2`; two runs with different values must not overlap in the same space). The
-flag is a configuration diff, and the four-eyes rule lets its author approve it only while no other
-person of the tenant can: since the sandbox's tenant has a second admin (26/09/2026), a run that would
-change the flag withdraws its diff and stops (`FlagRefusedError`), and so does `bench ab` in the region.
-A person of the tenant sets the flag in the Console, and the run is started without the option.
+`start` and `campaign` take any `bench run` arguments.
 Every run but the first of a campaign can take `--no-references`: `bench combine` decides validity with the
 first folder's references only, so asking them again in each run spends the agent and the judge on answers
 nothing reads (two target passes per repetition). The first run keeps them, needs every case and the most
 repetitions, and `bench combine` refuses a first folder without them:
 
 ```bash
-deploy/temp-host/bench.sh start niadra --dataset v2 --niadra-memory-v2 off
-deploy/temp-host/bench.sh start niadra --dataset v2 --niadra-memory-v2 on
+deploy/temp-host/bench.sh start niadra --dataset v2
 ```
 
 Expected duration per repetition of dataset v2 (356 cases, about 2,330 conversations), not yet measured:
@@ -485,7 +478,7 @@ The registry finds the class by its key; `bench run --systems <key>` measures it
 by figure. The candidate differs from the baseline by `--candidate-env KEY=VALUE` (repeatable), a setting
 of the Niadra server under test, or by `--candidate-config <file.toml>`, whose sections override
 `benchmark.toml`'s. A key only the candidate sets runs on the baseline at its default
-(`NIADRA_MEMORY_V2=off`, `NIADRA_SEMANTIC_CHANNEL=off`; any other key needs `--baseline-env`), so both
+(`NIADRA_SEMANTIC_CHANNEL=off`, `NIADRA_BENCH_GUARD_TYPES` empty; any other key needs `--baseline-env`), so both
 sides say what they ran with. Everything else is equal: the same cases in the same order, seeded from the
 same instant (the start of the hour the A/B began, `--now`), the same agent and judge, repetition by
 repetition (baseline 1, candidate 1, baseline 2, ...). Both sides are graded on the same valid cases: the
@@ -518,7 +511,7 @@ Where the two sides run:
   hash embeddings and the real rule gate of `models/`, a clock fixed at `--now` (default: the hour the
   A/B started), and one in-memory cell per customer and repetition (the in-memory store is copied to open
   each transaction; a cell per customer keeps a side of dataset v2 at about five minutes a repetition on
-  a laptop). What a space learns across customers (memory v2's nightly weights) does not run here. The
+  a laptop). What a space learns across customers (the nightly retrieval weights) does not run here. The
   agent is `context` unless `--agent llm` (which needs `OPENROUTER_API_KEY`).
   `NIADRA_SEMANTIC_CHANNEL=models` gives the read path the hash encoder; `inprocess` needs the model
   files and is refused. Results go to `results/local/ab/`, which is not committed. These numbers compare
@@ -527,10 +520,9 @@ Where the two sides run:
 - **The emulator** (`--mock`): niadra-mock on both sides. It has no server settings, so it runs only
   `--same`; the CI runs it.
 - **The region** (neither option, from the temporary host): the Niadra of `NIADRA_BOOTSTRAP`, read and
-  written within the production caps (config `[production]`). The harness
-  changes only what the bootstrap's admin account changes through the control API, the space's settings:
-  `NIADRA_MEMORY_V2` (as `--niadra-memory-v2` does, put back at the end of each side's repetition). A
-  setting of the read deployment's process, such as `NIADRA_SEMANTIC_CHANNEL`, is refused there: that
+  written within the production caps (config `[production]`). The sides
+  differ there only by `--candidate-config`. A setting of the read deployment's process, such as
+  `NIADRA_SEMANTIC_CHANNEL`, is refused: that
   deployment also serves production; that A/B runs on a local cell until the region has a read deployment
   of the benchmark's own. The two sides seed different customers (the same cases) into the same space,
   one after the other. `[ab] max_minutes` in `config/ab.toml` (450) stops an A/B before a repetition that
@@ -543,29 +535,27 @@ sync` there): a checkout that moves mid-run leaves the cell with code from two c
 ```bash
 # On a laptop, against a niadra-back checkout (its environment synced with `uv sync`):
 uv run bench ab --local-cell ../../niadra-back --same --dataset v2
-uv run bench ab --local-cell ../../niadra-back --candidate-env NIADRA_MEMORY_V2=on --dataset v2
-uv run bench ab --local-cell ../../niadra-back --baseline-env NIADRA_MEMORY_V2=on \
-    --candidate-env NIADRA_SEMANTIC_CHANNEL=models --dataset v2
+uv run bench ab --local-cell ../../niadra-back --candidate-env NIADRA_SEMANTIC_CHANNEL=models --dataset v2
 # A branch against main: the candidate runs on its own checkout.
 uv run bench ab --local-cell ../../niadra-back --candidate-cell ../../wt/niadra-back-mybranch \
-    --baseline-env NIADRA_MEMORY_V2=on --dataset v2
+    --dataset v2
 
 # In the region, from the temporary host (see "Running it on the temporary host"; `collect` copies
 # results/ab/<date>-<id>/ too):
 deploy/temp-host/bench.sh ab --same --dataset v2
-deploy/temp-host/bench.sh ab --candidate-env NIADRA_MEMORY_V2=on --dataset v2
+deploy/temp-host/bench.sh ab --candidate-config <file.toml> --dataset v2
 ```
 
 ## Ranking gate
 
-No change to how memory v2 picks and orders what a pack carries enters niadra-back's `main` without its
+No change to how the memory picks and orders what a pack and its slots carry enters niadra-back's `main` without its
 delta attached to the pull request: `domain/serve/slots.py`, `domain/compile/scoring.py`,
 `domain/measure/weights.py`, `DEFAULT_WEIGHTS`, and any flag that turns a retrieval channel on. The delta
 is `bench ab` with the change as the candidate (a flag, or the branch's checkout as `--candidate-cell`
 against `main`'s as `--local-cell`), on dataset v2, three repetitions, with `bench ab --same` passing on
 the same checkout first; the PR carries `ab.md`. A category that loses accuracy or `context_has_answer`
 beyond the range of its repetitions blocks the change, as do median tokens that rise without an accuracy
-gain. Turning `memory_v2` or the semantic channel on by default also needs the region's A/B, committed
+gain. Turning the semantic channel on by default also needs the region's A/B, committed
 under `results/ab/`, and the decision cites that file.
 
 ## Publishing

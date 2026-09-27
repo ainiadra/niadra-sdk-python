@@ -3,7 +3,7 @@
 Both sides answer the same cases, repetition by repetition (baseline 1, candidate 1, baseline 2, ...),
 with everything else equal: the same frozen configuration unless `--candidate-config` overrides sections
 of it, the same agent and judge, the same seeding order. The candidate differs by `--candidate-env
-KEY=VALUE` (repeatable), a setting of the Niadra server under test, such as `NIADRA_MEMORY_V2=on` or
+KEY=VALUE` (repeatable), a setting of the Niadra server under test, such as
 `NIADRA_SEMANTIC_CHANNEL=models`. A key the candidate sets and the baseline does not is set on the
 baseline too, to its default (`DEFAULTS`), so both sides say what they ran with.
 
@@ -16,10 +16,9 @@ Where the two sides run:
   no key; the numbers are for the team and never published.
 - `--mock`: both sides are niadra-mock in-process. It has no server settings, so only `--same` runs;
   it is the check the CI runs.
-- neither: the Niadra of NIADRA_BOOTSTRAP (the region, from the temporary host). There the harness can
-  change only what the bootstrap's admin account changes through the control API, the space's settings
-  (`SPACE_SETTINGS`): `NIADRA_MEMORY_V2`. A setting of the read deployment's process is refused, because
-  the region's read deployment also serves production. The two sides seed different customers (the same
+- neither: the Niadra of NIADRA_BOOTSTRAP (the region, from the temporary host). There the sides differ
+  only by `--candidate-config`: a setting of the read deployment's process is refused, because the
+  region's read deployment also serves production. The two sides seed different customers (the same
   cases) into the same space, one after the other.
 
 `--same` is the determinism check: the candidate is the baseline again. Every accuracy figure and every
@@ -68,18 +67,13 @@ CELL_SERVER = bench_config.ROOT / "deploy" / "local" / "cell_server.py"
 LOCAL_RESULTS = bench_config.RESULTS_DIR / "local" / "ab"
 #: The value a side runs with when it does not set a key the other side sets: the server's default.
 DEFAULTS = {
-    "NIADRA_MEMORY_V2": "off",
     "NIADRA_SEMANTIC_CHANNEL": "off",
     # A local cell's seeded guard types (deploy/local/cell_server.py): none by default.
     "NIADRA_BENCH_GUARD_TYPES": "",
 }
-#: Keys that are a space setting, which the harness sets through the control API in the region.
-SPACE_SETTINGS = {"NIADRA_MEMORY_V2": "memory_v2"}
 #: What `bench ab` measures unless `--metrics` says otherwise: accuracy, context_has_answer, tokens,
 #: privacy and cost from one pass, and the latency of metrics 1, 8 and 9.
 DEFAULT_METRICS = ("accuracy", "tokens", "privacy", "cost", "latency", "history", "ingest")
-_TRUE = ("on", "true", "1", "yes")
-_FALSE = ("off", "false", "0", "no")
 
 log = logging.getLogger("niadra_bench")
 
@@ -161,15 +155,6 @@ def candidate_config(path: Path, config_dir: Path = bench_config.CONFIG_DIR) -> 
     config = BenchConfig.model_validate(_merge(base, override))
     digest = bench_config.config_hash(config_dir)
     return config, digest + "+" + hashlib.sha256(path.read_bytes()).hexdigest()[:16]
-
-
-def _flag(value: str) -> bool:
-    lowered = value.lower()
-    if lowered in _TRUE:
-        return True
-    if lowered in _FALSE:
-        return False
-    raise AbError(f"{value!r} is not on or off")
 
 
 def _free_port() -> int:
@@ -324,7 +309,7 @@ class Ab:
             raise AbError("niadra-mock has no server settings: with --mock, only --same runs")
         if self.options.local_cell or self.options.mock:
             return
-        process = sorted(k for k in env if k not in SPACE_SETTINGS)
+        process = sorted(env)
         if process:
             raise AbError(
                 f"{', '.join(process)}: a setting of the read deployment's process, which in the region "
@@ -339,9 +324,6 @@ class Ab:
 
     def _run_for(self, side: Side) -> Run:
         opts = self.options
-        memory_v2: bool | None = None
-        if not opts.local_cell and not opts.mock and "NIADRA_MEMORY_V2" in side.env:
-            memory_v2 = _flag(side.env["NIADRA_MEMORY_V2"])
         # A local cell per side holds only that side's customers, so both seed the same people; in the
         # region both sides share the space and seed different people.
         same_people = bool(opts.local_cell or opts.mock)
@@ -354,7 +336,6 @@ class Ab:
             limit=opts.limit,
             quick=opts.quick,
             dataset=opts.dataset,
-            memory_v2=memory_v2,
             references=side.name == "baseline",
             tag=tag,
             # Both sides seed from the same instant, so every event carries the same time on both: a

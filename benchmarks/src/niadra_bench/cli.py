@@ -2,8 +2,7 @@
 
 bench prepare [--check] [--dataset v1|v2]   write dataset/ (v1) and dataset/v2/ from the generator
                                             (or check the committed copies)
-bench run [options]              seed, measure and write results/<date>-<id>/ (--dataset v1|v2,
-                                 --niadra-memory-v2 on|off)
+bench run [options]              seed, measure and write results/<date>-<id>/ (--dataset v1|v2)
 bench report <results dir>       rebuild summary.json from the repetitions of a run
 bench ab [options]               a baseline and a candidate on the same cases, and the delta
                                  (--candidate-env KEY=VALUE, --same, --local-cell <niadra-back>)
@@ -99,7 +98,6 @@ def _run(args: argparse.Namespace) -> int:
         quick=args.quick,
         output=Path(args.output) if args.output else None,
         dataset=args.dataset,
-        memory_v2=None if args.niadra_memory_v2 is None else args.niadra_memory_v2 == "on",
         niadra_record_answers=args.niadra_guards == "measure",
         references=not args.no_references,
     )
@@ -267,18 +265,11 @@ def main(argv: list[str] | None = None) -> None:
         help="dataset version (default: v1, the dataset of the published runs)",
     )
     run.add_argument(
-        "--niadra-memory-v2",
-        choices=["on", "off"],
-        default=None,
-        help="set Niadra's memory_v2 space flag for the run through the control API, and put it back "
-        "at the end (default: leave the space as it is)",
-    )
-    run.add_argument(
         "--niadra-guards",
         choices=["off", "measure"],
         default="off",
         help="measure: record every Niadra probe answer back to it as the agent's message, so its "
-        "measurement counts the values agents contradicted and memory v2 writes guard lines in later reads",
+        "measurement counts the values agents contradicted and the server writes guard lines in later reads",
     )
     run.set_defaults(func=_run)
 
@@ -287,7 +278,8 @@ def main(argv: list[str] | None = None) -> None:
         "--candidate-env",
         action="append",
         metavar="KEY=VALUE",
-        help="a Niadra server setting the candidate runs with (repeatable), e.g. NIADRA_MEMORY_V2=on",
+        help="a Niadra server setting the candidate runs with (repeatable), "
+        "e.g. NIADRA_SEMANTIC_CHANNEL=models",
     )
     ab.add_argument(
         "--baseline-env",

@@ -234,11 +234,11 @@ def test_conversation_pins_captures_and_ends(respx_mock: respx.MockRouter, clien
         conversation.action("note", object="invoice:erp:0823", speaker="human_agent")
         conversation.handoff("human", reason="wants a person")
     assert current_session() is None
-    # The first read sent the customer's turn; the answer had no slots (a space without memory v2),
-    # so the conversation read its pinned pack at once, and stopped sending the turn.
+    # Each read sent the customer's turn, which picks that turn's slots: a read with a turn always goes
+    # to the API, and the pack it keeps is the conversation's pinned one.
     assert context.call_count == 2
     first, second = (json.loads(call.request.content) for call in context.calls)
-    assert first["query"] == "I was charged twice" and "query" not in second
+    assert first["query"] == second["query"] == "I was charged twice"
     assert body(context)["conversation_id"] == "c-1"
     client.flush()
     items = [i for call in batch.calls for i in json.loads(call.request.content)["items"]]
@@ -362,24 +362,6 @@ def test_a_conversation_keeps_every_delta_until_the_pack_changes(
     assert third.turn_block == "[New] credit of R$ 40\n\n[New] visit rescheduled"
     assert fourth.turn_block == third.turn_block, "a repeated delta is kept once"
     assert (repinned.text, repinned.turn_block) == ("<context>V2</context>", "")
-
-
-def test_a_read_with_a_query_leaves_the_conversation_alone(
-    respx_mock: respx.MockRouter, client: Niadra
-) -> None:
-    respx_mock.post(f"{BASE}/v1/context").mock(
-        side_effect=[
-            httpx.Response(200, json=context_payload()),
-            httpx.Response(200, json=context_payload(etag="q-1", text="<context>about billing</context>")),
-            httpx.Response(200, json=context_payload(delta="[New] refund")),
-        ]
-    )
-    with client.conversation("c-1", subject=MARINA) as conversation:
-        conversation.context(use_cache=False)
-        focused = conversation.context(query="billing", use_cache=False)
-        after = conversation.context(use_cache=False)
-    assert focused.etag == "q-1"
-    assert after.turn_block == "[New] refund"
 
 
 def test_an_empty_answer_drops_the_deltas(respx_mock: respx.MockRouter, client: Niadra) -> None:

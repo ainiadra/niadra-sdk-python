@@ -48,7 +48,7 @@ async def test_a_dry_run_against_niadra_mock_writes_a_complete_summary(
     niadra = next(r for r in summary["metrics"]["accuracy"]["results"] if r["system"] == "niadra")
     assert len(niadra["deterministic"]["runs"]) == 2
     assert set(niadra["by_category"]) == set(BASE_CATEGORIES)
-    assert summary["dataset"]["version"] == "v1" and summary["config"]["niadra_memory_v2"] == "unchanged"
+    assert summary["dataset"]["version"] == "v1"
     privacy = next(r for r in summary["metrics"]["privacy"]["results"] if r["system"] == "niadra")
     assert privacy["leaks"]["median"] == 0  # the mock withholds the V2 session from a V0 read
     resilience = {r["fault"]: r for r in summary["metrics"]["resilience"]["results"]}

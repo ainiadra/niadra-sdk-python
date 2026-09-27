@@ -25,8 +25,8 @@ pipeline = Pipeline(
   `system` or `developer` messages and the turn block at the end. The blocks it placed on the
   previous turn are taken out first, so the shared context never piles them up. A speculative
   inference gets them too, in its provisional copy. The read sends the user's turn (the last
-  user message of the context) along, so a space with memory v2 answers with what that turn
-  needs from memory, last in the turn block.
+  user message of the context) along, and the answer carries what that turn needs from memory,
+  last in the turn block.
 - **Prefetch.** `prefetcher()` is a second processor, for right after the STT service (the user
   aggregator consumes the interim transcripts): on each `InterimTranscriptionFrame` and
   `TranscriptionFrame` it sends the turn so far with `prefetch()`, in the background, so the

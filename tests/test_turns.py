@@ -1,6 +1,5 @@
-"""Memory v2 on the SDK side: the customer's turn goes as `query`, the slots land last in the turn
-block, the pack stays pinned, a space without memory v2 keeps its old reads, and `prefetch()` never
-holds or fails a turn."""
+"""The customer's turn on the SDK side: it goes as `query`, the slots land last in the turn block, the
+pack stays pinned, and `prefetch()` never holds or fails a turn."""
 
 from __future__ import annotations
 
@@ -16,7 +15,6 @@ import pytest
 import respx
 
 from niadra import AsyncNiadra, Niadra, phone
-from niadra._turns import RECHECK_AFTER, TurnSupport
 from niadra.models.results import Context, render_turn
 from niadra.options import CacheOptions
 from niadra_mock import MOCK_KEY, MockApp
@@ -67,7 +65,6 @@ def recording(mock_app: MockApp) -> MockApp:
 
 
 def test_the_turn_goes_as_query_and_its_slots_come_last(recording: MockApp, on_mock: Niadra) -> None:
-    recording.cell.enable_memory_v2()
     _history(on_mock)
     with on_mock.conversation("voice-1", subject=MARINA, channel="voice", view="voice") as call:
         call.customer("What was the protocol you sent me by email?")
@@ -94,7 +91,6 @@ def test_the_turn_goes_as_query_and_its_slots_come_last(recording: MockApp, on_m
 
 
 def test_the_slots_are_never_cached(recording: MockApp, mock_app: MockApp) -> None:
-    recording.cell.enable_memory_v2()
     http = httpx.Client(transport=httpx.WSGITransport(app=mock_app.wsgi))
     niadra = Niadra(MOCK_KEY, base_url="http://mock", channel="whatsapp", strict=True, http_client=http)
     _history(niadra)
@@ -112,7 +108,6 @@ def test_the_slots_are_never_cached(recording: MockApp, mock_app: MockApp) -> No
 
 
 def test_the_pack_as_data_types_the_slots(recording: MockApp, on_mock: Niadra) -> None:
-    recording.cell.enable_memory_v2()
     _history(on_mock)
     with on_mock.conversation("wa-3", subject=MARINA) as chat:
         chat.customer("Is order 99123 the one with protocol 81220?")
@@ -133,7 +128,6 @@ def test_the_pack_as_data_types_the_slots(recording: MockApp, on_mock: Niadra) -
 
 
 def test_explain_adds_why_to_each_slot(recording: MockApp, on_mock: Niadra) -> None:
-    recording.cell.enable_memory_v2()
     _history(on_mock)
     with on_mock.conversation("wa-explain", subject=MARINA) as chat:
         chat.customer("Is order 99123 the one with protocol 81220?")
@@ -171,33 +165,7 @@ def test_explain_fails_open_without_strict() -> None:
     lenient.close()
 
 
-def test_a_space_without_memory_v2_keeps_its_pinned_reads(recording: MockApp, on_mock: Niadra) -> None:
-    _history(on_mock)
-    plain = on_mock.context(MARINA, conversation_id="reference")
-    with on_mock.conversation("wa-4", subject=MARINA) as chat:
-        chat.customer("the protocol from the email")
-        first = chat.context()
-        chat.customer("thanks")
-        second = chat.context()
-    sent = _bodies(recording)[1:]
-    assert [b.get("query") for b in sent] == ["the protocol from the email", None, None]
-    assert first.text == plain.text and second.text == plain.text, "the pinned pack, as before"
-    assert first.slots is None and on_mock._core.turns.reads_turn is False
-
-
-def test_the_turn_is_asked_again_after_a_while(respx_mock: respx.MockRouter, client: Niadra) -> None:
-    route = respx_mock.post(f"{BASE}/v1/context").respond(200, json=context_payload())
-    now = [1000.0]
-    client._core.turns = TurnSupport(clock=lambda: now[0])
-    client.context(MARINA, conversation_id="c-1", turn="first turn")
-    client.context(MARINA, conversation_id="c-1", turn="second turn", use_cache=False)
-    now[0] += RECHECK_AFTER
-    client.context(MARINA, conversation_id="c-1", turn="third turn", use_cache=False)
-    queries = [json.loads(call.request.content).get("query") for call in route.calls]
-    assert queries == ["first turn", None, None, "third turn", None]
-
-
-def test_an_old_server_without_slots_keeps_working(respx_mock: respx.MockRouter, client: Niadra) -> None:
+def test_an_answer_without_slots_keeps_the_turn_block(respx_mock: respx.MockRouter, client: Niadra) -> None:
     live = [
         {
             "at": "2026-09-22T16:39:00Z",
@@ -232,13 +200,15 @@ def test_a_failed_turn_read_serves_the_pinned_pack(respx_mock: respx.MockRouter,
     assert second.slots is None, "a pack from the cache never carries an earlier turn's slots"
 
 
-def test_an_explicit_query_is_a_one_off_read(respx_mock: respx.MockRouter, client: Niadra) -> None:
+def test_an_explicit_query_picks_the_slots_and_keeps_the_pin(
+    respx_mock: respx.MockRouter, client: Niadra
+) -> None:
     route = respx_mock.post(f"{BASE}/v1/context").respond(200, json=context_payload())
     with client.conversation("c-1", subject=MARINA) as chat:
         chat.customer("my turn")
         chat.context(query="invoices")
     assert [json.loads(call.request.content)["query"] for call in route.calls] == ["invoices"]
-    assert chat._etag is None, "a focused read leaves the conversation's pin alone"
+    assert chat._etag == "etag-1", "the pack is the conversation's pinned one, as on any read"
 
 
 def test_the_holdout_turn_block_stays_empty() -> None:
@@ -255,7 +225,6 @@ async def until(condition: Callable[[], bool], timeout: float = 5.0) -> None:
 
 
 async def test_prefetch_sends_the_partial_turn(mock_app: MockApp, on_mock_async: AsyncNiadra) -> None:
-    mock_app.cell.enable_memory_v2()
     async with on_mock_async.conversation("call-1", subject=MARINA, channel="voice", view="voice") as call:
         assert call.prefetch("hm") is False, "too short to say anything"
         assert call.prefetch("what was the protocol") is True
@@ -307,9 +276,3 @@ def test_prefetch_from_the_sync_client(mock_app: MockApp, on_mock: Niadra) -> No
     assert on_mock._prefetcher is not None
     on_mock._prefetcher.shutdown(wait=True)
     assert [p.query for p in mock_app.cell.prefetches] == ["the bill came twice this month"]
-
-
-def test_prefetch_is_skipped_where_the_space_reads_no_turns(on_mock: Niadra) -> None:
-    on_mock._core.turns.observe(Context(text="<context/>"))
-    with on_mock.conversation("call-5", subject=MARINA, view="voice") as call:
-        assert call.prefetch("the bill came twice this month") is False

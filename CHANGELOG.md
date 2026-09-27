@@ -4,12 +4,33 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - Unreleased
+
+The memory has one behavior: every read that carries the customer's turn gets the conversation's
+pinned pack and that turn's slots.
+
+### Changed
+
+- A read with a turn, or with its own `query`, always goes to the API and always settles as a read
+  of the pinned pack: the pack is cached as the read without `query`, and the slots never are. An
+  explicit `query` in a conversation no longer leaves the conversation's pack and deltas alone: it
+  picks the slots by those words, and the pack is the pinned one.
+- `niadra-mock` always answers a read's `query` with `slots` (none for `brief` and `full`, as the
+  server), never with a pack compiled for it.
+- The `spec/` copy carries only `context-pack.v1`, the one version the SDK reads.
+
+### Removed
+
+- The fallback for a space that answered a turn without slots: the second read of the pinned pack
+  within the same budget, and the ten minutes without sending the turn after such an answer.
+- The emulator's switch for the slots and its command-line flag.
+- `spec/context-pack.v0.json` and its example.
+
 ## [0.5.0] - 2026-09-26
 
 ### Added
 
-- `explain=True` on `context()` and `ContextRequest` (sync and async clients), memory v2 only:
-  requires `format="json"` (raises `ValueError` otherwise) and adds `why` to each of
+- `explain=True` on `context()` and `ContextRequest` (sync and async clients): requires `format="json"` (raises `ValueError` otherwise) and adds `why` to each of
   `pack.slots`, a `SlotWhy` naming the retrieval channels that ranked the item (`SlotChannelRank`:
   `channel`, `position`, `weight`, `contribution`), the fused `score`, the `weights_version` used
   and, for a derived line, the `rule` and `basis` behind it. It changes nothing else: the pinned
@@ -32,7 +53,7 @@ All notable changes to this project are documented here. The format follows
   strict=True)` returns the values with no source (a list of `UnbackedValue`, a card or document
   number masked) instead of sending the turn, and an empty list when it sent it. The check never
   fails a turn and costs well under 5 ms an answer.
-- Guard lines (memory v2): `ContextResponse.guards` (`PackGuard`: `id`, `value_type`, `value`),
+- Guard lines: `ContextResponse.guards` (`PackGuard`: `id`, `value_type`, `value`),
   `PackSlot.id` (the short id of the item a slot line states) and `section="guard"` for a guard
   line. `agent()` checks the answer against the latest guard of each kind and names the ones it went
   against on the turn, which the server turns into a `guard.violated` webhook at once; with
@@ -41,7 +62,7 @@ All notable changes to this project are documented here. The format follows
   `niadra.UnbackedValue`. `ToolKit` and `AsyncToolKit` take `observe=`, called with each tool
   result.
 - `niadra_mock`: `MockCell.add_guard(handle, value_type, value)` serves a guard line with the slots of
-  memory v2 reads.
+  a read with a turn.
 
 ## [0.4.0] - 2026-09-25
 
@@ -65,15 +86,14 @@ All notable changes to this project are documented here. The format follows
   `forget_status`, and `export`. They fail open like the rest of the SDK.
 - Models: `IngestStatus`, `KeyIdentity`, `ProfileMemory`, `FactOut`, `FactHistory`, `FactRelation`, `ProfileMatch`,
   `CorrectionRequest`, `Erasure`, `ExportPackage`.
-- Memory v2 on the read path. A conversation sends the customer's last turn (the text of the last
-  `customer()`) as `query` on every `context()`; `turn=` passes another one and `turn=None` sends
-  none. In a space with memory v2 the answer keeps the pinned pack and adds `slots`, what that
-  turn selected from memory, which `turn_block` places after the live turns and before the delta,
-  as the API documents it, so every integration gets it with no change. The pack is cached as the read without `query` and
-  the slots never are. A space without memory v2 compiles a read with `query` for it and does not
-  pin it: after one such answer the client reads the pinned pack instead, within the same budget,
-  and stops sending the turn for ten minutes. `Niadra.context()` and `AsyncNiadra.context()` take
-  `turn=` too.
+- The customer's turn on the read path. A conversation sends the customer's last turn (the text of
+  the last `customer()`) as `query` on every `context()`; `turn=` passes another one and
+  `turn=None` sends none. The answer keeps the pinned pack and adds `slots`, what that turn
+  selected from memory, which `turn_block` places after the live turns and before the delta, as the
+  API documents it, so every integration gets it with no change. The pack is cached as the read
+  without `query` and the slots never are. An answer without slots made the client read the
+  pinned pack again and stop sending the turn for ten minutes (removed in 0.6.0).
+  `Niadra.context()` and `AsyncNiadra.context()` take `turn=` too.
 - The pack as data follows `context-pack.v1`: `ContextPack.slots` lists the turn's lines typed as
   `PackSlot` (`section`, `derived`: `count`, `no_record` or `withheld`, `channels`, `text`);
   `ContextResponse.slots` is the rendered block. Both are optional: an answer without them reads as
@@ -88,9 +108,9 @@ All notable changes to this project are documented here. The format follows
   the last user message as the turn of each read; Pipecat has `memory.prefetcher()`, a processor
   for right after the STT service that prefetches on interim and final transcripts, and passes the
   last user message as the turn.
-- `niadra-mock`: `enable_memory_v2()` (and `--memory-v2`) answers a read's `query` with `slots`
-  instead of a pack compiled for it; `POST /v1/context/prefetch` answers 202 and keeps each request
-  in `cell.prefetches`. Models: `PackSlot`, `PrefetchRequest`.
+- `niadra-mock`: a switch made it answer a read's `query` with `slots` instead of a pack compiled
+  for it (it always does since 0.6.0); `POST /v1/context/prefetch` answers 202 and keeps each
+  request in `cell.prefetches`. Models: `PackSlot`, `PrefetchRequest`.
 
 ### Changed
 

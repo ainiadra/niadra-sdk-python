@@ -18,13 +18,12 @@ What stands in for the cloud, the same on both sides of an A/B:
 - the clock: fixed at `--now`, the instant the harness also seeds from.
 
 The process environment picks the variant, as the read deployment's would:
-- `NIADRA_MEMORY_V2` on/off: the space's `memory_v2` setting (off by default, as a new space);
 - `NIADRA_SEMANTIC_CHANNEL` off/models: `models` gives the read path the query encoder, here the hash
   encoder above (`inprocess` needs the model files and is refused);
 - `NIADRA_SEMANTIC_DEADLINE_MS`: the semantic channel's deadline;
 - `NIADRA_BENCH_GUARD_TYPES` (comma list of value types, e.g. `amount,date,protocol`; empty by default):
   every customer's cell starts with one contradiction of each type measured today in
-  `context_use_guard_daily` (the guards arm), which is what makes a memory v2 space write guard lines for
+  `context_use_guard_daily` (the guards arm), which is what makes a space write guard lines for
   those types; without it a space writes none until its measurement has counted agents contradicting
   them (in the region, `bench run --niadra-guards measure` records the answers that measurement reads).
 Any other `NIADRA_*` variable stays in the environment for backend code that reads it directly.
@@ -99,7 +98,6 @@ class _PickleCopy:
 
 
 memory_uow.copy = _PickleCopy  # type: ignore[assignment]
-ON = ("on", "true", "1", "yes")
 
 
 def _flag(name: str, default: str) -> str:
@@ -208,7 +206,7 @@ class RuleExtractor:
         return LlmResult(content=content, model="rule-extractor", provider="local", usage=usage)
 
 
-def space_config(operations: frozenset[str], memory_v2: bool) -> SpaceConfig:
+def space_config(operations: frozenset[str]) -> SpaceConfig:
     """The benchmark's sandbox space as the harness sets it up: the starter policy and extraction schema,
     a WhatsApp and a voice source, and the billing agent's own source declaring the dataset's operations
     (`src/niadra_bench/sources.py`)."""
@@ -218,7 +216,7 @@ def space_config(operations: frozenset[str], memory_v2: bool) -> SpaceConfig:
         tenant_id=TENANT_ID,
         region="us-east-2",
         environment="sandbox",
-        settings=TenantSettings(memory_v2=memory_v2),
+        settings=TenantSettings(),
         sources=[
             SourceConfig(
                 source_id=ids["whatsapp"],
@@ -288,7 +286,7 @@ class Shards:
     store for every customer of a run makes seeding quadratic: a dataset v2 customer of 60 sessions takes
     minutes after a few dozen others. Each customer's memory depends only on that customer's events, so a
     cell per customer serves the same packs, as the WP2 replay did with a fresh cell per case. What a
-    space learns across customers (the nightly weights of memory v2) does not run here either way.
+    space learns across customers (the nightly retrieval weights) does not run here either way.
 
     A request goes to its customer's cell by the case id the harness puts in every idempotency key and
     conversation id (`bench-<tag>-<case>-...`; the tag is the repetition's, so each repetition's
@@ -401,14 +399,13 @@ class ExtractRouter:
 
 
 def build(now: datetime, operations: frozenset[str]) -> tuple[Any, dict[str, Any]]:
-    memory_v2 = _flag("NIADRA_MEMORY_V2", "off") in ON
     semantic = _flag("NIADRA_SEMANTIC_CHANNEL", "off")
     if semantic not in ("off", "models"):
         raise SystemExit(
             f"NIADRA_SEMANTIC_CHANNEL={semantic}: the local cell runs `off` or `models` (no model files here)"
         )
     deadline_ms = float(os.environ.get("NIADRA_SEMANTIC_DEADLINE_MS", "30"))
-    config = StaticConfig(space_config(operations, memory_v2))
+    config = StaticConfig(space_config(operations))
     clock = FixedClock(now)
 
     def new_flow() -> Flow:
@@ -444,7 +441,6 @@ def build(now: datetime, operations: frozenset[str]) -> tuple[Any, dict[str, Any
     )
     app = create_app("local-cell", container, [read_routes.router, ingest_routes.router])
     applied = {
-        "memory_v2": memory_v2,
         "semantic_channel": semantic,
         "semantic_encoder": "hash-64" if semantic == "models" else None,
         "semantic_deadline_ms": deadline_ms,

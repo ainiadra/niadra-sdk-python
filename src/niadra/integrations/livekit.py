@@ -23,8 +23,8 @@ What `NiadraAgent` (or the `NiadraMemory` mixin on your own `Agent` class) does:
   agent this happens in `llm_node`, on a copy of the chat context, so nothing piles up in the
   agent's history and LiveKit's preemptive generation still matches. With a realtime model it
   happens in `on_user_turn_completed`, on the turn's temporary context, which LiveKit syncs.
-  The read sends the user's turn along (the last user message of the chat context), so a space
-  with memory v2 answers with what that turn needs from memory, in the turn block.
+  The read sends the user's turn along (the last user message of the chat context), and the
+  answer carries what that turn needs from memory, in the turn block.
 - **Prefetch.** While the caller speaks, the session's `user_input_transcribed` events (interim
   and final) send the turn so far with `prefetch()`, in the background: the read that answers
   the turn finds the caller's memory warm. It never holds or fails a turn.

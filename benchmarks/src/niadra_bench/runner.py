@@ -72,8 +72,6 @@ class Options:
     output: Path | None = None
     # The dataset version the cases come from (config.DATASET_VERSIONS).
     dataset: str = bench_config.DEFAULT_DATASET
-    # Niadra's `memory_v2` space flag for the run: on, off, or None to leave the space as it is.
-    memory_v2: bool | None = None
     # Dry runs only: an in-process transport to niadra-mock instead of the network.
     niadra_transport: Callable[[], httpx.AsyncBaseTransport] | None = None
     niadra_base_url: str | None = None
@@ -201,7 +199,6 @@ class Run:
             concurrency=caps.read_concurrency if caps else self.config.run.concurrency,
             control_url=ControlPlane.available(keys.document),
             operations=dataset_operations(self.cases),
-            memory_v2=self.options.memory_v2,
             seed_rate=caps.seed_batches_per_s if caps else None,
             seed_concurrency=caps.seed_concurrency if caps else None,
             settle_interval_s=caps.settle_interval_s if caps else 0.0,
@@ -532,7 +529,6 @@ class Run:
     async def summary(self, versions: dict[str, str]) -> dict[str, Any]:
         kind = "dry-run" if self.options.dry_run else os.environ.get("BENCH_ENVIRONMENT", "local")
         dataset_dir = bench_config.dataset_dir(self.options.dataset)
-        memory_v2 = self.options.memory_v2
         # Where the harness ran, from the instance metadata; Niadra's machine and database are the
         # cell's (config [environment]): the harness runs on a host of its own since 26/09/2026.
         identity = await _instance_identity() if kind == "region" else {}
@@ -586,9 +582,6 @@ class Run:
                 "ingest_duration_s": self.config.ingest.duration_s,
                 "ingest_conversations": self.config.ingest.conversations,
                 "ingest_mem0_modes": self.config.ingest.mem0_modes,
-                # Whether the run set Niadra's `memory_v2` space flag, and to what ("unchanged": the
-                # space kept its own setting, as in every run before the flag existed).
-                "niadra_memory_v2": "unchanged" if memory_v2 is None else ("on" if memory_v2 else "off"),
                 # Whether Niadra's probe answers were recorded back to it, for guard lines to appear.
                 "niadra_guards": "measure" if self.options.niadra_record_answers else "off",
                 # `context_has_answer` by whole token for values of three or more digits and by the

@@ -7,9 +7,7 @@ background queue. Reading uses `AsyncNiadra.context()`, what an agent calls befo
 Keys: `NIADRA_BOOTSTRAP` (the sandbox tenant's bootstrap.json, one key per source) or `NIADRA_API_KEY`
 (one key for every channel). `NIADRA_BASE_URL` overrides the address the SDK derives from the key. With
 `NIADRA_CONTROL_URL` and the bootstrap's admin account, the billing agent gets a source of its own that
-declares the dataset's operations, as the docs tell a customer to set it up (see `sources.py`). With
-`memory_v2` set (`bench run --niadra-memory-v2 on|off`), the same account sets the space's `memory_v2`
-flag before seeding and puts the old value back when the run ends.
+declares the dataset's operations, as the docs tell a customer to set it up (see `sources.py`).
 """
 
 from __future__ import annotations
@@ -41,7 +39,7 @@ from niadra.models.events import ActionInfo, ConversationEndedItem
 
 from niadra_bench.dataset.model import Case, Session
 from niadra_bench.identity import Identities
-from niadra_bench.sources import MEMORY_V2_FLAG, ControlPlane, IssuedKey, wait_until_served
+from niadra_bench.sources import ControlPlane, IssuedKey, wait_until_served
 from niadra_bench.targets.base import Retrieved, Stopwatch, Target
 
 # The source key each channel writes and reads with, when the bootstrap has one per source.
@@ -190,7 +188,6 @@ class NiadraTarget(Target):
         concurrency: int = 8,
         control_url: str | None = None,
         operations: list[str] | None = None,
-        memory_v2: bool | None = None,
         seed_rate: float | None = None,
         seed_concurrency: int | None = None,
         record_answers: bool = False,
@@ -215,7 +212,7 @@ class NiadraTarget(Target):
         self.overloads = 0
         self.stale_keys_revoked: list[str] = []
         # `bench run --niadra-guards measure`: every probe's answer goes back to Niadra as the agent's
-        # message, so its measurement counts the values the agent contradicted and memory v2 writes guard
+        # message, so its measurement counts the values the agent contradicted and the server writes guard
         # lines for those kinds of value in the reads after it.
         self.record_answers = record_answers
         self.answers_recorded = 0
@@ -224,9 +221,6 @@ class NiadraTarget(Target):
         self.operations = operations or []
         self._billing: IssuedKey | None = None
         self._control: ControlPlane | None = None
-        self.memory_v2 = memory_v2
-        # What the space had before the run set the flag, to put back at the end.
-        self._flag_before: tuple[bool | None] | None = None
 
     def _new_http(self, timeout: float = 30.0) -> httpx.AsyncClient:
         transport = self._transport_factory() if self._transport_factory else None
@@ -248,16 +242,6 @@ class NiadraTarget(Target):
         self._http = self._new_http()
         if self.control_url and self.keys.document:
             self._control = ControlPlane(self.control_url, self.keys.document, self._http)
-        if self.memory_v2 is not None:
-            if self._control is None:
-                raise RuntimeError(
-                    "--niadra-memory-v2 needs NIADRA_CONTROL_URL and the bootstrap's admin account"
-                )
-            # Before the billing key: the key's wait below ends when the cell serves a configuration
-            # snapshot that also carries the flag.
-            before = await self._control.set_flag(MEMORY_V2_FLAG, self.memory_v2)
-            self._flag_before = (before,)
-            log.info("memory_v2 %s for this run (was %s)", self.memory_v2, before)
         if self._control is not None and self.operations:
             self.stale_keys_revoked = await self._control.revoke_stale_keys()
             if self.stale_keys_revoked:
@@ -268,8 +252,6 @@ class NiadraTarget(Target):
             self.keys.by_source["billing"] = self._billing.secret
             self._clients.pop("billing", None)
             await wait_until_served(self._http, self.client("erp").base_url, self._billing.secret)
-        elif self.memory_v2 is not None:
-            log.warning("memory_v2 set with no billing key to wait on: the first reads may predate it")
 
     async def _post_batch(self, channel: str, items: list[dict[str, Any]]) -> None:
         assert self._http is not None
@@ -313,7 +295,6 @@ class NiadraTarget(Target):
         return {
             "refused_actions": sorted(refused),
             "declared_operations": declared,
-            **({"memory_v2": self.memory_v2} if self.memory_v2 is not None else {}),
             **({"overload_pauses": overloads} if overloads else {}),
             **({"stale_keys_revoked": len(stale)} if stale else {}),
         }
@@ -390,7 +371,7 @@ class NiadraTarget(Target):
                 "verification": context.verification.effective.value,
                 "view": view,
                 "conversation": conversation,
-                # Guard lines the read carried (memory v2's slots, in the turn block from SDK 0.4.0).
+                # Guard lines the read carried (the slots, in the turn block from SDK 0.4.0).
                 "guards": sum(
                     1 for line in (context.turn_block or "").splitlines() if GUARD_LINE.search(line)
                 ),
@@ -446,13 +427,6 @@ class NiadraTarget(Target):
             except (httpx.HTTPError, RuntimeError) as exc:
                 log.warning("the run's billing key was not revoked: %s", exc)
             self._billing = None
-        if self._control is not None and self._flag_before is not None:
-            (before,) = self._flag_before
-            try:
-                await self._control.set_flag(MEMORY_V2_FLAG, before)
-            except (httpx.HTTPError, RuntimeError) as exc:
-                log.warning("memory_v2 was not put back to %s: %s", before, exc)
-            self._flag_before = None
         if self._http is not None:
             await self._http.aclose()
 

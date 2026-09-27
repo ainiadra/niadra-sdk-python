@@ -83,35 +83,36 @@ def test_flips_list_the_valid_cases_that_changed_side() -> None:
 
 
 def test_the_baseline_gets_the_default_of_every_key_only_the_candidate_sets() -> None:
-    base, cand = ab.sides_env({}, {"NIADRA_MEMORY_V2": "on"}, same=False)
-    assert base == {"NIADRA_MEMORY_V2": "off"} and cand == {"NIADRA_MEMORY_V2": "on"}
-    base, cand = ab.sides_env({"NIADRA_MEMORY_V2": "on"}, {"NIADRA_SEMANTIC_CHANNEL": "models"}, same=False)
-    assert base == {"NIADRA_MEMORY_V2": "on", "NIADRA_SEMANTIC_CHANNEL": "off"}
-    assert cand == {"NIADRA_MEMORY_V2": "on", "NIADRA_SEMANTIC_CHANNEL": "models"}
+    base, cand = ab.sides_env({}, {"NIADRA_SEMANTIC_CHANNEL": "models"}, same=False)
+    assert base == {"NIADRA_SEMANTIC_CHANNEL": "off"} and cand == {"NIADRA_SEMANTIC_CHANNEL": "models"}
+    guards = {"NIADRA_BENCH_GUARD_TYPES": "date"}
+    base, cand = ab.sides_env(guards, {"NIADRA_SEMANTIC_CHANNEL": "models"}, same=False)
+    assert base == {"NIADRA_BENCH_GUARD_TYPES": "date", "NIADRA_SEMANTIC_CHANNEL": "off"}
+    assert cand == {"NIADRA_BENCH_GUARD_TYPES": "date", "NIADRA_SEMANTIC_CHANNEL": "models"}
     with pytest.raises(ab.AbError, match="no known default"):
         ab.sides_env({}, {"NIADRA_LINKED_WEIGHT": "1.0"}, same=False)
     with pytest.raises(ab.AbError, match="needs --candidate-env"):
         ab.sides_env({}, {}, same=False)
     with pytest.raises(ab.AbError, match="itself"):
-        ab.sides_env({}, {"NIADRA_MEMORY_V2": "on"}, same=True)
+        ab.sides_env({}, {"NIADRA_SEMANTIC_CHANNEL": "models"}, same=True)
     with pytest.raises(ab.AbError, match="KEY=VALUE"):
-        ab.parse_env(["NIADRA_MEMORY_V2"])
+        ab.parse_env(["NIADRA_SEMANTIC_CHANNEL"])
 
 
 def test_a_process_setting_is_refused_where_the_read_deployment_serves_production(cases) -> None:
     options = ab.AbOptions(baseline_env={}, candidate_env={"NIADRA_SEMANTIC_CHANNEL": "models"})
     with pytest.raises(ab.AbError, match="also serves production"):
         ab.Ab(cases, options)
-    # The space setting is the harness's to change through the control API.
-    ab.Ab(cases, ab.AbOptions(baseline_env={}, candidate_env={"NIADRA_MEMORY_V2": "on"}))
     with pytest.raises(ab.AbError, match="only --same"):
-        ab.Ab(cases, ab.AbOptions(baseline_env={}, candidate_env={"NIADRA_MEMORY_V2": "on"}, mock=True))
+        ab.Ab(
+            cases,
+            ab.AbOptions(baseline_env={}, candidate_env={"NIADRA_SEMANTIC_CHANNEL": "models"}, mock=True),
+        )
 
 
-def test_in_the_region_each_side_sets_the_space_flag_and_seeds_its_own_customers(cases) -> None:
-    runner = ab.Ab(cases, ab.AbOptions(baseline_env={}, candidate_env={"NIADRA_MEMORY_V2": "on"}))
+def test_in_the_region_each_side_seeds_its_own_customers(cases) -> None:
+    runner = ab.Ab(cases, ab.AbOptions(baseline_env={}, candidate_env={}, same=True))
     base, cand = runner._run_for(runner.baseline), runner._run_for(runner.candidate)
-    assert (base.options.memory_v2, cand.options.memory_v2) == (False, True)
     assert base.options.tag != cand.options.tag
     assert base.options.niadra_now == cand.options.niadra_now == runner.now
     assert base.options.references and not cand.options.references
@@ -124,19 +125,19 @@ def test_a_branch_against_main_runs_the_candidate_on_its_own_checkout(cases, tmp
     runner = ab.Ab(
         cases,
         ab.AbOptions(
-            baseline_env={"NIADRA_MEMORY_V2": "on"},
+            baseline_env={"NIADRA_SEMANTIC_CHANNEL": "models"},
             candidate_env={},
             local_cell=tmp_path / "main",
             candidate_cell=tmp_path / "branch",
         ),
     )
     # The code is the difference: both sides keep the baseline's settings.
-    assert runner.baseline.env == runner.candidate.env == {"NIADRA_MEMORY_V2": "on"}
+    assert runner.baseline.env == runner.candidate.env == {"NIADRA_SEMANTIC_CHANNEL": "models"}
     assert runner.kind == "local-cell" and "local" in runner.out.parts
 
 
 def test_a_local_cell_runs_in_the_checkout_with_only_its_side_settings(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("NIADRA_MEMORY_V2", "on")
+    monkeypatch.setenv("NIADRA_SEMANTIC_DEADLINE_MS", "80")
     monkeypatch.setenv("NIADRA_BASE_URL", "http://elsewhere")
     from datetime import UTC, datetime
 
@@ -144,7 +145,7 @@ def test_a_local_cell_runs_in_the_checkout_with_only_its_side_settings(monkeypat
                         ["credit", "refund"], tmp_path / "side")  # fmt: skip
     env = cell.process_env()
     assert env["NIADRA_SEMANTIC_CHANNEL"] == "models"
-    assert "NIADRA_MEMORY_V2" not in env and "NIADRA_BASE_URL" not in env
+    assert "NIADRA_SEMANTIC_DEADLINE_MS" not in env and "NIADRA_BASE_URL" not in env
     command = cell.command()
     assert command[command.index("--project") + 1] == str(tmp_path)
     assert command[command.index("--operations") + 1] == "credit,refund"

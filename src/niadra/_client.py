@@ -32,7 +32,6 @@ from niadra._base import (
 from niadra._cache import ContextCache, cache_key
 from niadra._queue import SyncFlusher, is_retryable
 from niadra._transport import SyncTransport
-from niadra._turns import MIN_REREAD
 from niadra.conversation import Conversation, Task
 from niadra.models.admin import IngestStatus, KeyIdentity
 from niadra.models.agent_memory import (
@@ -162,17 +161,16 @@ class Niadra:
         prompt-cache floor. `delta=True` asks for what changed since this agent last looked,
         and is never served from the cache.
 
-        `turn` is the customer's last turn, which a conversation passes for you. In a space with
-        memory v2 it goes as `query` and the answer adds `slots`, what the turn selected from
-        memory, at the end of `turn_block`, while the pack stays the conversation's pinned one (and
-        is cached as without it). A space without memory v2 compiles a read with `query` for it and
-        does not pin it, so after one such answer the client stops sending the turn for ten
-        minutes. `query` asks for a read focused on that text, as before, and wins over `turn`.
+        `turn` is the customer's last turn, which a conversation passes for you. It goes as `query`
+        and the answer adds `slots`, what the turn selected from memory, at the end of
+        `turn_block`, while the pack stays the conversation's pinned one (and is cached as without
+        it). `query` selects the slots by other words and wins over `turn`; it never changes the
+        pack either.
 
-        `explain=True` requires `format="json"` (raises `ValueError` otherwise) and, on a space
-        with memory v2, adds `why` to each of `pack.slots`: the retrieval channels that ranked it,
-        the fused score, the weights version and, for a derived line, the rule behind it. It
-        changes nothing else: the pinned text, the slots chosen and the receipt are the same.
+        `explain=True` requires `format="json"` (raises `ValueError` otherwise) and adds `why` to
+        each of `pack.slots`: the retrieval channels that ranked it, the fused score, the weights
+        version and, for a derived line, the rule behind it. It changes nothing else: the pinned
+        text, the slots chosen and the receipt are the same.
 
         Never raises (unless `strict`): on failure it returns the last good pack for the same
         key or an empty one. A 401 or 403 also wipes what the cache held for that key.
@@ -203,6 +201,7 @@ class Niadra:
         budget = self._core.context_budget(view, timeout)
         query = self._core.turn_query(request, turn)
         if query is not None:
+            request = request.model_copy(update={"query": None})  # the pack's key is the read's without it
             return self._turn_context(request, query, budget, use_cache, requested)
         return self._pinned_context(request, budget, use_cache, requested)
 
@@ -774,7 +773,7 @@ class Niadra:
         """Sends a partial transcript of the customer's turn while they are still speaking.
 
         The server reads it the way it will read the final turn and warms what that read needs
-        (memory v2), so the `context()` that answers the turn spends less of its budget. It runs
+        so the `context()` that answers the turn spends less of its budget. It runs
         in the background: it returns at once, never raises and never holds a turn. True when it
         was sent or queued: while one runs for the same conversation, the newest text waits and
         goes when it ends, and older waiting texts are dropped. False when there was nothing worth
@@ -907,7 +906,6 @@ class Niadra:
         scope = self._core.scope_of(request.conversation_id, request.task_id)
         # A `not_modified` answer carries no `pack`, so a read as data asks for the whole answer.
         known = self._cache.etag(key) if key is not None and request.format != "json" else None
-        started = time.monotonic()
         try:
             fetched = self._fetch_context(request.model_copy(update={"query": query}), budget, known)
         except Exception as exc:
@@ -916,13 +914,6 @@ class Niadra:
                 logger.warning("niadra: context failed, serving the last good pack (%s)", error_code(exc))
                 return fallback
             return self._core.fail("context", exc, Context.empty(requested=requested, error=error_code(exc)))
-        if self._core.turns.observe(fetched) is False and not fetched.not_modified:
-            # This space compiled the pack for the turn and did not pin it: the conversation reads its
-            # pinned pack as before, within what is left of the budget, and stops sending the turn.
-            left = budget - (time.monotonic() - started)
-            if left >= MIN_REREAD:
-                return self._pinned_context(request, left, use_cache, requested)
-            return self._core.unpinned(fetched)
         return self._core.settle_turn(self._cache, key, scope, fetched)
 
     def _refresh_later(self, key: str, scope: str, request: ContextRequest, budget: float) -> None:

@@ -28,7 +28,6 @@ from niadra._base import (
 from niadra._cache import ContextCache, cache_key
 from niadra._queue import AsyncFlusher, is_retryable
 from niadra._transport import AsyncTransport
-from niadra._turns import MIN_REREAD
 from niadra.conversation import AsyncConversation, AsyncTask
 from niadra.models.admin import IngestStatus, KeyIdentity
 from niadra.models.agent_memory import (
@@ -151,6 +150,7 @@ class AsyncNiadra:
         budget = self._core.context_budget(view, timeout)
         query = self._core.turn_query(request, turn)
         if query is not None:
+            request = request.model_copy(update={"query": None})  # the pack's key is the read's without it
             return await self._turn_context(request, query, budget, use_cache, requested)
         return await self._pinned_context(request, budget, use_cache, requested)
 
@@ -657,7 +657,7 @@ class AsyncNiadra:
         """Sends a partial transcript of the customer's turn while they are still speaking.
 
         The server reads it the way it will read the final turn and warms what that read needs
-        (memory v2), so the `context()` that answers the turn spends less of its budget. It runs
+        so the `context()` that answers the turn spends less of its budget. It runs
         as a task on the running loop: it returns at once, never raises and never holds a turn.
         True when it was sent or queued: while one runs for the same conversation, the newest text
         waits and goes when it ends, and older waiting texts are dropped. False when there was
@@ -787,7 +787,6 @@ class AsyncNiadra:
         scope = self._core.scope_of(request.conversation_id, request.task_id)
         # A `not_modified` answer carries no `pack`, so a read as data asks for the whole answer.
         known = self._cache.etag(key) if key is not None and request.format != "json" else None
-        started = time.monotonic()
         try:
             fetched = await self._fetch_context(request.model_copy(update={"query": query}), budget, known)
         except Exception as exc:
@@ -796,13 +795,6 @@ class AsyncNiadra:
                 logger.warning("niadra: context failed, serving the last good pack (%s)", error_code(exc))
                 return fallback
             return self._core.fail("context", exc, Context.empty(requested=requested, error=error_code(exc)))
-        if self._core.turns.observe(fetched) is False and not fetched.not_modified:
-            # This space compiled the pack for the turn and did not pin it: the conversation reads its
-            # pinned pack as before, within what is left of the budget, and stops sending the turn.
-            left = budget - (time.monotonic() - started)
-            if left >= MIN_REREAD:
-                return await self._pinned_context(request, left, use_cache, requested)
-            return self._core.unpinned(fetched)
         return self._core.settle_turn(self._cache, key, scope, fetched)
 
     def _refresh_later(self, key: str, scope: str, request: ContextRequest, budget: float) -> None:

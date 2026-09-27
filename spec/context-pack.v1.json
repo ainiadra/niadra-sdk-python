@@ -116,7 +116,7 @@
           "$ref": "#/$defs/PackStamp"
         },
         "slots": {
-          "description": "Memory v2: the lines of `slots`, typed. Not part of the pinned sections.",
+          "description": "The lines of `slots`, typed. Not part of the pinned sections.",
           "items": {
             "$ref": "#/$defs/PackSlot"
           },
@@ -281,7 +281,7 @@
     },
     "PackSlot": {
       "additionalProperties": false,
-      "description": "One line of the per-turn slots (memory v2): an item the customer's last turn selected, a guard (a value the agent must not state otherwise), or a line derived from memory (`count`, `no_record`, `withheld`).",
+      "description": "One line of the per-turn slots: an item the customer's last turn selected, a guard (a value the agent must not state otherwise), or a line derived from memory (`count`, `no_record`, `withheld`).",
       "properties": {
         "section": {
           "description": "The pack section the item comes from (`episodes`, `objects`...), `guard` for a guard line, or `derived`.",
@@ -510,12 +510,12 @@
             }
           ],
           "default": null,
-          "description": "For a derived line: `guard_<value type>` (a guard line), `count_complaints`, `count_conversations`, `no_record` or `withheld_may_hold`.",
+          "description": "For a derived line: `guard_<value type>` (a guard line), `count_topic_complaints`, `count_topic` (the conversations about the matter asked), `count_complaints`, `count_conversations` (by the category of the best match), `no_record` or `withheld_may_hold`.",
           "title": "Rule"
         },
         "basis": {
           "additionalProperties": true,
-          "description": "For a derived line, what the rule counted or missed: `basis` (the conversation that chose the category, or the value a guard states), `category`, `counted`, `window_days`; `asked_types`, `identifiers` (how many numbers the turn named, never which), `withheld`; for a guard, `value_type` and `origin` (who stated the value).",
+          "description": "For a derived line, what the rule counted or missed: `basis` (the conversation that chose the category, or the value a guard states), `category`, `counted`, `window_days`; for a count by the matter asked, `units` (what the question says, in words and phrases) and `matched` (how many of them a conversation answers to be counted); `asked_types`, `identifiers` (how many numbers the turn named, never which), `withheld`; for a guard, `value_type` and `origin` (who stated the value).",
           "title": "Basis",
           "type": "object"
         }
@@ -724,11 +724,11 @@
         }
       ],
       "default": null,
-      "description": "Memory v2, with `query`: what the customer's last turn selected from memory for this turn. It goes in the turn block after `text`, in this order: the `live` turns, then `slots`, then `delta`. Never part of `text`, which stays the same bytes for the whole conversation.",
+      "description": "With `query`: what the customer's last turn selected from memory for this turn. It goes in the turn block after `text`, in this order: the `live` turns, then `slots`, then `delta`. Never part of `text`, which stays the same bytes for the whole conversation.",
       "title": "Slots"
     },
     "guards": {
-      "description": "Memory v2: what the guard lines among `slots` state, typed. An SDK checks the agent's answer against them and names a guard the answer went against on the agent's turn (`backing.guard_violations`).",
+      "description": "What the guard lines among `slots` state, typed. An SDK checks the agent's answer against them and names a guard the answer went against on the agent's turn (`backing.guard_violations`).",
       "items": {
         "$ref": "#/$defs/PackGuard"
       },

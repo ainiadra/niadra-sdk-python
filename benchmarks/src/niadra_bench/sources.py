@@ -6,13 +6,6 @@ redeliveries the dataset's billing agent records. A company whose agent does tho
 creates the source. With the sandbox's admin account (the bootstrap document) and the control plane's
 address, the harness does the same: one source for the dataset's operations, reused across runs, and a new
 key per run, revoked when the run ends.
-
-The same account sets Niadra's `memory_v2` space flag when a run asks for it (`--niadra-memory-v2`): a
-configuration diff on the space's document, approved by the same person, and put back when the run ends.
-The four-eyes rule lets the author approve only while no other person of the tenant can: since the
-sandbox's tenant has a second admin, the approval is refused, the run withdraws (rejects) its own diff
-and stops with `FlagRefusedError`, and the flag is set by a person in the Console instead. The flag is
-`settings/memory_v2` (`<document type>/<dotted field>`).
 """
 
 from __future__ import annotations
@@ -34,7 +27,6 @@ from niadra_bench.dataset.model import Case
 
 SOURCE_PREFIX = "bench-billing"
 KEY_WAIT_S = 180.0
-MEMORY_V2_FLAG = "settings/memory_v2"
 
 
 def dataset_operations(cases: Iterable[Case]) -> list[str]:
@@ -63,10 +55,6 @@ def totp(secret_b32: str, at: float | None = None) -> str:
     offset = digest[-1] & 0x0F
     code = struct.unpack(">I", digest[offset : offset + 4])[0] & 0x7FFFFFFF
     return f"{code % 1_000_000:06d}"
-
-
-class FlagRefusedError(RuntimeError):
-    """A space flag's diff that the four-eyes rule keeps the run from approving (withdrawn)."""
 
 
 @dataclass(frozen=True)
@@ -170,50 +158,6 @@ class ControlPlane:
                 _expect(await self._call("POST", path, json={"reason": reason}), 200)
                 revoked.append(str(key["key_id"]))
         return revoked
-
-    async def set_flag(self, flag: str, value: bool | None) -> bool | None:
-        """Sets a space flag (`<document type>/<dotted field>`), or removes it with None, and returns the
-        value it had (None when the document did not set it). No diff when nothing changes."""
-        doc_type, _, path = flag.partition("/")
-        if not doc_type or not path:
-            raise ValueError(f"a flag is <document type>/<dotted field>, not {flag!r}")
-        space_id = self.document["space_id"]
-        current = _expect(
-            await self._call("GET", f"/v1/config/{doc_type}", params={"space_id": space_id}), 200
-        )
-        document = current.get("document")
-        document = dict(document) if isinstance(document, dict) else {}
-        parts = path.split(".")
-        node = document
-        for part in parts[:-1]:
-            child = node.get(part)
-            node[part] = dict(child) if isinstance(child, dict) else {}
-            node = node[part]
-        previous = node.get(parts[-1])
-        if previous is value:
-            return value
-        if value is None:
-            node.pop(parts[-1], None)
-        else:
-            node[parts[-1]] = value
-        reason = f"benchmark run: {path} {'default' if value is None else 'on' if value else 'off'}"
-        body = {"space_id": space_id, "type": doc_type, "document": document, "reason": reason}
-        diff = _expect(await self._call("POST", "/v1/config/diffs", json=body), 201)
-        if diff.get("status") != "applied":
-            approved = await self._call("POST", f"/v1/config/diffs/{diff['diff_id']}/approve")
-            if approved.status_code == 403:
-                # Another person of the tenant can approve, so the four-eyes rule keeps the author from
-                # it: the run withdraws its diff rather than leave it waiting in the Console.
-                _expect(await self._call("POST", f"/v1/config/diffs/{diff['diff_id']}/reject"), 200)
-                raise FlagRefusedError(
-                    f"the {flag} diff needs another person's approval (four eyes): withdrawn. A person "
-                    "of the tenant sets the flag in the Console, and the run leaves it as it is "
-                    "(no --niadra-memory-v2)"
-                )
-            diff = _expect(approved, 200)
-        if diff.get("status") != "applied":
-            raise RuntimeError(f"the {flag} diff was not applied: {diff.get('status')}")
-        return previous if isinstance(previous, bool) else None
 
     async def revoke(self, key: IssuedKey) -> None:
         path = f"/v1/sources/{key.source_id}/keys/{key.key_id}/revoke"

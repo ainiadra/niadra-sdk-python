@@ -53,7 +53,7 @@ class ContextRequest(Model):
     # Sent only when asked for, so a cell that does not know the field yet still takes the request.
     explain: bool | None = Field(
         default=None,
-        description='Memory v2, with `format: "json"` and `query`: each of `pack.slots` also says `why` '
+        description='With `format: "json"` and `query`: each of `pack.slots` also says `why` '
         "it was chosen (its position in each retrieval channel, each channel's weighted share of the fused "
         "score, the weights version, the rule of a derived line). It changes nothing else: the pinned text, "
         "the slots chosen and the receipt are the same bytes with or without it.",
@@ -182,7 +182,7 @@ class SlotWhy(ResponseModel):
 
 
 class PackSlot(ResponseModel):
-    """One line of this turn's slots (memory v2): an item the customer's last turn selected, or a
+    """One line of this turn's slots: an item the customer's last turn selected, or a
     line derived from memory. The same line as in `ContextResponse.slots`.
 
     `section` names the pack section the item comes from (`episodes`, `objects`...), is `guard`
@@ -206,7 +206,7 @@ class PackSlot(ResponseModel):
 
 
 class PackGuard(ResponseModel):
-    """What one guard line states (memory v2): the value memory holds for a kind the customer's turn
+    """What one guard line states: the value memory holds for a kind the customer's turn
     asked about, by the precedence of who stated it (the system of record, then a human agent). The
     agent must not state another; `Conversation.agent()` checks its answer against it."""
 
@@ -221,7 +221,7 @@ class PackGuard(ResponseModel):
 class ContextPack(ResponseModel):
     """The pack as data (`format="json"`), in the `context-pack.v1` shape, for programs that build
     their own prompt. The same content as `text`, plus this turn's `slots`, which are never part of
-    `text`. A server that answers `context-pack.v0` sends no `slots`; the list is then empty."""
+    `text`; empty on a read without a turn."""
 
     spec: str = "context-pack.v1"
     view: str
@@ -252,13 +252,12 @@ class ContextResponse(ResponseModel):
     delta: str | None = None
     slots: str | None = Field(
         default=None,
-        description="Memory v2, on a read with `query`: what the customer's last turn selected from memory "
-        "for this turn, a tagged block for the end of the prompt. Never part of `text`. Servers without "
-        "memory v2 do not send it.",
+        description="On a read with `query`: what the customer's last turn selected from memory for this "
+        "turn, a tagged block for the end of the prompt. Never part of `text`.",
     )
     guards: list[PackGuard] = Field(
         default_factory=list,
-        description="Memory v2: what the guard lines among `slots` state, typed. `Conversation.agent()` "
+        description="What the guard lines among `slots` state, typed. `Conversation.agent()` "
         "checks the answer against them and names a guard it went against on the turn.",
     )
     cache: CacheDirectives | None = None

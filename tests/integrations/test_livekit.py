@@ -279,7 +279,6 @@ async def test_the_agents_own_notes_come_before_the_customers_context(
 
 
 async def test_the_turn_picks_the_slots_at_the_end(call: Any, mock_app: MockApp) -> None:
-    mock_app.cell.enable_memory_v2()
     model = FakeLLM("Let me check.")
     await run(NiadraAgent(call, instructions="You are Acme's agent."), model, "What about order 9911?")
     shown = messages(model.prompts[0])
@@ -290,7 +289,6 @@ async def test_the_turn_picks_the_slots_at_the_end(call: Any, mock_app: MockApp)
 
 
 async def test_the_caller_is_prefetched_while_speaking(call: Any, mock_app: MockApp) -> None:
-    mock_app.cell.enable_memory_v2()
     model = FakeLLM("Let me check.")
     async with AgentSession(llm=model) as session:
         await session.start(NiadraAgent(call, instructions="You are Acme's agent."))

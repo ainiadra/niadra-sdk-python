@@ -8,10 +8,9 @@
   looked. Deltas are kept, in order, for as long as the pack stays the same, because the
   server sends each one only once; `turn_block` carries them after the live turns, for the end
   of the prompt. A new pack (after `verify()`, say) already includes them, so they are dropped.
-- Every read sends the customer's last turn (the text of the last `customer()`) along. In a
-  space with memory v2, the server picks from memory what that turn needs and the answer carries
-  it as `slots`, in `turn_block` between the live turns and the delta; the pinned pack does not
-  change. `turn=` passes another
+- Every read sends the customer's last turn (the text of the last `customer()`) along. The
+  server picks from memory what that turn needs and the answer carries it as `slots`, in
+  `turn_block` between the live turns and the delta; the pinned pack does not change. `turn=` passes another
   turn (a transcript the platform finalized before `customer()` saw it), and `turn=None` reads
   without one. `prefetch()` sends a partial transcript while the customer is still speaking.
 - `customer()`, `agent()` and `human_agent()` record turns, and `action()` records what an
@@ -279,11 +278,6 @@ class _Session:
             arguments.setdefault("turn", self.last_turn)
         return arguments
 
-    def _is_pinned(self, overrides: dict[str, Any], context: Context) -> bool:
-        # A read with a query is compiled for that query and never pinned, so it leaves the
-        # conversation's pack and deltas alone; so is the turn's read in a space without memory v2.
-        return not overrides.get("query") and not context._unpinned
-
     def _prefetch_arguments(self, text: str) -> dict[str, Any] | None:
         """What `prefetch()` sends, or None for the same text twice in a row."""
         if text == self._prefetched:
@@ -396,16 +390,16 @@ class _SyncSession(_Session):
         self._client = client
 
     def context(self, **overrides: Any) -> Context:
-        """The pack for this turn: the pinned bytes, with every delta since the pin in `delta` and,
-        in a space with memory v2, what the customer's last turn selected in `slots`.
+        """The pack for this turn: the pinned bytes, with every delta since the pin in `delta` and
+        what the customer's last turn selected in `slots`.
 
         Keyword arguments override the session's: `turn=` for the customer's turn when
-        `customer()` has not recorded it yet (`None` to send none), `query=` for a one-off
-        focused read.
+        `customer()` has not recorded it yet (`None` to send none), `query=` for other words to
+        select this read's slots by.
         """
         context = self._client.context(**self._read_arguments(overrides))
         self._observe(context)
-        return self._absorb(context) if self._is_pinned(overrides, context) else context
+        return self._absorb(context)
 
     def prefetch(self, text: str) -> bool:
         """Sends a partial transcript of the customer's turn, while they speak, so the read that
@@ -484,12 +478,12 @@ class _AsyncSession(_Session):
         self._client = client
 
     async def context(self, **overrides: Any) -> Context:
-        """The pack for this turn: the pinned bytes, with every delta since the pin in `delta` and,
-        in a space with memory v2, what the customer's last turn selected in `slots`. See
+        """The pack for this turn: the pinned bytes, with every delta since the pin in `delta` and
+        what the customer's last turn selected in `slots`. See
         `Conversation.context`."""
         context = await self._client.context(**self._read_arguments(overrides))
         self._observe(context)
-        return self._absorb(context) if self._is_pinned(overrides, context) else context
+        return self._absorb(context)
 
     def prefetch(self, text: str) -> bool:
         """Sends a partial transcript of the customer's turn, while they speak, as a task on the

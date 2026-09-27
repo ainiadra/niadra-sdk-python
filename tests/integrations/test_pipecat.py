@@ -248,7 +248,6 @@ async def test_the_agents_own_notes_come_before_the_customers_context(
 
 
 async def test_the_turn_picks_the_slots_at_the_end(call: Any, mock_app: MockApp) -> None:
-    mock_app.cell.enable_memory_v2()
     model = FakeLLM("Let me check.")
     await run_test(
         pipeline(NiadraMemoryProcessor(call), model, LLMContext([INSTRUCTIONS])),
@@ -262,7 +261,6 @@ async def test_the_turn_picks_the_slots_at_the_end(call: Any, mock_app: MockApp)
 
 
 async def test_the_prefetcher_sends_the_turn_while_the_caller_speaks(call: Any, mock_app: MockApp) -> None:
-    mock_app.cell.enable_memory_v2()
     memory = NiadraMemoryProcessor(call)
     model = FakeLLM("Let me check.")
     strategies = UserTurnStrategies(

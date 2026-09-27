@@ -19,7 +19,7 @@ of two backed amounts, the sum of three, or a backed amount times a count said i
 sources ("3 x R$ 83,30"). A number is backed by its last digits ("final 4471") when the source holds
 the whole of it.
 
-Guards (the lines a memory v2 server writes for a kind of value agents got wrong) are checked too:
+Guards (the lines the server writes for a kind of value agents got wrong) are checked too:
 an answer that states another value of the guarded kind, and never the guarded one, went against
 the guard.
 

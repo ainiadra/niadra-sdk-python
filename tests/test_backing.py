@@ -165,7 +165,6 @@ def test_history_tool_results_back_the_answer(mock_app: MockApp, on_mock: Niadra
 
 
 def test_a_guard_line_is_checked_and_named_on_the_turn(mock_app: MockApp, on_mock: Niadra) -> None:
-    mock_app.cell.enable_memory_v2()
     guard_id = mock_app.cell.add_guard(MARINA, "date", "18/09/2026")
     with on_mock.conversation("wa-5", subject=MARINA) as chat:
         chat.customer("Quando vem o técnico? Me disseram 19/09.")

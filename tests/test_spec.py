@@ -1,6 +1,5 @@
 """The SDK's pack models against the Context Pack schema they implement (spec/context-pack.v1.json):
-the same fields, the same section names, and the specification's examples read without loss, the
-earlier version's too."""
+the same fields, the same section names, and the specification's example read without loss."""
 
 import json
 import typing
@@ -75,13 +74,3 @@ def test_the_specifications_example_reads_without_loss() -> None:
     assert block.index("<live_turns") < block.index(example["slots"]) < block.index(example["delta"]), (
         "the slots after the live turns and before the delta"
     )
-
-
-def test_the_earlier_versions_example_still_reads() -> None:
-    example = json.loads((SPEC / "examples" / "context-pack-as-data.json").read_text())
-    answer = ContextResponse.model_validate(example)
-    assert answer.pack is not None and answer.pack.spec == "context-pack.v0"
-    assert answer.pack.slots == [] and answer.slots is None
-    assert answer.pack.model_dump(mode="json", exclude_none=True, exclude={"slots"}) == {
-        k: v for k, v in example["pack"].items() if v is not None
-    }

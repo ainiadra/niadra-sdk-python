@@ -20,7 +20,7 @@ from niadra._cache import ContextCache
 from niadra._ids import new_key
 from niadra._queue import EventBuffer, serialize
 from niadra._transport import Request
-from niadra._turns import MIN_PREFETCH, NO_PREFETCH, TurnSupport, turn_text
+from niadra._turns import MIN_PREFETCH, NO_PREFETCH, PrefetchSupport, turn_text
 from niadra.errors import APIError, ConfigurationError
 from niadra.keys import ApiKey
 from niadra.models.agent_memory import AgentMemory, AgentMemorySearchRequest, CreateAgentNoteRequest, Evidence
@@ -203,7 +203,7 @@ class ClientCore:
         self.base_url = ""
         self.enabled = False
         self.agent_memory_cache = AgentMemoryCache(self.cache_options)
-        self.turns = TurnSupport()
+        self.turns = PrefetchSupport()
 
         raw = api_key if api_key is not None else os.environ.get("NIADRA_API_KEY", "")
         base_url = base_url or os.environ.get("NIADRA_BASE_URL") or None
@@ -272,24 +272,14 @@ class ClientCore:
             explain=True if explain else None,
         )
 
-    def turn_query(self, request: ContextRequest, turn: str | None) -> str | None:
-        """The customer's turn to send as `query`, or None: a read with its own `query`, a blank turn,
-        or a space that answered without slots a moment ago keep the read as it was."""
-        if request.query is not None or not self.turns.wanted():
-            return None
-        return turn_text(turn)
-
     @staticmethod
-    def unpinned(fetched: Context) -> Context:
-        """An answer compiled for the turn by a space without memory v2: served once, never kept."""
-        unpinned = fetched.model_copy()
-        unpinned._unpinned = True
-        return unpinned
+    def turn_query(request: ContextRequest, turn: str | None) -> str | None:
+        """What the read sends as `query`: its own `query`, else the customer's turn; None when blank."""
+        return turn_text(request.query if request.query is not None else turn)
 
     def settle_turn(self, cache: ContextCache, key: str | None, scope: str, fetched: Context) -> Context:
-        """What a read that sent the turn returns when the space read it (or the answer cannot tell):
-        the pack is the conversation's pinned one, cached as the read without `query`, and the slots
-        are this turn's, on the answer only."""
+        """What a read that sent the turn returns: the pack is the conversation's pinned one, cached
+        as the read without `query`, and the slots are this turn's, on the answer only."""
         if key is None:
             return fetched
         pack = fetched.pack
