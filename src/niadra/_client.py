@@ -6,7 +6,9 @@ import threading
 import time
 import weakref
 from collections.abc import Mapping, Sequence
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor
+from concurrent.futures import wait as wait_for
+from contextlib import suppress
 from datetime import datetime
 from types import TracebackType
 from typing import Any, Literal
@@ -32,7 +34,9 @@ from niadra._base import (
 from niadra._cache import ContextCache, cache_key
 from niadra._queue import SyncFlusher, is_retryable
 from niadra._transport import SyncTransport
+from niadra._voice import TurnRead, VoiceLine, VoiceLines, compose, words_of
 from niadra.conversation import Conversation, Task
+from niadra.errors import APITimeoutError
 from niadra.models.admin import IngestStatus, KeyIdentity
 from niadra.models.agent_memory import (
     AgentMemory,
@@ -54,7 +58,7 @@ from niadra.models.events import (
 from niadra.models.objects import ObjectTimeline
 from niadra.models.results import Context, MediaUpload, SearchResult, TimelinePage
 from niadra.models.tokens import SubjectToken
-from niadra.options import CacheOptions, QueueOptions, Timeouts
+from niadra.options import CacheOptions, QueueOptions, Timeouts, VoiceOptions
 from niadra.tools import ToolKit, definitions
 from niadra.vocabulary import AssertionMethod, Speaker, SubjectKind, Verification
 
@@ -86,6 +90,7 @@ class Niadra:
         cache: The per-conversation context cache.
         queue: Batching of `track()`.
         http_client: An `httpx.Client` to send requests with (proxies, custom transports).
+        voice: The voice read path of conversations in the `voice` view (`niadra._voice`).
     """
 
     def __init__(
@@ -99,9 +104,17 @@ class Niadra:
         cache: CacheOptions | None = None,
         queue: QueueOptions | None = None,
         http_client: httpx.Client | None = None,
+        voice: VoiceOptions | None = None,
     ) -> None:
         self._core = ClientCore(
-            api_key, base_url, channel=channel, strict=strict, timeouts=timeouts, cache=cache, queue=queue
+            api_key,
+            base_url,
+            channel=channel,
+            strict=strict,
+            timeouts=timeouts,
+            cache=cache,
+            queue=queue,
+            voice=voice,
         )
         self._cache = ContextCache(self._core.cache_options)
         self._transport = SyncTransport(self._core.base_url, self._core.api_key, http_client)
@@ -113,6 +126,8 @@ class Niadra:
         # Per conversation, one prefetch in flight and the newest text waiting behind it.
         self._prefetching: dict[str, PrefetchRequest | None] = {}
         self._prefetch_lock = threading.Lock()
+        self._voice = VoiceLines(self._core.voice_options)
+        self._voice_workers: ThreadPoolExecutor | None = None
         self._closed = False
         if self._core.enabled:
             atexit.register(_flush_at_exit, weakref.ref(self))
@@ -200,10 +215,60 @@ class Niadra:
             return Context.empty(requested=requested, error="disabled")
         budget = self._core.context_budget(view, timeout)
         query = self._core.turn_query(request, turn)
+        request = request.model_copy(update={"query": None})  # the pack's key is the read's without it
+        if self._core.voice_path(request, use_cache):
+            return self._voice_context(request, query, budget, requested)
         if query is not None:
-            request = request.model_copy(update={"query": None})  # the pack's key is the read's without it
             return self._turn_context(request, query, budget, use_cache, requested)
         return self._pinned_context(request, budget, use_cache, requested)
+
+    def begin(
+        self,
+        subject: HandleLike | None = None,
+        object: ObjectLike | None = None,
+        *,
+        about: HandleLike | None = None,
+        view: str = "voice",
+        verification: VerificationLike = Verification.V0,
+        conversation_id: str | None = None,
+        task_id: str | None = None,
+        target: TargetLike | None = None,
+        format: Literal["text", "json"] = "text",
+    ) -> bool:
+        """Starts a voice conversation's first read now, in the background: call it when the call starts
+        (ringing, the inbound webhook, the caller joining), so the read runs while the call is set up.
+
+        It is bounded by `Timeouts.context_voice_start`. The `context()` calls that follow, with the
+        same arguments, take its pack instead of starting their own read; a turn that finds it still
+        running waits for it only within its own budget. True when the read runs or its pack is
+        already here; False outside the voice read path (another view, no conversation or task id,
+        the cache or `VoiceOptions.enabled` off). Never raises (unless `strict`).
+        """
+        try:
+            request = self._core.context_request(
+                subject,
+                object,
+                about,
+                view,
+                verification,
+                conversation_id,
+                task_id,
+                None,
+                False,
+                target,
+                format,
+            )
+        except (TypeError, ValueError) as exc:
+            return self._core.fail("begin", exc, False)
+        if not self._core.enabled or self._closed or not self._core.voice_path(request, True):
+            return False
+        return self._voice_begin(request)
+
+    @property
+    def rtt(self) -> float | None:
+        """The round trip to the region in seconds, measured once with the first voice read; None
+        before that, or when `VoiceOptions.probe` is off."""
+        return self._voice.rtt
 
     def search(
         self,
@@ -790,6 +855,7 @@ class Niadra:
         scope = self._core.scope_of(conversation_id, task_id)
         if request is None:
             return False
+        self._voice_heard(scope, request.query)
         with self._prefetch_lock:
             if scope in self._prefetching:
                 self._prefetching[scope] = request  # the newest text waits for the one in flight
@@ -839,6 +905,9 @@ class Niadra:
                 self._refresher.shutdown(wait=True)  # refreshes are bounded by the context budget
             if self._prefetcher is not None:
                 self._prefetcher.shutdown(wait=True)  # bounded by the prefetch budget
+            self._voice.clear()  # settling partials stop at their next check
+            if self._voice_workers is not None:
+                self._voice_workers.shutdown(wait=True)  # reads bounded by their budgets, settles by `settle`
             self._transport.close()
         except Exception as exc:
             self._core.fail("close", exc, None)
@@ -927,9 +996,10 @@ class Niadra:
             self._cache.end_refresh(key)  # the executor is shutting down
 
     def _refresh(self, key: str, scope: str, request: ContextRequest, budget: float) -> None:
+        epoch = self._cache.epoch(scope)
         try:
             fetched = self._fetch_context(request, budget, self._cache.etag(key))
-            self._cache.absorb(key, scope, fetched, deliver=False)
+            self._cache.absorb(key, scope, fetched, deliver=False, epoch=epoch)
         except Exception as exc:
             self._cache.drop_on_auth_error(key, exc)
             logger.info("niadra: background context refresh failed (%s)", error_code(exc))
@@ -939,12 +1009,235 @@ class Niadra:
     def _send_batch(self, payloads: list[dict[str, Any]]) -> Any:
         return self._transport.request(self._core.batch_http(payloads))
 
+    def _forget_scope(self, scope: str, *, ended: bool = True) -> None:
+        """Drops a conversation's packs; when it `ended`, its voice line too, else only the line's reads
+        (they were made for the pack being dropped)."""
+        self._cache.purge_scope(scope)
+        if ended:
+            self._voice.drop(scope)
+            return
+        line = self._voice.find(scope)
+        if line is not None:
+            with self._voice.lock:
+                line.reads = []
+                line.speculating = None
+
+    # The voice read path (niadra._voice).
+
+    def _voice_pool(self) -> ThreadPoolExecutor:
+        with self._voice.lock:
+            if self._voice_workers is None:
+                self._voice_workers = ThreadPoolExecutor(max_workers=32, thread_name_prefix="niadra-voice")
+            return self._voice_workers
+
+    def _voice_probe(self) -> None:
+        """Measures the round trip to the region once per client, in the background."""
+        if not self._voice.claim_probe():
+            return
+        with suppress(RuntimeError):  # the client is closing
+            self._voice_pool().submit(self._probe)
+
+    def _probe(self) -> None:
+        samples = []
+        for _ in range(2):  # the first may pay for the connection; the second is the round trip
+            started = time.monotonic()
+            try:
+                self._transport.request(self._core.probe_http())
+            except Exception as exc:
+                logger.debug("niadra: round trip probe failed (%s)", error_code(exc))
+                return
+            samples.append(time.monotonic() - started)
+        self._voice.rtt = self._core.probed(samples)
+
+    def _start_budget(self, scope: str) -> float | None:
+        """What is left of `context_voice_start` for the first read of a voice line; None without one."""
+        line = self._voice.find(scope)
+        if line is None or not line.reads:
+            return None
+        elapsed = time.monotonic() - line.reads[0].started
+        return max(0.0, self._core.timeouts.context_voice_start - elapsed)
+
+    def _voice_begin(self, request: ContextRequest) -> bool:
+        key = cache_key(request)
+        scope = self._core.scope_of(request.conversation_id, request.task_id)
+        line = self._voice.line(scope)
+        self._voice_probe()
+        with self._voice.lock:
+            line.request = request
+            if self._cache.has(key) or line.in_flight():
+                return True
+            self._voice_read(line, key, request, None, self._core.timeouts.context_voice_start)
+        return True
+
+    def _voice_context(
+        self, request: ContextRequest, query: str | None, budget: float, requested: Verification
+    ) -> Context:
+        """A voice turn: the pinned body from memory, and the slots of the read of its words when that
+        read lands within `budget`. See `niadra._voice`."""
+        started = time.monotonic()
+        deadline = started + budget
+        key = cache_key(request)
+        scope = self._core.scope_of(request.conversation_id, request.task_id)
+        line = self._voice.line(scope)
+        self._voice_probe()
+        background = self._core.timeouts.prefetch
+        options = self._core.voice_options
+        words = words_of(query)
+        with self._voice.lock:
+            line.request = request
+            opening: list[TurnRead] = []
+            if not self._cache.has(key):
+                opening = line.in_flight() or [self._voice_read(line, key, request, query, background)]
+        if opening:
+            self._voice_wait(opening, deadline, key)
+            if not self._cache.has(key):
+                return self._voice_failed(next((r.failed for r in opening if r.failed), None), requested)
+        chosen: TurnRead | None = None
+        asked = bool(opening)
+        if words:
+            with self._voice.lock:
+                candidates = line.covering(words, options.min_coverage)
+                if not candidates:
+                    candidates, asked = [self._voice_read(line, key, request, query, background)], True
+            newest = candidates[0]
+            if not newest.done:
+                self._voice_wait([newest], deadline)
+            chosen = next((read for read in candidates if read.ok), None)
+            if chosen is None and newest.failed is not None and self._core.strict:
+                raise newest.failed
+        hit = self._cache.get(key, pinned=True)
+        if hit is None:
+            return self._voice_failed(None, requested)
+        # A read this turn started revalidates the body; without one, an old body is revalidated now.
+        if hit.freshness != "fresh" and not asked and not line.in_flight():
+            self._refresh_later(key, scope, request, background)
+        context = compose(hit.context, chosen)
+        # A body this call waited for came over the network; otherwise it was already in memory.
+        origin = "network" if opening else hit.context.origin
+        return context.model_copy(
+            update={"origin": origin, "elapsed_ms": round((time.monotonic() - started) * 1000, 1)}
+        )
+
+    def _voice_failed(self, failure: BaseException | None, requested: Verification) -> Context:
+        error = failure or APITimeoutError("POST /v1/context ran out of its time budget")
+        return self._core.fail("context", error, Context.empty(requested=requested, error=error_code(error)))
+
+    def _voice_wait(self, reads: Sequence[TurnRead], deadline: float, key: str | None = None) -> None:
+        """Waits until one of `reads` is done (with `key`, until its pack is here) or `deadline`."""
+        while True:
+            pending = [read.handle for read in reads if not read.done and read.handle is not None]
+            remaining = deadline - time.monotonic()
+            if not pending or remaining <= 0 or (key is not None and self._cache.has(key)):
+                return
+            wait_for(pending, timeout=remaining, return_when=FIRST_COMPLETED)
+            if key is None:
+                return
+
+    def _voice_read(
+        self,
+        line: VoiceLine,
+        key: str,
+        request: ContextRequest,
+        query: str | None,
+        budget: float,
+        *,
+        speculative: bool = False,
+    ) -> TurnRead:
+        """Starts one read of a line in the background. Called with the lines' lock held."""
+        read = TurnRead(words_of(query), speculative=speculative)
+        line.add(read)
+        body = self._core.voice_body(request, query)
+        # A `not_modified` answer carries no `pack`, so a read as data asks for the whole answer.
+        known = self._cache.etag(key) if request.format != "json" else None
+        epoch = self._cache.epoch(line.scope)
+        try:
+            read.handle = self._voice_pool().submit(
+                self._voice_run, line, read, key, body, budget, known, epoch
+            )
+        except RuntimeError as exc:  # the client is closing
+            read.failed, read.done = exc, True
+        return read
+
+    def _voice_run(
+        self,
+        line: VoiceLine,
+        read: TurnRead,
+        key: str,
+        body: ContextRequest,
+        budget: float,
+        known: str | None,
+        epoch: int,
+    ) -> None:
+        following: str | None = None
+        try:
+            fetched = self._fetch_context(body, budget, known)
+            self._core.store_read(self._cache, key, line.scope, fetched, epoch)
+            read.result = fetched
+        except Exception as exc:
+            self._cache.drop_on_auth_error(key, exc)
+            read.failed = exc
+            logger.info("niadra: voice read failed (%s)", error_code(exc))
+        finally:
+            with self._voice.lock:
+                read.done = True
+                if line.speculating is read:
+                    line.speculating = None
+                    following, line.waiting = line.waiting, None
+        if following is not None:
+            self._voice_speculate(line, following)
+
+    def _voice_heard(self, scope: str, text: str | None) -> None:
+        """A partial transcript of a voice line: read the turn with it once it has settled."""
+        line = self._voice.find(scope)
+        if line is None or text is None:
+            return
+        with self._voice.lock:
+            if line.closed or line.request is None:
+                return
+            if text != line.heard:
+                line.heard, line.heard_at = text, time.monotonic()
+            if line.settling:
+                return
+            line.settling = True
+        try:
+            self._voice_pool().submit(self._voice_settle, line)
+        except RuntimeError:
+            line.settling = False
+
+    def _voice_settle(self, line: VoiceLine) -> None:
+        settle = self._core.voice_options.settle
+        while True:
+            with self._voice.lock:
+                if line.closed or line.heard is None:
+                    line.settling = False
+                    return
+                left = line.heard_at + settle - time.monotonic()
+                if left <= 0:
+                    text, line.heard, line.settling = line.heard, None, False
+                    break
+            time.sleep(left)
+        self._voice_speculate(line, text)
+
+    def _voice_speculate(self, line: VoiceLine, text: str) -> None:
+        """Reads the turn with a settled partial: one such read in flight per line, the newest text next."""
+        words = words_of(text)
+        with self._voice.lock:
+            request = line.request
+            if line.closed or request is None or not words or line.already_read(words):
+                return
+            if line.speculating is not None and not line.speculating.done:
+                line.waiting = text
+                return
+            line.speculating = self._voice_read(
+                line, cache_key(request), request, text, self._core.timeouts.prefetch, speculative=True
+            )
+
     def _send_now(
         self, method: str, item: BaseModel, conversation_id: str | None, task_id: str | None
     ) -> BatchResponse | None:
         scope = self._core.scope_of(conversation_id, task_id)
         if scope:
-            self._cache.purge_scope(scope)
+            self._forget_scope(scope, ended=False)
         payload = item.model_dump(mode="json", exclude_none=True)
         try:
             request = self._core.batch_http([payload], budget=self._core.timeouts.write)

@@ -9,8 +9,65 @@ All notable changes to this project are documented here. The format follows
 The memory has one behavior: every read that carries the customer's turn gets the conversation's
 pinned pack and that turn's slots.
 
+### Added
+
+- The voice read path (`niadra._voice`): in the `voice` view with a conversation or task id, a
+  turn never waits on a round trip to the region for what can be known in advance. From Brazil to
+  a cell in us-east-2 the round trip is about 145 ms, and every voice read of 0.5.0 paid it within
+  a 150 ms budget, so a voice agent far from the region often got no memory at all.
+  - The pinned pack is the same bytes for the whole conversation, so once a read brought it,
+    every later turn gets it from memory at once, whatever its age, and the SDK revalidates it by
+    ETag in the background.
+  - `begin()` on `Niadra`, `AsyncNiadra` and their conversations and tasks starts the first read
+    when the call starts (ringing, the inbound webhook, the caller joining), so it runs while the
+    call is set up; `ready()` on a conversation waits for it there, within
+    `Timeouts.context_voice_start`. A turn that finds it still running waits only within its own
+    budget.
+  - `prefetch()` still warms the server, and once the partial transcript has stayed the same for
+    `VoiceOptions.settle` (0.2 s) the SDK reads the turn with it: one such read in flight per
+    conversation, the newest settled text next. The final turn takes that read's slots and delta
+    when its words start with the partial's and the partial carries at least
+    `VoiceOptions.min_coverage` (three quarters) of them; otherwise it reads its own words.
+  - A turn waits for the read of its words at most `Timeouts.context_voice`. Past it, the turn gets
+    the pinned pack without slots, and the read goes on in the background (within
+    `Timeouts.prefetch`): its answer revalidates the pack and leaves its delta for the next turn.
+  - The first voice read of a client measures the round trip to the region once (`GET /healthz`,
+    twice, the faster; `Niadra.rtt`) and logs a warning when `context_voice` or
+    `context_voice_start` cannot hold it.
+  - `VoiceOptions` (`enabled`, `settle`, `min_coverage`, `probe`), the `voice=` argument of both
+    clients. `VoiceOptions(enabled=False)` keeps the 0.5.0 behavior.
+  - Measured with a fake region answering in 150 to 400 ms (`tests/test_voice.py`): voice turns
+    after the first returned in 0.1 to 0.6 ms with the pinned body and their own slots, one read
+    of a partial transcript per turn; the first read left 0.2 ms after `begin()` and `ready()`
+    after 0.4 s of call setup returned in 0.2 ms; a turn whose read had not landed returned at its
+    200 ms budget with the body and the next turn got the delta. The same turns on the 0.5.0 path
+    took 152 ms each and none got its slots.
+- `Timeouts.context_voice_start`, 1.5 s: the first read of a call, made while the phone rings or
+  the inbound webhook runs. A cold connection costs three round trips (TCP, TLS, the request) plus
+  the server's first compile: 3 x 0.4 s + 0.3 s at a 0.4 s round trip.
+
 ### Changed
 
+- `Timeouts.context_voice` is 0.2 s (was 0.15 s), and in a voice conversation it is no longer a
+  round trip: it bounds the wait for the read of a turn's words already in flight. That read
+  starts 0.2 s after the last word changed and the platform ends the turn later (LiveKit waits at
+  least 0.5 s), about 0.3 s of head start; with 0.2 s of wait on top, the slots make the turn while
+  round trip plus server time stay under 0.5 s, a round trip of up to about 0.4 s at the server's
+  p95. 0.2 s is the usual gap between two people's turns, so a longer wait would be heard.
+- The voice adapters use this path. LiveKit's `conversation_for()` and Pipecat's `StartFrame` start
+  the first read (`begin()`) and the first model call waits for it (`ready()`); the prefetch they
+  already sent while the caller speaks now also brings the turn's slots. The call start webhooks
+  of Retell (`inbound()`, `outbound()`), Vapi (`assistant-request`) and ElevenLabs (conversation
+  initiation) start the read, read the agent's notes meanwhile, and wait for the pack within
+  `context_voice_start` instead of the turn budget. Twilio's `call.conversation()` starts it on
+  the incoming call webhook (`ringing`), and `call.verify()` starts it at the level the
+  attestation proved.
+- Ending a conversation or task drops what the SDK kept in memory for it: its packs and, in the
+  voice view, its line. An answer still on its way then is not stored (each purge moves the
+  scope's epoch in the cache).
+- A voice turn without the customer's words serves the cached pack at once, also past the stale
+  window, and revalidates it in the background; 0.5.0 waited for the API once the pack was older
+  than `ttl + stale_while_revalidate`.
 - A read with a turn, or with its own `query`, always goes to the API and always settles as a read
   of the pinned pack: the pack is cached as the read without `query`, and the slots never are. An
   explicit `query` in a conversation no longer leaves the conversation's pack and deltas alone: it

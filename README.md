@@ -136,13 +136,19 @@ async def entrypoint(ctx):
 
 Pipecat takes `NiadraMemoryProcessor(conversation)` between `aggregators.user()` and the LLM, plus
 `memory.observe(aggregators)` for the turns and, right after the STT service, `memory.prefetcher()`.
-Both adapters send the caller's turn with each read and, while the caller is still speaking,
-`prefetch()` the partial transcript (LiveKit's `user_input_transcribed`, Pipecat's interim
-transcripts), in the background, so the read that answers the turn finds the caller's memory warm;
-a prefetch never holds or fails a turn. For hosted platforms the SDK answers their webhooks:
+Both adapters start the caller's first read when the call starts (`begin()`), so it runs while the
+call is set up, and the first model call waits for it there (`ready()`, within 1.5 s). After that no
+turn waits on a round trip to the region for the pack: the pinned pack is the same bytes for the
+whole call, so it comes from memory at once and is revalidated by ETag in the background. While the
+caller is still speaking they `prefetch()` the partial transcript (LiveKit's
+`user_input_transcribed`, Pipecat's interim transcripts); once the words stop changing for 200 ms
+the SDK reads the turn with them, and the turn takes that read's slots and delta. A turn waits at
+most 200 ms for such a read still on its way; past that it gets the pack without slots and the next
+turn catches up. A prefetch never holds or fails a turn. For hosted platforms the SDK answers their webhooks:
 `ElevenLabsWebhooks` (the context as the `niadra_context` dynamic variable, server tools whose
 caller comes from ElevenLabs' system variables, and a signed post-call transcript recorded turn by
 turn) and `VapiServer` (`assistant-request`, `tool-calls`, `end-of-call-report` and transfers).
+Their call start webhooks wait for the first read within 1.5 s, while the phone rings.
 Every handler is a plain function of the body and the headers, for any web framework. A carrier's
 STIR/SHAKEN attestation proves V2 at level A and V1 at B or C; Twilio's `StirVerstat` is read as is.
 
@@ -218,8 +224,9 @@ resolves identity across channels and systems, closes items when a system of rec
 action, and filters what each agent may read by the verification level of the conversation.
 
 **What happens if Niadra is slow or down?** The agent keeps answering without the memory. Every
-call has its own time budget for the whole call, retries included (150 ms for voice context,
-300 ms otherwise), and returns an empty value instead of raising, unless you ask for `strict=True`.
+call has its own time budget for the whole call, retries included (300 ms for context; in a voice
+call the pack is served from memory and a turn waits at most 200 ms for its slots), and returns an
+empty value instead of raising, unless you ask for `strict=True`.
 
 **What about privacy and LGPD or GDPR?** Items carry a verification level and a purpose, and the
 policy decides what each agent sees. Every read leaves a receipt, and a person can be erased or
@@ -388,7 +395,10 @@ turn; the pack is the pinned one all the same.
 Every read sends the customer's last turn, the text of the last `customer()`, and the answer
 carries what it needs from memory as `slots` in `turn_block`. Pass `turn=` when the platform has
 the turn before `customer()` recorded it, or `turn=None` to read without one. In a voice call,
-`conversation.prefetch(partial_transcript)` sends the turn so far while the customer speaks.
+`conversation.prefetch(partial_transcript)` sends the turn so far while the customer speaks, and
+`conversation.begin()` at call start (ringing, the inbound webhook) starts the first read so it runs
+while the call is set up; `conversation.ready()` waits for it there. Ending the conversation drops
+the pack and everything else the SDK kept in memory for it.
 
 Call `mark_injected()` each time you put the pack in a prompt. The agent's turns and actions that
 follow carry it as `context_stamp`, with the pack's etag, which is how Niadra tells a context
@@ -523,8 +533,9 @@ Niadra must never take your agent down.
 - **No key:** the client is a no-op and warns once.
 - **Every public method** catches and logs its own failures and returns a safe value: an empty
   `Context` (check `context.error`), an empty result, `False` or `None`.
-- **Own time budgets, for the whole call:** `context()` gives up after 150 ms for voice views and
-  300 ms otherwise; search, timeline, open and the object reads after 300 ms (voice) or 600 ms;
+- **Own time budgets, for the whole call:** `context()` gives up after 200 ms for voice views and
+  300 ms otherwise (in a voice conversation the pack comes from memory and the 200 ms only bound the
+  wait for a turn's slots; the first read of a call has 1.5 s, at call start); search, timeline, open and the object reads after 300 ms (voice) or 600 ms;
   the writes you wait for (`identify`, `verify`, `feedback`, `subject_token`) after 5 s; a media
   upload after 60 s. Retries and backoff happen inside the budget, and an answer that arrives
   late is dropped rather than waited for. An `identify` or `verify` that runs out of time stays

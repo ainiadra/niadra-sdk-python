@@ -14,15 +14,18 @@ def incoming_call(request):
         return Response(status_code=403)  # not signed by Twilio with your auth token
     conversation = call.conversation(niadra)  # CallSid as the id, the caller's number as subject
     call.verify(conversation)  # StirVerstat: TN-Validation-Passed-A proves V2, B and C prove V1
-    context = conversation.context()  # hand it to the agent that takes the call
-    ...
+    context = conversation.ready()  # the first read, started above; the phone rings meanwhile
+    ...  # hand it to the agent that takes the call
 ```
 
 - `parse_call()` reads a Programmable Voice webhook (the incoming call or a status callback):
   `CallSid`, `From`, `To`, `Direction`, `CallStatus` and `StirVerstat`. `call.conversation()` opens
-  the Niadra conversation of the call, `call.verify()` records the attestation (a failed or
-  missing validation proves nothing), and `call.ended(conversation)` ends it when the status
-  callback says `completed` (or `busy`, `failed`, `no-answer`, `canceled`).
+  the Niadra conversation of the call and, on the incoming call webhook (`ringing`), starts its
+  first read in the background (`begin()`), so it runs while the call rings; `call.verify()`
+  records the attestation (a failed or missing validation proves nothing) and then starts that
+  read at the level it proved; `conversation.ready()` waits for it; and
+  `call.ended(conversation)` ends it when the status callback says `completed` (or `busy`,
+  `failed`, `no-answer`, `canceled`).
 - `parse_message()` reads a Messaging webhook, SMS or WhatsApp through Twilio: `MessageSid` is the
   idempotency key, `From` (`whatsapp:+55...` or a phone) and `WaId` the sender's ids, `Body` the
   text. `message.record(conversation)` records the customer's turn with `verification_hint: "V1"`.
@@ -35,7 +38,8 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
-from collections.abc import Mapping
+import inspect
+from collections.abc import Awaitable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -46,7 +50,7 @@ from niadra._async_client import AsyncNiadra
 from niadra._client import Niadra
 from niadra.conversation import AsyncConversation, Conversation
 from niadra.handles import whatsapp
-from niadra.integrations._common import attestation_level, end, phone_or_none, warn
+from niadra.integrations._common import attestation_level, begin, end, phone_or_none, warn
 from niadra.integrations._webhooks import Body, Session, header, same
 from niadra.models.common import Handle
 from niadra.models.events import VoiceInfo
@@ -174,21 +178,45 @@ class TwilioCall:
         view: str = "voice",
         agent_id: str | None = None,
     ) -> Session:
-        """The Niadra conversation of this call: `CallSid` as its id, the caller as subject."""
-        return niadra.conversation(
+        """The Niadra conversation of this call: `CallSid` as its id, the caller as subject.
+
+        On the incoming call webhook (`CallStatus` `ringing`) it also starts the conversation's first
+        read, in the background, so the pack is there when the agent takes the call.
+        """
+        session = niadra.conversation(
             self.call_sid, subject=subject or self.subject, channel=channel, view=view, agent_id=agent_id
         )
+        if self.status == "ringing" and self.level is None:
+            begin(session)  # with an attestation, `verify()` starts it at the level it proves
+        return session
 
     def verify(self, session: Session) -> Any:
-        """Records the attestation for the call; await it with `AsyncNiadra`. None when nothing is proven."""
+        """Records the attestation for the call; await it with `AsyncNiadra`. None when nothing is proven.
+
+        On the incoming call webhook it then starts the conversation's first read, at the level the
+        attestation proved.
+        """
         level = self.level
         if level is None or session.subject is None:
             return None
         try:
-            return session.verify("network_attestation", level)
+            result = session.verify("network_attestation", level)
         except Exception as exc:
             warn("verify the call", exc)
             return None
+        if inspect.isawaitable(result):
+            return self._then_begin(session, result)
+        self._begin(session)
+        return result
+
+    async def _then_begin(self, session: Session, verified: Awaitable[Any]) -> Any:
+        result = await verified
+        self._begin(session)
+        return result
+
+    def _begin(self, session: Session) -> None:
+        if self.status == "ringing":
+            begin(session)
 
     def ended(self, session: Session) -> bool:
         """Ends the conversation when this status callback is a final one. True when it did."""

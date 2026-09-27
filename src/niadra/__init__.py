@@ -56,7 +56,7 @@ from niadra.models import (
     TargetModel,
     TimelinePage,
 )
-from niadra.options import CacheOptions, QueueOptions, Timeouts
+from niadra.options import CacheOptions, QueueOptions, Timeouts, VoiceOptions
 from niadra.tools import AsyncToolKit, ToolKit
 from niadra.vocabulary import (
     AssertionMethod,
@@ -127,6 +127,7 @@ __all__ = [
     "UnprocessableEntityError",
     "Verification",
     "Visibility",
+    "VoiceOptions",
     "WrongCellError",
     "__version__",
     "anonymous",

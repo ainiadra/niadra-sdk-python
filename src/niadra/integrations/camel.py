@@ -27,7 +27,7 @@ response = agent.step(text)
 
 CAMEL reads an agent's memory synchronously, even in `astep`: the context comes with a `Niadra`
 conversation (an `AsyncNiadra` one gives the tools and the turns, and the agent runs without the
-context). The read has the SDK's own time budget, 300 ms for chat and 150 ms for voice. Niadra
+context). The read has the SDK's own time budget, 300 ms for chat and 200 ms for voice. Niadra
 slow or down never stops the agent: it runs without the context and a tool answers that the
 history is unavailable.
 """

@@ -5,9 +5,10 @@ Retell reaches your server three ways, and `RetellWebhooks` answers each. Every 
 key); without a valid one, within five minutes, the answer is 401.
 
 1. **Inbound call webhook** (`call_inbound`, set on the phone number): `inbound()` verifies the
-   carrier's attestation when you pass one, reads `context(view="voice")` for the caller and
-   answers the dynamic variable `niadra_context`. Put `{{niadra_context}}` in the agent's prompt,
-   after your instructions. With `agent_memory=True`, the agent's own notes come as
+   carrier's attestation when you pass one, starts the caller's first read (`begin()`), reads the
+   agent's notes meanwhile, waits for the pack within `Timeouts.context_voice_start` (the phone
+   rings meanwhile) and answers the dynamic variable `niadra_context`. Put `{{niadra_context}}` in
+   the agent's prompt, after your instructions. With `agent_memory=True`, the agent's own notes come as
    `niadra_agent_memory`: put `{{niadra_agent_memory}}` right before `{{niadra_context}}`. For an
    outbound call, `outbound()` gives the same variables and a `metadata` to pass to
    `create_phone_call`.
@@ -77,6 +78,7 @@ from niadra._client import Niadra
 from niadra.integrations._common import (
     AgentMemoryLike,
     AgentMemoryOption,
+    begin,
     blocks,
     call_tool,
     end,
@@ -87,7 +89,7 @@ from niadra.integrations._common import (
     memory_option,
     phone_or_none,
     read_agent_memory,
-    read_context,
+    read_ready,
     record,
     run_sync,
     tool_specs,
@@ -258,8 +260,9 @@ class RetellWebhooks:
                 warn("read the attestation", exc)
                 level = None
             await verify_attestation(session, level)
+        begin(session)  # the pack is read while the agent's notes are
         variables[MEMORY_VARIABLE] = await read_agent_memory(session, self.agent_memory)
-        context = await read_context(session)
+        context = await read_ready(session)
         if context is not None:
             variables[CONTEXT_VARIABLE] = join_instructions(*blocks(context))
             variables[ETAG_VARIABLE] = context.etag or ""

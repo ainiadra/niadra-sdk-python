@@ -16,9 +16,9 @@ def incoming_call() -> tuple[str, int]:
     call = parse_call(request.get_data(), request.headers, request.url, os.environ["TWILIO_AUTH_TOKEN"])
     if call is None:
         return "", 403
-    conversation = call.conversation(niadra)
-    call.verify(conversation)  # StirVerstat: A proves V2, B and C prove V1
-    context = conversation.context()
+    conversation = call.conversation(niadra)  # starts the first read while the phone rings
+    call.verify(conversation)  # StirVerstat: A proves V2, B and C prove V1; the read starts at that level
+    context = conversation.ready()  # waits for it within Timeouts.context_voice_start
     return connect_your_voice_agent(call.call_sid, context.system_block), 200
 
 

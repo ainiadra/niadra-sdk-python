@@ -18,16 +18,21 @@ async def entrypoint(ctx: JobContext) -> None:
 
 What `NiadraAgent` (or the `NiadraMemory` mixin on your own `Agent` class) does:
 
-- **Context.** Before each model call it reads `context()` (150 ms for the voice view) and puts
-  the pack right after the agent's instructions and the turn block at the end. In a pipeline
+- **First read.** `conversation_for()` starts the caller's first read as soon as they join
+  (`begin()`), so it runs while the session starts; the first model call (the greeting, or the
+  first turn) waits for it within `Timeouts.context_voice_start` (`ready()`).
+- **Context.** Before each model call it reads `context()` and puts the pack right after the
+  agent's instructions and the turn block at the end. The pack comes from memory at once; the
+  turn's slots come from the read a prefetch made of its words, waited for 200 ms at most. In a pipeline
   agent this happens in `llm_node`, on a copy of the chat context, so nothing piles up in the
   agent's history and LiveKit's preemptive generation still matches. With a realtime model it
   happens in `on_user_turn_completed`, on the turn's temporary context, which LiveKit syncs.
   The read sends the user's turn along (the last user message of the chat context), and the
   answer carries what that turn needs from memory, in the turn block.
 - **Prefetch.** While the caller speaks, the session's `user_input_transcribed` events (interim
-  and final) send the turn so far with `prefetch()`, in the background: the read that answers
-  the turn finds the caller's memory warm. It never holds or fails a turn.
+  and final) send the turn so far with `prefetch()`, in the background: the server warms the
+  caller's memory, and once the words stop changing the SDK reads the turn with them, so its
+  slots are there when LiveKit ends the turn. It never holds or fails a turn.
 - **Turns.** The session's `conversation_item_added` events record each final user transcript
   (with its confidence) and each assistant message (with the usage the model reported).
   The session's `close` ends the conversation.
@@ -71,6 +76,7 @@ from niadra.integrations._common import (
     AgentMemoryLike,
     Prompt,
     agent_turn,
+    begin,
     call_tool,
     customer_turn,
     end,
@@ -83,6 +89,7 @@ from niadra.integrations._common import (
     phone_or_none,
     prefetch,
     read_prompt,
+    read_ready,
     tool_specs,
     verify_attestation,
     warn,
@@ -112,7 +119,7 @@ def conversation_for(
     The subject is the caller's number (`sip.phoneNumber`) on a SIP call and the participant's
     identity as an app user otherwise; pass `subject=` (a handle, or a function of the
     participant) when your identities mean something else. The conversation id is the SIP call
-    id, else the room's name.
+    id, else the room's name. The conversation's first read starts here, in the background.
     """
     attributes: Mapping[str, str] = getattr(participant, "attributes", None) or {}
     if callable(subject):
@@ -125,7 +132,9 @@ def conversation_for(
         if handle is None and identity:
             handle = app_user(str(identity))
     call_id = conversation_id or attributes.get(SIP_CALL_ID) or getattr(room, "name", None) or None
-    return niadra.conversation(call_id, subject=handle, channel=channel, view=view, agent_id=agent_id)
+    conversation = niadra.conversation(call_id, subject=handle, channel=channel, view=view, agent_id=agent_id)
+    begin(conversation)  # the caller joined: the first read runs while the session starts
+    return conversation
 
 
 def history_tools(conversation: AsyncConversation, agent_memory: AgentMemoryLike = None) -> list[Any]:
@@ -154,6 +163,7 @@ class _Call:
 
     attestation: str | None = None
     verified: bool = False
+    opened: bool = False
     sessions: weakref.WeakSet[Any] = field(default_factory=weakref.WeakSet)
     usage: ModelUsage | None = None
     heard: list[str] = field(default_factory=list)
@@ -249,6 +259,7 @@ class NiadraMemory:
         super().__init__(*args, tools=tools, **kwargs)  # type: ignore[call-arg]
         self.niadra = conversation
         self._niadra_call = _call(conversation, attestation)
+        begin(conversation)  # a no-op when `conversation_for()` already started it
         self._niadra_memory = memory_option(agent_memory)
 
     def transferred_to_human(self, reason: str | None = None) -> None:
@@ -295,6 +306,9 @@ class NiadraMemory:
         if not call.verified:
             call.verified = True
             await verify_attestation(self.niadra, call.attestation)
+        if not call.opened:
+            call.opened = True
+            await read_ready(self.niadra)  # the first read, started when the caller joined
         prompt = await read_prompt(self.niadra, self._niadra_memory, turn=turn)
         self._niadra_last = prompt
         return prompt

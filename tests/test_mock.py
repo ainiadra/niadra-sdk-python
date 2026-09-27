@@ -48,26 +48,26 @@ def test_turns_become_a_pinned_pack(on_mock: Niadra) -> None:
     say(on_mock, "Let me check that for you", minute=3, conversation="wa-1", role="ai_agent")
     on_mock.flush()
 
-    first = on_mock.context(MARINA, conversation_id="voice-1", view="voice")
+    first = on_mock.context(MARINA, conversation_id="chat-1", view="chat")
     assert first.path == "t2"
     assert "whatsapp customer: I was charged twice" in first.system_block
     assert first.system_block.startswith('<context source="niadra"')
 
     say(on_mock, "Also, the technician never came", minute=5, conversation="wa-1")
     on_mock.flush()
-    again = on_mock.context(MARINA, conversation_id="voice-1", view="voice")
+    again = on_mock.context(MARINA, conversation_id="chat-1", view="chat")
     assert again.path == "not_modified", "the SDK revalidated its cached pack by ETag"
     assert again.text == first.text, "pinned: the same bytes on every turn"
     assert [t.text for t in again.live] == ["Also, the technician never came"]
 
-    delta = on_mock.context(MARINA, conversation_id="voice-1", view="voice", delta=True)
+    delta = on_mock.context(MARINA, conversation_id="chat-1", view="chat", delta=True)
     assert delta.delta is not None and "technician" in delta.delta
 
 
 def test_a_conversation_collects_each_delta_once(on_mock: Niadra) -> None:
     say(on_mock, "I was charged twice", minute=2, conversation="wa-1")
     on_mock.flush()
-    with on_mock.conversation("voice-1", subject=MARINA, channel="voice", view="voice") as call:
+    with on_mock.conversation("chat-1", subject=MARINA, channel="whatsapp", view="chat") as call:
         pinned = call.context()
         say(on_mock, "The technician never came", minute=5, conversation="wa-1")
         on_mock.flush()

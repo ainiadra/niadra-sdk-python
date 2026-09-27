@@ -20,18 +20,22 @@ pipeline = Pipeline(
 )
 ```
 
+- **First read.** The pipeline's `StartFrame` starts the caller's first read (`begin()`), so it
+  runs while the call is set up; the first inference (the greeting, or the first turn) waits for
+  it within `Timeouts.context_voice_start` (`ready()`).
 - **Context.** On each `LLMContextFrame`, between the user aggregator and the LLM, the processor
-  reads `context()` (150 ms for the voice view) and puts the pack right after the leading
+  reads `context()` and puts the pack right after the leading
   `system` or `developer` messages and the turn block at the end. The blocks it placed on the
   previous turn are taken out first, so the shared context never piles them up. A speculative
   inference gets them too, in its provisional copy. The read sends the user's turn (the last
   user message of the context) along, and the answer carries what that turn needs from memory,
-  last in the turn block.
+  last in the turn block. The pack comes from memory at once; the slots come from the read a
+  prefetch made of the turn's words, waited for 200 ms at most.
 - **Prefetch.** `prefetcher()` is a second processor, for right after the STT service (the user
   aggregator consumes the interim transcripts): on each `InterimTranscriptionFrame` and
-  `TranscriptionFrame` it sends the turn so far with `prefetch()`, in the background, so the
-  read that answers the turn finds the caller's memory warm. It passes every frame on at once
-  and never holds or fails a turn. Leave it out and nothing else changes.
+  `TranscriptionFrame` it sends the turn so far with `prefetch()`, in the background: the server
+  warms the caller's memory, and once the words stop changing the SDK reads the turn with them.
+  It passes every frame on at once and never holds or fails a turn. Leave it out and nothing else changes.
 - **Turns.** `observe()` subscribes to the aggregators: each user message written to the
   context (`on_user_turn_message_added`, final in cascade and realtime modes) is the customer's
   turn and each finished assistant turn (`on_assistant_turn_stopped`) is the agent's. `EndFrame`
@@ -66,6 +70,7 @@ try:
         Frame,
         InterimTranscriptionFrame,
         LLMContextFrame,
+        StartFrame,
         TranscriptionFrame,
     )
     from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
@@ -78,6 +83,7 @@ from niadra.integrations._common import (
     AgentMemoryLike,
     AnyKit,
     agent_turn,
+    begin,
     call_tool,
     customer_turn,
     end,
@@ -89,6 +95,7 @@ from niadra.integrations._common import (
     phone_or_none,
     prefetch,
     read_prompt,
+    read_ready,
     tool_specs,
     verify_attestation,
     warn,
@@ -169,6 +176,7 @@ class NiadraMemoryProcessor(FrameProcessor):
         self.agent_memory = memory_option(agent_memory)
         self.role = role
         self._verified = False
+        self._opened = False
         self._placed: list[dict[str, Any]] = []
         self._heard: list[str] = []
 
@@ -207,7 +215,9 @@ class NiadraMemoryProcessor(FrameProcessor):
 
     async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
         await super().process_frame(frame, direction)
-        if isinstance(frame, LLMContextFrame):
+        if isinstance(frame, StartFrame):
+            begin(self.conversation)  # the call starts: its first read runs while it is set up
+        elif isinstance(frame, LLMContextFrame):
             try:
                 await self._place(frame.context, speculative=frame.speculation)
             except Exception as exc:
@@ -221,6 +231,9 @@ class NiadraMemoryProcessor(FrameProcessor):
         if not self._verified:
             self._verified = True
             await verify_attestation(self.conversation, self.attestation)
+        if not self._opened:
+            self._opened = True
+            await read_ready(self.conversation)
         if not speculative:
             self._heard = []
         prompt = await read_prompt(self.conversation, self.agent_memory, turn=_last_user_text(messages))

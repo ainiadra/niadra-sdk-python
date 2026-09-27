@@ -131,6 +131,23 @@ async def test_the_pack_goes_after_the_instructions_and_never_piles_up(
     assert call.context_injected_at is not None
 
 
+async def test_the_first_read_starts_with_the_pipeline(call: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    model = FakeLLM("Hello.")
+    begun: list[int] = []
+    begin = call.begin
+
+    def spy() -> bool:
+        begun.append(len(model.prompts))
+        return bool(begin())
+
+    monkeypatch.setattr(call, "begin", spy)
+    await run_test(
+        pipeline(NiadraMemoryProcessor(call), model, LLMContext([INSTRUCTIONS])), frames_to_send=said("Hi")
+    )
+    assert begun and begun[0] == 0, "begun at the StartFrame, before any inference"
+    assert EARLIER in model.prompts[0][1]["content"]
+
+
 async def test_news_from_another_channel_goes_at_the_end(call: Any, on_mock_async: AsyncNiadra) -> None:
     on_mock_async.track(
         {

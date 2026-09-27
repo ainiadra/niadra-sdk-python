@@ -2,8 +2,9 @@
 
 Vapi posts server messages to one URL; `VapiServer.handle()` answers the ones that matter:
 
-- **`assistant-request`**: verifies the carrier's attestation when you pass one, reads
-  `context(view="voice")` for the caller and answers the assistant. With `assistant=` (a transient
+- **`assistant-request`**: verifies the carrier's attestation when you pass one, starts the
+  caller's first read (`begin()`), waits for it within `Timeouts.context_voice_start` and answers
+  the assistant. With `assistant=` (a transient
   assistant), the pack goes into `model.messages` right after its system messages; with
   `assistant_id=`, it goes in `assistantOverrides.variableValues.niadra_context`, for a prompt that
   says `{{niadra_context}}` after its instructions. With `agent_memory=True`, the agent's own notes
@@ -54,6 +55,7 @@ from niadra._client import Niadra
 from niadra.integrations._common import (
     AgentMemoryLike,
     AgentMemoryOption,
+    begin,
     blocks,
     call_tool,
     end,
@@ -65,7 +67,7 @@ from niadra.integrations._common import (
     memory_option,
     phone_or_none,
     read_agent_memory,
-    read_context,
+    read_ready,
     record,
     run_sync,
     tool_specs,
@@ -215,9 +217,10 @@ class VapiServer:
                     warn("read the attestation", exc)
                     level = None
                 await verify_attestation(session, level)
+            begin(session)  # the pack is read while the agent's notes are
             notes = await read_agent_memory(session, self.agent_memory)
             variables[MEMORY_VARIABLE] = notes
-            context = await read_context(session)
+            context = await read_ready(session)
             customer = join_instructions(*blocks(context)) if context is not None else ""
             if context is not None:
                 variables[CONTEXT_VARIABLE] = customer

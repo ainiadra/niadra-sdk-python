@@ -3,8 +3,9 @@
 A call to an ElevenLabs agent reaches your server three ways, and this module answers each:
 
 1. **Conversation initiation** ("Fetch initiation client data from a webhook"): before the agent
-   speaks, `conversation_initiation()` verifies the carrier's attestation when you pass one, reads
-   `context(view="voice")` for the caller and answers the dynamic variable `niadra_context`. Put
+   speaks, `conversation_initiation()` verifies the carrier's attestation when you pass one, starts
+   the caller's first read (`begin()`), waits for it within `Timeouts.context_voice_start` and
+   answers the dynamic variable `niadra_context`. Put
    `{{niadra_context}}` in the agent's system prompt, after your instructions. With
    `agent_memory=True`, the agent's own notes come as `niadra_agent_memory`: put
    `{{niadra_agent_memory}}` right before `{{niadra_context}}`.
@@ -60,6 +61,7 @@ from niadra._client import Niadra
 from niadra.integrations._common import (
     AgentMemoryLike,
     AgentMemoryOption,
+    begin,
     blocks,
     call_tool,
     end,
@@ -71,7 +73,7 @@ from niadra.integrations._common import (
     model_usage,
     phone_or_none,
     read_agent_memory,
-    read_context,
+    read_ready,
     record,
     run_sync,
     tool_specs,
@@ -288,8 +290,9 @@ class ElevenLabsWebhooks:
                     warn("read the attestation", exc)
                     level = None
                 await verify_attestation(session, level)
+            begin(session)  # the pack is read while the agent's notes are
             variables[MEMORY_VARIABLE] = await read_agent_memory(session, self.agent_memory)
-            context = await read_context(session)
+            context = await read_ready(session)
             if context is not None:
                 variables[CONTEXT_VARIABLE] = join_instructions(*blocks(context))
                 variables[ETAG_VARIABLE] = context.etag

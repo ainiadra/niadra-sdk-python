@@ -91,6 +91,20 @@ async def run(agent: Agent, model: FakeLLM, *inputs: str) -> None:
             await session.run(user_input=text)
 
 
+async def test_the_first_read_starts_when_the_caller_joins(on_mock_async: AsyncNiadra) -> None:
+    await seed_async(on_mock_async)
+    caller = SimpleNamespace(identity="sip_caller", attributes={"sip.phoneNumber": "+5511912345678"})
+    conversation = conversation_for(on_mock_async, caller, room=SimpleNamespace(name="room-7"))
+    line = on_mock_async._voice.find("c:room-7")
+    assert line is not None and line.reads, "the read left when the caller joined"
+    await asyncio.gather(*(read.handle for read in line.reads))
+    model = FakeLLM("Hello, Marina.")
+    async with AgentSession(llm=model) as session:
+        await session.start(NiadraAgent(conversation, instructions="You are Acme's agent."))
+        await session.run(user_input="Hi")
+    assert EARLIER in messages(model.prompts[0])[1][1]
+
+
 async def test_the_pack_goes_after_the_instructions_and_news_at_the_end(
     call: Any, on_mock_async: AsyncNiadra, mock_app: MockApp
 ) -> None:

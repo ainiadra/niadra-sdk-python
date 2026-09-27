@@ -8,6 +8,9 @@ A delta is what changed since this agent last read the subject, and the server m
 mark as it answers, so a delta it sent once never comes back. The cache therefore hands each
 delta out exactly once: one fetched by a background refresh waits in the entry until the next
 read takes it, instead of being overwritten or served twice.
+
+Ending a conversation drops its packs, and an answer that was on its way then is not stored:
+each purge of a scope moves that scope's epoch, and a read passes the epoch it started under.
 """
 
 from __future__ import annotations
@@ -69,15 +72,25 @@ class Hit:
     freshness: Freshness
 
 
+# Scopes whose epoch is remembered after a purge; past this, the oldest are forgotten.
+_MAX_EPOCHS = 4096
+
+
 class ContextCache:
     def __init__(self, options: CacheOptions) -> None:
         self._options = options
         self._entries: OrderedDict[str, _Entry] = OrderedDict()
         self._refreshing: set[str] = set()
+        self._epochs: OrderedDict[str, int] = OrderedDict()
         self._lock = threading.Lock()
 
-    def get(self, key: str) -> Hit | None:
-        """The cached pack for `key`. A fresh or stale hit also delivers the pending deltas."""
+    def get(self, key: str, *, pinned: bool = False) -> Hit | None:
+        """The cached pack for `key`. A fresh or stale hit also delivers the pending deltas.
+
+        `pinned=True` is for a conversation whose pinned bytes the server keeps the same until it
+        ends (the voice read path): an entry past the stale window is still the right body, so it
+        is served as `stale`, deltas included, while the caller revalidates it.
+        """
         with self._lock:
             entry = self._live(key)
             if entry is None:
@@ -86,9 +99,19 @@ class ContextCache:
             age = time.monotonic() - entry.stored_at
             if age < self._options.ttl:
                 return Hit(entry.hand_out(entry.context.model_copy(update={"origin": "cache"})), "fresh")
-            if age < self._options.ttl + self._options.stale_while_revalidate:
+            if pinned or age < self._options.ttl + self._options.stale_while_revalidate:
                 return Hit(entry.hand_out(entry.context.model_copy(update={"origin": "stale"})), "stale")
             return Hit(entry.context, "expired")
+
+    def has(self, key: str) -> bool:
+        """Whether a pack for `key` is held (and not past `max_stale`). Delivers nothing."""
+        with self._lock:
+            return self._live(key) is not None
+
+    def epoch(self, scope: str) -> int:
+        """The scope's epoch now: a read started under it may store its answer while it holds."""
+        with self._lock:
+            return self._epochs.get(scope, 0)
 
     def _live(self, key: str) -> _Entry | None:
         """The entry for `key`, unless it is past `max_stale`, in which case it is dropped."""
@@ -103,16 +126,21 @@ class ContextCache:
             entry = self._entries.get(key)
         return entry.context.etag if entry and entry.context.etag else None
 
-    def absorb(self, key: str, scope: str, response: Context, *, deliver: bool = True) -> Context:
+    def absorb(
+        self, key: str, scope: str, response: Context, *, deliver: bool = True, epoch: int | None = None
+    ) -> Context:
         """Folds an API answer into the cache and returns what the caller should see.
 
         `not_modified` means the pinned pack is unchanged: the cached text is kept, and what
         lives outside the pack (live turns, verification, withheld, timing) comes from the new
         answer. A `degraded` answer never replaces a good pack: the last good one is returned
         instead. A background refresh passes `deliver=False`, so its delta waits for a reader.
+        With `epoch`, an answer to a read started before the scope was purged is not stored.
         """
         now = time.monotonic()
         with self._lock:
+            if epoch is not None and self._epochs.get(scope, 0) != epoch:
+                return response
             entry = self._entries.get(key)
             if entry is not None and response.not_modified:
                 entry.context = entry.context.model_copy(
@@ -192,10 +220,14 @@ class ContextCache:
             self._entries.pop(key, None)
 
     def purge_scope(self, scope: str) -> None:
-        """Drops every pack of one conversation or task, e.g. after its verification level changed."""
+        """Drops every pack of one conversation or task, e.g. after its verification level changed or
+        when it ended; an answer to a read started before this is not stored."""
         with self._lock:
             for key in [k for k, entry in self._entries.items() if entry.scope == scope]:
                 del self._entries[key]
+            self._epochs[scope] = self._epochs.pop(scope, 0) + 1
+            while len(self._epochs) > _MAX_EPOCHS:
+                self._epochs.popitem(last=False)
 
     def clear(self) -> None:
         with self._lock:

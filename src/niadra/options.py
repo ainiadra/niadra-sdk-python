@@ -15,11 +15,24 @@ class Timeouts:
     writes a caller waits for (`identify`, `verify`, `feedback`, `subject_token` and the
     reservation of an upload) and the timeout of each attempt of the background queue, which
     never holds a caller. `upload` bounds sending media bytes to storage. `prefetch` bounds a
-    prefetch, which runs in the background and never holds a turn.
+    prefetch, which runs in the background and never holds a turn, and a voice read that goes on
+    after its turn's budget.
+
+    In a voice conversation the pinned pack is read once and then served from memory, so
+    `context_voice` is not a round trip: it is the most a turn waits for the read of its own words
+    that a prefetch already started (see `niadra._voice`). A read starts when the partial transcript
+    has been still for `VoiceOptions.settle` (0.2 s) and the platform ends the turn later (LiveKit
+    waits at least 0.5 s of silence), which leaves about 0.3 s of head start; with 0.2 s of wait on
+    top, the turn gets its slots while round trip plus server time stay under 0.5 s, a round trip
+    of up to about 0.4 s at the server's p95. A longer wait would be heard: 0.2 s is the usual gap
+    between two people's turns. `context_voice_start` bounds the first read of a call, made while
+    the phone rings or the inbound webhook runs: a cold connection costs three round trips (TCP,
+    TLS, the request) plus the server's first compile, 3 x 0.4 s + 0.3 s at a 0.4 s round trip.
     """
 
     context: float = 0.30
-    context_voice: float = 0.15
+    context_voice: float = 0.20
+    context_voice_start: float = 1.5
     navigation: float = 0.60
     navigation_voice: float = 0.30
     write: float = 5.0
@@ -43,6 +56,23 @@ class CacheOptions:
     stale_while_revalidate: float = 600.0
     max_stale: float = 1800.0
     max_entries: int = 1000
+
+
+@dataclass(frozen=True)
+class VoiceOptions:
+    """The voice read path of a conversation in the `voice` view (see `niadra._voice`).
+
+    `settle` is how long, in seconds, a partial transcript must stay the same before the SDK
+    reads the turn with it. A read's slots answer the final turn when the final words start with
+    the partial's and the partial carries at least `min_coverage` of them. `probe` measures the
+    round trip to the region once, with `GET /healthz`, and logs a warning when the voice budgets
+    cannot hold it. `enabled=False` sends every voice turn to the API as the other views do.
+    """
+
+    enabled: bool = True
+    settle: float = 0.2
+    min_coverage: float = 0.75
+    probe: bool = True
 
 
 @dataclass(frozen=True)

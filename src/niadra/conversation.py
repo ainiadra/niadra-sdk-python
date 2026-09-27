@@ -13,6 +13,10 @@
   `turn_block` between the live turns and the delta; the pinned pack does not change. `turn=` passes another
   turn (a transcript the platform finalized before `customer()` saw it), and `turn=None` reads
   without one. `prefetch()` sends a partial transcript while the customer is still speaking.
+- In the `voice` view, `begin()` starts the first read when the call starts and `ready()` waits
+  for it there; later turns get the pinned pack from memory at once, and their slots from the
+  read a prefetch made of their words (`niadra._voice`). Ending the conversation drops what the
+  SDK kept for it.
 - `customer()`, `agent()` and `human_agent()` record turns, and `action()` records what an
   agent did in a system of record. None of them block.
 - `agent()` checks the answer first (`niadra.backing`): every number, date, code and amount it
@@ -109,6 +113,7 @@ class _Session:
         fail: _Fail,
         session_id: str | None,
         *,
+        forget: Callable[[str], None] | None = None,
         subject: HandleLike | None,
         object: ObjectLike | None,
         about: HandleLike | None,
@@ -140,6 +145,7 @@ class _Session:
         self._prefetched: str | None = None
         self._track = track
         self._fail = fail
+        self._forget = forget
         self._ended = False
         self._token: Token[AnySession | None] | None = None
 
@@ -278,6 +284,15 @@ class _Session:
             arguments.setdefault("turn", self.last_turn)
         return arguments
 
+    def _begin_arguments(self) -> dict[str, Any]:
+        arguments = self._context_arguments()
+        arguments.pop("delta")
+        return arguments
+
+    @property
+    def _scope(self) -> str:
+        return f"c:{self.id}" if self._kind == "conversation" else f"t:{self.id}"
+
     def _prefetch_arguments(self, text: str) -> dict[str, Any] | None:
         """What `prefetch()` sends, or None for the same text twice in a row."""
         if text == self._prefetched:
@@ -365,11 +380,16 @@ class _Session:
         return TaskEndedItem(task_id=self.id)
 
     def end(self) -> bool:
-        """Emits `conversation.ended` or `task.ended`. Later calls do nothing."""
+        """Emits `conversation.ended` or `task.ended`, and drops what the SDK kept in memory for it
+        (its packs, and in the voice view its line). Later calls do nothing."""
         if self._ended:
             return False
         self._ended = True
-        return self._track(self._end_item())
+        sent = self._track(self._end_item())
+        if self._forget is not None:
+            with suppress(Exception):
+                self._forget(self._scope)
+        return sent
 
     def _enter(self) -> None:
         self._token = _current.set(self)  # type: ignore[arg-type]
@@ -386,8 +406,21 @@ class _Session:
 
 class _SyncSession(_Session):
     def __init__(self, client: Niadra, session_id: str | None, **options: Any) -> None:
-        super().__init__(client.track, client._core.fail, session_id, **options)
+        super().__init__(client.track, client._core.fail, session_id, forget=client._forget_scope, **options)
         self._client = client
+
+    def begin(self) -> bool:
+        """Starts this conversation's first read now, in the background: call it when the call starts
+        (ringing, the inbound webhook), so the read runs while the call is set up. The voice view
+        only; see `Niadra.begin`."""
+        return self._client.begin(**self._begin_arguments())
+
+    def ready(self) -> Context:
+        """`begin()`, then the pack of that first read, waiting for it within what is left of
+        `Timeouts.context_voice_start`: for the moment the call starts, when the platform waits
+        anyway. Outside the voice view, a `context()` without the customer's turn."""
+        self.begin()
+        return self.context(turn=None, timeout=self._client._start_budget(self._scope))
 
     def context(self, **overrides: Any) -> Context:
         """The pack for this turn: the pinned bytes, with every delta since the pin in `delta` and
@@ -474,8 +507,19 @@ class _SyncSession(_Session):
 
 class _AsyncSession(_Session):
     def __init__(self, client: AsyncNiadra, session_id: str | None, **options: Any) -> None:
-        super().__init__(client.track, client._core.fail, session_id, **options)
+        super().__init__(client.track, client._core.fail, session_id, forget=client._forget_scope, **options)
         self._client = client
+
+    def begin(self) -> bool:
+        """Starts this conversation's first read now, as a task on the running loop: call it when the
+        call starts, so the read runs while the call is set up. See `Conversation.begin`."""
+        return self._client.begin(**self._begin_arguments())
+
+    async def ready(self) -> Context:
+        """`begin()`, then the pack of that first read, waiting for it within what is left of
+        `Timeouts.context_voice_start`. See `Conversation.ready`."""
+        self.begin()
+        return await self.context(turn=None, timeout=self._client._start_budget(self._scope))
 
     async def context(self, **overrides: Any) -> Context:
         """The pack for this turn: the pinned bytes, with every delta since the pin in `delta` and

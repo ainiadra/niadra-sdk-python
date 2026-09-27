@@ -108,6 +108,29 @@ async def read_context(session: AnySession | None, turn: str | None = None) -> C
     return context if (context.system_block or context.turn_block or context.is_holdout) else None
 
 
+def begin(session: AnySession | None) -> None:
+    """Starts the first read of a voice conversation now, while the call is set up; never raises."""
+    if session is None:
+        return
+    try:
+        session.begin()
+    except Exception as exc:
+        warn("start the first read", exc)
+
+
+async def read_ready(session: AnySession | None) -> Context | None:
+    """The first read of a call, awaited at call start within `Timeouts.context_voice_start` (the
+    platform waits for the answer anyway); None when there is none or it could not be read."""
+    if session is None:
+        return None
+    try:
+        context = await maybe_await(session.ready())
+    except Exception as exc:
+        warn("read the context", exc)
+        return None
+    return context if (context.system_block or context.turn_block or context.is_holdout) else None
+
+
 def mark_injected(session: AnySession, context: Context) -> None:
     try:
         session.mark_injected(context)

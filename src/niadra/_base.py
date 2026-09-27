@@ -21,6 +21,7 @@ from niadra._ids import new_key
 from niadra._queue import EventBuffer, serialize
 from niadra._transport import Request
 from niadra._turns import MIN_PREFETCH, NO_PREFETCH, PrefetchSupport, turn_text
+from niadra._voice import rtt_warnings
 from niadra.errors import APIError, ConfigurationError
 from niadra.keys import ApiKey
 from niadra.models.agent_memory import AgentMemory, AgentMemorySearchRequest, CreateAgentNoteRequest, Evidence
@@ -53,7 +54,7 @@ from niadra.models.events import (
 )
 from niadra.models.results import Context
 from niadra.models.tokens import SubjectTokenRequest
-from niadra.options import CacheOptions, QueueOptions, Timeouts
+from niadra.options import CacheOptions, QueueOptions, Timeouts, VoiceOptions
 from niadra.vocabulary import AssertionMethod, EventKind, Speaker, SubjectKind, Verification
 
 logger = logging.getLogger("niadra")
@@ -191,12 +192,14 @@ class ClientCore:
         timeouts: Timeouts | None,
         cache: CacheOptions | None,
         queue: QueueOptions | None,
+        voice: VoiceOptions | None = None,
     ) -> None:
         self.strict = strict
         self.channel = channel
         self.timeouts = timeouts or Timeouts()
         self.cache_options = cache or CacheOptions()
         self.queue_options = queue or QueueOptions()
+        self.voice_options = voice or VoiceOptions()
         self.buffer = EventBuffer(self.queue_options)
         self.key: ApiKey | None = None
         self.api_key = ""
@@ -336,6 +339,50 @@ class ClientCore:
 
     def cacheable(self, request: ContextRequest, use_cache: bool) -> bool:
         return use_cache and self.cache_options.enabled and bool(request.conversation_id or request.task_id)
+
+    def voice_path(self, request: ContextRequest, use_cache: bool) -> bool:
+        """Whether a read goes through the voice read path (`niadra._voice`)."""
+        return self.voice_options.enabled and request.view == "voice" and self.cacheable(request, use_cache)
+
+    @staticmethod
+    def voice_body(request: ContextRequest, query: str | None) -> ContextRequest:
+        """What a voice read sends: the conversation's read, with the (partial) turn as `query`."""
+        text = turn_text(query)
+        return request.model_copy(update={"query": text}) if text else request
+
+    @staticmethod
+    def store_read(cache: ContextCache, key: str, scope: str, fetched: Context, epoch: int) -> None:
+        """Keeps a voice read's pack as the conversation's pinned one, its delta waiting for a reader;
+        the slots and guards stay on the read."""
+        pack = fetched.pack
+        cache.absorb(
+            key,
+            scope,
+            fetched.model_copy(
+                update={
+                    "slots": None,
+                    "guards": [],
+                    "pack": pack.model_copy(update={"slots": []}) if pack is not None else None,
+                }
+            ),
+            deliver=False,
+            epoch=epoch,
+        )
+
+    def probe_http(self) -> Request:
+        """`GET /healthz`, the cheapest call the region answers: one attempt, never retried."""
+        return Request("GET", "/healthz", timeout=2.0, budget=2.0, max_attempts=1)
+
+    def probed(self, samples: Sequence[float]) -> float | None:
+        """Records the round trip to the region, the fastest of `samples`, and warns when the voice
+        budgets cannot hold it."""
+        if not samples:
+            return None
+        rtt = min(samples)
+        logger.info("niadra: round trip to the region %d ms", round(rtt * 1000))
+        for warning in rtt_warnings(rtt, self.timeouts):
+            logger.warning("niadra: %s", warning)
+        return rtt
 
     @staticmethod
     def scope_of(conversation_id: str | None, task_id: str | None) -> str:
