@@ -10,8 +10,9 @@
 #   - a security group in the cell's VPC with no inbound rule (the host is reached through Systems
 #     Manager only; it goes out to GitHub, the image registries, OpenRouter and Niadra's public address)
 #   - an IAM role and instance profile: Systems Manager; read of the two secrets by name
-#     (niadra/platform/openrouter, niadra/tenant/bootstrap); pull of the niadra/models image; write and
-#     read of one S3 prefix of the cell's bucket (benchmarks/temp-host/<id>/)
+#     (niadra/bench/openrouter, the benchmark's own OpenRouter key, and niadra/tenant/bootstrap); pull of
+#     the niadra/models image; write and read of one S3 prefix of the cell's bucket
+#     (benchmarks/temp-host/<id>/)
 #   - the instance (default m7i-flex.large: 2 vCPU, 8 GiB, free-tier eligible) in the cell's public subnet
 #     with a public address, Ubuntu 24.04, a 40 GiB encrypted gp3 volume deleted with it, IMDSv2 only; it
 #     terminates itself after BENCH_MAX_HOURS (default 24), whatever happens to this computer

@@ -48,7 +48,9 @@ prepare() {
   install -d -o 10001 -m 0755 "$RESULTS"
   umask 077
   local openrouter
-  openrouter="$(aws secretsmanager get-secret-value --secret-id niadra/platform/openrouter \
+  # The benchmark's own OpenRouter key (its own spend limit): every model call of the harness, the agent,
+  # the judge and each system's gateway. The cell's extraction keeps the production key.
+  openrouter="$(aws secretsmanager get-secret-value --secret-id niadra/bench/openrouter \
     --query SecretString --output text | python3 -c 'import json,sys; print(json.load(sys.stdin)["api_key"])')"
   {
     echo "BENCH_LLM_API_KEY=$openrouter"

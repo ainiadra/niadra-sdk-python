@@ -27,8 +27,9 @@ STATE_DIR="$HERE/.state"
 # Every resource the scripts create carries this tag with the host's id; down.sh finds them by it.
 TAG_KEY="niadra:bench-temp-host"
 NAME_PREFIX="niadra-bench-temp"
-# The secrets the host reads, by name only.
-SECRET_OPENROUTER="niadra/platform/openrouter"
+# The secrets the host reads, by name only. The OpenRouter key is the benchmark's own (a spend limit of its
+# own); the production key, niadra/platform/openrouter, is the cell's and the host never reads it.
+SECRET_OPENROUTER="niadra/bench/openrouter"
 SECRET_BOOTSTRAP="niadra/tenant/bootstrap"
 
 # Public on-demand prices in us-east-2 used when the Pricing API cannot be read (USD, checked 26/09/2026

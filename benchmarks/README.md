@@ -423,8 +423,14 @@ What the estimate assumes, none of it measured yet:
 | `graphiti` | 1 | six calls (2,500 in, 300 out) per episode, one episode per message, 6,290 | 18.02 |
 | **Total** | | | **about 91** |
 
-Niadra's line is paid by the cell's own OpenRouter key; every other line by the harness's. The temporary
-host adds about $0.105 an hour ($5 for 48 hours). Budget $120 for the models, for the estimate's error.
+Niadra's extraction and decisions (about $4.95 of its line) are paid by the cell's production key; everything
+else, about $86 (Niadra's agent and judge passes included), by the benchmark's own key,
+`niadra/bench/openrouter`. That key's limit, US$60, is below this estimate: OpenRouter refuses calls past it,
+so in the campaign's order the limit would be reached around LangMem, and LangMem, Cognee and Graphiti
+(about $27 together) would fail. The estimate assumes no cache hits and may well come in lower (Mem0's
+line most of all), but before the third part either raise the key's limit to about $100, or check the key's
+spend on OpenRouter after the second part and run what does not fit with `--limit` (Graphiti with
+`--limit 120` is about $6). The temporary host adds about $0.105 an hour ($5 for 48 hours).
 
 ## Layout
 
@@ -485,12 +491,12 @@ What `up.sh --confirm` creates, each tagged `niadra:bench-temp-host=<id>`, and `
 checks: the instance (m7i-flex.large, 2 vCPU and 8 GiB, free-tier eligible, Ubuntu 24.04, in the cell
 machine's public subnet with a public address, IMDSv2 only; the VPC's private subnets have no route out,
 by the cell's design, and the host must reach GitHub, the image registries, OpenRouter and Niadra's public
-address), its 40 GiB encrypted gp3 volume (deleted with
-it), a security group with no inbound rule (the host is reached through Systems Manager only), an IAM role
-and instance profile (Systems Manager; `secretsmanager:GetSecretValue` on `niadra/platform/openrouter` and
-`niadra/tenant/bootstrap` only; pull of `niadra/models` only; read and write of
-`s3://<cell bucket>/benchmarks/temp-host/<id>/` only), and that S3 prefix. The host terminates itself after
-`BENCH_MAX_HOURS` (default 24) even if `down.sh` never runs; the role, the group and the prefix cost
+address), its 40 GiB encrypted gp3 volume (deleted with it), a security group with no inbound rule (the
+host is reached through Systems Manager only), an IAM role and instance profile (Systems Manager;
+`secretsmanager:GetSecretValue` on `niadra/bench/openrouter` and `niadra/tenant/bootstrap` only, never on
+the production key `niadra/platform/openrouter`; pull of `niadra/models` only; read and write of
+`s3://<cell bucket>/benchmarks/temp-host/<id>/` only), and that S3 prefix. The host terminates itself
+after `BENCH_MAX_HOURS` (default 24) even if `down.sh` never runs; the role, the group and the prefix cost
 nothing and stay until `down.sh`.
 
 Cost, on-demand in us-east-2 (up.sh reads the price list and prints it again): m7i-flex.large $0.0958 per
@@ -511,10 +517,13 @@ PostgreSQL 768 MiB; Cognee 4 GiB; each system's gateway 128 MiB), under the 7.6 
 gives. Neo4j's heap and page cache are capped in the two compose files that use it, the only setting of
 theirs changed.
 
-Secrets, by name only: the host reads `niadra/platform/openrouter` (property `api_key`) and
+Secrets, by name only: the host reads `niadra/bench/openrouter` (property `api_key`; an OpenRouter key made
+for the benchmark alone, with a spend limit of its own, US$60 when it was created on 27/09/2026) and
 `niadra/tenant/bootstrap` (the sandbox tenant's source keys and admin account, which the billing agent's
-source needs) with its own role, into root-only files, and gives the harness the
-bootstrap as a read-only file and the provider key through the environment of its gateways and its agent.
+source needs) with its own role, into root-only files, and gives the harness the bootstrap as a read-only
+file and the provider key through the environment of its gateways, its agent and its judge: every model
+call the benchmark makes goes on that key. Niadra's own extraction runs in the cell on the production key
+(`niadra/platform/openrouter`), which the host never reads, and is counted there, apart.
 The local systems' own tokens and database passwords are random, generated on the host.
 
 `start` and `campaign` take any `bench run` arguments. Every run but the first of a campaign can take

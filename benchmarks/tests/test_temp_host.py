@@ -157,7 +157,8 @@ def test_up_creates_a_scoped_host_and_down_deletes_it_and_checks(aws) -> None:
     assert sg[sg.index("--vpc-id") + 1] == "vpc-1"
     policy = json.loads(next(c for c in calls if c[:2] == ["iam", "put-role-policy"])[-1])
     resources = json.dumps(policy)
-    assert "niadra/platform/openrouter-*" in resources and "niadra/tenant/bootstrap-*" in resources
+    assert "niadra/bench/openrouter-*" in resources and "niadra/tenant/bootstrap-*" in resources
+    assert "niadra/platform/openrouter" not in resources  # the production key stays the cell's
     assert "repository/niadra/models" in resources and "benchmarks/temp-host/" in resources
     assert '"s3:DeleteObject"' not in resources and "secretsmanager:*" not in resources
     userdata = Path(run[run.index("--user-data") + 1].removeprefix("file://"))
