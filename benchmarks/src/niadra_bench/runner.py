@@ -90,6 +90,9 @@ class Options:
     tag: str | None = None
     # `--niadra-guards measure`: Niadra's probe answers go back to it as the agent's messages (guard lines).
     niadra_record_answers: bool = False
+    # `--max-settle-s`: the longest an added system's settle may wait, below its own minimum (a campaign's
+    # wall-clock cap). A settle cut short is `settled: false`, and the run scores what the system has.
+    max_settle_s: float | None = None
     # Tests only: an in-process transport per system added through `niadra_bench.systems`.
     system_transports: dict[str, httpx.AsyncBaseTransport] = field(default_factory=dict)
     extra: dict[str, Any] = field(default_factory=dict)
@@ -233,6 +236,7 @@ class Run:
                         transport=self.options.system_transports.get(key),
                         concurrency=self.config.run.concurrency,
                         settle_timeout_s=self.config.run.settle_timeout_s,
+                        max_settle_s=self.options.max_settle_s,
                     )
                 )
         return targets
@@ -607,6 +611,8 @@ class Run:
                 # "off": the run asked no reference (`--no-references`); its cases count only when
                 # `bench combine` puts it after a run that did, whose references decide validity.
                 "references": "on" if self.options.references else "off",
+                # `--max-settle-s`, when a campaign capped the added systems' settle (None: their own).
+                "max_settle_s": self.options.max_settle_s,
                 # A smoke run (`--quick`: 3 s loops at the first rate) is never published; the site's
                 # importer refuses it. `--limit` is the number of cases asked, or None for all of them.
                 "quick": self.options.quick,

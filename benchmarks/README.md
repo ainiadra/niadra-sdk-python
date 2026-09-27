@@ -545,7 +545,11 @@ call the benchmark makes goes on that key. Niadra's own extraction runs in the c
 (`niadra/platform/openrouter`), which the host never reads, and is counted there, apart.
 The local systems' own tokens and database passwords are random, generated on the host.
 
-`start` and `campaign` take any `bench run` arguments. Every run but the first of a campaign can take
+`start` and `campaign` take any `bench run` arguments. `--max-settle-s` caps how long an added system's
+settle may wait, below its own minimum (Graphiti's 12 hours, LangMem's 6, most others' 4): a campaign with
+a wall-clock limit per system scores what a system has when the cap is reached, its settle is recorded as
+`settled: false`, and `config.max_settle_s` says the cap was set. It is a run argument, not configuration,
+so the configuration hash stays and the run still combines. Every run but the first of a campaign can take
 `--no-references`: `bench combine` decides validity with the first folder's references only, so asking
 them again in each run spends the agent and the judge on answers nothing reads (two target passes per
 repetition). The first run keeps them, needs every case and the most repetitions, and `bench combine`
