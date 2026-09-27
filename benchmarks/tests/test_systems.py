@@ -299,6 +299,10 @@ class TinySystem(HttpSystem):
         return Call("POST", "/write", json={"who": self.customer(ids), "text": customer})
 
 
+def test_a_write_that_builds_the_memory_gets_a_longer_call_timeout() -> None:
+    assert Cognee.call_timeout_s > TinySystem.call_timeout_s == 60.0
+
+
 def test_a_campaign_cap_shortens_a_settle_but_never_lengthens_it() -> None:
     graphiti = REGISTRY["graphiti"]
     assert graphiti(settle_timeout_s=1200).settle_timeout_s == graphiti.min_settle_timeout_s

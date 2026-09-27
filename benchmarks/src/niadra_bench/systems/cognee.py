@@ -80,6 +80,9 @@ class Cognee(HttpSystem):
     meter_default = "http://cognee-gateway:8081"
     #: `add` and `cognify` wait for the graph to be built.
     seed_concurrency = 4
+    #: `cognify` answers when the customer's graph is built: on 27/09 seven customers with 30 to 60
+    #: sessions took more than the 60 s every other call gets, and their seeding failed on the client side.
+    call_timeout_s = 1800.0
 
     def health_call(self) -> Call:
         return Call("GET", "/health")
