@@ -13,8 +13,10 @@ What stands in for the cloud, the same on both sides of an A/B:
   customer's ask and each line that settles a new number, and picks the category and intent by
   keywords; it never extracts facts, so what a pack holds comes from episodes, the deterministic value
   net, system records and actions;
-- the models server: niadra-back's `DeterministicModels` (hash embeddings of 64 dimensions, regex PII)
-  with the real rule gate `worth_extracting` of `models/src`;
+- the decisions port (Jev, estudo 14): niadra-back's own `DeterministicDecider`, the fake its unit tests
+  wire behind `DecideService` (`niadra.testing.cell.Cell`) for the extraction gate, injection, sensitive
+  category, question type and contradiction tasks, by keyword, deterministically, no network;
+- the models server: niadra-back's `DeterministicModels` (hash embeddings of 64 dimensions, regex PII);
 - the clock: fixed at `--now`, the instant the harness also seeds from.
 
 The process environment picks the variant, as the read deployment's would:
@@ -51,7 +53,7 @@ from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
 
-sys.path[:0] = [os.getcwd(), os.path.join(os.getcwd(), "models", "src")]
+sys.path[:0] = [os.getcwd()]
 
 import uvicorn  # noqa: E402
 from niadra.adapters.inbound.http import ingest as ingest_routes  # noqa: E402
@@ -59,6 +61,7 @@ from niadra.adapters.inbound.http import read as read_routes  # noqa: E402
 from niadra.adapters.inbound.http.app import create_app  # noqa: E402
 from niadra.adapters.memory import uow as memory_uow  # noqa: E402
 from niadra.adapters.memory.fakes import (  # noqa: E402
+    DeterministicDecider,
     DeterministicModels,
     FixedClock,
     LlmResult,
@@ -70,9 +73,7 @@ from niadra.config.models import SourceConfig, SpaceConfig, TenantSettings  # no
 from niadra.domain.common.errors import Unauthenticated  # noqa: E402
 from niadra.domain.common.space import SourcePrincipal  # noqa: E402
 from niadra.domain.vocabulary import Audience, Scope, Verification  # noqa: E402
-from niadra.ports.infra import Label  # noqa: E402
 from niadra.testing.cell import SPACE_ID, TENANT_ID, Cell, principal  # noqa: E402
-from niadra_models.rules.decisions import WorthExtracting  # noqa: E402
 from tests.unit.audit.fakes import RecordingAdminAudit  # noqa: E402
 from tests.unit.flow.harness import Flow  # noqa: E402
 
@@ -117,15 +118,6 @@ async def seed_guards(flow: Flow) -> None:
         for value_type in GUARD_TYPES:
             key = GuardDailyKey(day, SOURCES["voice"][0], value_type, "guards")
             await uow.measure.add_guard_daily(key, GuardCounters(slots=1, contradicted=1))
-
-
-class RulesModels(DeterministicModels):
-    """The test models, but the models server's real rule gate decides which sessions go to extraction."""
-
-    async def classify(self, task: str, texts):  # type: ignore[no-untyped-def]
-        if task == "worth_extracting":
-            return [Label(p.label, p.probability, "rules") for p in WorthExtracting().classify(list(texts))]
-        return await super().classify(task, texts)
 
 
 _TURN = re.compile(r"^\[e\d+[^\]]*\] \d\d:\d\d (\w+): (.*)$")
@@ -409,7 +401,7 @@ def build(now: datetime, operations: frozenset[str]) -> tuple[Any, dict[str, Any
     clock = FixedClock(now)
 
     def new_flow() -> Flow:
-        cell = Cell(clock=clock, config=config, models=RulesModels())
+        cell = Cell(clock=clock, config=config, models=DeterministicModels(), decider=DeterministicDecider())
         flow = Flow.build(cell, RuleExtractor())  # type: ignore[arg-type]
         if semantic == "models":
             flow.serve.retrieval = RetrievalService(
@@ -446,6 +438,7 @@ def build(now: datetime, operations: frozenset[str]) -> tuple[Any, dict[str, Any
         "semantic_deadline_ms": deadline_ms,
         "guard_types_seeded": list(GUARD_TYPES),
         "extractor": "rule-extractor",
+        "decisions": "deterministic-decider",
         "cells": "one per customer",
         "now": now.isoformat(),
         "operations": sorted(operations),
