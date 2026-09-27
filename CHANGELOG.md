@@ -26,6 +26,18 @@ pinned pack and that turn's slots.
 - The emulator's switch for the slots and its command-line flag.
 - `spec/context-pack.v0.json` and its example.
 
+### Fixed
+
+- Batches leave one at a time per client. `flush()` called while the background sender had a batch
+  in flight sent the rest at once, so two `/v1/batch` requests overlapped and a
+  `conversation.ended` could land before the turns queued ahead of it, which reopened the session
+  and left `ingest_status` at `open`. `flush()` now waits for the batch in flight, then sends the
+  rest in queue order; with an empty queue it still waits, so True means that batch was answered.
+  Its `timeout` bounds that wait too. `close()` does the same, and the async client no longer
+  cancels the request in flight when it closes (a cancelled request could still reach the server
+  after the ones sent behind it). `track()` stays non-blocking; retries, idempotency keys and the
+  pause after a failure are unchanged.
+
 ## [0.5.0] - 2026-09-26
 
 ### Added

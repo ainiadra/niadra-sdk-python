@@ -4,6 +4,10 @@ Items are serialized when they are queued, so a value that cannot become JSON is
 right away, with a log line, instead of poisoning a batch later. A batch that fails with a
 retryable error after the transport's attempts goes back to the front of the queue and the
 flusher pauses; a batch rejected with any other 4xx is dropped.
+
+One batch is in flight per client at a time. The background sender and `flush()` take the
+same send lock, so a flush waits for the batch already in flight and then sends the rest in
+queue order: a `conversation.ended` can never overtake the turns queued before it.
 """
 
 from __future__ import annotations
@@ -244,6 +248,7 @@ class SyncFlusher:
         self._stopping = False
         self._thread: threading.Thread | None = None
         self._start_lock = threading.Lock()
+        self._send_lock = threading.Lock()
 
     def notify(self) -> None:
         """Wakes the sender when what is waiting became due before the time it sleeps until."""
@@ -256,22 +261,33 @@ class SyncFlusher:
                 self._wake.notify()
 
     def flush(self, timeout: float | None = None) -> bool:
-        """Sends everything queued now, from the calling thread. True when the queue emptied."""
+        """Sends everything queued now, from the calling thread. True when the queue emptied.
+
+        A batch the background sender has in flight is waited for first, so what this sends
+        lands after it, and returning True means that batch was answered too.
+        """
         deadline = None if timeout is None else time.monotonic() + timeout
-        while len(self._buffer):
-            if deadline is not None and time.monotonic() >= deadline:
-                return False
-            if not self._send_one():
-                return False
-        return True
+        wait = -1.0 if deadline is None else max(0.0, deadline - time.monotonic())
+        if not self._send_lock.acquire(timeout=wait):
+            return False
+        try:
+            while len(self._buffer):
+                if deadline is not None and time.monotonic() >= deadline:
+                    return False
+                if not self._send_one():
+                    return False
+            return True
+        finally:
+            self._send_lock.release()
 
     def stop(self, timeout: float | None = None) -> bool:
         with self._wake:
             self._stopping = True
             self._wake.notify()
+        flushed = self.flush(timeout)
         if self._thread is not None:
             self._thread.join(timeout=1.0)
-        return self.flush(timeout)
+        return flushed
 
     def _ensure_started(self) -> None:
         if self._thread is not None:
@@ -291,10 +307,12 @@ class SyncFlusher:
                 self._wake.wait(timeout=wait)
                 if self._stopping:
                     return
-            if self._buffer.due() and not self._pacing.remaining():
-                self._send_one()
+            with self._send_lock:
+                if self._buffer.due() and not self._pacing.remaining():
+                    self._send_one()
 
     def _send_one(self) -> bool:
+        """Sends the next batch. The caller holds `_send_lock`."""
         batch = _prepare(self._buffer, self._heartbeat)
         if not batch:
             return True
@@ -314,6 +332,40 @@ class SyncFlusher:
         return True
 
 
+class _SendGate:
+    """Lets one sender through at a time on an event loop, with a deadline on the wait.
+
+    Checking `_busy` and taking it has no await in between, so on one loop it is atomic.
+    Waiting on an event under `wait_for` holds nothing when it times out, unlike
+    `wait_for(lock.acquire())`, which on Python 3.10 and 3.11 can leave a lock held.
+    """
+
+    def __init__(self) -> None:
+        self._busy = False
+        self._idle = asyncio.Event()
+        self._idle.set()
+
+    async def acquire(self, deadline: float | None) -> bool:
+        while self._busy:
+            if deadline is None:
+                await self._idle.wait()
+                continue
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            try:
+                await asyncio.wait_for(self._idle.wait(), timeout=remaining)
+            except asyncio.TimeoutError:
+                return False
+        self._busy = True
+        self._idle.clear()
+        return True
+
+    def release(self) -> None:
+        self._busy = False
+        self._idle.set()
+
+
 class AsyncFlusher:
     def __init__(
         self,
@@ -329,6 +381,8 @@ class AsyncFlusher:
         self._wake: asyncio.Event | None = None
         self._sleep_until = math.inf
         self._stopping = False
+        self._gate: _SendGate | None = None
+        self._gate_loop: asyncio.AbstractEventLoop | None = None
 
     def notify(self) -> None:
         """Starts the flush task on the running loop, if there is one, and wakes it when what is
@@ -351,21 +405,50 @@ class AsyncFlusher:
             self._wake.set()
 
     async def flush(self, timeout: float | None = None) -> bool:
+        """Sends everything queued now. True when the queue emptied.
+
+        A batch the background task has in flight is waited for first, so what this sends
+        lands after it, and returning True means that batch was answered too.
+        """
         deadline = None if timeout is None else time.monotonic() + timeout
-        while len(self._buffer):
-            if deadline is not None and time.monotonic() >= deadline:
-                return False
-            if not await self._send_one():
-                return False
-        return True
+        gate = self._send_gate()
+        if not await gate.acquire(deadline):
+            return False
+        try:
+            while len(self._buffer):
+                if deadline is not None and time.monotonic() >= deadline:
+                    return False
+                if not await self._send_one():
+                    return False
+            return True
+        finally:
+            gate.release()
 
     async def stop(self, timeout: float | None = None) -> bool:
+        """Stops the background task after the batch it has in flight, then flushes the rest.
+
+        The in-flight request is waited for, not cancelled: a cancelled request may still
+        reach the server after the batches sent behind it.
+        """
         self._stopping = True
+        if self._wake is not None:
+            self._wake.set()
+        flushed = await self.flush(timeout)
         task = self._task
         if task is not None and not task.done():
             task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
-        return await self.flush(timeout)
+            if task.get_loop() is asyncio.get_running_loop():
+                await asyncio.gather(task, return_exceptions=True)
+        return flushed
+
+    def _send_gate(self) -> _SendGate:
+        """The send gate of the running loop. An asyncio event cannot be awaited from another
+        loop, so a client used under a new loop (a second `asyncio.run`) gets a new one."""
+        loop = asyncio.get_running_loop()
+        if self._gate is None or self._gate_loop is not loop:
+            self._gate = _SendGate()
+            self._gate_loop = loop
+        return self._gate
 
     async def _run(self) -> None:
         wake = self._wake
@@ -376,10 +459,18 @@ class AsyncFlusher:
             with contextlib.suppress(asyncio.TimeoutError):
                 await asyncio.wait_for(wake.wait(), timeout=wait)
             wake.clear()
-            if self._buffer.due() and not self._pacing.remaining():
-                await self._send_one()
+            if self._stopping:
+                return
+            gate = self._send_gate()
+            await gate.acquire(None)
+            try:
+                if self._buffer.due() and not self._pacing.remaining():
+                    await self._send_one()
+            finally:
+                gate.release()
 
     async def _send_one(self) -> bool:
+        """Sends the next batch. The caller holds the send gate."""
         batch = _prepare(self._buffer, self._heartbeat)
         if not batch:
             return True
