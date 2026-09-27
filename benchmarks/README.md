@@ -536,6 +536,20 @@ them again in each run spends the agent and the judge on answers nothing reads (
 repetition). The first run keeps them, needs every case and the most repetitions, and `bench combine`
 refuses a first folder without them.
 
+When the cell needs to rest between repetitions (on 27/09/2026 a second repetition in a row slowed the
+cell's reads past the stop rule while the first had not), Niadra runs as separate runs of one repetition
+each, with the cell drained between them, and `bench stack` puts them back together:
+
+```bash
+deploy/temp-host/bench.sh campaign niadra -- --dataset v2 --repetitions 1   # three times, a drain between
+uv run bench stack results/<niadra run 1> results/<niadra run 2> results/<niadra run 3>
+uv run bench combine results/<the stacked folder> results/<mem0 run> ...
+```
+
+The stacked runs must be the same measurement (the same dataset and configuration hashes, cases, systems,
+references, harness commit and Niadra server version); repetition k of the stack is the k-th in the order
+given, its `rep-k.json` names the run and repetition it came from, and `stacked_from` lists the runs.
+
 Expected duration per repetition of dataset v2 (356 cases, about 2,330 conversations), not yet measured:
 Niadra's seeding at the production cap about 23 minutes, then its settle; Mem0 about 1 h 15 (seeding both
 scenarios, the accuracy pass, the timed loops); each added system from an hour to many hours (Graphiti,
@@ -665,7 +679,7 @@ under `results/ab/`, and the decision cites that file.
 ## Publishing
 
 1. Put the runs of one campaign together with `bench combine` (one folder, the site's schema, with the
-   list of runs in `combined_from`) and commit `results/<date>-<id>/` here (summary, repetitions, and the
+   list of runs in `combined_from`; a system measured in separate runs is stacked first with `bench stack`) and commit `results/<date>-<id>/` here (summary, repetitions, and the
    per-case rows that let anyone audit every grade, each with the memory block the agent received since
    26/09/2026), with the runs it came from.
 2. In niadra-frontend: `node scripts/import-benchmark.mjs ../niadra-sdk-python/benchmarks/results/<date>-<id>/summary.json`.

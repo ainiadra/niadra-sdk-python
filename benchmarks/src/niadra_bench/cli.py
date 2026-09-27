@@ -180,6 +180,14 @@ def _combine(args: argparse.Namespace) -> int:
     return 0
 
 
+def _stack(args: argparse.Namespace) -> int:
+    from niadra_bench.stack import stack
+
+    output = Path(args.output) if args.output else bench_config.RESULTS_DIR
+    print(f"stacked into {stack([Path(d) for d in args.directories], output)}")
+    return 0
+
+
 def _systems(args: argparse.Namespace) -> int:
     """The systems added through adapters, one per line: key, deploy/systems directory, name."""
     from niadra_bench.systems import REGISTRY
@@ -343,6 +351,14 @@ def main(argv: list[str] | None = None) -> None:
     combined.add_argument("directories", nargs="+", help="results folders; the first one's references count")
     combined.add_argument("--output", default=None, help="where the new folder goes (default: results/)")
     combined.set_defaults(func=_combine)
+
+    stacked = sub.add_parser(
+        "stack",
+        help="one folder from separate runs of the same systems, their repetitions one after the other",
+    )
+    stacked.add_argument("directories", nargs="+", help="results folders, in repetition order")
+    stacked.add_argument("--output", default=None, help="where the new folder goes (default: results/)")
+    stacked.set_defaults(func=_stack)
 
     systems = sub.add_parser("systems", help="list the systems added through adapters")
     systems.add_argument("--compose", action="store_true", help="key and compose directory only")
