@@ -299,6 +299,13 @@ class TinySystem(HttpSystem):
         return Call("POST", "/write", json={"who": self.customer(ids), "text": customer})
 
 
+def test_a_campaign_cap_shortens_a_settle_but_never_lengthens_it() -> None:
+    graphiti = REGISTRY["graphiti"]
+    assert graphiti(settle_timeout_s=1200).settle_timeout_s == graphiti.min_settle_timeout_s
+    assert graphiti(settle_timeout_s=1200, max_settle_s=6 * 3600).settle_timeout_s == 6 * 3600
+    assert TinySystem(settle_timeout_s=1200, max_settle_s=3 * 3600).settle_timeout_s == 1200
+
+
 async def test_an_adapter_needs_only_its_calls(cases) -> None:
     store: dict[str, list[str]] = {}
 

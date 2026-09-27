@@ -100,6 +100,7 @@ def _run(args: argparse.Namespace) -> int:
         dataset=args.dataset,
         niadra_record_answers=args.niadra_guards == "measure",
         references=not args.no_references,
+        max_settle_s=args.max_settle_s,
     )
     if args.mock:
         import httpx
@@ -283,6 +284,13 @@ def main(argv: list[str] | None = None) -> None:
         default="off",
         help="measure: record every Niadra probe answer back to it as the agent's message, so its "
         "measurement counts the values agents contradicted and the server writes guard lines in later reads",
+    )
+    run.add_argument(
+        "--max-settle-s",
+        type=float,
+        default=None,
+        help="the longest an added system's settle may wait (a campaign's wall-clock cap); a settle cut "
+        "short is recorded as settled: false and the run scores what the system has",
     )
     run.set_defaults(func=_run)
 

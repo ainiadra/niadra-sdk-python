@@ -123,6 +123,7 @@ class HttpSystem(Target):
         transport: httpx.AsyncBaseTransport | None = None,
         concurrency: int = 8,
         settle_timeout_s: float = 1200.0,
+        max_settle_s: float | None = None,
     ) -> None:
         self.url = (url or os.environ.get(self.url_env) or self.default_url).rstrip("/")
         self.token = (
@@ -132,6 +133,8 @@ class HttpSystem(Target):
         self._http: httpx.AsyncClient | None = None
         self._limit = asyncio.Semaphore(concurrency)
         self.settle_timeout_s = max(settle_timeout_s, self.min_settle_timeout_s)
+        if max_settle_s is not None:
+            self.settle_timeout_s = min(self.settle_timeout_s, max_settle_s)
         self.counters: dict[str, int] = {"writes": 0, "write_retries": 0, "reads": 0}
 
     # What an adapter provides
