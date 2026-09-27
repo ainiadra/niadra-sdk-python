@@ -51,7 +51,6 @@ services:
       OPENAI_API_KEY: not-used
       # The tokens of the systems that take one: each guards a server with no published port, and the
       # compose file of the system reads the same variable.
-      AI_MEMORY_AUTH_TOKEN: ${AI_MEMORY_AUTH_TOKEN:-bench-local-only}
       MEMOBASE_ACCESS_TOKEN: ${MEMOBASE_ACCESS_TOKEN:-bench-local-only}
       COGNEE_DEFAULT_USER_PASSWORD: ${COGNEE_DEFAULT_USER_PASSWORD:-bench-local-only}
     volumes:

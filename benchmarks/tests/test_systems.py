@@ -15,7 +15,6 @@ from niadra_bench.identity import Identities
 from niadra_bench.runner import BUILT_IN, SYSTEMS, Options, Run, load_cases
 from niadra_bench.services.asgi import lifespan, read_body, respond_json
 from niadra_bench.systems import REGISTRY
-from niadra_bench.systems.ai_memory import AiMemory, cap_excerpt, session_items
 from niadra_bench.systems.base import Call, HttpSystem
 from niadra_bench.systems.cognee import Cognee, answer_lines
 from niadra_bench.systems.graphiti import Graphiti, fact_line
@@ -52,7 +51,7 @@ def test_every_adapter_has_a_container_entry_and_every_entry_an_adapter() -> Non
     for key in keys:
         assert key in REGISTRY or key in BUILT_IN, f"{key} has a container entry but no adapter"
     assert set(REGISTRY) <= set(SYSTEMS)
-    first_row = {"ai_memory", "ai_memory_llm", "graphiti", "hindsight", "memobase", "supermemory", "memos"}
+    first_row = {"graphiti", "hindsight", "hindsight_reflect", "memobase", "supermemory", "memos"}
     second_row = {"redis_agent_memory", "honcho", "honcho_dialectic", "langmem", "cognee"}
     assert first_row | second_row <= set(REGISTRY)
 
@@ -87,41 +86,10 @@ def test_each_adapter_writes_every_session_and_reads_one_customer(key, cases) ->
         assert "123456" in json.dumps(write.body, ensure_ascii=False)
 
 
-def test_ai_memory_replays_sessions_at_the_hook_cadence(cases) -> None:
-    case = next(c for c in cases if any(s.record for s in c.sessions))
-    ids = Identities.for_case(case, "t1")
-    session = next(s for s in case.sessions if s.turns)
-    items = session_items(case, ids, "p1", session, NOW)
-    events = [re.search(r"event=([a-z-]+)", i["url"]).group(1) for i in items]
-    assert events[0] == "session-start" and events[-1] == "session-end"
-    assert events.count("stop") == sum(t.role == "agent" for t in session.turns)
-    assert all("workspace=niadra-bench" in i["url"] and "project=p1" in i["url"] for i in items)
-    stop = next(i for i in items if "event=stop" in i["url"])
-    assert "capture_assistant=1" in stop["url"] and stop["body"]["_ai_memory_assistant"]["version"] == 1
-    prompt = next(i for i in items if "user-prompt-submit" in i["url"])["body"]["prompt"]
-    assert prompt.startswith("[session date: 2026/")
-    assert len(cap_excerpt("é" * 3000).encode()) <= 2000
-
-
-def test_ai_memory_sends_again_what_the_server_skipped() -> None:
-    adapter = AiMemory(url="http://ai.test")
-    call = Call("POST", "/hook/batch", json=[{"i": 0}, {"i": 1}, {"i": 2}])
-    request = httpx.Request("POST", "http://ai.test/hook/batch")
-    rest = adapter.retry_of(call, httpx.Response(200, json={"accepted_indices": [0, 2]}, request=request))
-    assert rest is not None and rest.json == [{"i": 1}]
-    assert adapter.retry_of(call, httpx.Response(200, json={"accepted": 3}, request=request)) is None
-
-
 def test_the_read_answers_become_the_lines_the_agent_receives() -> None:
     def answer(payload) -> httpx.Response:
         return httpx.Response(200, json=payload, request=httpx.Request("POST", "http://x"))
 
-    tool = {
-        "result": {
-            "content": [{"type": "text", "text": json.dumps({"hits": [{"title": "t", "snippet": "s"}]})}]
-        }
-    }
-    assert AiMemory(url="http://x").memories(answer(tool)) == ["t: s"]
     assert (
         fact_line({"fact": "order 1 shipped", "valid_at": "2026-09-01"})
         == "order 1 shipped (since 2026-09-01)"
@@ -202,57 +170,47 @@ def test_hindsight_retains_a_conversation_as_one_dated_item(cases) -> None:
     assert item["content"].count("\n") == len(session.turns) - 1
 
 
-class FakeAiMemory:
-    """ai-memory's documented routes, as far as the harness calls them: hooks, MCP tools, admin status."""
+class FakeHindsight:
+    """Hindsight's documented routes, as far as the harness calls them (retain, recall, one memory, the
+    bank's operations), and its model gateway's counters, which grow with every retain."""
 
     def __init__(self) -> None:
-        self.observations: dict[str, list[str]] = {}
-        self.sessions: dict[str, set[str]] = {}
+        self.facts: dict[str, list[dict[str, str]]] = {}
+        self.retains = 0
 
     async def __call__(self, scope, receive, send) -> None:
         if scope["type"] == "lifespan":
             await lifespan(receive, send)
             return
+        path, method = scope["path"], scope["method"]
         body = json.loads(await read_body(receive) or b"null")
-        if scope["path"] == "/hook/batch":
-            for item in body:
-                query = dict(p.split("=", 1) for p in item["url"].split("?", 1)[1].split("&"))
-                project = query["project"]
-                self.sessions.setdefault(project, set()).add(query["session_id"])
-                text = item["body"].get("prompt") or (item["body"].get("_ai_memory_assistant") or {}).get(
-                    "excerpt"
-                )
-                if text:
-                    self.observations.setdefault(project, []).append(text)
-            await respond_json(send, 200, {"accepted": len(body), "accepted_indices": list(range(len(body)))})
+        if path == "/health":
+            await respond_json(send, 200, {"status": "healthy"})
             return
-        if scope["path"] == "/admin/status":
-            await respond_json(send, 200, {"write_queue": [0, 1024], "providers": {"llm": {}}})
+        if path == "/_meter":
+            calls = self.retains
+            usage = {"calls": calls, "prompt_tokens": 3000 * calls, "completion_tokens": 400 * calls}
+            usage |= {"cached_tokens": 1200 * calls, "reasoning_tokens": 150 * calls}
+            await respond_json(send, 200, {"models": {"openai/gpt-6-luna": usage}})
             return
-        tool, args = body["params"]["name"], body["params"]["arguments"]
-        project = args.get("project", "")
-        if tool == "memory_query":
-            words = set(re.findall(r"\w+", args["query"].lower()))
-            hits = [
-                {"title": o[:40], "snippet": o, "path": f"sessions/{i}.md"}
-                for i, o in enumerate(self.observations.get(project, []))
-                if words & set(re.findall(r"\w+", o.lower()))
-            ][: args.get("limit", 10)]
-            result = {"hits": hits}
-        elif tool == "memory_briefing":
-            count = len(self.sessions.get(project, ()))
-            result = {"counts": {"sessions": count, "pages_latest": count}}
-        else:
-            result = {"path": args.get("path"), "body": "page"}
-        await respond_json(
-            send,
-            200,
-            {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "result": {"content": [{"type": "text", "text": json.dumps(result)}]},
-            },
-        )
+        bank = path.split("/")[4]
+        facts = self.facts.setdefault(bank, [])
+        if path.endswith("/memories") and method == "POST":
+            self.retains += 1
+            for item in body["items"]:
+                for line in item["content"].splitlines():
+                    facts.append({"id": f"m{len(facts)}", "text": line, "occurred_start": item["timestamp"]})
+            await respond_json(send, 200, {"success": True})
+            return
+        if path.endswith("/memories/recall"):
+            words = set(re.findall(r"\w+", body["query"].lower()))
+            found = [f for f in facts if words & set(re.findall(r"\w+", f["text"].lower()))][:10]
+            await respond_json(send, 200, {"results": found})
+            return
+        if path.endswith("/operations"):
+            await respond_json(send, 200, {"total": 0, "items": []})
+            return
+        await respond_json(send, 200, {"id": path.rsplit("/", 1)[-1], "text": "fact"})
 
 
 async def test_a_dry_run_measures_an_added_system_like_the_others(config, tmp_path, monkeypatch) -> None:
@@ -260,9 +218,9 @@ async def test_a_dry_run_measures_an_added_system_like_the_others(config, tmp_pa
     monkeypatch.delenv("NIADRA_BOOTSTRAP", raising=False)
     monkeypatch.delenv("MEM0_METER_URL", raising=False)
     mock = MockApp()
-    fake = FakeAiMemory()
+    fake = FakeHindsight()
     options = Options(
-        systems={"niadra", "ai_memory"},
+        systems={"niadra", "hindsight"},
         metrics={
             "latency",
             "accuracy",
@@ -282,34 +240,36 @@ async def test_a_dry_run_measures_an_added_system_like_the_others(config, tmp_pa
         dataset="v2",
         niadra_transport=lambda: httpx.ASGITransport(app=mock.asgi),
         niadra_base_url="http://niadra-mock",
-        system_transports={"ai_memory": httpx.ASGITransport(app=fake)},
+        system_transports={"hindsight": httpx.ASGITransport(app=fake)},
         extra={"tokenizer": word_tokenizer},
     )
     out = await Run(config, load_cases("v2"), options).execute()
     summary = json.loads((out / "summary.json").read_text())
     metrics = summary["metrics"]
-    assert summary["versions"]["ai_memory"] == AiMemory.version
+    assert summary["versions"]["hindsight"] == Hindsight.version
     accuracy = {r["system"]: r for r in metrics["accuracy"]["results"]}
-    assert accuracy["ai_memory"]["scenario"] == "known_id" and accuracy["ai_memory"]["retrieve_errors"] == 0
+    assert accuracy["hindsight"]["scenario"] == "known_id" and accuracy["hindsight"]["retrieve_errors"] == 0
     latency = {(r["system"], r["path"]) for r in metrics["latency"]["results"]}
-    assert ("ai_memory", "host") in latency and ("niadra", "edge") in latency
+    assert ("hindsight", "host") in latency and ("niadra", "edge") in latency
     history = {(r["system"], r["operation"]) for r in metrics["history"]["results"]}
-    assert {("ai_memory", "search"), ("ai_memory", "open")} <= history
+    assert {("hindsight", "search"), ("hindsight", "open")} <= history
     ingest = {r["system"]: r for r in metrics["ingest"]["results"]}
-    assert ingest["ai_memory"]["operation"] == "write" and ingest["ai_memory"]["errors"] == 0
+    assert ingest["hindsight"]["operation"] == "write" and ingest["hindsight"]["errors"] == 0
     fresh = {r["system"]: r for r in metrics["freshness"]["results"]}
-    assert fresh["ai_memory"]["timeouts"] == 0
+    assert fresh["hindsight"]["timeouts"] == 0
     faults = {(r["system"], r["fault"]) for r in metrics["resilience"]["results"]}
-    assert {("ai_memory", "delay_2000ms"), ("ai_memory", "http_503")} <= faults
+    assert {("hindsight", "delay_2000ms"), ("hindsight", "http_503")} <= faults
     cost = {r["system"]: r for r in metrics["cost"]["results"]}
-    assert cost["ai_memory"]["memory_usd_per_1000"]["median"] == 0.0
+    # Luna's prices, cache reads at their own: every retain spent 1,800 fresh input tokens, 1,200 read from
+    # the cache and 400 of output.
+    assert cost["hindsight"]["memory_usd_per_1000"]["median"] > 0.0
     privacy = {r["system"]: r for r in metrics["privacy"]["results"]}
     assert (
-        privacy["ai_memory"]["verification"] == "none"
+        privacy["hindsight"]["verification"] == "none"
         and privacy["niadra"]["verification"] == "per conversation"
     )
     rep = json.loads((out / "rep-1.json").read_text())
-    assert rep["settle"]["ai_memory:known_id"]["settled"] is True
+    assert rep["settle"]["hindsight:known_id"]["settled"] is True
 
 
 class TinySystem(HttpSystem):
@@ -369,7 +329,7 @@ async def test_runs_of_different_systems_combine_into_one_summary(config, tmp_pa
     monkeypatch.delenv("MEM0_METER_URL", raising=False)
     cases = load_cases("v2")
     outs = []
-    for systems in ({"niadra"}, {"ai_memory"}):
+    for systems in ({"niadra"}, {"hindsight"}):
         mock = MockApp()
         options = Options(
             systems=systems,
@@ -382,17 +342,17 @@ async def test_runs_of_different_systems_combine_into_one_summary(config, tmp_pa
             dataset="v2",
             niadra_transport=lambda mock=mock: httpx.ASGITransport(app=mock.asgi),
             niadra_base_url="http://niadra-mock",
-            system_transports={"ai_memory": httpx.ASGITransport(app=FakeAiMemory())},
+            system_transports={"hindsight": httpx.ASGITransport(app=FakeHindsight())},
             extra={"tokenizer": word_tokenizer},
         )
         outs.append(await Run(config, cases, options).execute())
     combined = combine(outs, tmp_path / "combined", {c.id: c for c in cases})
     summary = json.loads((combined / "summary.json").read_text())
     systems = [r["system"] for r in summary["metrics"]["accuracy"]["results"]]
-    assert sorted(systems) == ["ai_memory", "full_history", "niadra", "no_memory"]
+    assert sorted(systems) == ["full_history", "hindsight", "niadra", "no_memory"]
     cost = [(r["system"], r["variant"]) for r in summary["metrics"]["cost"]["results"]]
-    assert cost.count(("niadra", "price_low")) == 1 and ("ai_memory", "models_only") in cost
-    assert [s["systems"] for s in summary["combined_from"]] == [["niadra"], ["ai_memory"]]
+    assert cost.count(("niadra", "price_low")) == 1 and ("hindsight", "models_only") in cost
+    assert [s["systems"] for s in summary["combined_from"]] == [["niadra"], ["hindsight"]]
     rows = (combined / "cases-rep1.jsonl").read_text().splitlines()
     assert sum('"system": "no_memory"' in r for r in rows) == 8
 
@@ -407,7 +367,7 @@ async def test_runs_with_fewer_repetitions_and_cases_combine_after_the_first(
     monkeypatch.delenv("MEM0_METER_URL", raising=False)
     cases = load_cases("v2")
     outs = []
-    for systems, repetitions, limit, references in (({"niadra"}, 2, 8, True), ({"ai_memory"}, 1, 4, False)):
+    for systems, repetitions, limit, references in (({"niadra"}, 2, 8, True), ({"hindsight"}, 1, 4, False)):
         mock = MockApp()
         options = Options(
             systems=systems,
@@ -421,7 +381,7 @@ async def test_runs_with_fewer_repetitions_and_cases_combine_after_the_first(
             references=references,
             niadra_transport=lambda mock=mock: httpx.ASGITransport(app=mock.asgi),
             niadra_base_url="http://niadra-mock",
-            system_transports={"ai_memory": httpx.ASGITransport(app=FakeAiMemory())},
+            system_transports={"hindsight": httpx.ASGITransport(app=FakeHindsight())},
             extra={"tokenizer": word_tokenizer},
         )
         outs.append(await Run(config, cases, options).execute())
@@ -433,12 +393,12 @@ async def test_runs_with_fewer_repetitions_and_cases_combine_after_the_first(
     combined = combine(outs, tmp_path / "combined", by_id)
     summary = json.loads((combined / "summary.json").read_text())
     sources = [(s["systems"], s["repetitions"], s["cases"]) for s in summary["combined_from"]]
-    assert sources == [(["niadra"], 2, 8), (["ai_memory"], 1, 4)]
+    assert sources == [(["niadra"], 2, 8), (["hindsight"], 1, 4)]
     assert summary["config"]["repetitions"] == 2
     assert summary["config"]["quick"] is True and second["config"]["limit"] == 4
-    line = next(r for r in summary["metrics"]["accuracy"]["results"] if r["system"] == "ai_memory")
+    line = next(r for r in summary["metrics"]["accuracy"]["results"] if r["system"] == "hindsight")
     assert line["cases"]["runs"][1] is None
-    assert '"system": "ai_memory"' not in (combined / "cases-rep2.jsonl").read_text()
+    assert '"system": "hindsight"' not in (combined / "cases-rep2.jsonl").read_text()
     for n in (1, 2):
         rows = (combined / f"cases-rep{n}.jsonl").read_text().splitlines()
         assert sum('"system": "no_memory"' in r for r in rows) == 8

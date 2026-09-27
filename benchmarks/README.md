@@ -1,11 +1,11 @@
 # Niadra benchmark
 
 An open, reproducible benchmark of Niadra against the memory layers teams compare it with: Mem0, and a
-field of other memory systems added one adapter at a time (ai-memory, Graphiti, Hindsight, Memobase,
-Supermemory local, MemOS; then Redis Agent Memory Server, Honcho, LangMem, Cognee). It measures what an
-engineer integrating a memory for customer-facing and internal agents needs to know, with the same models
-on every side where a system lets them be chosen, and publishes every result file. Where Niadra loses,
-the number is published the same way.
+field of other memory systems added one adapter at a time (Graphiti, Hindsight, Memobase, Supermemory
+local, MemOS, Redis Agent Memory Server, Honcho, LangMem, Cognee). It measures what an engineer
+integrating a memory for customer-facing and internal agents needs to know, with the same model on every
+side where a system lets it be chosen (GPT-6 Luna at reasoning `low`, the model Niadra runs), and
+publishes every result file. Where Niadra loses, the number is published the same way.
 
 Nothing here is a claim until it is measured inside the cloud region. Numbers from a laptop, from the
 emulator or from a smoke run are never published; the site only imports result files whose
@@ -84,18 +84,32 @@ what a Niadra buyer buys.
   ran as pods of the cell (`cluster`); on that evening the second run saturated PgBouncer and the RDS
   instance went into recovery (niadra-docs `estudo/09-RODADAS.md`), which is why the benchmark left the
   cell. What a run may send to the cell is capped (config `[production]`, "Load on production" below).
-- **Same models where a system lets them be chosen.** Every system that extracts with a model uses
-  `google/gemini-2.5-flash-lite` through OpenRouter; every system that takes an embedder uses the one
-  the cell runs (`niadra-models`, `paraphrase-multilingual-MiniLM-L12-v2`, 384 dimensions), the same
-  image and model files, on the harness's host, through a small OpenAI-compatible proxy
-  (`bench serve embed-proxy`). Each system's model calls go through a gateway of its own
-  (`bench serve llm-meter`), which counts the spend from the provider's usage numbers, sends embeddings
-  to that embedder when the system has a single base URL, and, when a system's server fixes some model
-  names that its settings do not reach (Graphiti's small model), asks for the same extraction model. A
-  system whose embedder or reranker cannot be set keeps its own, named in the field table. One agent
-  (`openai/gpt-4.1-mini`, temperature 0, fixed prompt in `src/niadra_bench/agent.py`) answers every
-  probe, and one judge with a published rubric grades it; an exact check that looks for the expected
-  value in the answer is reported beside it.
+- **Same model where a system lets it be chosen.** Niadra's cell extracts with `openai/gpt-6-luna` and
+  decides with `typesafe/jev-1.13` (set in niadra-back; config `[models] niadra` records it). Every other
+  system that calls a model uses `openai/gpt-6-luna` at reasoning effort `low` through OpenRouter (config
+  `[models]`), set the way each system's own settings do it (the table in "Models, system by system"
+  below). Every system that takes an embedder uses the one the cell runs (`niadra-models`,
+  `paraphrase-multilingual-MiniLM-L12-v2`, 384 dimensions), the same image and model files, on the
+  harness's host, through a small OpenAI-compatible proxy (`bench serve embed-proxy`). Each system's model
+  calls go through a gateway of its own (`bench serve llm-meter`), which counts the spend from the
+  provider's usage numbers (cache reads and writes and reasoning tokens apart), sends embeddings to that
+  embedder when the system has a single base URL, asks every call for the benchmark's reasoning effort
+  (`LLM_REASONING_EFFORT`, so a call its settings do not reach runs at the same effort, and counts the calls
+  that arrived without it), and, when a system's server fixes some model names that its settings do not
+  reach (Graphiti's small model), asks for the same model. A system whose embedder or reranker cannot be
+  set keeps its own, named in the field table.
+- **One model family for the agent and the judge too.** One agent (`openai/gpt-6-luna`, reasoning `low`,
+  `seed` 20260924, fixed prompt in `src/niadra_bench/agent.py`) answers every probe, and one judge on the
+  same model with a published rubric grades it; an exact check that looks for the expected value in the
+  answer is reported beside it, and needs no model. Runs before 27/09/2026 used `openai/gpt-4.1-mini` at
+  temperature 0 for both. The change keeps one model family for everything the benchmark runs, the memory
+  systems, Niadra's extraction, the agent and the judge, so no system's memory is read by a model of
+  another family than the one that wrote it, and it is cheaper (Luna is $0.10 and $0.50 per million tokens
+  of input and output, gpt-4.1-mini $0.40 and $1.60). Luna takes no temperature (OpenRouter drops the
+  field), so the answers are made repeatable with `seed`; its reasoning tokens count toward `max_tokens`,
+  set to 2,000 for an answer of one or two sentences. A judge from the same family as the agent may grade
+  that family's answers more kindly; the exact check beside it has no model, and every per-case row keeps
+  the answer and the verdict for anyone to grade again.
 - **Mem0 as documented.** One `add()` per exchange with both messages (the README pattern; the v3
   extraction reads both roles in one call), system records as raw memories (`infer=False`), one
   `search()` per turn. No parameter tuned for this dataset. The rerank column (`mem0_oss_rerank`)
@@ -150,8 +164,7 @@ what a Niadra buyer buys.
   dataset) with every channel in it: the `known_id` scenario, their best case. Niadra receives the same handles in every scenario.
 - **Time.** Where a system's API takes the time of an event, it gets it (Graphiti's message `timestamp`,
   Hindsight's `timestamp`, Memobase's `created_at`, MemOS's `chat_time`, Redis Agent Memory Server's and
-  Honcho's message `created_at`, and ai-memory the way its own harness replays a dated history, a
-  `[session date: ...]` prefix); where it does not (Mem0's open source release, Supermemory local, LangMem,
+  Honcho's message `created_at`); where it does not (Mem0's open source release, Supermemory local, LangMem,
   Cognee), the order of the writes is the only time it has. Redis Agent Memory Server stores each
   message's time, but its extraction prompt grounds relative dates on the time the extraction runs.
 - **Fresh customers.** Every repetition seeds new phone numbers, e-mails and ids, so extraction runs
@@ -165,22 +178,23 @@ what a Niadra buyer buys.
 
 ### Guard lines
 
-A space writes a guard line (`[Guarda]` / `[Guard]`, in the turn block's slots) for a kind of
-value (a date, an amount, a protocol, an order...) only after its measurement counted agents contradicting
-a value of that kind in the last 30 days (`context_use_guard_daily`), and only when a system of record or a
-human agent settled the value the customer's turn asks for. A fresh benchmark space has no such count, so a
-run sees no guard lines unless it makes them appear, and says how:
+Niadra writes a guard line (`[Guarda]` / `[Guard]`, in the turn block's slots) for a kind of value (a
+date, an amount, a protocol, an order...) only after its measurement counted agents contradicting a value
+of that kind in the last 30 days (`context_use_guard_daily`), and only when a system of record or a human
+agent settled the value the customer's turn asks for. A fresh benchmark space has no such count, so a run
+sees no guard lines unless it makes them appear, and says how:
 
 - **In the region, measure first:** `bench run --niadra-guards measure` sends every Niadra probe's answer
   back to Niadra as the agent's outbound message in the probe's conversation, with the backed-answers
   fields a checked turn carries (`backing`: the count and the kinds of the values without a source, never a
   value), and ends the conversation. Niadra's measurement then counts the contradictions, and the read path
   (which rereads the contradicted types once a minute) writes guards in the reads after it: in practice the
-  repetitions after the first. The writes go through the production caps. `summary.json` records it (`config.niadra_guards`).
-- **On a local cell, seed:** `NIADRA_BENCH_GUARD_TYPES=<types>` in a side's settings (for example
-  `bench ab --local-cell ... --candidate-env NIADRA_BENCH_GUARD_TYPES=date,amount,protocol,order`) starts every customer's cell with one contradiction
-  of each type measured today; the cell's `cell.json` lists the seeded types. The region's rows are never
-  written by the harness.
+  repetitions after the first. The writes go through the production caps. `summary.json` records it
+  (`config.niadra_guards`).
+- **On a local cell, seed:** `NIADRA_BENCH_GUARD_TYPES=<types>` in a side's settings (for example `bench
+  ab --local-cell ... --candidate-env NIADRA_BENCH_GUARD_TYPES=date,amount,protocol,order`) starts every
+  customer's cell with one contradiction of each type measured today; the cell's `cell.json` lists the
+  seeded types. The region's rows are never written by the harness.
 
 Each Niadra row of `cases-rep<n>.jsonl` counts the guard lines its read carried (`meta.guards`). On dataset
 v2 most values are stated by the AI agent in the conversations, which a guard never holds the agent to, so
@@ -198,9 +212,7 @@ know.
 |---|---|---|---|---|
 | `niadra` | Niadra, the cell's deployed server | the cell | `POST /v1/batch` per session with each event's time and channel; `POST /v1/context` per turn with the question as `query`; voice and chat views | The only system with identity across channels and a verification level per conversation; read over a network hop (edge and VPC) |
 | `mem0_oss`, `mem0_oss_rerank` | Mem0 open source, v2.2.0 | its REST server, PostgreSQL with pgvector, its gateway | above | No event time; one extraction call per exchange; the rerank column is in-process (no latency line) |
-| `ai_memory` | ai-memory 2.4.1 (MIT, akitaonrails) | one binary (`akitaonrails/ai-memory:2.4.1`) | One project per customer; each session replayed through `POST /hook/batch` at its hooks' cadence (`session-start`, a `user-prompt-submit` per customer turn, a `stop` with the assistant excerpt per agent turn, `session-end`), the session's date before each text and a system record as its own session, exactly as its LongMemEval harness replays a history (`evals/src/retrieval/ingest.rs`); `memory_query` over MCP with the question and `limit` 10, and the agent receives each hit's title and snippet, the context its harness counts; `memory_read_page` as `open` | Made for coding agents, not customers. Its defaults: no model provider, so pages are written by rule and the text of an agent's answer is kept only as a raw observation, reached through the raw fallback when no page matches; its optional local embeddings, as its own benchmark runs it (`all-MiniLM-L6-v2`, English, in process; its `openai-compat` embedder could take the benchmark's, which is left unused so it runs as documented); assistant capture on, as its harness sets it. A hit's title is the session's first prompt cut at about 80 characters, and the date prefix takes about 40 of them |
-| `ai_memory_llm` | the same, with its optional consolidation by a model at `session-end` (`AI_MEMORY_CONSOLIDATE_ON_SESSION_END`) | the binary and its gateway | as above, plus the settle waits for its consolidation queue to go quiet | The consolidation prompt and page kinds are its own, written for code (decisions, gotchas, procedures) |
-| `graphiti` | Graphiti server 0.30.2 (`zepai/graphiti`) with Neo4j 5.26.2 | server, Neo4j, gateway | `POST /messages` per session with the customer's `group_id`, each message's `role_type`, `role`, `timestamp` and the channel; the settle reads `GET /episodes/{group_id}` until every message is an episode; `POST /search` with `max_facts` 10; `GET /entity-edge/{uuid}` as `open` | Its server needed two fixes to store anything (`deploy/systems/graphiti/patch.py`): the client of a request was closed when the request ended, before the background queue used it, and the queue's worker stopped for good at the first failed episode. Its queue adds one message at a time, with several model calls each: a full dataset v2 repetition is about 5,200 episodes, many hours; run it with `--limit` and say so. One base URL for its model and its embedder; the gateway pins its small model to the extraction model |
+| `graphiti` | Graphiti server 0.30.2 (`zepai/graphiti`) with Neo4j 5.26.2 | server, Neo4j, gateway | `POST /messages` per session with the customer's `group_id`, each message's `role_type`, `role`, `timestamp` and the channel; the settle reads `GET /episodes/{group_id}` until every message is an episode; `POST /search` with `max_facts` 10; `GET /entity-edge/{uuid}` as `open` | Its server needed two fixes to store anything (`deploy/systems/graphiti/patch.py`): the client of a request was closed when the request ended, before the background queue used it, and the queue's worker stopped for good at the first failed episode. Its queue adds one message at a time, with several model calls each: a full dataset v2 repetition is about 5,200 episodes, many hours; run it with `--limit` and say so. One base URL for its model and its embedder; the gateway pins its small model to the benchmark's model |
 | `hindsight` | Hindsight 0.10.1 (`ghcr.io/vectorize-io/hindsight`, embedded PostgreSQL) | one container, gateway | One bank per customer; one `retain` item per session, the whole conversation as `Name (timestamp): text` lines with its `timestamp`, a `context` label and a `document_id`, as its docs ask for a conversation (not one per turn); `recall` with its defaults; `GET .../memories/{id}` as `open`; a live exchange is an `async` retain | Its reranker is its default local cross-encoder |
 | `hindsight_reflect` | the same, read with `reflect` | its own server and gateway (`deploy/systems/hindsight-reflect`) | the same writes; each read is `POST .../reflect` with the question and its defaults, and the agent receives its answer text | A model call on every read: its latency, its cost and its tokens include the reasoning |
 | `memobase` | Memobase v0.0.42 (built from its repository), PostgreSQL with pgvector, Redis 7.4 | API, database, Redis, gateway | One user per customer (a UUID from the customer's id); one `ChatBlob` per session with each message's `created_at`, then `flush`, as its docs ask at the end of a session; `context()` with `max_token_size` 600 on voice and 1,500 in chat (Niadra's view budgets) and the question as the current chat | No commit since 11/01/2026; profile topics are its defaults (written for companions and assistants, not customer service); a live exchange waits in its buffer until it flushes by size or age, which metric 6 counts |
@@ -211,6 +223,33 @@ know.
 | `honcho_dialectic` | the same, read with the dialectic API | the same containers, another workspace | the same writes; each read is `POST .../peers/{id}/chat` with the question and its defaults (`reasoning_level` low), the quickstart's `peer.chat()`, and the agent receives its answer text | A model call on every read: its latency, its cost and its tokens include the reasoning. Shares the containers and the gateway with `honcho`: run the two keys one at a time |
 | `langmem` | LangMem 0.0.30 (MIT), LangGraph's `AsyncPostgresStore` in PostgreSQL 17 with pgvector | the harness's LangMem service, database, gateway | One namespace per customer (`("memories", "{user_id}")`); each conversation to `create_memory_store_manager` with its defaults, queued and processed in order by one worker (as its `ReflectionExecutor` does), the service answering 202 once queued; the store's search with the question and `limit` 10 (its `search_memory` tool's default); the store's `get` as `open` | A library with no server: the service that runs it is the harness's (`deploy/systems/langmem/server.py`), calling only its documented API. No event time. One worker in order means seeding a full repetition of dataset v2 takes hours: run it with `--limit` and say so. A CRM or ERP record is a `system` message |
 | `cognee` | Cognee 1.6.1 (Apache 2.0; `cognee/cognee`), its default local stores (SQLite, LanceDB, its embedded graph) | one container, gateway | One dataset per customer, access control on (its default: each dataset has its own stores; the harness logs in as its default user); each session added as a text (`POST /api/v1/add`), then one `cognify` of the dataset, which returns when the graph is built; `POST /api/v1/search` with `GRAPH_COMPLETION` (its guide's search), the question, the dataset and a session of the customer's own, and the agent receives the answer text | A model call on every read (its answer, plus its automatic turn analysis): latency, cost and tokens include them, and its image serves with one process (`gunicorn -w 1`, its entrypoint), so reads wait for each other. No event time. The server's default search is now `HYBRID_COMPLETION`; the guide's `GRAPH_COMPLETION` is used. A live exchange is `remember` (add, cognify and its improve step) with `run_in_background`. The benchmark's embedder is not a HuggingFace model id, so its chunk sizing counts tokens with TikToken (it logs a warning). Made for documents and code, not customers |
+
+### Models, system by system
+
+Every system that lets its model be chosen calls `openai/gpt-6-luna` at reasoning effort `low` (config
+`[models]`; each compose file repeats both as the defaults of `BENCH_LLM_MODEL` and
+`BENCH_LLM_REASONING_EFFORT`, and a test checks that they agree). The model is set where each system's own
+configuration sets it; the effort too where the system has a setting for it. Every system's gateway also
+asks each call for the same effort, which is what reaches the calls of a system with no such setting, and
+counts the calls that arrived without it (`reasoning_set` in the run's `model_usage`).
+
+| System | Its model setting | Its reasoning effort setting | What stays fixed |
+|---|---|---|---|
+| `niadra` | the cell's deployment (niadra-back): Luna extracts, `typesafe/jev-1.13` answers the typed decisions (the extraction gate among them) | the cell's deployment, not the harness | nothing |
+| `mem0_oss`, `mem0_oss_rerank` | `llm` and the reranker's `llm` in `config/mem0.config.json` | `reasoning_effort` in the same config, with `is_reasoning_model` true: Mem0's name check does not know Luna, and a reasoning model gets neither temperature nor `max_tokens` | nothing |
+| `graphiti` | `MODEL_NAME`; its server fixes a small model (`gpt-4.1-nano`) that no setting reaches, which the gateway replaces with Luna | none: its client sends an effort only to model names it knows as reasoning models (gpt-5, o1, o3), so the gateway's | nothing |
+| `hindsight`, `hindsight_reflect` | `HINDSIGHT_API_LLM_MODEL` | `HINDSIGHT_API_LLM_REASONING_EFFORT`, which every operation inherits | its reranker, a local cross-encoder (no model call) |
+| `memobase` | `best_llm_model`, `thinking_llm_model` and `summary_llm_model` in its `config.yaml` | none, so the gateway's | nothing |
+| `supermemory` | `OPENAI_MODEL`, which its fast and text models default to | none, so the gateway's | nothing |
+| `memos` | every model setting of its `.env.example` | none, so the gateway's | its activation memory's local model, outside the server API and not measured |
+| `redis_agent_memory` | `GENERATION_MODEL`, `FAST_MODEL`, `SLOW_MODEL` (LiteLLM's `openai/` route) | none, so the gateway's | nothing |
+| `honcho`, `honcho_dialectic` | every `*_MODEL_CONFIG__MODEL` (deriver, summary, the five dialectic levels, both dreams) | every `*_MODEL_CONFIG__THINKING_EFFORT` | any model name no setting reaches, replaced by the gateway |
+| `langmem` | the `ChatOpenAI` its manager is built with (the harness's service) | `ChatOpenAI(reasoning_effort=...)` | nothing |
+| `cognee` | `LLM_MODEL` | `LLM_ARGS` with `reasoning_effort` (the arguments it merges into every completion call; LiteLLM may drop it for a model it does not know, and the gateway sets it) | any model name no setting reaches, replaced by the gateway |
+| `mem0_platform` | Mem0's hosted service, not settable | not settable | its whole model stack (not in the default run) |
+
+Every embedder is the benchmark's (above) but Hindsight's reranker, which is not an embedder. No measured
+system has an extraction model it will not let the benchmark set.
 
 What no system here has, so their rows read "no mechanism" rather than a score: a verification level per
 conversation and a policy by purpose (privacy); identity across channels (every added system gets the
@@ -231,11 +270,15 @@ settings:
 | Metric 8, history navigation | 10 per second only | Each call opens a transaction on the space's database and writes a receipt |
 | Metric 9, ingestion | 10 per second only | Each call writes two events in one transaction and every 10 calls open a conversation to extract: one 30 s line is 300 calls and 30 conversations per path |
 
-Before a run, the sandbox space's daily extraction ceiling must cover it: at about $0.002 per
-extraction, three repetitions of dataset v2 (about 7,000 conversations) need about $14; the operator sets
-`llm_daily_micros:extraction` to at least 16,000,000 with `PUT /v1/quotas`. Past the ceiling, extraction
-waits for the next day and the settle step sees nothing change, so the accuracy pass would read half-built
-memory.
+Before a run, check that the cell's deployment extracts with `openai/gpt-6-luna` at reasoning `low` and
+decides with `typesafe/jev-1.13` (niadra-back's settings; the run records the server version it read, and
+config `[models] niadra` names the models), and that the sandbox space's daily ceilings cover the run. With
+Luna and Jev a conversation costs about $0.0007 (Luna about $0.0006 at 3,200 tokens in and 550 out with its
+reasoning, Jev about $0.0001 at 2,150 in), so three repetitions of dataset v2 (about 7,200 conversations
+with the timed writes) need about $5 of extraction and $0.65 of decisions; the operator sets
+`llm_daily_micros:extraction` to at least 8,000,000 and `llm_daily_micros:decisions` to at least 1,000,000
+with `PUT /v1/quotas`. Past a ceiling, that work waits for the next day and the settle step sees nothing
+change, so the accuracy pass would read half-built memory.
 
 ## History navigation and ingestion, call by call
 
@@ -332,11 +375,56 @@ How these were kept from favoring either system:
   nor ranking by similarity is favored by where the answer is.
 
 Running v2 costs more than v1: about 2,330 conversations per repetition instead of 986 (the long
-customers are most of the difference), so seeding Mem0 and Niadra's extraction take about twice as
-long and cost about twice as much: on 25/09/2026 a v1 repetition cost about $6.50 on OpenRouter (Niadra's
-extraction about $0.35 before niadra-back bb4ecaa, Mem0's seeding about $2.70, the accuracy pass about
-$1.50, Mem0's `add_infer` loop about $2), so a v2 repetition with Niadra and Mem0 is about $11, three
-about $33 (budget $45), before the added systems' own extraction, which their gateways count.
+customers are most of the difference), so seeding Mem0 and Niadra's extraction take about twice as long
+and cost about twice as much. On 25/09/2026, with the models of then, a v1 repetition of Niadra and Mem0
+cost about $6.50 on OpenRouter. "Cost of a full campaign" below has the estimate with Luna.
+
+## Cost of a full campaign
+
+An estimate, for the budget only: every run's gateways measure the real spend, and each run's
+`model_usage` and cost lines report it. The campaign is the one in "Running it on the temporary host":
+Niadra and Mem0 at 3 repetitions, every other system at 1, all on the whole of dataset v2 (per repetition:
+356 cases, 2,328 conversations, 2,400 exchanges and 452 system records). Prices are OpenRouter's on
+27/09/2026 (config `[prices]`): GPT-6 Luna $0.10 per million input tokens, $0.50 output, $0.01 read from
+the cache, $0.125 written to it; Jev $0.042 input, its answers free.
+
+What the estimate assumes, none of it measured yet:
+
+- 150 reasoning tokens per call at effort `low`, billed as output (niadra-back measured about 370 per
+  extraction at Luna's default effort on 26/09).
+- No cache hits. Each system's fixed instructions are the prefix OpenAI caches from 1,024 tokens, and a
+  cache hit costs a tenth of the input price, so the measured input cost can be much lower (Mem0's prompt,
+  about 8,200 tokens per `add()`, most of all); a prefix written to the cache and never read again costs a
+  quarter more than plain input for those tokens. The cost lines report the share read from the cache
+  (`cache_read_share`).
+- Tokens per call from each system's design (its prompts and how many calls a write or a read makes), and
+  for Mem0 from the prompt size measured on 25/09 (8,240 tokens in and 91 out per `add()`).
+- Every system's writes include the timed writes of metrics 9 and 6 (1,070 per repetition), and a system
+  that reasons on every read also reasons on the timed reads of metrics 1, 7 and 8 (2,140) besides the
+  accuracy pass.
+- The agent and the judge: 500 tokens in and 40 out per answer, 350 in and 30 out per grade, so $0.096 per
+  pass of the 356 cases. Niadra's run asks four passes per repetition (the two references, the chat and
+  voice views), Mem0's four (two scenarios, with and without rerank), every other system's one.
+
+| System | Repetitions | What calls the model, per repetition | USD |
+|---|---|---|---|
+| `niadra` | 3 | on the cell, one Luna extraction (3,200 in, 400 out) and one Jev decision call (2,150 in) per conversation, about 2,410 with the timed writes; four agent and judge passes | 6.10 |
+| `mem0_oss`, `mem0_oss_rerank` | 3 | one extraction per `add()` in two scenarios (4,800) and in metric 9's `add_infer` loop (1,050); the rerank column's one call per candidate, 10 per search, 712 searches; four passes | 19.97 |
+| `hindsight` | 1 | fact extraction (3,500 in, 400 out) and consolidation (2,500 in, 300 out) per retained item, 3,850 items | 4.33 |
+| `hindsight_reflect` | 1 | the same writes, and three calls (4,000 in, 300 out) per `reflect`, 2,496 reads | 9.01 |
+| `memobase` | 1 | three calls (2,000 in, 300 out) per flush, about 2,880 | 3.77 |
+| `supermemory` | 1 | two calls (2,000 in, 300 out) per document, 3,850 | 3.37 |
+| `memos` | 1 | three calls (2,500 in, 400 out) per add (reader, preferences, scheduler), 3,920 | 6.27 |
+| `redis_agent_memory` | 1 | three calls (1,500 in, 300 out) per conversation extracted (memories, topics, entities), 2,887 | 3.34 |
+| `honcho` | 1 | one deriver call (3,000 in, 500 out) per work unit, about 2,887, and two dream calls per customer | 2.45 |
+| `honcho_dialectic` | 1 | the same writes, and two calls (3,000 in, 300 out) per dialectic read, 2,496 reads | 5.07 |
+| `langmem` | 1 | two calls (2,000 in, 400 out) per conversation, 3,850 | 3.75 |
+| `cognee` | 1 | three calls (2,500 in, 800 out) per customer's `cognify`, four (2,500 in, 600 out) per live exchange's `remember`, two (2,000 in, 200 out) per graph completion read | 5.42 |
+| `graphiti` | 1 | six calls (2,500 in, 300 out) per episode, one episode per message, 6,290 | 18.02 |
+| **Total** | | | **about 91** |
+
+Niadra's line is paid by the cell's own OpenRouter key; every other line by the harness's. The temporary
+host adds about $0.105 an hour ($5 for 48 hours). Budget $120 for the models, for the estimate's error.
 
 ## Layout
 
@@ -374,16 +462,19 @@ deploy/temp-host/up.sh
 #    the secrets read by name, the embedder image, the harness image).
 deploy/temp-host/up.sh --confirm
 
-# 3. The campaign: each comma-separated list is one run, alone on the host, one after the other.
-deploy/temp-host/bench.sh campaign niadra mem0_oss,mem0_oss_rerank ai_memory ai_memory_llm \
-  hindsight hindsight_reflect memobase supermemory memos \
-  redis_agent_memory honcho honcho_dialectic langmem cognee -- --dataset v2
-deploy/temp-host/bench.sh start graphiti --dataset v2 --limit 60 --repetitions 1   # Graphiti alone, smaller
+# 3. The campaign, in three parts, each started once `status` says the one before it finished; each
+#    comma-separated list is one run, alone on the host, one after the other. Niadra first, with the
+#    references, 3 repetitions; Mem0 at 3 repetitions; every other system at 1, on the whole dataset.
+deploy/temp-host/bench.sh campaign niadra -- --dataset v2
+deploy/temp-host/bench.sh campaign mem0_oss,mem0_oss_rerank -- --dataset v2 --no-references
+deploy/temp-host/bench.sh campaign hindsight hindsight_reflect memobase supermemory memos \
+  redis_agent_memory honcho honcho_dialectic langmem cognee graphiti \
+  -- --dataset v2 --repetitions 1 --no-references
 deploy/temp-host/bench.sh status          # repeat: containers, the campaign's progress, the run's log
 
 # 4. The results into results/, then one folder for the site (the first folder's references count).
 deploy/temp-host/bench.sh collect
-uv run bench combine results/<niadra run> results/<mem0 run> results/<ai-memory run> ...
+uv run bench combine results/<niadra run> results/<mem0 run> results/<hindsight run> ...
 
 # 5. Delete everything it created, and check that nothing is left (it refuses while a results folder
 #    is still only on S3).
@@ -406,9 +497,11 @@ Cost, on-demand in us-east-2 (up.sh reads the price list and prints it again): m
 hour, 40 GiB of gp3 $0.0044 per hour, a public IPv4 address $0.005 per hour: about $0.105 per hour, $0.84 for
 an 8-hour campaign, $2.52 if it runs the full 24 hours. On the free plan it is paid from the account's
 credits (about $130). c7i-flex.large (4 GiB) is cheaper ($0.085 per hour) but too small for a system
-with Neo4j beside the harness and the embedder; set `BENCH_INSTANCE_TYPE` to change it. The models are
-paid on OpenRouter, outside AWS: Niadra's extraction runs on the cell; each other system's extraction is
-counted by its gateway and reported as its cost line.
+with Neo4j beside the harness and the embedder; set `BENCH_INSTANCE_TYPE` to change it. The whole
+campaign on the full dataset (Graphiti alone is many hours) can pass 24 hours: create the host with
+`BENCH_MAX_HOURS=48 deploy/temp-host/up.sh --confirm`. The models are paid on OpenRouter, outside AWS
+("Cost of a full campaign" below): Niadra's extraction runs on the cell; each other system's model calls
+are counted by its gateway and reported as its cost line.
 
 Memory on the host, one system at a time: the embedder 1.5 GiB and the harness 1.5 GiB at most, then the
 system (MemOS: Neo4j 2 GiB, Qdrant 768 MiB, its API 2 GiB; Graphiti: Neo4j 2 GiB, its server 1 GiB;
@@ -424,22 +517,19 @@ source needs) with its own role, into root-only files, and gives the harness the
 bootstrap as a read-only file and the provider key through the environment of its gateways and its agent.
 The local systems' own tokens and database passwords are random, generated on the host.
 
-`start` and `campaign` take any `bench run` arguments.
-Every run but the first of a campaign can take `--no-references`: `bench combine` decides validity with the
-first folder's references only, so asking them again in each run spends the agent and the judge on answers
-nothing reads (two target passes per repetition). The first run keeps them, needs every case and the most
-repetitions, and `bench combine` refuses a first folder without them:
-
-```bash
-deploy/temp-host/bench.sh start niadra --dataset v2
-```
+`start` and `campaign` take any `bench run` arguments. Every run but the first of a campaign can take
+`--no-references`: `bench combine` decides validity with the first folder's references only, so asking
+them again in each run spends the agent and the judge on answers nothing reads (two target passes per
+repetition). The first run keeps them, needs every case and the most repetitions, and `bench combine`
+refuses a first folder without them.
 
 Expected duration per repetition of dataset v2 (356 cases, about 2,330 conversations), not yet measured:
 Niadra's seeding at the production cap about 23 minutes, then its settle; Mem0 about 1 h 15 (seeding both
-scenarios, the accuracy pass, the timed loops); each added system from minutes (ai-memory without a model)
-to hours (Graphiti, whose server adds one message at a time with several model calls each; run it with
-`--limit`). `mem0_platform` needs a `MEM0_API_KEY` from a free Mem0 account, added to the harness's
-environment by hand; it is not part of the default run.
+scenarios, the accuracy pass, the timed loops); each added system from an hour to many hours (Graphiti,
+whose server adds one message at a time with several model calls each, and LangMem, whose one worker takes
+one conversation at a time; `--limit` makes a smaller run of either, and the page marks it).
+`mem0_platform` needs a `MEM0_API_KEY` from a free Mem0 account, added to the harness's environment by
+hand; it is not part of the default run.
 
 ### What the benchmark left on the cell
 
@@ -474,16 +564,16 @@ The registry finds the class by its key; `bench run --systems <key>` measures it
 
 ## A/B: the delta between two settings
 
-`bench ab` runs a baseline and a candidate over the same prepared dataset and reports the delta, figure
-by figure. The candidate differs from the baseline by `--candidate-env KEY=VALUE` (repeatable), a setting
-of the Niadra server under test, or by `--candidate-config <file.toml>`, whose sections override
+`bench ab` runs a baseline and a candidate over the same prepared dataset and reports the delta, figure by
+figure. The candidate differs from the baseline by `--candidate-env KEY=VALUE` (repeatable), a setting of
+the Niadra server under test, or by `--candidate-config <file.toml>`, whose sections override
 `benchmark.toml`'s. A key only the candidate sets runs on the baseline at its default
-(`NIADRA_SEMANTIC_CHANNEL=off`, `NIADRA_BENCH_GUARD_TYPES` empty; any other key needs `--baseline-env`), so both
-sides say what they ran with. Everything else is equal: the same cases in the same order, seeded from the
-same instant (the start of the hour the A/B began, `--now`), the same agent and judge, repetition by
-repetition (baseline 1, candidate 1, baseline 2, ...). Both sides are graded on the same valid cases: the
-two references of the validity rule answer once per repetition, on the baseline side, and their verdict
-holds for both.
+(`NIADRA_SEMANTIC_CHANNEL=off`, `NIADRA_BENCH_GUARD_TYPES` empty; any other key needs `--baseline-env`),
+so both sides say what they ran with. Everything else is equal: the same cases in the same order, seeded
+from the same instant (the start of the hour the A/B began, `--now`), the same agent and judge, repetition
+by repetition (baseline 1, candidate 1, baseline 2, ...). Both sides are graded on the same valid cases:
+the two references of the validity rule answer once per repetition, on the baseline side, and their
+verdict holds for both.
 
 What the delta covers (`ab.md`, and `ab.json` with schema `niadra-bench.ab.v1`): accuracy overall and by
 category (the judge when there is one, else the exact check), `context_has_answer` overall and by category,
@@ -520,13 +610,14 @@ Where the two sides run:
 - **The emulator** (`--mock`): niadra-mock on both sides. It has no server settings, so it runs only
   `--same`; the CI runs it.
 - **The region** (neither option, from the temporary host): the Niadra of `NIADRA_BOOTSTRAP`, read and
-  written within the production caps (config `[production]`). The sides
-  differ there only by `--candidate-config`. A setting of the read deployment's process, such as
-  `NIADRA_SEMANTIC_CHANNEL`, is refused: that
-  deployment also serves production; that A/B runs on a local cell until the region has a read deployment
-  of the benchmark's own. The two sides seed different customers (the same cases) into the same space,
-  one after the other. `[ab] max_minutes` in `config/ab.toml` (450) stops an A/B before a repetition that
-  would pass it, and the report says it is incomplete.
+  written within the production caps (config `[production]`). The harness changes no server setting there:
+  each one, such as `NIADRA_SEMANTIC_CHANNEL`, is a setting of the read deployment's process, which also
+  serves production, so `--candidate-env` is refused and the region runs `--same` or `--candidate-config`;
+  an A/B of a server setting runs on a local cell until the region has a read deployment of the
+  benchmark's own. (The one space setting the harness used to change, `memory_v2`, is gone: the memory has
+  one behavior.) The two sides seed different customers (the same cases) into the same space, one after
+  the other. `[ab] max_minutes` in `config/ab.toml` (450) stops an A/B before a repetition that would pass
+  it, and the report says it is incomplete.
 
 A local cell imports the checkout's code when it starts and records that commit. Point it at a worktree
 that nothing else pulls during the A/B (`git worktree add ../wt/niadra-back-ab origin/main`, then `uv
@@ -582,7 +673,7 @@ uv run bench prepare --check           # both committed datasets are what the ge
 uv run bench run --mock --systems niadra --quick --limit 28 --repetitions 1 --output /tmp/bench   # no network
 uv run bench ab --same --mock --quick --limit 28 --repetitions 1                    # the A/B plumbing
 deploy/local/run.sh                    # every system, one at a time, on Docker with fakes; then combined
-deploy/local/run.sh ai_memory -- --dataset v2 --quick --limit 14 --repetitions 1
+deploy/local/run.sh hindsight -- --dataset v2 --quick --limit 14 --repetitions 1
 ```
 
 The local pipeline runs each system's real server and databases with fake model and embedding servers and
@@ -611,10 +702,9 @@ niadra-mock, so it needs no key. It proves the plumbing only; its numbers are ne
   `seed.niadra.refused_actions`, and `seed.niadra.declared_operations` says which setup the run used.
 - The agent answers from one read, with no tools. Niadra's voice guide also gives the agent
   `search_customer_history` for older matters; the benchmark measures the pack alone, as it measures one
-  `search()` for Mem0 and one read for every added system (ai-memory's agents may also call
-  `memory_read_page` on a hit). The reads that reason with a model (Hindsight's `reflect`, Honcho's
-  dialectic, Cognee's graph completion) are measured as what they are: one read, whose latency, cost and
-  tokens include the model call.
+  `search()` for Mem0 and one read for every added system. The reads that reason with a model (Hindsight's
+  `reflect`, Honcho's dialectic, Cognee's graph completion) are measured as what they are: one read, whose
+  latency, cost and tokens include the model call.
 - E-mail and app sessions are written with the WhatsApp source's key and their own `channel`, because
   the sandbox has no e-mail or app source; the memory records the event's channel, so the packs are the
   same, but a company would give each channel its own source and key.
@@ -622,6 +712,13 @@ niadra-mock, so it needs no key. It proves the plumbing only; its numbers are ne
   does: an unproven call reads at V0, where the starter policy withholds order numbers.
 - The third Mem0 column of the plan (its own defaults, `gpt-4o-mini` and `text-embedding-3-small`)
   needs an OpenAI embeddings key and is not in the default run.
+- Five systems have no setting for a reasoning effort (Graphiti for a model name its client does not know,
+  Memobase, Supermemory, MemOS, Redis Agent Memory Server): their gateway asks each of their calls for
+  `low`, which is the only change the harness makes to what a system sends, and its counters say how many
+  calls it changed (`reasoning_set`).
+- A reasoning model's thinking counts toward the output limit a system sets for a call. A system whose
+  limit is small for a reasoning model (Memobase asks for 1,024 tokens by default) can get a cut answer; the
+  gateway counts them (`truncated`), and none of those limits is changed.
 - Niadra is read across a network (its public address, or its private address in the VPC through the
   cell's ingress); every other system answers on the harness's own host. Their latency lines have no
   network in them; Niadra's do.
@@ -631,7 +728,7 @@ niadra-mock, so it needs no key. It proves the plumbing only; its numbers are ne
   systems at 10 and 25. The 25 per second lines have no Niadra counterpart.
 - The added systems' ingestion lines use each system's documented write for a live exchange: an
   asynchronous one where the system has it (Graphiti's queue, Hindsight's `async` retain, Supermemory's
-  queued document, MemOS's `async` add, ai-memory's hook batch, Redis Agent Memory Server's working memory,
+  queued document, MemOS's `async` add, Redis Agent Memory Server's working memory,
   Honcho's message batch, the LangMem service's queue, Cognee's `remember` in the background), so like
   Niadra's they answer before the memory is built; Memobase's insert goes to its buffer. Mem0's open source
   server has no such mode.

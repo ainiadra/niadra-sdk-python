@@ -15,8 +15,9 @@ Redis, driven the way its Python client does it (`src/client/memobase/core/entry
   the context string, one line per line.
 - A live exchange (metrics 6 and 9) is one insert, the client's default (no processing wait); the
   buffer flushes by itself past its size or age, and metric 6 counts that wait.
-- Models: the extraction model and the embedder are the benchmark's, through its gateway
-  (deploy/systems/memobase/config.yaml). Profile topics are its defaults.
+- Models: its three model settings and the embedder are the benchmark's, through its gateway
+  (deploy/systems/memobase/config.yaml), which asks for the benchmark's reasoning effort. Profile topics
+  are its defaults.
 """
 
 from __future__ import annotations

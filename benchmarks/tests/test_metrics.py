@@ -1,3 +1,5 @@
+import pytest
+
 from niadra_bench import config as bench_config
 from niadra_bench.agent import JUDGE_PROMPT, judge_prompt
 from niadra_bench.dataset import generate
@@ -68,17 +70,15 @@ def test_cost_of_platform_plans_follows_the_tighter_quota(config) -> None:
     pro = next(r for r in rows if r["system"] == "mem0_platform" and r["variant"] == "pro")
     assert pro["conversations_per_month"] == 5000 and pro["memory_usd_per_1000"] == 49.8
     low = next(r for r in rows if r["variant"] == "price_low")
-    # 200 tokens x 10 turns x 1000 conversations at 0.40 USD per million input tokens.
-    assert low["memory_usd_per_1000"] == 5.0 and low["agent_prompt_usd_per_1000"] == 0.8
+    # 200 tokens x 10 turns x 1000 conversations at 0.10 USD per million input tokens (GPT-6 Luna).
+    assert low["memory_usd_per_1000"] == 5.0 and low["agent_prompt_usd_per_1000"] == 0.2
 
 
 def test_mem0_model_spend_per_add_from_the_meter(config) -> None:
-    before = {
-        "models": {"google/gemini-2.5-flash-lite": {"prompt_tokens": 100, "completion_tokens": 0, "calls": 1}}
-    }
+    before = {"models": {"openai/gpt-6-luna": {"prompt_tokens": 100, "completion_tokens": 0, "calls": 1}}}
     after = {
         "models": {
-            "google/gemini-2.5-flash-lite": {
+            "openai/gpt-6-luna": {
                 "prompt_tokens": 1_000_100,
                 "completion_tokens": 100_000,
                 "calls": 101,
@@ -96,8 +96,40 @@ def test_mem0_model_spend_per_add_from_the_meter(config) -> None:
         platform_measured=False,
     )
     oss = next(r for r in rows if r["system"] == "mem0_oss")
-    # (1M x 0.10 + 0.1M x 0.40) / 1M = 0.14 USD for 100 adds; 10 adds per conversation.
-    assert oss["usd_per_add"] == 0.0014 and oss["memory_usd_per_1000"] == 14.0
+    # (1M x 0.10 + 0.1M x 0.50) / 1M = 0.15 USD for 100 adds; 10 adds per conversation.
+    assert oss["usd_per_add"] == 0.0015 and oss["memory_usd_per_1000"] == 15.0
+    assert oss["cache_read_share"] == 0.0
+
+
+def test_model_spend_prices_cache_reads_and_writes_apart(config) -> None:
+    luna = config.prices.model_price("openai/gpt-6-luna")
+    assert luna == (0.10, 0.50, 0.01, 0.125)
+    # Jev bills its input only.
+    assert config.prices.model_price("typesafe/jev-1.13")[:2] == (0.042, 0.0)
+    usage = {
+        "openai/gpt-6-luna": {
+            "prompt_tokens": 1_000_000,
+            "cached_tokens": 600_000,
+            "cache_write_tokens": 100_000,
+            "completion_tokens": 100_000,
+        }
+    }
+    # 300k fresh x 0.10 + 600k read x 0.01 + 100k written x 0.125 + 100k out x 0.50, per million.
+    assert round(cost.model_usd(config, usage), 6) == round(0.03 + 0.006 + 0.0125 + 0.05, 6)
+    assert cost.cache_read_share(usage) == 0.6 and cost.cache_read_share({}) is None
+    rows = cost.compute(
+        config,
+        tokens_per_turn={},
+        mem0_seed_usage=usage,
+        mem0_infer_adds=100,
+        rerank_usage={},
+        rerank_searches=0,
+        platform_measured=False,
+    )
+    oss = next(r for r in rows if r["system"] == "mem0_oss")
+    assert oss["memory_usd_per_1000"] == 9.85 and oss["cache_read_share"] == 0.6
+    with pytest.raises(KeyError, match="no price"):
+        config.prices.model_price("google/gemini-2.5-flash-lite")
 
 
 def _case(cases, category: str):

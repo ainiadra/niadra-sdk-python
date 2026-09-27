@@ -13,8 +13,9 @@ smallest one that lets the harness call it the way its guides do, and nothing el
 - `GET /health`.
 
 The store is LangGraph's `AsyncPostgresStore` (LangMem's guides name it for production) with the
-benchmark's embedder; the manager's model is the benchmark's extraction model; both go through the
-system's gateway (`LLM_BASE_URL`). Nothing here changes what LangMem extracts or how it searches.
+benchmark's embedder; the manager's model is the benchmark's (`LLM_MODEL`, a ChatOpenAI with its
+`reasoning_effort` from `REASONING_EFFORT`); both go through the system's gateway (`LLM_BASE_URL`).
+Nothing here changes what LangMem extracts or how it searches.
 """
 
 from __future__ import annotations
@@ -106,7 +107,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     index = {"dims": int(os.environ["EMBEDDING_DIMS"]), "embed": embeddings}
     async with AsyncPostgresStore.from_conn_string(os.environ["DATABASE_URL"], index=index) as store:
         await store.setup()
-        model = ChatOpenAI(model=os.environ["EXTRACTION_MODEL"], base_url=base_url, api_key="gateway")
+        model = ChatOpenAI(
+            model=os.environ["LLM_MODEL"],
+            reasoning_effort=os.environ.get("REASONING_EFFORT") or None,
+            base_url=base_url,
+            api_key="gateway",
+        )
         service.store = store
         service.manager = create_memory_store_manager(model, namespace=NAMESPACE, store=store)
         worker = asyncio.create_task(service.work())

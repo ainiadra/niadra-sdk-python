@@ -15,8 +15,9 @@ used:
 - Open (metric 8): `GET /entity-edge/{uuid}` on the first fact.
 - Models: the server takes one OpenAI-compatible base URL for its model and its embedder; it goes to
   the system's gateway, which sends the embeddings to the benchmark's embedder and every model call to
-  the benchmark's extraction model (the server fixes a smaller model for light prompts; the gateway
-  makes it the same one). The search's default recipe (hybrid, RRF) calls no model.
+  the benchmark's model (the server fixes a smaller model for light prompts; the gateway makes it the
+  same one) at the benchmark's reasoning effort (its client sends one only for model names it knows as
+  reasoning models). The search's default recipe (hybrid, RRF) calls no model.
 """
 
 from __future__ import annotations

@@ -128,32 +128,53 @@ threshold = 0.1
 render_header = "Based on previous conversations, I recall:"
 
 [agent]
-# The one agent that answers the probe question for every system: same prompt, same model.
-model = "openai/gpt-4.1-mini"
-temperature = 0
-max_tokens = 200
+# The one agent that answers the probe question for every system: same prompt, same model. Since
+# 27/09/2026 the agent, the judge and every system that lets its model be chosen use one model, GPT-6 Luna
+# at reasoning `low`, the model Niadra's cell runs: one model family on every side, and the cheapest of the
+# three (Luna costs $0.10 and $0.50 per million tokens, gpt-4.1-mini $0.40 and $1.60). Luna takes no
+# temperature, so the answers are made repeatable with `seed` instead. Its reasoning tokens count toward
+# `max_tokens`, hence a limit far above the one or two sentences asked for.
+model = "openai/gpt-6-luna"
+reasoning_effort = "low"
+seed = 20260924
+max_tokens = 2000
 
 [judge]
-model = "openai/gpt-4.1-mini"
-temperature = 0
-max_tokens = 150
+# The judge grades with the published rubric (agent.py); the exact check that looks for the expected value
+# in the answer is reported beside it, and needs no model.
+model = "openai/gpt-6-luna"
+reasoning_effort = "low"
+seed = 20260924
+max_tokens = 2000
 
 [models]
-# The model every memory system extracts with, through OpenRouter, and the embedder every system that
-# takes one uses (a system whose model is fixed keeps its own, and the README says which).
-extraction = "google/gemini-2.5-flash-lite"
+# The model every memory system that lets it be chosen calls (extraction, and the reads that reason),
+# through OpenRouter and each system's gateway, at this reasoning effort (OpenRouter's `reasoning.effort`);
+# and the embedder every system that takes one uses. A system whose model is fixed keeps its own, and the
+# README says which. deploy/systems/*/compose.yaml repeats both as defaults (a test checks they agree).
+llm = "openai/gpt-6-luna"
+reasoning_effort = "low"
 embedder = "paraphrase-multilingual-minilm-l12-v2-r1"
+# What Niadra's cell runs, set in niadra-back and not by the harness: Luna extracts, Jev (TypeSafe's
+# decision model) answers the extraction gate's and the other typed decisions. Recorded in every summary.
+niadra = ["openai/gpt-6-luna", "typesafe/jev-1.13"]
 
-# Public prices on 2026-09-24. Check them again before a run that will be published and bump the date.
+# Public prices on OpenRouter on 2026-09-27 (its model list and each model's endpoints). Check them again
+# before a run that will be published and bump the date.
 [prices]
-checked_on = "2026-09-24"
+checked_on = "2026-09-27"
 
 [prices.openrouter]
-# USD per million tokens (input, output), https://openrouter.ai/models
+# USD per million tokens: [input, output, cache read, cache write]; a cache price left out is the input
+# price. https://openrouter.ai/models
 source = "https://openrouter.ai/models"
-"google/gemini-2.5-flash-lite" = [0.10, 0.40]
-"openai/gpt-4.1-mini" = [0.40, 1.60]
-"openai/gpt-4o-mini" = [0.15, 0.60]
+# GPT-6 Luna on OpenAI's standard endpoint (its flex endpoint, at half price, is not used); prompts under
+# 272,000 tokens. The cache is automatic from 1,024 tokens of the same prefix.
+"openai/gpt-6-luna" = [0.10, 0.50, 0.01, 0.125]
+# Jev 1.13 (TypeSafe): input only, its typed answers are free. Niadra's cost, included in its price.
+"typesafe/jev-1.13" = [0.042, 0.0]
+# Mem0's own default model, for its third column (not in the default run).
+"openai/gpt-4o-mini" = [0.15, 0.60, 0.075]
 
 [prices.niadra]
 # USD per thousand conversations or tasks, https://niadra.com/preco. The models Niadra calls are included.

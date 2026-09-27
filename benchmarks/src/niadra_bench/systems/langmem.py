@@ -16,8 +16,8 @@ library's documented API over LangGraph's `AsyncPostgresStore` in PostgreSQL wit
 - A live exchange (metrics 6 and 9) is one conversation queued the same way; the wait in the queue is in
   metric 6.
 - Open (metric 8): the store's `get` of the first memory.
-- Models: the manager's model is the benchmark's extraction model and the store's embedder the
-  benchmark's (384 dimensions), both through the system's gateway.
+- Models: the manager's model is the benchmark's (a ChatOpenAI with its `reasoning_effort`) and the
+  store's embedder the benchmark's (384 dimensions), both through the system's gateway.
 """
 
 from __future__ import annotations

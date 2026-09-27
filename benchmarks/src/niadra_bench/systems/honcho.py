@@ -20,9 +20,10 @@ Driven the way its documentation shows (quickstart, "Get Context", "Design Patte
     with the question and its defaults (`reasoning_level` low). The agent receives the answer text. A
     model call on every read, which the latency, the cost and the tokens show.
 - A live exchange (metrics 6 and 9) is one message batch; the deriver's wait is in metric 6.
-- Models: every model setting (deriver, summary, dialectic levels, dreams) is the benchmark's extraction
-  model and the embedder the benchmark's (384 dimensions, the pgvector columns set to it at bootstrap
-  with its `configure_embeddings.py`, as its configuration docs ask), through the system's gateway.
+- Models: every model setting (deriver, summary, dialectic levels, dreams) is the benchmark's model with
+  its reasoning effort (`THINKING_EFFORT`) and the embedder the benchmark's (384 dimensions, the pgvector
+  columns set to it at bootstrap with its `configure_embeddings.py`, as its configuration docs ask),
+  through the system's gateway.
 """
 
 from __future__ import annotations

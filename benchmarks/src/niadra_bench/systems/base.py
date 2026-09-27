@@ -87,7 +87,7 @@ class Call:
 class HttpSystem(Target):
     """A memory system behind an HTTP API, measured through the adapter's calls."""
 
-    #: The key results use, e.g. `ai_memory`.
+    #: The key results use, e.g. `hindsight`.
     system: str
     #: The system's own name, for logs and the README.
     title: ClassVar[str]

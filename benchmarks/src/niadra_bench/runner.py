@@ -460,12 +460,17 @@ class Run:
         read_usage, reads = read_spend.get(system.system, ({}, 0))
         per_read = cost.model_usd(self.config, read_usage) / reads if reads else 0.0
         turns = self.config.cost.turns_per_conversation
+        combined = {
+            model: {k: counts.get(k, 0) + read_usage.get(model, {}).get(k, 0) for k in counts}
+            for model, counts in usage.items()
+        } | {model: counts for model, counts in read_usage.items() if model not in usage}
         return {
             "variant": "models_only",
             "memory_usd_per_1000": round((per_exchange + per_read) * turns * 1000, 4),
             "basis": "measured model spend (writes until the memory settled, and reads), servers not priced",
             "usd_per_exchange": round(per_exchange, 8),
             "usd_per_read": round(per_read, 8),
+            "cache_read_share": cost.cache_read_share(combined),
         }
 
     def _niadra_probes(
@@ -505,7 +510,7 @@ class Run:
     async def execute(self) -> Path:
         targets = self.build_targets()
         try:
-            # Inside the try: a target that started (a billing key issued, a flag set) is closed even
+            # Inside the try: a target that started (a billing key issued) is closed even
             # when a later one fails to start, or the run is stopped (bench run turns SIGTERM into a
             # cancellation, so this block still runs).
             for target in targets:
@@ -564,7 +569,12 @@ class Run:
                 "agent_model": self.config.agent.model,
                 "judge_model": None if self.options.dry_run else self.config.judge.model,
                 "agent": "context_only" if self.options.dry_run else "llm",
-                "extraction_model": self.config.models.extraction,
+                "agent_reasoning_effort": self.config.agent.reasoning_effort,
+                # The model every system that lets it be chosen calls (the site names it the extraction
+                # model), its reasoning effort, and what Niadra's cell runs.
+                "extraction_model": self.config.models.llm,
+                "reasoning_effort": self.config.models.reasoning_effort,
+                "niadra_models": self.config.models.niadra,
                 "embedder": self.config.models.embedder,
                 "latency_rates": self.config.latency.rates,
                 "latency_duration_s": self.config.latency.duration_s,
@@ -721,6 +731,11 @@ def aggregate(reps: list[dict[str, Any]]) -> dict[str, Any]:
                     "basis": first.get("basis"),
                     "memory_usd_per_1000": stats.across(_pick(lines, "memory_usd_per_1000"), 4),
                     "agent_prompt_usd_per_1000": stats.across(_pick(lines, "agent_prompt_usd_per_1000"), 4),
+                    **(
+                        {"cache_read_share": stats.across(_pick(lines, "cache_read_share"), 4)}
+                        if "cache_read_share" in first
+                        else {}
+                    ),
                     **(
                         {"conversations_per_month": first["conversations_per_month"]}
                         if "conversations_per_month" in first

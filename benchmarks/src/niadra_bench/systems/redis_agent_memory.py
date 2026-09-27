@@ -19,9 +19,9 @@ Patterns" document (pattern 3, background extraction) and its REST API do it:
 - A live exchange (metrics 6 and 9) is a working memory with the exchange, the documented write; the
   extraction waits for the debounce, which metric 6 counts.
 - Open (metric 8): `GET /v1/long-term-memory/{id}` on the first memory.
-- Models: its generation, fast and slow models are the benchmark's extraction model and its embedder the
-  benchmark's, through the system's gateway (LiteLLM with `OPENAI_API_BASE`). Topic and entity extraction
-  run as by default (through the same model).
+- Models: its generation, fast and slow models are the benchmark's model and its embedder the
+  benchmark's, through the system's gateway (LiteLLM with `OPENAI_API_BASE`), which asks for the
+  benchmark's reasoning effort. Topic and entity extraction run as by default (through the same model).
 """
 
 from __future__ import annotations

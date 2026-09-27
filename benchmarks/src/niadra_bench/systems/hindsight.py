@@ -15,8 +15,9 @@ embedded PostgreSQL, driven as its documentation shows (hindsight-docs, "Retaini
 - A live exchange (metrics 6 and 9) is one `retain` item with `async` true, its documented
   asynchronous mode: the call returns once the work is queued.
 - Open (metric 8): `GET .../memories/{id}` on the first fact.
-- Models: the extraction model and the embedder are the benchmark's, through its gateway (both are
-  OpenAI-compatible settings); the reranker is its default, a local cross-encoder.
+- Models: the model (with `HINDSIGHT_API_LLM_REASONING_EFFORT`) and the embedder are the benchmark's,
+  through its gateway (both are OpenAI-compatible settings); the reranker is its default, a local
+  cross-encoder.
 """
 
 from __future__ import annotations

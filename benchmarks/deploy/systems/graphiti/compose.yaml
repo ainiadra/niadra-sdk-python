@@ -4,7 +4,9 @@
 # repository's docker-compose.yml. Neo4j's heap and page cache are capped so
 # it fits the benchmark's host beside the harness (the only setting changed from the repository's file).
 # The server's one OpenAI-compatible base URL goes to the system's gateway: model calls to the
-# benchmark's extraction model, embeddings to the benchmark's embedder (384 dimensions).
+# benchmark's model, embeddings to the benchmark's embedder (384 dimensions). Its client sends a reasoning
+# effort only to model names it knows as reasoning models (gpt-5, o1, o3) and its server has no setting for
+# it, so the gateway asks for the benchmark's effort.
 services:
   graphiti-neo4j:
     image: neo4j:5.26.2
@@ -26,7 +28,8 @@ services:
     environment:
       LLM_UPSTREAM: ${BENCH_LLM_UPSTREAM:-http://fake-llm:9001/v1}
       LLM_API_KEY: ${BENCH_LLM_API_KEY:-}
-      LLM_FORCE_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      LLM_REASONING_EFFORT: ${BENCH_LLM_REASONING_EFFORT:-low}
+      LLM_FORCE_MODEL: ${BENCH_LLM_MODEL:-openai/gpt-6-luna}
       EMBED_UPSTREAM: http://embed:8080/v1
     mem_limit: 128m
 
@@ -37,7 +40,7 @@ services:
     environment:
       OPENAI_API_KEY: gateway
       OPENAI_BASE_URL: http://graphiti-gateway:8081/v1
-      MODEL_NAME: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      MODEL_NAME: ${BENCH_LLM_MODEL:-openai/gpt-6-luna}
       EMBEDDING_DIM: "384"
       NEO4J_URI: bolt://graphiti-neo4j:7687
       NEO4J_USER: neo4j

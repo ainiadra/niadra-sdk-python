@@ -49,20 +49,20 @@ async def test_embed_proxy_splits_what_the_embedder_refuses_in_one_request() -> 
 async def test_meter_counts_tokens_per_model() -> None:
     meter = LlmMeter("http://llm/v1", transport=httpx.ASGITransport(app=FakeLlm()))
     async with _client(meter) as client:
-        body = {"model": "google/gemini-2.5-flash-lite", "messages": [{"role": "user", "content": "x" * 400}]}
+        body = {"model": "openai/gpt-6-luna", "messages": [{"role": "user", "content": "x" * 400}]}
         assert (await client.post("/v1/chat/completions", json=body)).status_code == 200
         await client.post("/v1/chat/completions", json=body)
-        counts = (await client.get("/_meter")).json()["models"]["google/gemini-2.5-flash-lite"]
+        counts = (await client.get("/_meter")).json()["models"]["openai/gpt-6-luna"]
         assert counts["calls"] == 2 and counts["prompt_tokens"] == 200 and counts["failed"] == 0
 
 
 async def test_meter_counts_a_responses_call_with_a_null_error_as_answered() -> None:
     meter = LlmMeter("http://llm/v1", transport=httpx.ASGITransport(app=FakeLlm()))
     async with _client(meter) as client:
-        body = {"model": "google/gemini-2.5-flash-lite", "input": "x" * 400}
+        body = {"model": "openai/gpt-6-luna", "input": "x" * 400}
         answer = await client.post("/v1/responses", json=body)
         assert answer.status_code == 200 and answer.json()["error"] is None
-        counts = (await client.get("/_meter")).json()["models"]["google/gemini-2.5-flash-lite"]
+        counts = (await client.get("/_meter")).json()["models"]["openai/gpt-6-luna"]
         assert counts["calls"] == 1 and counts["failed"] == 0 and counts["prompt_tokens"] > 0
 
 
@@ -104,7 +104,7 @@ async def test_the_gateway_sends_embeddings_to_the_embedder_pins_the_model_and_h
         "http://llm/v1",
         transport=httpx.MockTransport(provider),
         embed_upstream="http://embed/v1",
-        force_model="google/gemini-2.5-flash-lite",
+        force_model="openai/gpt-6-luna",
         api_key="provider-key",
     )
     async with _client(meter) as client:
@@ -117,13 +117,86 @@ async def test_the_gateway_sends_embeddings_to_the_embedder_pins_the_model_and_h
             "/v1/embeddings", json={"model": "text-embedding-3-small", "input": "x"}, headers=headers
         )
         counts = (await client.get("/_meter")).json()["models"]
-    assert set(counts) == {"google/gemini-2.5-flash-lite"}
-    assert counts["google/gemini-2.5-flash-lite"]["prompt_tokens"] == 17
+    assert set(counts) == {"openai/gpt-6-luna"}
+    assert counts["openai/gpt-6-luna"]["prompt_tokens"] == 17
     chat, _responses, embeddings = seen
-    assert json.loads(chat.content)["model"] == "google/gemini-2.5-flash-lite"
+    assert json.loads(chat.content)["model"] == "openai/gpt-6-luna"
     assert chat.headers["authorization"] == "Bearer provider-key"
     assert str(embeddings.url) == "http://embed/v1/embeddings"
     assert embeddings.headers["authorization"] == "Bearer placeholder"  # the key never goes to the embedder
+
+
+async def test_the_gateway_asks_every_call_for_the_benchmarks_reasoning_effort() -> None:
+    seen: list[dict] = []
+
+    def provider(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content))
+        usage = {
+            "prompt_tokens": 2000,
+            "completion_tokens": 300,
+            "prompt_tokens_details": {"cached_tokens": 1024, "cache_write_tokens": 0},
+            "completion_tokens_details": {"reasoning_tokens": 250},
+        }
+        choice = {"finish_reason": "length" if len(seen) == 3 else "stop", "message": {"content": "x"}}
+        return httpx.Response(200, json={"choices": [choice], "usage": usage})
+
+    meter = LlmMeter("http://llm/v1", transport=httpx.MockTransport(provider), reasoning_effort="low")
+    async with _client(meter) as client:
+        luna = {"model": "openai/gpt-6-luna", "messages": []}
+        # Set the documented way (Mem0, Honcho), with none (Graphiti with a model name it does not know),
+        # and with a token budget instead of an effort.
+        await client.post("/v1/chat/completions", json={**luna, "reasoning_effort": "low"})
+        await client.post("/v1/chat/completions", json=luna)
+        await client.post("/v1/chat/completions", json={**luna, "reasoning": {"max_tokens": 900}})
+        counts = (await client.get("/_meter")).json()["models"]["openai/gpt-6-luna"]
+    assert [body["reasoning"] for body in seen] == [{"effort": "low"}] * 3
+    assert all("reasoning_effort" not in body for body in seen)
+    assert counts["reasoning_set"] == 2 and counts["truncated"] == 1
+    assert counts["cached_tokens"] == 3 * 1024 and counts["reasoning_tokens"] == 3 * 250
+
+
+async def test_the_agent_sends_luna_its_effort_and_seed_and_no_temperature() -> None:
+    from niadra_bench import config as bench_config
+    from niadra_bench.agent import ChatClient
+
+    sent: list[dict] = []
+
+    def provider(request: httpx.Request) -> httpx.Response:
+        sent.append(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": " yes "}}]})
+
+    config = bench_config.load()
+    chat = ChatClient(base_url="http://llm/v1", api_key="k", transport=httpx.MockTransport(provider))
+    assert await chat.complete(config.agent, [{"role": "user", "content": "q"}]) == "yes"
+    await chat.close()
+    body = sent[0]
+    assert body["model"] == config.models.llm == config.judge.model == "openai/gpt-6-luna"
+    assert body["reasoning"] == {"effort": "low"} and body["seed"] == 20260924
+    assert "temperature" not in body and body["max_tokens"] == 2000
+
+
+def test_every_compose_default_is_the_benchmarks_model_and_effort() -> None:
+    import re
+    from pathlib import Path
+
+    from niadra_bench import config as bench_config
+
+    config = bench_config.load()
+    systems = Path(__file__).resolve().parents[1] / "deploy" / "systems"
+    models, efforts = set(), set()
+    for path in systems.glob("*/compose.yaml"):
+        text = path.read_text()
+        models |= set(re.findall(r"\$\{BENCH_LLM_MODEL:-([^}]+)\}", text))
+        efforts |= set(re.findall(r"\$\{BENCH_LLM_REASONING_EFFORT:-([^}]+)\}", text))
+        assert "LLM_REASONING_EFFORT: ${BENCH_LLM_REASONING_EFFORT" in text, (
+            f"{path}: its gateway sets no effort"
+        )
+    assert models == {config.models.llm} and efforts == {config.models.reasoning_effort}
+    memobase = (systems / "memobase" / "config.yaml").read_text()
+    assert set(re.findall(r"_llm_model: (\S+)", memobase)) == {config.models.llm}
+    mem0 = json.loads(bench_config.CONFIG_DIR.joinpath("mem0.config.json").read_text())
+    for llm in (mem0["llm"]["config"], mem0["reranker"]["config"]["llm"]["config"]):
+        assert (llm["model"], llm["reasoning_effort"]) == (config.models.llm, config.models.reasoning_effort)
 
 
 def test_the_fake_llm_answers_the_smallest_value_a_schema_accepts() -> None:

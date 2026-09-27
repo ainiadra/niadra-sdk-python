@@ -1,7 +1,9 @@
 """The one agent that answers every probe, and the judge that grades it.
 
-Both call an OpenAI-compatible Chat Completions endpoint (OpenRouter by default) at temperature 0, with
-the fixed prompts below; the prompts are part of the method and published with the results.
+Both call an OpenAI-compatible Chat Completions endpoint (OpenRouter by default) with the model, reasoning
+effort and seed of config [agent] and [judge], and the fixed prompts below; the prompts are part of the
+method and published with the results. A setting left out of the config is not sent (GPT-6 Luna takes no
+temperature).
 
 `ContextOnlyAgent` is the stand-in for dry runs and tests: it "answers" with the memory block itself,
 so its score is whether the block holds the answer. It needs no model and no key.
@@ -82,13 +84,14 @@ class ChatClient:
             raise RuntimeError("OPENROUTER_API_KEY is not set")
         if self._http is None:
             self._http = httpx.AsyncClient(transport=self.transport, timeout=120.0)
-        body = {
-            "model": call.model,
-            "messages": messages,
-            "temperature": call.temperature,
-            "max_tokens": call.max_tokens,
-            **extra,
-        }
+        body: dict[str, Any] = {"model": call.model, "messages": messages, "max_tokens": call.max_tokens}
+        if call.temperature is not None:
+            body["temperature"] = call.temperature
+        if call.reasoning_effort is not None:
+            body["reasoning"] = {"effort": call.reasoning_effort}
+        if call.seed is not None:
+            body["seed"] = call.seed
+        body.update(extra)
         headers = {"authorization": f"Bearer {self.api_key}", "content-type": "application/json"}
         for attempt in range(6):
             response = await self._http.post(

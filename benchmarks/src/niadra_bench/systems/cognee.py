@@ -16,8 +16,8 @@ user, logged in at the start). Driven the way its "Minimal docker-compose" guide
   cost and the tokens show.
 - A live exchange (metrics 6 and 9) is one `POST /api/v1/remember` (add, then cognify and its improve
   step) with `run_in_background`, so the call returns before the graph is built; metric 6 counts that.
-- Models: its language model is the benchmark's extraction model and its embedder the benchmark's, both
-  through the system's gateway (deploy/systems/cognee/compose.yaml).
+- Models: its language model is the benchmark's, with the benchmark's reasoning effort in `LLM_ARGS`, and
+  its embedder the benchmark's, both through the system's gateway (deploy/systems/cognee/compose.yaml).
 """
 
 from __future__ import annotations

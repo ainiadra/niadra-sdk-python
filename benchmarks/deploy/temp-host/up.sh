@@ -152,8 +152,10 @@ for _ in $(seq 1 120); do
 done
 cat <<EOF
 Ready: host $id ($instance). Next, from benchmarks/:
-  deploy/temp-host/bench.sh campaign niadra mem0_oss,mem0_oss_rerank ai_memory ai_memory_llm hindsight hindsight_reflect memobase supermemory memos -- --dataset v2
-  deploy/temp-host/bench.sh start graphiti --dataset v2 --limit 60 --repetitions 1   # after the campaign
+  deploy/temp-host/bench.sh campaign niadra -- --dataset v2
+  deploy/temp-host/bench.sh campaign mem0_oss,mem0_oss_rerank -- --dataset v2 --no-references   # once finished
+  deploy/temp-host/bench.sh campaign hindsight hindsight_reflect memobase supermemory memos redis_agent_memory \\
+    honcho honcho_dialectic langmem cognee graphiti -- --dataset v2 --repetitions 1 --no-references   # then
   deploy/temp-host/bench.sh status            # repeat until the campaign log says finished
   deploy/temp-host/bench.sh collect           # the results, into benchmarks/results/
   deploy/temp-host/down.sh                    # delete everything, and check that nothing is left

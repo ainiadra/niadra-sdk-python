@@ -6,7 +6,7 @@
 #
 #   deploy/local/run.sh [<systems> ...] [-- <bench run args>]
 #
-#   deploy/local/run.sh niadra,mem0_oss,mem0_oss_rerank ai_memory graphiti -- --dataset v2 --quick --limit 14
+#   deploy/local/run.sh niadra,mem0_oss,mem0_oss_rerank hindsight graphiti -- --dataset v2 --quick --limit 14
 #
 # Without systems it runs every one: Niadra and Mem0 together, then each added system. The default bench
 # arguments are `--dataset v2 --quick --limit 14 --repetitions 1`. Results: deploy/local/results/.

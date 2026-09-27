@@ -12,6 +12,11 @@ exchanges, with public prices (config [prices]) and the usage the run measured.
   the model spend its extraction made, or none in a configuration that calls no model.
 - For every system, separately: what the injected memory block costs in the agent's own model (median
   tokens per turn x turns x the agent model's input price).
+
+Model spend is priced per kind of token, as the provider bills it: the input tokens read from the prompt
+cache (`cached_tokens`) at the cache read price, those written to it (`cache_write_tokens`) at the cache
+write price, the rest of the input at the input price, and the output (reasoning included) at the output
+price. Each measured line also says which share of its input came from the cache (`cache_read_share`).
 """
 
 from __future__ import annotations
@@ -25,12 +30,25 @@ from niadra_bench.config import BenchConfig
 def model_usd(config: BenchConfig, usage: dict[str, dict[str, int]]) -> float:
     total = 0.0
     for model, counts in usage.items():
-        price_in, price_out = config.prices.model_price(model)
+        price = config.prices.model_price(model)
+        prompt = counts.get("prompt_tokens", 0)
+        cached = counts.get("cached_tokens", 0)
+        written = counts.get("cache_write_tokens", 0)
+        fresh = max(0, prompt - cached - written)
         total += (
-            counts.get("prompt_tokens", 0) / 1e6 * price_in
-            + counts.get("completion_tokens", 0) / 1e6 * price_out
-        )
+            fresh * price.input
+            + cached * price.cache_read
+            + written * price.cache_write
+            + counts.get("completion_tokens", 0) * price.output
+        ) / 1e6
     return total
+
+
+def cache_read_share(usage: dict[str, dict[str, int]]) -> float | None:
+    """The share of the input tokens read from the prompt cache; None with no input."""
+    prompt = sum(c.get("prompt_tokens", 0) for c in usage.values())
+    cached = sum(c.get("cached_tokens", 0) for c in usage.values())
+    return round(cached / prompt, 4) if prompt else None
 
 
 def meter_delta(before: dict[str, Any] | None, after: dict[str, Any] | None) -> dict[str, dict[str, int]]:
@@ -56,7 +74,7 @@ def compute(
 ) -> list[dict[str, Any]]:
     turns = config.cost.turns_per_conversation
     per_thousand = turns * 1000
-    agent_in, _ = config.prices.model_price(config.agent.model)
+    agent_in = config.prices.model_price(config.agent.model).input
 
     def agent_prompt(system: str) -> float | None:
         tokens = tokens_per_turn.get(system)
@@ -88,6 +106,7 @@ def compute(
                 "agent_prompt_usd_per_1000": agent_prompt("mem0_oss"),
                 "basis": "measured extraction model spend, servers not priced",
                 "usd_per_add": round(per_add, 8),
+                "cache_read_share": cache_read_share(mem0_seed_usage),
             }
         )
         if rerank_searches:
@@ -100,6 +119,7 @@ def compute(
                     "agent_prompt_usd_per_1000": agent_prompt("mem0_oss_rerank"),
                     "basis": "measured extraction and rerank model spend, servers not priced",
                     "usd_per_search": round(per_search, 8),
+                    "cache_read_share": cache_read_share(rerank_usage),
                 }
             )
     for plan, (monthly, adds, searches) in config.prices.mem0_plans().items():

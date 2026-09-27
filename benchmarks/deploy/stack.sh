@@ -4,9 +4,9 @@
 #
 #   deploy/stack.sh <local|temp-host> <system,...> <docker compose arguments>
 #
-#   deploy/stack.sh local ai_memory,mem0_oss up -d          start what those systems need, with fakes
-#   deploy/stack.sh local ai_memory run --rm harness run --dry-run --systems ai_memory --quick
-#   deploy/stack.sh local ai_memory down -v                  remove it all, volumes included
+#   deploy/stack.sh local hindsight,mem0_oss up -d          start what those systems need, with fakes
+#   deploy/stack.sh local hindsight run --rm harness run --dry-run --systems hindsight --quick
+#   deploy/stack.sh local hindsight down -v                  remove it all, volumes included
 #
 # The pieces: deploy/compose/base.yaml (the embedding proxy and the harness), deploy/<env>/env.yaml (the
 # embedder and the model provider of that environment) and, for each system, the deploy/systems/<dir>/

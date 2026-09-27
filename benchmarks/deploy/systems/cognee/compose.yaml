@@ -5,10 +5,11 @@
 # gets its own stores, and every call is made as its default user, whose password is set here (its compose
 # file's DEFAULT_USER_PASSWORD) and sent by the harness to its login route. Its settings are its defaults
 # but the models, set the way its .env.template shows for an OpenAI-compatible endpoint: the language model
-# is the benchmark's extraction model (LLM_PROVIDER custom, the "openrouter/" route to the system's
-# gateway), the embedder is the benchmark's (openai_compatible, 384 dimensions; its model id is not a
-# HuggingFace repository, so Cognee counts tokens for chunk sizing with TikToken, and says so in its log).
-# The gateway pins any model name no setting reaches to the extraction model. Auth tokens last a day
+# is the benchmark's model (LLM_PROVIDER custom, the "openrouter/" route to the system's gateway) with its
+# reasoning effort in LLM_ARGS (the arguments its config merges into every completion call), the embedder is
+# the benchmark's (openai_compatible, 384 dimensions; its model id is not a HuggingFace repository, so Cognee
+# counts tokens for chunk sizing with TikToken, and says so in its log).
+# The gateway pins any model name no setting reaches to the benchmark's model. Auth tokens last a day
 # (JWT_LIFETIME_SECONDS), so a run is not logged out halfway, and the JWT secret is 32 bytes or more (the
 # host's is random); its telemetry is off. Memory: the server 4 GiB (its compose file allows 8; a dry run
 # with 14 datasets used 2.3), the gateway 128 MiB (4.1 GiB).
@@ -19,7 +20,8 @@ services:
     environment:
       LLM_UPSTREAM: ${BENCH_LLM_UPSTREAM:-http://fake-llm:9001/v1}
       LLM_API_KEY: ${BENCH_LLM_API_KEY:-}
-      LLM_FORCE_MODEL: ${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      LLM_REASONING_EFFORT: ${BENCH_LLM_REASONING_EFFORT:-low}
+      LLM_FORCE_MODEL: ${BENCH_LLM_MODEL:-openai/gpt-6-luna}
       EMBED_UPSTREAM: http://embed:8080/v1
     mem_limit: 128m
 
@@ -29,9 +31,10 @@ services:
     environment:
       ENV: production
       LLM_PROVIDER: custom
-      LLM_MODEL: openrouter/${BENCH_EXTRACTION_MODEL:-google/gemini-2.5-flash-lite}
+      LLM_MODEL: openrouter/${BENCH_LLM_MODEL:-openai/gpt-6-luna}
       LLM_ENDPOINT: http://cognee-gateway:8081/v1
       LLM_API_KEY: gateway
+      LLM_ARGS: '{"reasoning_effort": "${BENCH_LLM_REASONING_EFFORT:-low}"}'
       EMBEDDING_PROVIDER: openai_compatible
       EMBEDDING_MODEL: paraphrase-multilingual-minilm-l12-v2-r1
       EMBEDDING_ENDPOINT: http://cognee-gateway:8081/v1

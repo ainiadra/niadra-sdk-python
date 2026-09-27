@@ -1,8 +1,9 @@
 # systems: memobase
 # Memobase (github.com/memodb-io/memobase, Apache 2.0) at v0.0.42, as src/server/docker-compose.yml runs
 # it: the API, PostgreSQL with pgvector and Redis 7.4. config.yaml sets only the models (the benchmark's
-# extraction model and embedder, through the system's gateway). The access token only guards a server with
-# no published port; the harness sends the same value.
+# model and embedder, through the system's gateway, which asks for the benchmark's reasoning effort: Memobase
+# has no setting for it). The access token only guards a server with no published port; the harness sends
+# the same value.
 services:
   memobase-db:
     image: pgvector/pgvector:0.8.6-pg17
@@ -25,6 +26,7 @@ services:
     environment:
       LLM_UPSTREAM: ${BENCH_LLM_UPSTREAM:-http://fake-llm:9001/v1}
       LLM_API_KEY: ${BENCH_LLM_API_KEY:-}
+      LLM_REASONING_EFFORT: ${BENCH_LLM_REASONING_EFFORT:-low}
       EMBED_UPSTREAM: http://embed:8080/v1
     mem_limit: 128m
 

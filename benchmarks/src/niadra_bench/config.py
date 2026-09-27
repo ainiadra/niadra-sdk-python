@@ -8,7 +8,7 @@ import os
 import re
 import tomllib
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, NamedTuple
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -125,13 +125,30 @@ class Mem0Settings(_Frozen):
 
 class ModelCall(_Frozen):
     model: str
-    temperature: float
     max_tokens: int
+    # Sent only when set: GPT-6 Luna takes no temperature, and its reasoning effort is OpenRouter's
+    # `reasoning.effort`.
+    temperature: float | None = None
+    reasoning_effort: str | None = None
+    seed: int | None = None
 
 
 class Models(_Frozen):
-    extraction: str
+    # The model every system that lets it be chosen calls, and its reasoning effort.
+    llm: str
+    reasoning_effort: str
     embedder: str
+    # What Niadra's cell runs (set in niadra-back, not by the harness), recorded in every summary.
+    niadra: list[str]
+
+
+class ModelPrice(NamedTuple):
+    """USD per million tokens."""
+
+    input: float
+    output: float
+    cache_read: float
+    cache_write: float
 
 
 class NiadraPrices(_Frozen):
@@ -146,12 +163,16 @@ class Prices(_Frozen):
     niadra: NiadraPrices
     mem0_platform: dict[str, Any]
 
-    def model_price(self, model: str) -> tuple[float, float]:
-        """USD per million tokens, input and output."""
+    def model_price(self, model: str) -> ModelPrice:
+        """USD per million tokens: input and output, then cache read and cache write when the model
+        has them (a cache price left out is the input price)."""
         value = self.openrouter.get(model)
-        if not isinstance(value, list) or len(value) != 2:
+        if not isinstance(value, list) or not 2 <= len(value) <= 4:
             raise KeyError(f"no price for {model} in [prices.openrouter]")
-        return float(value[0]), float(value[1])
+        numbers = [float(v) for v in value]
+        cache_read = numbers[2] if len(numbers) > 2 else numbers[0]
+        cache_write = numbers[3] if len(numbers) > 3 else numbers[0]
+        return ModelPrice(numbers[0], numbers[1], cache_read, cache_write)
 
     def mem0_plans(self) -> dict[str, tuple[float, int, int]]:
         return {
