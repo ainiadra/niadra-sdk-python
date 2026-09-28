@@ -338,6 +338,27 @@ def markdown(document: Mapping[str, Any]) -> str:
                 f"${cell['spend_usd']:.4f} | ${cell['saved_usd']:.4f} | ${agent['cost_usd']:.4f} | "
                 f"${spend['spend_usd']:.4f} |"
             )
+    by_purpose = [
+        (name, ((spend or {}).get("cell") or {}).get("purposes"), (spend or {}).get("exchanges") or 0)
+        for name, spend in spends
+    ]
+    if any(found for _, found, _ in by_purpose):
+        lines += ["", "## Model spend by purpose", "", "What every answer cost when it was fetched, read "
+                  "from disk or not: the spend of a cell without the cache, and that spend per 1,000 "
+                  "conversations of ten exchanges (the spend over the exchanges written, times 10,000).", "",
+                  "| Side | Purpose | Calls | Cost | Per 1,000 conversations | Input | Cached | Output | "
+                  "Reasoning |", "|---|---|---|---|---|---|---|---|---|"]  # fmt: skip
+        for name, found, written in by_purpose:
+            total = 0.0
+            for purpose, t in sorted((found or {}).items()):
+                total += t["cost_usd"]
+                per = _per_1000(t["cost_usd"], written)
+                lines.append(
+                    f"| {name} | {purpose} | {t['calls']} | ${t['cost_usd']:.4f} | {per} "
+                    f"| {t['input_tokens']} | {t['cached_tokens']} | {t['output_tokens']} "
+                    f"| {t['reasoning_tokens']} |"
+                )
+            lines.append(f"| {name} | all | | ${total:.4f} | {_per_1000(total, written)} | | | | |")
     causes = [(name, document[name].get("lost_by_cause")) for name in ("baseline", "candidate")]
     if any(found for _, found in causes):
         lines += ["", "## Lost answers by cause", "", "From each probe's exclusion manifest: `withheld`, the "
@@ -361,6 +382,10 @@ def markdown(document: Mapping[str, Any]) -> str:
     if verdict and verdict["differences"]:
         lines += ["", "## Differences", ""] + [f"- {d}" for d in verdict["differences"][:50]]
     return "\n".join(lines) + "\n"
+
+
+def _per_1000(cost: float, exchanges: int) -> str:
+    return f"${cost / exchanges * 10_000:.3f}" if exchanges else "n/a"
 
 
 def _env(env: Mapping[str, str]) -> str:

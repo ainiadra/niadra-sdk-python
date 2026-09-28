@@ -61,6 +61,7 @@ import argparse
 import asyncio
 import contextlib
 import copy
+import inspect
 import json
 import os
 import pickle
@@ -284,6 +285,21 @@ class RealModels:
         return {"ledger": self.ledger.snapshot(), "model_cache": str(self.cache) if self.cache else None}
 
 
+def holds_windows(flow: Flow) -> bool:
+    """Whether this checkout's extraction waits a batch window after a session closes (niadra-back from
+    28/09, estudo 20 C4): its flow harness drains without closing the windows when asked."""
+    return "windows" in inspect.signature(flow.drain).parameters
+
+
+async def drain(flow: Flow, *, windows: bool) -> None:
+    """Runs the shard's pipeline; with `windows` False the extraction windows stay open, as in the region
+    while a customer's sessions keep arriving."""
+    if holds_windows(flow):
+        await flow.drain(windows=windows)
+    else:
+        await flow.drain()
+
+
 async def retry_failed_extractions(flow: Flow) -> None:
     """The region retries an extraction whose model call failed after a backoff (`LLM_RETRY`); the fixed
     clock never reaches it, so the cell moves those retries to the outbox at once and drains again, until
@@ -292,7 +308,7 @@ async def retry_failed_extractions(flow: Flow) -> None:
     while retries := [row for row in rows if row[2] == DelayReason.LLM_RETRY]:
         rows[:] = [row for row in rows if row[2] != DelayReason.LLM_RETRY]
         flow.cell.uow.store.module("pipeline").setdefault("outbox", []).extend(task for task, _, _ in retries)
-        await flow.drain()
+        await drain(flow, windows=False)
 
 
 def space_config(operations: frozenset[str]) -> SpaceConfig:
@@ -468,10 +484,34 @@ class IngestRouter:
                 await seed_guards(flow)
                 self._guards_seeded.add(key)
             result = await flow.ingest.ingest_items(caller, items, rejected, **kw)
-            await flow.drain()
+            # The region's extraction waits a short window after a session closes and takes the customer's
+            # sessions that closed within it together; the harness seeds a customer's sessions a second or two
+            # apart, so here the windows stay open until the settle closes them all (`close_windows`).
+            await drain(flow, windows=False)
             if self._retry:
                 await retry_failed_extractions(flow)
             return result
+
+    async def close_windows(self) -> dict[str, int]:
+        """`POST /_bench/close-windows`, which the harness calls when seeding ends: every shard's extraction
+        windows close and its pipeline runs to the end, a few shards at a time (the models are shared)."""
+        gate = asyncio.Semaphore(4)
+        closed = 0
+
+        async def one(key: str) -> None:
+            nonlocal closed
+            flow = self._shards.flows[key]
+            if not holds_windows(flow):
+                return
+            async with gate, self._shards.locks[key]:
+                closed += flow.close_windows()
+                await flow.drain()
+                if self._retry:
+                    await retry_failed_extractions(flow)
+                    await flow.drain()
+
+        await asyncio.gather(*(one(key) for key in list(self._shards.flows)))
+        return {"closed": closed}
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._shards.flow(SHARED).ingest, name)
@@ -564,6 +604,9 @@ def build(
     app = create_app("local-cell", container, routers)
     if models is not None:
         app.add_api_route("/_bench/models", models.report, methods=["GET"], include_in_schema=False)
+    app.add_api_route(
+        "/_bench/close-windows", container.ingest.close_windows, methods=["POST"], include_in_schema=False
+    )
     applied = {
         "semantic_channel": semantic,
         "semantic_encoder": "hash-64" if semantic == "models" else None,

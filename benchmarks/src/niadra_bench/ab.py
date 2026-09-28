@@ -470,6 +470,7 @@ class Ab:
             rep["model_spend"] = {
                 "cell": ledger_delta(after or {}, ledger),
                 "agent_judge": chat_delta(run.chat.usage(), chat),
+                "exchanges": exchanges(run.cases),
             }
         side.reps.append(rep)
         side.rows[n] = run.rows.get(n, [])
@@ -618,14 +619,24 @@ def local_tag(now: datetime) -> str:
     return hashlib.sha256(now.isoformat().encode()).hexdigest()[:6]
 
 
+def exchanges(cases: list[Case]) -> int:
+    """The exchanges a repetition wrote: the customer's turns of the conversations seeded, the unit the cost
+    per 1,000 conversations of ten exchanges divides by (`metrics/cost.py`)."""
+    return sum(1 for c in cases for s in c.sessions for t in s.turns if t.role == "customer")
+
+
 def ledger_delta(after: dict[str, Any], before: dict[str, Any] | None) -> dict[str, Any]:
     """What a repetition added to the cell's model ledger (`deploy/local/model_cache.py`'s snapshot)."""
     before = before or {"models": {}}
-    models = {
-        name: chat_delta(tally, before["models"].get(name, {}))
-        for name, tally in after.get("models", {}).items()
+    nested = {
+        group: {
+            name: chat_delta(tally, (before.get(group) or {}).get(name, {}))
+            for name, tally in (after.get(group) or {}).items()
+        }
+        for group in ("models", "purposes")
     }
-    return {"models": models, **chat_delta({k: v for k, v in after.items() if k != "models"}, before)}
+    flat = {k: v for k, v in after.items() if k not in nested}
+    return {**nested, **chat_delta(flat, before)}
 
 
 def chat_delta(after: dict[str, Any], before: dict[str, Any]) -> dict[str, Any]:
@@ -649,8 +660,15 @@ def spend_total(reps: list[dict[str, Any]]) -> dict[str, Any] | None:
         k: round(sum(s["agent_judge"].get(k, 0) for s in spends), 6)
         for k in ("calls", "input_tokens", "output_tokens", "cost_usd")
     }
+    purposes: dict[str, dict[str, float]] = {}
+    for s in spends:
+        for name, tally in (s["cell"].get("purposes") or {}).items():
+            slot = purposes.setdefault(name, {})
+            for k, v in tally.items():
+                slot[k] = round(slot.get(k, 0) + v, 6)
     return {
-        "cell": cell,
+        "cell": {**cell, "purposes": purposes},
+        "exchanges": sum(s.get("exchanges", 0) for s in spends),
         "agent_judge": agent,
         "spend_usd": round(cell["spend_usd"] + agent["cost_usd"], 6),
     }
