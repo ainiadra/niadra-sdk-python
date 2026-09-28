@@ -82,12 +82,15 @@ class QueueOptions:
     A batch goes out when `batch_size` items are waiting, `interval` seconds after the first
     one arrived, or `turn_interval` seconds after the first conversation turn arrived (a
     message with a `conversation_id`), whichever comes first. A turn is what the other
-    agents read in `live`, so it does not wait the full interval. When `capacity` is reached
-    new items are dropped and counted, so a long outage costs events, never memory.
+    agents read in `live`, so by default it leaves at once, taking whatever else is waiting
+    along. Only one batch is in flight per client: what is queued while one is answered
+    leaves together as the next batch, so a burst of turns costs one request per round trip,
+    never one per turn. When `capacity` is reached new items are dropped and counted, so a
+    long outage costs events, never memory.
     """
 
     capacity: int = 10_000
     batch_size: int = 15
     interval: float = 1.0
-    turn_interval: float = 0.2
+    turn_interval: float = 0.0
     heartbeat_interval: float = 60.0

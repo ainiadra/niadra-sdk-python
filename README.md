@@ -334,8 +334,10 @@ tool kit adds the bound customer to it, so the server opens only that customer's
 `track()` records a message, a system event or an action. It never blocks: items go to a bounded
 local queue and a background thread (a task, with `AsyncNiadra`) sends them in batches of 15 or
 every second, whichever comes first, with three attempts and backoff. A message with a
-`conversation_id` is a turn the other agents read in `live`, so it leaves within 0.2 s
-(`QueueOptions.turn_interval`), taking whatever else is waiting along.
+`conversation_id` is a turn the other agents read in `live`, so it leaves at once
+(`QueueOptions.turn_interval`, 0 by default), taking whatever else is waiting along. One batch
+is in flight per client, so turns queued while it is answered leave together in the next one: a
+burst of turns costs one request per round trip, not one per turn.
 
 ```python
 niadra.track(

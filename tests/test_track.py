@@ -122,16 +122,16 @@ def test_only_messages_of_a_conversation_are_turns() -> None:
     assert not is_turn({"type": "conversation.ended", "conversation_id": "wa-1"})
 
 
-def test_by_default_a_turn_is_due_well_inside_a_second_and_other_items_in_one() -> None:
+def test_by_default_a_turn_is_due_at_once_and_other_items_in_a_second() -> None:
     options = QueueOptions()
-    assert options.turn_interval == 0.2 and options.interval == 1.0
+    assert options.turn_interval == 0 and options.interval == 1.0
     other = EventBuffer(options)
     other.put(message())
     assert 0.9 < other.wait_hint() <= 1.0
     turns = EventBuffer(options)
     turns.put(message())
     turns.put(message(conversation_id="wa-1"))
-    assert turns.wait_hint() <= 0.2
+    assert turns.wait_hint() == 0
     turns.take()
     assert turns.next_due() is None
 
