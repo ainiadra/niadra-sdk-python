@@ -586,6 +586,20 @@ The stacked runs must be the same measurement (the same dataset and configuratio
 references, harness commit and Niadra server version); repetition k of the stack is the k-th in the order
 given, its `rep-k.json` names the run and repetition it came from, and `stacked_from` lists the runs.
 
+The combine published on 28/09/2026 (`results/2026-09-28-0e1a50`): Niadra's run on a temporary cell with
+production's machine and database classes, server 2026.09.28-0103-b87a029, one repetition of the 356
+cases (`2026-09-28-0e264a`), first; then the eleven runs of 27/09. Validity comes from the references of
+Niadra's repetition of 27/09 (`partial/2026-09-27-aaf0dd`, server f1c87c8, stopped in its second
+repetition), the only references measured beside the competitors' runs; that folder's Niadra rows are
+superseded and never combined:
+
+```bash
+uv run bench combine --references results/partial/2026-09-27-aaf0dd results/2026-09-28-0e264a \
+  results/2026-09-27-9e1e99 results/2026-09-27-1f0e6a results/2026-09-27-eed88a results/2026-09-27-d03ae2 \
+  results/2026-09-27-64b5ae results/2026-09-27-320e9d results/2026-09-27-385a79 results/2026-09-27-63d738 \
+  results/2026-09-27-a1ff8a results/2026-09-27-4cb045 results/2026-09-27-aa9155
+```
+
 Expected duration per repetition of dataset v2 (356 cases, about 2,330 conversations), not yet measured:
 Niadra's seeding at the production cap about 23 minutes, then its settle; Mem0 about 1 h 15 (seeding both
 scenarios, the accuracy pass, the timed loops); each added system from an hour to many hours (Graphiti,
