@@ -67,10 +67,14 @@ def test_the_specifications_example_reads_without_loss() -> None:
     answer = Context.model_validate(example)
     assert answer.pack is not None
     assert answer.pack.model_dump(mode="json") == example["pack"]
+    # A section's lines carry no label; the text puts the section's label back before each one.
     inner = example["text"].split("\n")[1:-1]
-    assert [answer.pack.preamble, *(line for s in answer.pack.sections for line in s.lines)] == inner
-    assert [slot.text for slot in answer.pack.slots] == example["slots"].split("\n")[2:-1]
+    labeled = [f"[{s.label}] {line}" for s in answer.pack.sections for line in s.lines]
+    assert [answer.pack.preamble, *labeled] == inner
+    assert [slot.text for slot in answer.pack.slots] == example["slots"].split("\n")[1:-1]
+    # The producer's example answers a turn of a conversation the pack already covers, so it carries no delta:
+    # the block is the live turns, then the slots, where a delta would follow.
     block = answer.turn_block
-    assert block.index("<live_turns") < block.index(example["slots"]) < block.index(example["delta"]), (
-        "the slots after the live turns and before the delta"
-    )
+    assert example["delta"] is None
+    assert block.index("<live_turns") < block.index(example["slots"])
+    assert block.endswith(example["slots"]), "the slots close the block when there is no delta"

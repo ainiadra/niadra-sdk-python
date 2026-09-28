@@ -161,10 +161,6 @@ class SlotWhy(ResponseModel):
     weights_version: int | None = Field(
         default=None, description="The space's learned fusion weights used; absent for the defaults."
     )
-    via: str | None = Field(
-        default=None,
-        description="For an item the `linked` channel brought: the exact match it is tied to, as `item_id`.",
-    )
     excerpt: bool = Field(
         default=False, description="The line was cut to the sentences that answer the turn."
     )

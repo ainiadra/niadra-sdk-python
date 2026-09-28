@@ -237,7 +237,7 @@ class ContextUseEntry(ResponseModel):
         description="One entry per read of this delivery that carried slots: `channels` (hits "
         "per retrieval channel, `skipped`), `items` (per slot: `id`, `kind`, `channels`, `position`, `used`, "
         "`repeated`, `contradicted`, and `why`: `score`, per channel its `position`, `weight` and "
-        "`contribution`, `via` for a linked item), `derived` (the rule of each derived line) and "
+        "`contribution`), `derived` (the rule of each derived line) and "
         "`weights_version`. The same numbers as the slots receipt, never a line.",
     )
 
