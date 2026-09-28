@@ -94,8 +94,10 @@ what a Niadra buyer buys.
   machine or its RDS instance. Niadra is measured where it runs, the cell (m7i-flex.large, RDS
   db.t4g.micro), through its public TLS address (`edge`) and through the cell machine's private address
   in the VPC with the same TLS name (`vpc`); every other system is on the harness's own host (`host`), so
-  Niadra's lines carry a network hop the others do not, and the page says so. Until 25/09/2026 everything
-  ran as pods of the cell (`cluster`); on that evening the second run saturated PgBouncer and the RDS
+  Niadra's `edge` and `vpc` lines carry a network hop the others do not, and the page says so. Niadra's
+  own `host` lines, from a pod on the cell's machine straight to each deployable over plain HTTP
+  (`deploy/cell/host-lines.sh`, `NIADRA_HOST_ADDRESS`), are measured the way the others are. Until
+  25/09/2026 everything ran as pods of the cell (`cluster`); on that evening the second run saturated PgBouncer and the RDS
   instance went into recovery (niadra-docs `estudo/09-RODADAS.md`), which is why the benchmark left the
   cell. What a run may send to the cell is capped (config `[production]`, "Load on production" below).
 - **Same model where a system lets it be chosen.** Niadra's cell extracts with `openai/gpt-6-luna` and
@@ -324,8 +326,13 @@ How the Niadra side is prepared, before any clock starts:
   answers from its duplicate check.
 - **Paths.** Through the public TLS address the calls go where the SDK sends them (`edge`); from the
   benchmark's host in the cell's VPC they also go to the cell machine's private address with the same
-  TLS name (`vpc`, `NIADRA_VPC_ADDRESS`). Runs before 26/09/2026, when the harness ran as a pod of the
-  cell, have a third path, `cluster`: each service's own address.
+  TLS name (`vpc`, `NIADRA_VPC_ADDRESS`). From a pod on the cell's own machine they go straight to the
+  deployable that serves each path, over plain HTTP inside the cluster (`host`, `NIADRA_HOST_ADDRESS`, a
+  base URL or a template with `{service}`; `deploy/cell/host-lines.sh` runs it), the way every other
+  system is reached on the harness's host. `NIADRA_PATHS` keeps only the paths it names. None of these
+  settings is in the frozen config: the config hash does not change. Runs before 26/09/2026, when the
+  harness ran as a pod of the cell, have a path `cluster`: each service's own address, through the
+  cluster's network.
 - **Rates.** Niadra's lines run at 10 per second only (config `[production]`); the other systems' at 10
   and 25.
 
@@ -465,6 +472,7 @@ deploy/systems/<dir>/    one container entry per system (compose.yaml, pinned; a
 deploy/stack.sh          puts base, environment and system files together and runs docker compose
 deploy/local/            the local environment (fakes, niadra-mock) and run.sh, the local pipeline
 deploy/temp-host/        the temporary host: up.sh, down.sh, bench.sh (this computer), host.sh (the host)
+deploy/cell/host-lines.sh Niadra's `host` lines, from a pod on the cell's machine (this computer starts it)
 deploy/cell/cleanup.sh   removes what the benchmark left on the cell when it ran there
 results/                 published runs: results/<date>-<id>/{summary.json,rep-N.json,cases-repN.jsonl}
 results/ab/              A/B runs in the region: results/ab/<date>-<id>/{ab.json,ab.md,baseline/,candidate/}
