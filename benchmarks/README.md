@@ -497,7 +497,8 @@ deploy/temp-host/bench.sh campaign hindsight hindsight_reflect memobase supermem
   -- --dataset v2 --repetitions 1 --no-references
 deploy/temp-host/bench.sh status          # repeat: containers, the campaign's progress, the run's log
 
-# 4. The results into results/, then one folder for the site (the first folder's references count).
+# 4. The results into results/, then one folder for the site (the first folder's references count,
+#    or those of the folder --references names).
 deploy/temp-host/bench.sh collect
 uv run bench combine results/<niadra run> results/<mem0 run> results/<hindsight run> ...
 
@@ -552,8 +553,24 @@ a wall-clock limit per system scores what a system has when the cap is reached, 
 so the configuration hash stays and the run still combines. Every run but the first of a campaign can take
 `--no-references`: `bench combine` decides validity with the first folder's references only, so asking
 them again in each run spends the agent and the judge on answers nothing reads (two target passes per
-repetition). The first run keeps them, needs every case and the most repetitions, and `bench combine`
-refuses a first folder without them.
+repetition). The first run keeps them and needs every case, and `bench combine` refuses a first folder
+without them, unless `--references <folder>` names the folder whose references decide validity (a run
+of the same dataset and configuration; its references are the combined folder's, and the first folder's
+own are left out). The references may cover fewer repetitions than a system: Niadra once, Mem0 three
+times. A repetition past the references' last takes its validity from that last one, and its `rep-N.json`
+says which (`validity.references`); the combined `summary.json` gives each system's repetitions and cases
+in `per_system`, and `bench combine` prints them.
+
+`bench combine` also scores every system again on the valid cases that every system answered
+(`metrics.accuracy_shared`, with `dataset.shared`): when some systems ran on a subset (`--limit`, the
+178-case half of dataset v2), that is the comparison on the same cases, and the site leads with it.
+`metrics.accuracy` keeps each system on all of its own valid cases.
+
+Niadra's own model spend is not seen by any harness gateway (its extraction runs in the cell on the
+production key), so a Niadra run may carry `cell-cost.json`: cost lines read from the cell over the run's
+window (the extraction runs' tokens at the harness's prices, the method of every added system's
+`models_only` line; the cell's own ledger), with every input that gives them. `bench combine` adds them to
+that repetition's cost lines.
 
 When the cell needs to rest between repetitions (on 27/09/2026 a second repetition in a row slowed the
 cell's reads past the stop rule while the first had not), Niadra runs as separate runs of one repetition
@@ -817,9 +834,11 @@ niadra-mock, so it needs no key. It proves the plumbing only; its numbers are ne
   Niadra's they answer before the memory is built; Memobase's insert goes to its buffer. Mem0's open source
   server has no such mode.
 - Runs of different systems are put together by `bench combine`, with one validity rule for all (the
-  first run's references); each system still ran alone on the host, at a different time, against the
+  first run's references, or those of the folder `--references` names); each system still ran alone on the host, at a different time, against the
   same dataset and configuration hash.
 - A costly or slow system may run fewer repetitions or fewer cases (`--repetitions 1`, `--limit`) than the
-  first run: `bench combine` takes it after the first run, and its source in `combined_from` carries its
-  `repetitions` and `cases`, so the page marks it rather than setting it beside the others as equal.
+  first run, and the first run may run fewer repetitions than another system: `bench combine` takes every
+  run after the first, its source in `combined_from` and its line in `per_system` carry its `repetitions`
+  and `cases`, and `accuracy_shared` scores every system on the cases all of them answered, so the page
+  marks the difference rather than setting unequal runs side by side as equal.
 

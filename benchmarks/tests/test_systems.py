@@ -419,6 +419,97 @@ async def test_runs_with_fewer_repetitions_and_cases_combine_after_the_first(
     assert all(r["context"] is None for r in first if r["system"] in ("no_memory", "full_history"))
 
 
+async def test_a_one_repetition_reference_run_combines_with_a_system_of_more(
+    config, tmp_path, monkeypatch
+) -> None:
+    from niadra_bench.combine import combine
+
+    monkeypatch.setenv("NIADRA_API_KEY", MOCK_KEY)
+    monkeypatch.delenv("NIADRA_BOOTSTRAP", raising=False)
+    monkeypatch.delenv("MEM0_METER_URL", raising=False)
+    cases = load_cases("v2")
+
+    async def one(systems: set[str], repetitions: int, limit: int, references: bool) -> Path:
+        mock = MockApp()
+        options = Options(
+            systems=systems,
+            metrics={"latency", "accuracy", "tokens", "privacy", "cost"},
+            repetitions=repetitions,
+            dry_run=True,
+            limit=limit,
+            quick=True,
+            output=tmp_path / "runs",
+            dataset="v2",
+            references=references,
+            niadra_transport=lambda mock=mock: httpx.ASGITransport(app=mock.asgi),
+            niadra_base_url="http://niadra-mock",
+            system_transports={"hindsight": httpx.ASGITransport(app=FakeHindsight())},
+            extra={"tokenizer": word_tokenizer},
+        )
+        return await Run(config, cases, options).execute()
+
+    # Niadra once with the references on 4 cases, a system three times on 2 of them.
+    first = await one({"niadra"}, 1, 4, True)
+    other = await one({"hindsight"}, 3, 2, False)
+    (first / "cell-cost.json").write_text(
+        json.dumps(
+            {
+                "repetitions": {
+                    "1": [
+                        {
+                            "system": "niadra",
+                            "variant": "models_only",
+                            "memory_usd_per_1000": 2.1675,
+                            "agent_prompt_usd_per_1000": None,
+                            "basis": "the cell's extraction tokens at the harness's prices",
+                        }
+                    ]
+                }
+            }
+        )
+    )
+    by_id = {c.id: c for c in cases}
+    summary = json.loads((combine([first, other], tmp_path / "combined", by_id) / "summary.json").read_text())
+    first_id = json.loads((first / "summary.json").read_text())["run_id"]
+    assert summary["config"]["repetitions"] == 3
+    assert {k: v["repetitions"] for k, v in summary["per_system"].items()} == {"niadra": 1, "hindsight": 3}
+    assert {k: v["cases"] for k, v in summary["per_system"].items()} == {"niadra": 4, "hindsight": 2}
+    combined = tmp_path / "combined" / next((tmp_path / "combined").iterdir()).name
+    reps = [json.loads((combined / f"rep-{n}.json").read_text()) for n in (1, 2, 3)]
+    # Repetitions past the references' only one take their validity from it, and say so.
+    assert [r["validity"]["references"] for r in reps] == [{"run_id": first_id, "repetition": 1}] * 3
+    assert len({json.dumps(r["validity"]["excluded"]) for r in reps}) == 1
+    # The references answer once, in the repetition they were measured in.
+    assert '"system": "no_memory"' not in (combined / "cases-rep2.jsonl").read_text()
+    # The shared ground: the 2 cases both systems answered, each system scored on them alone.
+    assert summary["dataset"]["shared"]["cases"] == 2
+    shared = {
+        r["system"]: r
+        for r in summary["metrics"]["accuracy_shared"]["results"]
+        if r["scenario"] in (None, "known_id")
+    }
+    assert shared["niadra"]["cases"]["median"] == shared["hindsight"]["cases"]["median"]
+    assert shared["niadra"]["cases"]["median"] <= 2
+    niadra = next(r for r in summary["metrics"]["accuracy"]["results"] if r["system"] == "niadra")
+    assert niadra["cases"]["runs"][1:] == [None, None]
+    # A cost line measured outside the harness joins the run's own.
+    cost = {(r["system"], r["variant"]): r for r in summary["metrics"]["cost"]["results"]}
+    assert cost[("niadra", "models_only")]["memory_usd_per_1000"]["median"] == 2.1675
+    assert ("niadra", "price_low") in cost
+
+    # The references may come from a folder of their own; the first run then needs none.
+    bare = await one({"niadra"}, 1, 4, False)
+    elsewhere = json.loads(
+        (combine([bare, other], tmp_path / "elsewhere", by_id, references=first) / "summary.json").read_text()
+    )
+    assert elsewhere["dataset"]["references"] == {"run_id": first_id, "repetitions": [1]}
+    assert elsewhere["dataset"]["excluded"] == summary["dataset"]["excluded"]
+    with pytest.raises(ValueError, match="no references"):
+        combine([bare, other], tmp_path / "wrong", by_id)
+    with pytest.raises(ValueError, match="no references"):
+        combine([first, other], tmp_path / "wrong", by_id, references=other)
+
+
 async def test_separate_runs_of_one_system_stack_into_repetitions(config, tmp_path, monkeypatch) -> None:
     from niadra_bench.combine import combine
     from niadra_bench.stack import stack

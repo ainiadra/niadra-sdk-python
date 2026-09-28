@@ -182,7 +182,16 @@ def _combine(args: argparse.Namespace) -> int:
     first = json.loads((directories[0] / "summary.json").read_text())
     cases = {c.id: c for c in load_cases(first["dataset"].get("version", bench_config.DEFAULT_DATASET))}
     output = Path(args.output) if args.output else bench_config.RESULTS_DIR
-    print(f"combined into {combine(directories, output, cases)}")
+    references = Path(args.references) if args.references else None
+    target = combine(directories, output, cases, references)
+    summary = json.loads((target / "summary.json").read_text())
+    print(f"combined into {target}")
+    print(f"validity from the references of {summary['dataset']['references']['run_id']}")
+    shared = summary["dataset"]["shared"]
+    print(f"cases every system answered: {shared['cases']}, valid {shared['valid']['median']}")
+    for system, source in summary["per_system"].items():
+        reps, count = source["repetitions"], source["cases"]
+        print(f"  {system}: {reps} repetition(s), {count} cases ({source['run_id']})")
     return 0
 
 
@@ -373,6 +382,11 @@ def main(argv: list[str] | None = None) -> None:
 
     combined = sub.add_parser("combine", help="one results folder from runs of different systems")
     combined.add_argument("directories", nargs="+", help="results folders; the first one's references count")
+    combined.add_argument(
+        "--references",
+        default=None,
+        help="the folder whose references decide validity, instead of the first folder's",
+    )
     combined.add_argument("--output", default=None, help="where the new folder goes (default: results/)")
     combined.set_defaults(func=_combine)
 
