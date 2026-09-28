@@ -168,14 +168,33 @@ class RuleExtractor:
 
     async def complete_json(self, **kw: Any) -> LlmResult:
         self.calls += 1
-        turns: list[tuple[str, str]] = []
-        for line in kw["user"].splitlines():
-            if match := _TURN.match(line):
-                body = match.group(2)
-                if body.startswith('"'):
-                    with contextlib.suppress(ValueError):
-                        body = json.loads(body.split(" [o")[0])
-                turns.append((match.group(1), body))
+        schema = kw["json_schema"]["properties"]
+        if "sessions" in schema:
+            # niadra-back from 28/09: a batch of sessions, one entry each (estudo 20).
+            session = schema["sessions"]["items"]["properties"]
+            entries = [
+                {"id": alias, **self._episode(turns, kw["system"], session)}
+                for alias, turns in _blocks(kw["user"])
+            ]
+            content = json.dumps(
+                {"matters": [], "sessions": entries}
+                | {k: [] for k in ("facts", "items", "resolve", "slots", "asks", "claims", "values")}
+            )
+        else:
+            turns = [t for _, block in _blocks(kw["user"]) for t in block] or _turns(kw["user"])
+            episode = self._episode(turns, kw["system"], schema["episode"]["properties"])
+            content = json.dumps(
+                {"episode": episode}
+                | {
+                    k: []
+                    for k in ("facts", "open_items", "resolve", "profile", "agent_questions", "agent_claims")
+                }
+            )
+        usage = LlmUsage(input_tokens=len(kw["user"]) // 4, output_tokens=len(content) // 4)
+        return LlmResult(content=content, model="rule-extractor", provider="local", usage=usage)
+
+    @staticmethod
+    def _episode(turns: list[tuple[str, str]], system: str, fields: dict[str, Any]) -> dict[str, Any]:
         bodies = [body for _, body in turns]
         customer = " ".join(body for who, body in turns if who == "customer")
         ask = bodies[0][:70] if bodies else ""
@@ -189,37 +208,52 @@ class RuleExtractor:
         if not said and len(bodies) > 1:
             said = [bodies[1][:70]]
         summary = " / ".join([ask, *said])[:220]
-        if "exactly as written" not in kw["system"]:
+        if "exactly as written" not in system:
             summary = _VALUE.sub("", summary)
-        episode = kw["json_schema"]["properties"]["episode"]["properties"]
-        categories = episode["category"].get("enum") or ["other"]
+        categories = fields["category"].get("enum") or ["other"]
         category = (
             "technical" if _TECHNICAL.search(customer) else "orders" if _ORDERS.search(customer) else "other"
         )
         if category not in categories:
             category = "other" if "other" in categories else categories[0]
-        intents = episode["intent"].get("enum") or ["other"]
+        intents = fields["intent"].get("enum") or ["other"]
         intent = "complaint" if _COMPLAINT.search(customer) and "complaint" in intents else "request"
-        content = json.dumps(
-            {
-                "episode": {
-                    "summary": summary[:400],
-                    "intent": intent,
-                    "category": category,
-                    "outcome": "resolved",
-                    "resolution": None,
-                    "sentiment": 0.0,
-                },
-                "facts": [],
-                "open_items": [],
-                "resolve": [],
-                "profile": [],
-                "agent_questions": [],
-                "agent_claims": [],
-            }
-        )
-        usage = LlmUsage(input_tokens=len(kw["user"]) // 4, output_tokens=len(content) // 4)
-        return LlmResult(content=content, model="rule-extractor", provider="local", usage=usage)
+        return {
+            "summary": summary[:400],
+            "intent": intent,
+            "category": category,
+            "outcome": "resolved",
+            "resolution": None,
+            "sentiment": 0.0,
+        }
+
+
+_SESSION = re.compile(r"^\[(s\d+)[|\]]")
+
+
+def _turn(line: str) -> tuple[str, str] | None:
+    if (match := _TURN.match(line)) is None:
+        return None
+    body = match.group(2)
+    if body.startswith('"'):
+        with contextlib.suppress(ValueError):
+            body = json.loads(body.split(" [o")[0])
+    return match.group(1), body
+
+
+def _turns(user: str) -> list[tuple[str, str]]:
+    return [t for line in user.splitlines() if (t := _turn(line)) is not None]
+
+
+def _blocks(user: str) -> list[tuple[str, list[tuple[str, str]]]]:
+    """The batch's sessions in the prompt, each with its turns as (speaker, text)."""
+    blocks: list[tuple[str, list[tuple[str, str]]]] = []
+    for line in user.splitlines():
+        if match := _SESSION.match(line):
+            blocks.append((match.group(1), []))
+        elif blocks and (turn := _turn(line)) is not None:
+            blocks[-1][1].append(turn)
+    return blocks
 
 
 class LocalSpend:
