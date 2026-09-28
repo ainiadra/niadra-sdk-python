@@ -5,7 +5,7 @@ import struct
 import httpx
 import pytest
 
-from niadra_bench.net import PinnedTransport, niadra_routes
+from niadra_bench.net import PinnedTransport, ServiceTransport, niadra_routes, service_of
 from niadra_bench.services.embed_proxy import EmbedProxy
 from niadra_bench.services.fakes import FakeLlm, FakeModels, hashed_vector, minimal
 from niadra_bench.services.fault_proxy import Fault, FaultProxy
@@ -243,6 +243,27 @@ async def test_the_vpc_path_connects_to_the_private_address_with_the_public_name
     routes = niadra_routes("https://edge", env={"NIADRA_VPC_ADDRESS": "10.40.1.10"})
     assert [r.path for r in routes] == ["edge", "vpc"] and routes[1].base == "https://edge"
     assert [r.path for r in niadra_routes("https://edge", env={})] == ["edge"]
+
+
+async def test_the_host_path_goes_straight_to_the_deployable_of_each_path() -> None:
+    seen: list[httpx.Request] = []
+    inner = httpx.MockTransport(lambda request: seen.append(request) or httpx.Response(200))
+    address = "http://{service}.niadra.svc.cluster.local:8000"
+    async with httpx.AsyncClient(transport=ServiceTransport(address, inner)) as client:
+        for path in ("/v1/context", "/v1/batch", "/v1/history/search", "/mcp/insights", "/v1/profiles/x"):
+            await client.post(f"https://space.us-east-2.api.niadra.com{path}", json={})
+    assert [str(r.url) for r in seen] == [
+        "http://read.niadra.svc.cluster.local:8000/v1/context",
+        "http://ingest.niadra.svc.cluster.local:8000/v1/batch",
+        "http://read.niadra.svc.cluster.local:8000/v1/history/search",
+        "http://insights.niadra.svc.cluster.local:8000/mcp/insights",
+        "http://admin.niadra.svc.cluster.local:8000/v1/profiles/x",
+    ]
+    assert service_of("/v1/contextual") == "admin"  # a prefix matches whole segments
+    env = {"NIADRA_VPC_ADDRESS": "10.40.1.10", "NIADRA_HOST_ADDRESS": address}
+    assert [r.path for r in niadra_routes("https://edge", env=env)] == ["edge", "vpc", "host"]
+    only = niadra_routes("https://edge", env={**env, "NIADRA_PATHS": "host"})
+    assert [(r.path, r.base) for r in only] == [("host", "https://edge")]
 
 
 async def test_the_fake_llm_ends_an_agent_loop_with_a_tool_call() -> None:
