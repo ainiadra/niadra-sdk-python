@@ -285,7 +285,7 @@ async def test_the_agents_own_notes_come_before_the_customers_context(
     await run(agent, model, "My lid is broken")
     slot = messages(model.prompts[0])[1][1]
     assert slot.startswith("<agent_notes>") and "Open a replacement order" in slot
-    assert slot.index("</agent_notes>") < slot.index("<context"), "notes first, then the customer"
+    assert slot.index("</agent_notes>") < slot.index("<niadra>"), "notes first, then the customer"
     offered = [tool.info.name for tool in model.tools[0]]
     assert offered == [*DEFINITIONS, "search_agent_memory", "remember"]
     reader = NiadraAgent(call, instructions="x", agent_memory=True)

@@ -23,7 +23,7 @@
       ],
       "transcript": "AI: Hi Marina, is this about the lid of order 4471?\nUser: Yes, it still has not arrived.\nAI: I will transfer you to logistics.",
       "variableValues": {
-        "niadra_context": "<context source=\"niadra\">...</context>",
+        "niadra_context": "<niadra>...</niadra>",
         "niadra_context_etag": "etag-9",
         "niadra_injected_at": "2026-09-25T02:00:00+00:00"
       },

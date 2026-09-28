@@ -47,7 +47,7 @@ async def test_the_middleware_puts_the_pack_in_the_system_message_and_records_tu
     (prompt,) = model.prompts
     assert isinstance(prompt[0], SystemMessage)
     system = str(prompt[0].content)
-    assert system.startswith(INSTRUCTIONS + "\n\n<context") and EARLIER in system
+    assert system.startswith(INSTRUCTIONS + "\n\n<niadra>") and EARLIER in system
     assert not any(EARLIER in str(m.content) for m in result["messages"]), "the state never holds the pack"
     assert [t["function"]["name"] if isinstance(t, dict) else t.name for t in model.tools] == list(
         DEFINITIONS

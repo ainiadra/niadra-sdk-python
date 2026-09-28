@@ -343,7 +343,7 @@ def test_a_conversation_keeps_every_delta_until_the_pack_changes(
             httpx.Response(200, json=context_payload(delta="[New] credit of R$ 40", live=live)),
             httpx.Response(200, json=context_payload(delta="[New] visit rescheduled")),
             httpx.Response(200, json=context_payload(delta="[New] visit rescheduled")),
-            httpx.Response(200, json=context_payload(etag="etag-2", text="<context>V2</context>", delta="x")),
+            httpx.Response(200, json=context_payload(etag="etag-2", text="<niadra>V2</niadra>", delta="x")),
         ]
     )
     with client.conversation("c-1", subject=MARINA) as conversation:
@@ -361,7 +361,7 @@ def test_a_conversation_keeps_every_delta_until_the_pack_changes(
     assert second.turn_block.endswith("</live_turns>\n\n[New] credit of R$ 40")
     assert third.turn_block == "[New] credit of R$ 40\n\n[New] visit rescheduled"
     assert fourth.turn_block == third.turn_block, "a repeated delta is kept once"
-    assert (repinned.text, repinned.turn_block) == ("<context>V2</context>", "")
+    assert (repinned.text, repinned.turn_block) == ("<niadra>V2</niadra>", "")
 
 
 def test_an_empty_answer_drops_the_deltas(respx_mock: respx.MockRouter, client: Niadra) -> None:

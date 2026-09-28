@@ -481,19 +481,6 @@
           "description": "The space's learned fusion weights used; absent for the defaults.",
           "title": "Weights Version"
         },
-        "via": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "For an item the `linked` channel brought: the exact match it is tied to, as `item_id`.",
-          "title": "Via"
-        },
         "excerpt": {
           "default": false,
           "description": "The line was cut to the sentences that answer the turn.",
