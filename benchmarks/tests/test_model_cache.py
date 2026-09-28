@@ -144,3 +144,25 @@ async def test_identical_requests_in_flight_at_once_pay_once(tmp_path) -> None:
     answers = await asyncio.gather(*(_post(client, decision) for _ in range(4)))
     assert provider.calls == 1 and {json.dumps(a.json()) for a in answers} == {json.dumps(provider.body)}
     assert ledger.snapshot()["hits"] == 3
+
+
+def test_every_answer_counts_for_its_purpose_fetched_or_from_disk(tmp_path: Path) -> None:
+    assert model_cache.purpose(LUNA) == "openai/gpt-6-luna"
+    assert model_cache.purpose({"questions": {"injection": {}}}) == "jev:injection"
+    assert model_cache.purpose({"questions": {"answered_t1": {}, "injection": {}}}) == "jev:triage"
+
+    async def go() -> dict:
+        client, ledger = _client(Provider(), tmp_path)
+        async with client:
+            await _post(client, LUNA)
+            await _post(client, LUNA)  # from disk: it still costs what it cost when fetched
+        return ledger.snapshot()
+
+    snapshot = asyncio.run(go())
+    luna = snapshot["purposes"]["openai/gpt-6-luna"]
+    assert (luna["calls"], luna["cost_usd"], luna["input_tokens"], luna["output_tokens"]) == (
+        2,
+        0.0004,
+        200,
+        40,
+    )

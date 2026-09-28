@@ -63,6 +63,29 @@ def _tokens(data: Any) -> tuple[int, int]:
         return 0, 0
 
 
+def _details(data: Any) -> tuple[int, int]:
+    """(cached input tokens, reasoning tokens) of a chat completion; a decision has neither."""
+    usage = (data.get("usage") if isinstance(data, dict) else None) or {}
+    try:
+        cached = int((usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
+        reasoning = int((usage.get("completion_tokens_details") or {}).get("reasoning_tokens") or 0)
+    except (TypeError, ValueError, AttributeError):
+        return 0, 0
+    return cached, reasoning
+
+
+def purpose(body: Any) -> str:
+    """What a request was for: a decision is named by its question (`jev:injection`), a batch triage
+    (niadra-back's questions `answered_t1`...) as `jev:triage`, a chat completion by its model
+    (`openai/gpt-6-luna`)."""
+    if isinstance(body, dict) and isinstance(body.get("questions"), dict):
+        questions = sorted(body["questions"])
+        if any(q.startswith("answered_t") for q in questions):
+            return "jev:triage"
+        return "jev:" + "+".join(questions)
+    return str(body.get("model") or "unknown") if isinstance(body, dict) else "unknown"
+
+
 def cacheable(status: int, data: Any) -> bool:
     """A complete answer: a chat completion with its choices, or a decision with its answers."""
     if status != 200 or not isinstance(data, dict) or "error" in data:
@@ -82,9 +105,38 @@ class ModelTally:
     saved_usd: float = 0.0
 
 
+@dataclass
+class PurposeTally:
+    """Every answer of one purpose, fetched or read from disk: `cost_usd` is what the calls cost when they
+    were fetched, the spend a cell without the cache would have paid."""
+
+    calls: int = 0
+    cost_usd: float = 0.0
+    input_tokens: int = 0
+    cached_tokens: int = 0
+    output_tokens: int = 0
+    reasoning_tokens: int = 0
+
+    def add(self, data: Any) -> None:
+        tokens_in, tokens_out = _tokens(data)
+        cached, reasoning = _details(data)
+        if not tokens_in and isinstance(data, dict):
+            tokens_in = int((data.get("usage") or {}).get("input_tokens") or 0)
+        self.calls += 1
+        self.cost_usd += _cost(data)
+        self.input_tokens += tokens_in
+        self.cached_tokens += cached
+        self.output_tokens += tokens_out
+        self.reasoning_tokens += reasoning
+
+
 class Ledger:
     def __init__(self) -> None:
         self.models: dict[str, ModelTally] = {}
+        self.purposes: dict[str, PurposeTally] = {}
+
+    def by_purpose(self, name: str, data: Any) -> None:
+        self.purposes.setdefault(name, PurposeTally()).add(data)
 
     def tally(self, model: str) -> ModelTally:
         return self.models.setdefault(model, ModelTally())
@@ -94,8 +146,12 @@ class Ledger:
         for tally in models.values():
             tally["spend_usd"] = round(tally["spend_usd"], 6)
             tally["saved_usd"] = round(tally["saved_usd"], 6)
+        purposes = {name: asdict(t) for name, t in sorted(self.purposes.items())}
+        for tally in purposes.values():
+            tally["cost_usd"] = round(tally["cost_usd"], 6)
         return {
             "models": models,
+            "purposes": purposes,
             "calls": sum(t.calls for t in self.models.values()),
             "hits": sum(t.hits for t in self.models.values()),
             "misses": sum(t.misses for t in self.models.values()),
@@ -178,6 +234,7 @@ class CachingTransport(httpx.AsyncBaseTransport):
             if self.directory is not None and (cached := self._load(key)) is not None:
                 tally.hits += 1
                 tally.saved_usd += _cost(cached)
+                self.ledger.by_purpose(purpose(body), cached)
                 return httpx.Response(200, json=cached, request=request)
             tally.misses += 1
             try:
@@ -195,6 +252,7 @@ class CachingTransport(httpx.AsyncBaseTransport):
             tally.input_tokens += tokens_in
             tally.output_tokens += tokens_out
             if cacheable(response.status_code, data):
+                self.ledger.by_purpose(purpose(body), data)
                 if self.directory is not None:
                     self._store(key, model, version, data)
             else:

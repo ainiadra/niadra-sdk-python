@@ -247,3 +247,23 @@ def test_the_spend_of_a_repetition_is_the_ledger_it_added_and_the_side_sums_them
     assert total["cell"]["hits"] == 40 and total["agent_judge"]["cost_usd"] == 0.002
     assert total["spend_usd"] == 0.006
     assert ab.spend_total([{}]) is None
+
+
+def test_the_spend_by_purpose_adds_up_per_repetition_and_divides_by_the_exchanges() -> None:
+    purpose = {"calls": 3, "cost_usd": 0.0003, "input_tokens": 900, "cached_tokens": 0, "output_tokens": 0,
+               "reasoning_tokens": 0}  # fmt: skip
+    before = {"models": {}, "purposes": {"jev:triage": purpose}, "calls": 3}
+    after = {
+        "models": {},
+        "purposes": {"jev:triage": {**purpose, "calls": 5, "cost_usd": 0.0005}},
+        "calls": 5,
+    }
+    added = ab.ledger_delta(after, before)
+    assert added["purposes"]["jev:triage"]["calls"] == 2
+    assert added["purposes"]["jev:triage"]["cost_usd"] == 0.0002
+    agent = {"calls": 0, "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+    reps = [{"model_spend": {"cell": added, "agent_judge": agent, "exchanges": 10}}] * 2
+    total = ab.spend_total(reps)
+    assert total is not None
+    assert total["cell"]["purposes"]["jev:triage"]["calls"] == 4
+    assert total["exchanges"] == 20

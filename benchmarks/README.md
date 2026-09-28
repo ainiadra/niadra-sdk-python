@@ -727,7 +727,17 @@ Where the two sides run:
   `--no-model-cache` asks the provider every time and reads or writes nothing. Each repetition records
   `model_spend` (the cell's calls, answers from the cache, failures, spend and what the cache saved, per
   model, and the agent's and judge's calls and cost, all from OpenRouter's `usage`), and `ab.md` adds a
-  "Model spend" table.
+  "Model spend" table. It also records the spend by purpose (Luna's extraction; each kind of Jev decision,
+  `jev:triage` for the batch triage niadra-back asks from 28/09), counting every answer at what it cost when
+  it was fetched, read from disk or not, so a fully cached side still shows what its models cost; and the
+  exchanges the repetition wrote, so the "Model spend by purpose" table gives the cost per 1,000
+  conversations of ten exchanges by the benchmark's method (spend over exchanges, times 10,000).
+
+  niadra-back from 28/09 holds a closed session's extraction for a short window, so a customer's sessions
+  that close together go to the models in one call (estudo 20, C4). The region seeds a customer's sessions a
+  second or two apart, so there a customer's history is one batch; a local cell keeps the windows open while
+  it seeds and closes them all when the settle starts (`POST /_bench/close-windows`), which is the same
+  grouping. A checkout without the window runs as before.
 - **The emulator** (`--mock`): niadra-mock on both sides. It has no server settings, so it runs only
   `--same`; the CI runs it.
 - **The region** (neither option, from the temporary host): the Niadra of `NIADRA_BOOTSTRAP`, read and

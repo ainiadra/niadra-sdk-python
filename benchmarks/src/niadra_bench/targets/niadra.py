@@ -55,6 +55,8 @@ CHANNEL_SOURCE = {
 OBJECT_NAMESPACE = {"ticket": "crm", "claim": "core", "dispute": "core", "order": "erp", "shipment": "tms"}
 TURN_SPACING_S = 40
 RETRIEVE_TIMEOUT_S = 5.0
+#: A local cell extracts every held session when its windows close, with real models if asked: minutes.
+CLOSE_WINDOWS_TIMEOUT_S = 3600.0
 #: A guard line in a turn block: "[Guarda] ..." in Portuguese, "[Guard] ..." in English.
 GUARD_LINE = re.compile(r"\[(?:Guarda|Guard)\]")
 
@@ -316,8 +318,11 @@ class NiadraTarget(Target):
         return context.version, context.etag
 
     async def settle(self, pairs: list[tuple[Case, Identities]]) -> dict[str, Any]:
-        """Polls every case's context until none changed for `settle_quiet_s` (extraction is async)."""
+        """Polls every case's context until none changed for `settle_quiet_s` (extraction is async). A local
+        cell first closes the extraction windows it held open while seeding (`deploy/local/cell_server.py`).
+        """
         started = time.monotonic()
+        await self._close_local_windows()
         last: dict[str, tuple[str, str]] = {}
         quiet_since = time.monotonic()
         rounds = 0
@@ -334,6 +339,18 @@ class NiadraTarget(Target):
             if elapsed >= self.settle_timeout_s:
                 return {"settled": False, "seconds": round(elapsed, 1), "rounds": rounds}
             await asyncio.sleep(max(self.settle_interval_s, min(5.0, max(0.5, self.settle_quiet_s / 4))))
+
+    async def _close_local_windows(self) -> None:
+        """Only a local cell serves `/_bench/close-windows`; anywhere else nothing is sent."""
+        base = self.base_url
+        if not base or not base.startswith(("http://127.0.0.1", "http://localhost")):
+            return
+        async with httpx.AsyncClient(timeout=CLOSE_WINDOWS_TIMEOUT_S) as http:
+            response = await http.post(f"{base.rstrip('/')}/_bench/close-windows")
+        if response.status_code not in (200, 404):
+            raise RuntimeError(
+                f"the local cell could not close its extraction windows: {response.status_code}"
+            )
 
     async def retrieve(self, case: Case, ids: Identities, *, view: str | None = None) -> Retrieved:
         self._probe_counter += 1
