@@ -138,7 +138,8 @@ what a Niadra buyer buys.
   library with no server: it runs in a small service of the harness's (`deploy/systems/langmem/server.py`)
   that calls only its documented API. Honcho is AGPL: the harness runs its published image and calls its
   REST API, and no line of it is in this repository.
-- **Niadra as documented.** The SDK is the current release on PyPI (`niadra==0.5.0`; the first run
+- **Niadra as documented.** The SDK is the current release on PyPI (`niadra==0.6.1`, whose `track()` sends a
+  conversation turn at once where 0.5.0 waited up to 0.2 s, which the freshness metric counts; the first run
   installed 0.1.5 and run 2026-09-25-6efee4 0.3.0, whose read path is the same for a read with its own
   `query`). 0.4.0 is the first that puts the turn's `slots` in `turn_block` (0.3.0 drops the field), so
   a run measures what an agent gets only from 0.4.0 on; its turn block is the live turns, the slots,
