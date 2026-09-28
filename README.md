@@ -4,9 +4,11 @@
 [![Python](https://img.shields.io/pypi/pyversions/niadra)](https://pypi.org/project/niadra/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
-**Niadra is the shared customer memory for every AI agent in a company.** The WhatsApp agent, the
-voice agent, the billing agent and the human team read the same memory before they act and write
-back what they said and did. This package connects a Python agent to it.
+**Niadra is the omnichannel memory layer for a company's AI agents.** It takes the events from
+every channel, platform and system, builds one memory of each customer and delivers it to any AI
+agent, from any vendor, under governance. The WhatsApp agent, the voice agent, the billing agent
+inside the ERP and the human team read the same memory before they act and write back what they
+said and did. This package connects a Python agent to it.
 
 [Website](https://niadra.com/en) · [Documentation](https://docs.niadra.com/en) ·
 [Talk to us](https://niadra.com/en/enterprise) · [TypeScript SDK](https://github.com/ainiadra/niadra-sdk-ts)
@@ -18,21 +20,26 @@ pip install niadra
 ## The problem it solves
 
 A customer tells your WhatsApp agent that order 4471 arrived with a broken lid and that she needs a
-replacement by Friday. An hour later she calls. Without shared memory, the voice agent asks her to
-explain everything again, and nobody remembers the Friday promise. With Niadra, the voice agent
-starts the call knowing about the open replacement and its deadline, and when the billing agent
-credits her invoice, the other agents see it within seconds.
+replacement by Friday. An hour later she calls, and the voice agent runs on another vendor's
+platform. Without a memory that spans both, the voice agent asks her to explain everything again,
+and nobody remembers the Friday promise. With Niadra, the voice agent starts the call knowing about
+the open replacement and its deadline, and when the billing agent credits her invoice in the ERP,
+the other agents see it within seconds.
 
 Niadra does the remembering for you:
 
+- it takes in every event, whatever its source: what the customer said on any channel, what the
+  CRM, the ERP or the help desk recorded, what an agent did, through the SDK, a webhook, a batch or
+  a file, and through the ready-made adapters below;
+- it ties every event to the right person across phone numbers, e-mails, WhatsApp ids and CRM ids,
+  and to the companies and partners that person acts for;
 - it turns conversations and system events into facts, open items and promises, each with the
   turns that prove it;
-- it ties them to the right person across phone numbers, e-mails, WhatsApp ids and CRM ids, and to
-  the companies and partners that person acts for;
 - it compiles a short context for each agent, holding back what the customer's verification level
   does not allow, and records a receipt of every read.
 
-Your agents keep their own models, prompts and vendors. Niadra is the memory layer they share.
+Your agents keep their own models, prompts and vendors. Niadra is the memory layer they share, and
+it stays neutral: no vendor reads another vendor's memory, and no framework owns it.
 
 ## Quickstart
 

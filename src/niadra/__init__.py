@@ -1,4 +1,4 @@
-"""Niadra: the shared memory of every AI agent in a company.
+"""Niadra: the omnichannel memory layer for a company's AI agents.
 
 ```python
 from niadra import Niadra, phone
