@@ -261,7 +261,7 @@ async def test_the_agents_own_notes_come_before_the_customers_context(
     )
     slot = model.prompts[0][1]["content"]
     assert slot.startswith("<agent_notes>") and EARLIER in slot
-    assert slot.index("</agent_notes>") < slot.index("<context")
+    assert slot.index("</agent_notes>") < slot.index("<niadra>")
 
 
 async def test_the_turn_picks_the_slots_at_the_end(call: Any, mock_app: MockApp) -> None:

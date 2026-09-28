@@ -40,7 +40,7 @@ def test_sends_the_contract_body_and_returns_a_typed_context(
         "delta": False,
         "target": {"provider": "openai", "model": "gpt-4.1"},
     }
-    assert context.text and context.system_block.startswith("<context")
+    assert context.text and context.system_block.startswith("<niadra>")
     assert context.variables == {"name": "Marina"}
     assert (context.etag, context.withheld, context.path) == ("etag-1", 2, "t0")
     assert context.cache is not None and context.cache.breakpoints == [12]
@@ -175,7 +175,7 @@ def test_a_new_pack_drops_deltas_pending_against_the_old_one() -> None:
     cache.absorb("k", "c:c-1", pack)
     refreshed = context_payload(not_modified=True, text=None, path="not_modified", delta="[New] refund")
     cache.absorb("k", "c:c-1", Context.model_validate(refreshed), deliver=False)
-    repinned = Context.model_validate(context_payload(etag="etag-2", text="<context>recompiled</context>"))
+    repinned = Context.model_validate(context_payload(etag="etag-2", text="<niadra>recompiled</niadra>"))
     served = cache.absorb("k", "c:c-1", repinned)
     assert (served.etag, served.delta) == ("etag-2", None)
 

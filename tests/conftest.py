@@ -18,7 +18,7 @@ BASE = "https://acme.br1.api.niadra.com"
 
 def context_payload(**overrides: Any) -> dict[str, Any]:
     payload: dict[str, Any] = {
-        "text": '<context source="niadra">Marina, prefers WhatsApp</context>',
+        "text": "<niadra>Marina, prefers WhatsApp</niadra>",
         "variables": {"name": "Marina"},
         "version": "v7",
         "etag": "etag-1",

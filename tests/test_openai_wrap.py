@@ -114,7 +114,7 @@ def test_injects_after_instructions_and_records_the_answer(respx_mock: respx.Moc
     contents = [m["content"] for m in completions.requests[0]["messages"]]
     assert roles == ["system", "system", "user", "system"]
     assert contents[0] == "You are Acme's agent."
-    assert contents[1].startswith("<context")
+    assert contents[1].startswith("<niadra>")
     assert "called about the invoice" in contents[3]
     assert messages == [
         {"role": "system", "content": "You are Acme's agent."},
@@ -185,7 +185,7 @@ async def test_async_clients_inject_and_record(respx_mock: respx.MockRouter) -> 
         stream = await openai.chat.completions.create(model="m", messages=[], stream=True)
         parts = [c.choices[0].delta.content async for c in stream]
     assert parts == ["Async ", "answer"]
-    assert completions.requests[0]["messages"][0]["content"].startswith("<context")
+    assert completions.requests[0]["messages"][0]["content"].startswith("<niadra>")
     texts = [i["content"]["text"] for i in sent(batch) if i["type"] == "event"]
     assert texts == ["Async answer", "Async answer"]
 
@@ -278,7 +278,7 @@ def test_decorated_async_methods_are_still_awaited(respx_mock: respx.MockRouter)
             assert response.choices[0].message.content == "Decorated answer"
 
     asyncio.run(run())
-    assert completions.requests[0]["messages"][0]["content"].startswith("<context")
+    assert completions.requests[0]["messages"][0]["content"].startswith("<niadra>")
     assert [i["content"]["text"] for i in sent(batch) if i["type"] == "event"] == ["Decorated answer"]
 
 
@@ -296,7 +296,7 @@ def test_raw_responses_are_recorded_when_parsed(respx_mock: respx.MockRouter) ->
         streamed = openai.chat.completions.with_raw_response.create(model="m", messages=[], stream=True)
         assert "".join(c.choices[0].delta.content or "" for c in streamed.parse()) == "Your credit is issued."
     niadra.flush()
-    assert completions.requests[0]["messages"][0]["content"].startswith("<context")
+    assert completions.requests[0]["messages"][0]["content"].startswith("<niadra>")
     texts = [i["content"]["text"] for i in sent(batch) if i["type"] == "event"]
     assert texts == ["Your credit is issued.", "Your credit is issued."], "each call is recorded once"
     niadra.close()
@@ -314,7 +314,7 @@ def test_structured_output_parse_is_intercepted(respx_mock: respx.MockRouter) ->
         openai.chat.completions.parse(model="m", messages=[])
         openai.beta.chat.completions.parse(model="m", messages=[])
     niadra.flush()
-    assert all(r["messages"][0]["content"].startswith("<context") for r in completions.requests)
+    assert all(r["messages"][0]["content"].startswith("<niadra>") for r in completions.requests)
     texts = [i["content"]["text"] for i in sent(batch) if i["type"] == "event"]
     assert texts == ['{"intent": "refund"}'] * 2
     niadra.close()
@@ -369,7 +369,7 @@ def test_agent_memory_goes_before_the_customer_context(respx_mock: respx.MockRou
         openai.chat.completions.create(model="m", messages=messages)
     system = completions.requests[0]["messages"][1]["content"]
     assert notes.called
-    assert system.startswith("<agent_memory>Refunds need the order number.</agent_memory>\n\n<context")
+    assert system.startswith("<agent_memory>Refunds need the order number.</agent_memory>\n\n<niadra>")
     niadra.close()
 
 
@@ -384,5 +384,5 @@ def test_agent_memory_off_in_the_space_leaves_only_the_context(respx_mock: respx
     openai = wrap(FakeOpenAI(completions), agent_memory={"max_tokens": 200, "tags": ["refunds"]})
     with niadra.conversation("c-1", subject=MARINA):
         openai.chat.completions.create(model="m", messages=[{"role": "user", "content": "hi"}])
-    assert completions.requests[0]["messages"][0]["content"].startswith("<context")
+    assert completions.requests[0]["messages"][0]["content"].startswith("<niadra>")
     niadra.close()

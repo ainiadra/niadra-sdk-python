@@ -82,11 +82,11 @@ def test_the_turn_goes_as_query_and_its_slots_come_last(recording: MockApp, on_m
     assert second.text == first.text, "the pack stays pinned whatever the turn asks"
     assert second.path == "not_modified", "the pinned pack is revalidated by its ETag"
     assert first.slots is not None and "customer: My protocol number is 81220" in first.slots
-    assert first.slots.startswith('<turn source="niadra">\nAbout what the customer just said:')
+    assert first.slots.startswith("<turn>\n["), "one element, no attribute and no header line"
     assert "81220" not in first.text
     assert first.turn_block == first.slots
     assert second.slots is not None and "no record of 04571-010" in second.slots
-    live_at, slots_at = second.turn_block.index("<live_turns"), second.turn_block.index("<turn source")
+    live_at, slots_at = second.turn_block.index("<live_turns"), second.turn_block.index("<turn>")
     assert live_at < slots_at < second.turn_block.index("<delta"), "after the live turns, before the delta"
 
 

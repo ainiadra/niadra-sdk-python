@@ -56,7 +56,7 @@ async def test_the_pack_follows_the_instructions_and_turns_are_recorded(
 
     (call,) = model.calls
     assert call.system_instructions is not None
-    assert call.system_instructions.startswith("You are Acme's agent.\n\n<context")
+    assert call.system_instructions.startswith("You are Acme's agent.\n\n<niadra>")
     assert EARLIER in call.system_instructions
     assert turns(mock_app.cell, "thread-1") == [
         ("customer", "Hi, about my lid"),
@@ -157,7 +157,7 @@ async def test_a_filter_you_had_runs_first(chat: Any) -> None:
     config = NiadraAgentsMemory(chat).run_config(RunConfig(call_model_input_filter=yours))
     await Runner.run(Agent(name="S", instructions="x", model=model), "Hi", run_config=config)
     assert seen == ["yours"]
-    assert (model.calls[0].system_instructions or "").startswith("Yours.\n\n<context")
+    assert (model.calls[0].system_instructions or "").startswith("Yours.\n\n<niadra>")
 
 
 async def test_niadra_down_never_stops_the_run(chat: Any, mock_app: MockApp) -> None:
@@ -191,4 +191,4 @@ async def test_the_agents_own_notes_come_before_the_customers_context(
     agent = Agent(name="S", instructions="You are Acme's agent.", model=model, tools=memory.tools)
     await Runner.run(agent, "Hi", hooks=memory.hooks, run_config=memory.run_config())
     instructions = model.calls[0].system_instructions or ""
-    assert instructions.index("replacement order") < instructions.index("<context")
+    assert instructions.index("replacement order") < instructions.index("<niadra>")

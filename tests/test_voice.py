@@ -27,7 +27,7 @@ from niadra.options import QueueOptions
 from tests.conftest import KEY, context_payload
 
 MARINA = phone("+5511912345678")
-BODY = '<context source="niadra">Marina, prefers WhatsApp; March: the same reason came up before</context>'
+BODY = "<niadra>Marina, prefers WhatsApp; March: the same reason came up before</niadra>"
 # LiveKit's default minimum endpointing delay is 0.5 s; the turns here wait a little more than the
 # slowest read (0.2 s of settle plus 0.4 s) so the read of the last partial has landed.
 END_OF_TURN = 0.65

@@ -10,7 +10,7 @@
     "call_status": "ended",
     "metadata": {},
     "retell_llm_dynamic_variables": {
-      "niadra_context": "<context source=\"niadra\">...</context>",
+      "niadra_context": "<niadra>...</niadra>",
       "niadra_agent_memory": "",
       "niadra_context_etag": "etag-9",
       "niadra_injected_at": "2026-09-25T02:00:00+00:00"
