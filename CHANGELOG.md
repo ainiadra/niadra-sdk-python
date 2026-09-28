@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.6.1] - Unreleased
+
+A turn another agent should read reaches the memory as soon as it is said.
+
+### Changed
+
+- `track()` sends a conversation turn at once: `QueueOptions.turn_interval` is now 0 (it was
+  0.2 s). The wait was most of the time between a customer's message on one channel and the
+  moment an agent on another channel could read it. Turns still coalesce: one batch is in flight
+  per client, and whatever is queued while it is answered leaves together as the next batch, so
+  a burst of turns costs one request per round trip, never one per turn. Order, retries (three
+  attempts, then the batch goes back to the front of the queue and the sender pauses) and the
+  1 s `interval` of items outside a conversation are unchanged. Set `turn_interval` to keep the
+  old wait.
+- A batch that became due while another was in flight leaves right after that one's answer, not
+  up to 10 ms later.
+
 ## [0.6.0] - 2026-09-28
 
 The memory has one behavior: every read that carries the customer's turn gets the conversation's

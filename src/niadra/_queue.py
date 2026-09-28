@@ -208,6 +208,17 @@ class _Pacing:
         return max(0.0, self._resume_at - time.monotonic())
 
 
+def _sleep_for(pacing: _Pacing, buffer: EventBuffer) -> float:
+    """How long a flusher sleeps before its next look: nothing when a batch is due and no failure
+    pauses it, so turns queued while the last batch was in flight leave right after its answer.
+    Otherwise at least 10 ms, which keeps an idle sender from spinning."""
+    pause = pacing.remaining()
+    hint = buffer.wait_hint()
+    if pause == 0 and hint == 0:
+        return 0.0
+    return max(pause, hint, 0.01)
+
+
 def _prepare(buffer: EventBuffer, heartbeat: Heartbeat) -> list[Payload]:
     batch = buffer.take()
     beat = heartbeat.due_item()
@@ -302,9 +313,10 @@ class SyncFlusher:
             with self._wake:
                 if self._stopping:
                     return
-                wait = max(self._pacing.remaining(), self._buffer.wait_hint(), 0.01)
+                wait = _sleep_for(self._pacing, self._buffer)
                 self._sleep_until = time.monotonic() + wait
-                self._wake.wait(timeout=wait)
+                if wait > 0:
+                    self._wake.wait(timeout=wait)
                 if self._stopping:
                     return
             with self._send_lock:
@@ -454,10 +466,13 @@ class AsyncFlusher:
         wake = self._wake
         assert wake is not None
         while not self._stopping:
-            wait = max(self._pacing.remaining(), self._buffer.wait_hint(), 0.01)
+            wait = _sleep_for(self._pacing, self._buffer)
             self._sleep_until = time.monotonic() + wait
-            with contextlib.suppress(asyncio.TimeoutError):
-                await asyncio.wait_for(wake.wait(), timeout=wait)
+            if wait > 0:
+                with contextlib.suppress(asyncio.TimeoutError):
+                    await asyncio.wait_for(wake.wait(), timeout=wait)
+            else:
+                await asyncio.sleep(0)  # what is due leaves now, after other tasks had their turn
             wake.clear()
             if self._stopping:
                 return
