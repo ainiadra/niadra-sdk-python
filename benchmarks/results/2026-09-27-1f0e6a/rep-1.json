@@ -1,0 +1,482 @@
+{
+  "repetition": 1,
+  "tag": "1f0e6ar1",
+  "seed": {
+    "hindsight:known_id": {
+      "seconds": 912.5,
+      "failures": [],
+      "writes": 1377,
+      "write_retries": 0,
+      "model_usage": {
+        "openai/gpt-6-luna": {
+          "calls": 2709,
+          "failed": 0,
+          "truncated": 0,
+          "reasoning_set": 0,
+          "prompt_tokens": 11331387,
+          "completion_tokens": 606358,
+          "cached_tokens": 8647198,
+          "cache_write_tokens": 2674412,
+          "reasoning_tokens": 176132
+        }
+      }
+    }
+  },
+  "settle": {
+    "hindsight:known_id": {
+      "settled": true,
+      "seconds": 6.2,
+      "rounds": 2,
+      "unsettled": 0
+    }
+  },
+  "validity": {
+    "valid": 0,
+    "excluded": []
+  },
+  "accuracy": [
+    {
+      "system": "hindsight",
+      "scenario": "known_id",
+      "cases": 0,
+      "deterministic": null,
+      "judge": null,
+      "context_has_answer": null,
+      "context_has_answer_loose": null,
+      "by_category": {
+        "continuity": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "identity": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "recurrence": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "order_time": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "promise_action": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "privacy": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "contradiction": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "paraphrase": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "long_history": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "unanswerable": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "recurrence_topic": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        }
+      },
+      "tokens": {
+        "default": {
+          "median": 677.0,
+          "p95": 2807,
+          "mean": 880.9
+        }
+      },
+      "privacy": {
+        "cases": 16,
+        "leaks": 13,
+        "leak_rate": 0.8125,
+        "verification": "none"
+      },
+      "retrieve_errors": 0,
+      "retrieve_ms_p50": 774.08
+    }
+  ],
+  "backing": [
+    {
+      "system": "hindsight",
+      "scenario": "known_id",
+      "answers": 178,
+      "values_checked": 250,
+      "unbacked": 2,
+      "answers_with_unbacked": 2,
+      "per_1000_answers": 11.2,
+      "by_kind": {
+        "date": 2
+      },
+      "by_category": {
+        "continuity": {
+          "answers": 20,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "contradiction": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "identity": {
+          "answers": 20,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "long_history": {
+          "answers": 10,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "order_time": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "paraphrase": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "privacy": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "promise_action": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "recurrence": {
+          "answers": 16,
+          "unbacked": 1,
+          "per_1000_answers": 62.5
+        },
+        "recurrence_topic": {
+          "answers": 16,
+          "unbacked": 1,
+          "per_1000_answers": 62.5
+        },
+        "unanswerable": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        }
+      }
+    }
+  ],
+  "cost": [
+    {
+      "system": "niadra",
+      "variant": "price_low",
+      "memory_usd_per_1000": 5.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public price, models included"
+    },
+    {
+      "system": "niadra",
+      "variant": "price_high",
+      "memory_usd_per_1000": 15.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public price, models included"
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "hobby",
+      "memory_usd_per_1000": 0.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 0.0,
+      "conversations_per_month": 100
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "starter",
+      "memory_usd_per_1000": 38.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 19.0,
+      "conversations_per_month": 500
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "pro",
+      "memory_usd_per_1000": 49.8,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 249.0,
+      "conversations_per_month": 5000
+    },
+    {
+      "system": "hindsight",
+      "variant": "models_only",
+      "memory_usd_per_1000": 6.1072,
+      "basis": "measured model spend (writes until the memory settled, and reads), servers not priced",
+      "usd_per_exchange": 0.00061072,
+      "usd_per_read": 0.0,
+      "cache_read_share": 0.7631,
+      "agent_prompt_usd_per_1000": 0.677
+    }
+  ],
+  "latency": [
+    {
+      "system": "hindsight",
+      "path": "host",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 43,
+      "p50": 6003.1,
+      "p90": 9051.3,
+      "p95": 9377.6,
+      "p99": 9883.5,
+      "max": 9883.5,
+      "sent": 300,
+      "errors": {
+        "ReadTimeout": 257
+      }
+    },
+    {
+      "system": "hindsight",
+      "path": "host",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 32,
+      "p50": 6594.0,
+      "p90": 8501.4,
+      "p95": 9020.0,
+      "p99": 9751.3,
+      "max": 9751.3,
+      "sent": 750,
+      "errors": {
+        "ReadTimeout": 377,
+        "PoolTimeout": 341
+      }
+    }
+  ],
+  "freshness": [
+    {
+      "system": "hindsight",
+      "trials": 20,
+      "timeouts": 0,
+      "timeout_s": 30.0,
+      "n": 20,
+      "p50": 2588.8,
+      "p90": 2991.0,
+      "p95": 3235.5,
+      "p99": 7320.9,
+      "max": 7320.9
+    }
+  ],
+  "resilience": [
+    {
+      "system": "hindsight",
+      "fault": "delay_2000ms",
+      "trials": 20,
+      "memory_stage_ms": {
+        "n": 20,
+        "p50": 2354.8,
+        "p90": 2502.2,
+        "p95": 2511.3,
+        "p99": 3148.9,
+        "max": 3148.9
+      },
+      "within_budget_rate": 0.0,
+      "raised_rate": 0.0,
+      "empty_rate": 0.0,
+      "turn_budget_ms": 1000
+    },
+    {
+      "system": "hindsight",
+      "fault": "http_503",
+      "trials": 20,
+      "memory_stage_ms": {
+        "n": 20,
+        "p50": 0.8,
+        "p90": 0.9,
+        "p95": 1.1,
+        "p99": 2.0,
+        "max": 2.0
+      },
+      "within_budget_rate": 1.0,
+      "raised_rate": 1.0,
+      "empty_rate": 1.0,
+      "turn_budget_ms": 1000
+    }
+  ],
+  "history": [
+    {
+      "system": "embedder",
+      "path": "host",
+      "operation": "encode",
+      "call": "POST /v1/embed",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 14.4,
+      "p90": 14.8,
+      "p95": 15.1,
+      "p99": 18.2,
+      "max": 18.6,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "embedder",
+      "path": "host",
+      "operation": "encode",
+      "call": "POST /v1/embed",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 14.1,
+      "p90": 14.6,
+      "p95": 14.8,
+      "p99": 17.0,
+      "max": 38.6,
+      "sent": 750,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "hindsight",
+      "path": "host",
+      "operation": "search",
+      "call": "POST /v1/default/banks/cust-pt-001-1f0e6ar1/memories/recall",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 40,
+      "p50": 5742.2,
+      "p90": 9114.2,
+      "p95": 9699.8,
+      "p99": 9973.3,
+      "max": 9973.3,
+      "sent": 300,
+      "errors": {
+        "ReadTimeout": 260
+      },
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "hindsight",
+      "path": "host",
+      "operation": "search",
+      "call": "POST /v1/default/banks/cust-pt-001-1f0e6ar1/memories/recall",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 32,
+      "p50": 5983.7,
+      "p90": 8678.6,
+      "p95": 9627.4,
+      "p99": 9726.0,
+      "max": 9726.0,
+      "sent": 750,
+      "errors": {
+        "PoolTimeout": 325,
+        "ReadTimeout": 393
+      },
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "hindsight",
+      "path": "host",
+      "operation": "open",
+      "call": "GET /v1/default/banks/cust-pt-001-1f0e6ar1/memories/2a3d9267-d136-4cec-b039-bcc5d9864b70",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 12.4,
+      "p90": 47.8,
+      "p95": 55.3,
+      "p99": 65.9,
+      "max": 68.3,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "hindsight",
+      "path": "host",
+      "operation": "open",
+      "call": "GET /v1/default/banks/cust-pt-001-1f0e6ar1/memories/2a3d9267-d136-4cec-b039-bcc5d9864b70",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 10.7,
+      "p90": 12.2,
+      "p95": 12.7,
+      "p99": 15.6,
+      "max": 18.0,
+      "sent": 750,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    }
+  ],
+  "ingest": [
+    {
+      "system": "hindsight",
+      "path": "host",
+      "operation": "write",
+      "call": "POST /v1/default/banks/cust-pt-001-1f0e6ar1/memories",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 6.1,
+      "p90": 13.4,
+      "p95": 20.3,
+      "p99": 33.2,
+      "max": 113.1,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "hindsight",
+      "path": "host",
+      "operation": "write",
+      "call": "POST /v1/default/banks/cust-pt-001-1f0e6ar1/memories",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 5.9,
+      "p90": 15.3,
+      "p95": 21.7,
+      "p99": 35.8,
+      "max": 77.2,
+      "sent": 750,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    }
+  ]
+}

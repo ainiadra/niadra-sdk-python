@@ -1,0 +1,3060 @@
+{
+  "schema": "niadra-bench.results.v1",
+  "run_id": "20260927T060112Z-9e1e99",
+  "date": "2026-09-27",
+  "started_at": "2026-09-27T06:01:12+00:00",
+  "finished_at": "2026-09-27T08:58:35+00:00",
+  "environment": {
+    "kind": "region",
+    "region": "us-east-2",
+    "machine_class": "m7i-flex.large",
+    "database_class": "db.t4g.micro",
+    "harness_host": "temporary EC2 instance in the cell's VPC, one system at a time (deploy/temp-host)",
+    "harness_machine_class": "m7i-flex.large",
+    "verified_by_instance_metadata": true,
+    "host": null,
+    "python": "3.12.14"
+  },
+  "versions": {
+    "harness": "0.1.0",
+    "harness_commit": "730b59950711fc14e2fb93141f54a251230cc97b",
+    "niadra_sdk": "0.5.0",
+    "niadra_server": "2026.09.27-0535-c7b8b76",
+    "mem0ai": "2.2.0",
+    "mem0_server": "v2.2.0"
+  },
+  "config": {
+    "hash": "sha256:7ad9c33ec9a6e17da92f74654104b8494487a2b239bf8bddbb950f715d8b0ce0",
+    "repetitions": 3,
+    "agent_model": "openai/gpt-6-luna",
+    "judge_model": "openai/gpt-6-luna",
+    "agent": "llm",
+    "agent_reasoning_effort": "low",
+    "extraction_model": "openai/gpt-6-luna",
+    "reasoning_effort": "low",
+    "niadra_models": [
+      "openai/gpt-6-luna",
+      "typesafe/jev-1.13"
+    ],
+    "embedder": "paraphrase-multilingual-minilm-l12-v2-r1",
+    "latency_rates": [
+      10,
+      25
+    ],
+    "latency_duration_s": 30.0,
+    "latency_conversations": 20,
+    "mem0_top_k": 10,
+    "mem0_threshold": 0.1,
+    "token_encoding": "o200k_base",
+    "turns_per_conversation": 10,
+    "prices_checked_on": "2026-09-27",
+    "history_rates": [
+      10,
+      25
+    ],
+    "history_duration_s": 30.0,
+    "history_conversations": 20,
+    "history_max_tokens": 800,
+    "ingest_rates": [
+      10,
+      25
+    ],
+    "ingest_duration_s": 30.0,
+    "ingest_conversations": 20,
+    "ingest_mem0_modes": [
+      "raw",
+      "infer"
+    ],
+    "niadra_guards": "off",
+    "context_has_answer_rule": "specific-v2",
+    "references": "off",
+    "quick": false,
+    "limit": null
+  },
+  "dataset": {
+    "version": "v2",
+    "hash": "sha256:afdd99efd133199eae45e6a2b229156df39e8659c26c2d00bb636529dbdbfb1d",
+    "generator_version": "2",
+    "cases": 356,
+    "valid": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "runs": [
+        0,
+        0,
+        0
+      ]
+    },
+    "excluded": [
+      [],
+      [],
+      []
+    ]
+  },
+  "metrics": {
+    "latency": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "mem0_oss",
+          "path": "host",
+          "rate": 10,
+          "p50": {
+            "median": 84.4,
+            "min": 71.6,
+            "max": 86.8,
+            "runs": [
+              71.6,
+              84.4,
+              86.8
+            ]
+          },
+          "p95": {
+            "median": 117.8,
+            "min": 89.5,
+            "max": 129.7,
+            "runs": [
+              89.5,
+              117.8,
+              129.7
+            ]
+          },
+          "p99": {
+            "median": 156.1,
+            "min": 114.1,
+            "max": 202.7,
+            "runs": [
+              114.1,
+              156.1,
+              202.7
+            ]
+          },
+          "max": {
+            "median": 168.4,
+            "min": 128.0,
+            "max": 238.6,
+            "runs": [
+              128.0,
+              168.4,
+              238.6
+            ]
+          },
+          "errors": 0,
+          "sent": 900
+        },
+        {
+          "system": "mem0_oss",
+          "path": "host",
+          "rate": 25,
+          "p50": {
+            "median": 8155.7,
+            "min": 6435.4,
+            "max": 10437.3,
+            "runs": [
+              6435.4,
+              10437.3,
+              8155.7
+            ]
+          },
+          "p95": {
+            "median": 14154.7,
+            "min": 11279.4,
+            "max": 16149.4,
+            "runs": [
+              11279.4,
+              16149.4,
+              14154.7
+            ]
+          },
+          "p99": {
+            "median": 14696.2,
+            "min": 11932.7,
+            "max": 16483.8,
+            "runs": [
+              11932.7,
+              16483.8,
+              14696.2
+            ]
+          },
+          "max": {
+            "median": 14912.5,
+            "min": 12353.6,
+            "max": 16825.2,
+            "runs": [
+              12353.6,
+              16825.2,
+              14912.5
+            ]
+          },
+          "errors": 65,
+          "sent": 2250
+        }
+      ]
+    },
+    "accuracy": {
+      "unit": "share of valid cases",
+      "results": [
+        {
+          "system": "mem0_oss",
+          "scenario": "known_id",
+          "cases": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "runs": [
+              0,
+              0,
+              0
+            ]
+          },
+          "judge": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          },
+          "deterministic": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          },
+          "context_has_answer": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          },
+          "by_category": {
+            "continuity": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "identity": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "recurrence": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "order_time": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "promise_action": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "privacy": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "contradiction": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "paraphrase": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "long_history": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "unanswerable": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "recurrence_topic": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            }
+          },
+          "retrieve_errors": 0,
+          "context_has_answer_loose": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          }
+        },
+        {
+          "system": "mem0_oss",
+          "scenario": "per_channel_id",
+          "cases": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "runs": [
+              0,
+              0,
+              0
+            ]
+          },
+          "judge": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          },
+          "deterministic": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          },
+          "context_has_answer": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          },
+          "by_category": {
+            "continuity": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "identity": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "recurrence": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "order_time": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "promise_action": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "privacy": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "contradiction": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "paraphrase": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "long_history": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "unanswerable": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "recurrence_topic": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            }
+          },
+          "retrieve_errors": 0,
+          "context_has_answer_loose": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          }
+        },
+        {
+          "system": "mem0_oss_rerank",
+          "scenario": "known_id",
+          "cases": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "runs": [
+              0,
+              0,
+              0
+            ]
+          },
+          "judge": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          },
+          "deterministic": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          },
+          "context_has_answer": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          },
+          "by_category": {
+            "continuity": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "identity": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "recurrence": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "order_time": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "promise_action": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "privacy": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "contradiction": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "paraphrase": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "long_history": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "unanswerable": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "recurrence_topic": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            }
+          },
+          "retrieve_errors": 0,
+          "context_has_answer_loose": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          }
+        },
+        {
+          "system": "mem0_oss_rerank",
+          "scenario": "per_channel_id",
+          "cases": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "runs": [
+              0,
+              0,
+              0
+            ]
+          },
+          "judge": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          },
+          "deterministic": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          },
+          "context_has_answer": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          },
+          "by_category": {
+            "continuity": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "identity": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "recurrence": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "order_time": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "promise_action": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "privacy": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "contradiction": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "paraphrase": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "long_history": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "unanswerable": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            },
+            "recurrence_topic": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null,
+                  null,
+                  null
+                ]
+              }
+            }
+          },
+          "retrieve_errors": 0,
+          "context_has_answer_loose": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          }
+        }
+      ]
+    },
+    "tokens": {
+      "unit": "tokens per turn",
+      "results": [
+        {
+          "system": "mem0_oss",
+          "scenario": "known_id",
+          "view": "default",
+          "median": {
+            "median": 177.5,
+            "min": 176.5,
+            "max": 177.5,
+            "runs": [
+              176.5,
+              177.5,
+              177.5
+            ]
+          },
+          "p95": {
+            "median": 281,
+            "min": 281,
+            "max": 289,
+            "runs": [
+              281,
+              281,
+              289
+            ]
+          }
+        },
+        {
+          "system": "mem0_oss",
+          "scenario": "per_channel_id",
+          "view": "default",
+          "median": {
+            "median": 43.0,
+            "min": 40.0,
+            "max": 44.0,
+            "runs": [
+              44.0,
+              40.0,
+              43.0
+            ]
+          },
+          "p95": {
+            "median": 164,
+            "min": 160,
+            "max": 165,
+            "runs": [
+              160,
+              165,
+              164
+            ]
+          }
+        },
+        {
+          "system": "mem0_oss_rerank",
+          "scenario": "known_id",
+          "view": "default",
+          "median": {
+            "median": 177.5,
+            "min": 176.5,
+            "max": 177.5,
+            "runs": [
+              176.5,
+              177.5,
+              177.5
+            ]
+          },
+          "p95": {
+            "median": 281,
+            "min": 280,
+            "max": 283,
+            "runs": [
+              280,
+              281,
+              283
+            ]
+          }
+        },
+        {
+          "system": "mem0_oss_rerank",
+          "scenario": "per_channel_id",
+          "view": "default",
+          "median": {
+            "median": 43.0,
+            "min": 40.0,
+            "max": 44.0,
+            "runs": [
+              44.0,
+              40.0,
+              43.0
+            ]
+          },
+          "p95": {
+            "median": 164,
+            "min": 160,
+            "max": 165,
+            "runs": [
+              160,
+              165,
+              164
+            ]
+          }
+        }
+      ]
+    },
+    "privacy": {
+      "unit": "memory blocks with the sensitive value",
+      "results": [
+        {
+          "system": "mem0_oss",
+          "scenario": "known_id",
+          "verification": "none",
+          "cases": {
+            "median": 32,
+            "min": 32,
+            "max": 32,
+            "runs": [
+              32,
+              32,
+              32
+            ]
+          },
+          "leaks": {
+            "median": 32,
+            "min": 32,
+            "max": 32,
+            "runs": [
+              32,
+              32,
+              32
+            ]
+          },
+          "leak_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "system": "mem0_oss",
+          "scenario": "per_channel_id",
+          "verification": "none",
+          "cases": {
+            "median": 32,
+            "min": 32,
+            "max": 32,
+            "runs": [
+              32,
+              32,
+              32
+            ]
+          },
+          "leaks": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "runs": [
+              0,
+              0,
+              0
+            ]
+          },
+          "leak_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "system": "mem0_oss_rerank",
+          "scenario": "known_id",
+          "verification": "none",
+          "cases": {
+            "median": 32,
+            "min": 32,
+            "max": 32,
+            "runs": [
+              32,
+              32,
+              32
+            ]
+          },
+          "leaks": {
+            "median": 32,
+            "min": 32,
+            "max": 32,
+            "runs": [
+              32,
+              32,
+              32
+            ]
+          },
+          "leak_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "system": "mem0_oss_rerank",
+          "scenario": "per_channel_id",
+          "verification": "none",
+          "cases": {
+            "median": 32,
+            "min": 32,
+            "max": 32,
+            "runs": [
+              32,
+              32,
+              32
+            ]
+          },
+          "leaks": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "runs": [
+              0,
+              0,
+              0
+            ]
+          },
+          "leak_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        }
+      ]
+    },
+    "cost": {
+      "unit": "USD per 1000 conversations",
+      "results": [
+        {
+          "system": "niadra",
+          "variant": "price_low",
+          "basis": "public price, models included",
+          "memory_usd_per_1000": {
+            "median": 5.0,
+            "min": 5.0,
+            "max": 5.0,
+            "runs": [
+              5.0,
+              5.0,
+              5.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          }
+        },
+        {
+          "system": "niadra",
+          "variant": "price_high",
+          "basis": "public price, models included",
+          "memory_usd_per_1000": {
+            "median": 15.0,
+            "min": 15.0,
+            "max": 15.0,
+            "runs": [
+              15.0,
+              15.0,
+              15.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          }
+        },
+        {
+          "system": "mem0_oss",
+          "variant": "models_only",
+          "basis": "measured extraction model spend, servers not priced",
+          "memory_usd_per_1000": {
+            "median": 1.8812,
+            "min": 1.7705,
+            "max": 1.9008,
+            "runs": [
+              1.9008,
+              1.8812,
+              1.7705
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": 0.1775,
+            "min": 0.1765,
+            "max": 0.1775,
+            "runs": [
+              0.1765,
+              0.1775,
+              0.1775
+            ]
+          },
+          "cache_read_share": {
+            "median": 0.9556,
+            "min": 0.9549,
+            "max": 0.9655,
+            "runs": [
+              0.9549,
+              0.9556,
+              0.9655
+            ]
+          }
+        },
+        {
+          "system": "mem0_oss_rerank",
+          "variant": "models_only",
+          "basis": "measured extraction and rerank model spend, servers not priced",
+          "memory_usd_per_1000": {
+            "median": 4.8285,
+            "min": 4.7501,
+            "max": 4.8487,
+            "runs": [
+              4.8487,
+              4.8285,
+              4.7501
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": 0.1775,
+            "min": 0.1765,
+            "max": 0.1775,
+            "runs": [
+              0.1765,
+              0.1775,
+              0.1775
+            ]
+          },
+          "cache_read_share": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "system": "mem0_platform",
+          "variant": "hobby",
+          "basis": "public plan price over its monthly quota",
+          "memory_usd_per_1000": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          },
+          "conversations_per_month": 100
+        },
+        {
+          "system": "mem0_platform",
+          "variant": "starter",
+          "basis": "public plan price over its monthly quota",
+          "memory_usd_per_1000": {
+            "median": 38.0,
+            "min": 38.0,
+            "max": 38.0,
+            "runs": [
+              38.0,
+              38.0,
+              38.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          },
+          "conversations_per_month": 500
+        },
+        {
+          "system": "mem0_platform",
+          "variant": "pro",
+          "basis": "public plan price over its monthly quota",
+          "memory_usd_per_1000": {
+            "median": 49.8,
+            "min": 49.8,
+            "max": 49.8,
+            "runs": [
+              49.8,
+              49.8,
+              49.8
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null,
+              null,
+              null
+            ]
+          },
+          "conversations_per_month": 5000
+        }
+      ]
+    },
+    "freshness": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "mem0_oss",
+          "p50": {
+            "median": 1799.9,
+            "min": 1503.8,
+            "max": 1884.4,
+            "runs": [
+              1799.9,
+              1884.4,
+              1503.8
+            ]
+          },
+          "p95": {
+            "median": 2210.7,
+            "min": 1967.1,
+            "max": 2921.2,
+            "runs": [
+              2210.7,
+              2921.2,
+              1967.1
+            ]
+          },
+          "max": {
+            "median": 2295.3,
+            "min": 2140.9,
+            "max": 3041.4,
+            "runs": [
+              2295.3,
+              3041.4,
+              2140.9
+            ]
+          },
+          "trials": 60,
+          "timeouts": 0
+        }
+      ]
+    },
+    "resilience": {
+      "results": [
+        {
+          "system": "mem0_oss",
+          "fault": "delay_2000ms",
+          "memory_stage_p50_ms": {
+            "median": 2089.7,
+            "min": 2075.9,
+            "max": 2092.8,
+            "runs": [
+              2075.9,
+              2089.7,
+              2092.8
+            ]
+          },
+          "memory_stage_max_ms": {
+            "median": 2116.6,
+            "min": 2080.2,
+            "max": 2124.0,
+            "runs": [
+              2080.2,
+              2116.6,
+              2124.0
+            ]
+          },
+          "within_budget_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "raised_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "empty_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "turn_budget_ms": 1000
+        },
+        {
+          "system": "mem0_oss",
+          "fault": "http_503",
+          "memory_stage_p50_ms": {
+            "median": 0.7,
+            "min": 0.7,
+            "max": 0.8,
+            "runs": [
+              0.7,
+              0.7,
+              0.8
+            ]
+          },
+          "memory_stage_max_ms": {
+            "median": 2.0,
+            "min": 1.9,
+            "max": 2.1,
+            "runs": [
+              2.1,
+              2.0,
+              1.9
+            ]
+          },
+          "within_budget_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "raised_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "empty_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "turn_budget_ms": 1000
+        }
+      ]
+    },
+    "history": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "embedder",
+          "path": "host",
+          "operation": "encode",
+          "call": "POST /v1/embed",
+          "rate": 10,
+          "p50": {
+            "median": 14.3,
+            "min": 14.2,
+            "max": 14.4,
+            "runs": [
+              14.2,
+              14.4,
+              14.3
+            ]
+          },
+          "p95": {
+            "median": 16.4,
+            "min": 16.4,
+            "max": 16.7,
+            "runs": [
+              16.7,
+              16.4,
+              16.4
+            ]
+          },
+          "p99": {
+            "median": 19.1,
+            "min": 18.2,
+            "max": 19.1,
+            "runs": [
+              19.1,
+              19.1,
+              18.2
+            ]
+          },
+          "max": {
+            "median": 23.3,
+            "min": 20.1,
+            "max": 27.5,
+            "runs": [
+              27.5,
+              20.1,
+              23.3
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 900,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "embedder",
+          "path": "host",
+          "operation": "encode",
+          "call": "POST /v1/embed",
+          "rate": 25,
+          "p50": {
+            "median": 13.7,
+            "min": 13.0,
+            "max": 13.8,
+            "runs": [
+              13.8,
+              13.7,
+              13.0
+            ]
+          },
+          "p95": {
+            "median": 15.4,
+            "min": 14.9,
+            "max": 16.0,
+            "runs": [
+              16.0,
+              15.4,
+              14.9
+            ]
+          },
+          "p99": {
+            "median": 17.6,
+            "min": 17.0,
+            "max": 17.7,
+            "runs": [
+              17.7,
+              17.6,
+              17.0
+            ]
+          },
+          "max": {
+            "median": 19.9,
+            "min": 19.0,
+            "max": 22.5,
+            "runs": [
+              19.9,
+              19.0,
+              22.5
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 2250,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "mem0_oss",
+          "path": "host",
+          "operation": "search",
+          "call": "POST /search",
+          "rate": 10,
+          "p50": {
+            "median": 84.0,
+            "min": 72.1,
+            "max": 87.4,
+            "runs": [
+              72.1,
+              84.0,
+              87.4
+            ]
+          },
+          "p95": {
+            "median": 116.6,
+            "min": 94.1,
+            "max": 123.5,
+            "runs": [
+              94.1,
+              116.6,
+              123.5
+            ]
+          },
+          "p99": {
+            "median": 168.0,
+            "min": 114.7,
+            "max": 174.3,
+            "runs": [
+              114.7,
+              168.0,
+              174.3
+            ]
+          },
+          "max": {
+            "median": 173.8,
+            "min": 126.4,
+            "max": 190.9,
+            "runs": [
+              126.4,
+              173.8,
+              190.9
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 900,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "mem0_oss",
+          "path": "host",
+          "operation": "search",
+          "call": "POST /search",
+          "rate": 25,
+          "p50": {
+            "median": 8736.7,
+            "min": 6460.1,
+            "max": 9211.3,
+            "runs": [
+              6460.1,
+              9211.3,
+              8736.7
+            ]
+          },
+          "p95": {
+            "median": 14372.5,
+            "min": 10774.6,
+            "max": 15784.6,
+            "runs": [
+              10774.6,
+              15784.6,
+              14372.5
+            ]
+          },
+          "p99": {
+            "median": 15006.6,
+            "min": 11211.5,
+            "max": 16121.2,
+            "runs": [
+              11211.5,
+              16121.2,
+              15006.6
+            ]
+          },
+          "max": {
+            "median": 15306.1,
+            "min": 11440.5,
+            "max": 16259.7,
+            "runs": [
+              11440.5,
+              16259.7,
+              15306.1
+            ]
+          },
+          "errors": 47,
+          "error_kinds": {
+            "PoolTimeout": 47
+          },
+          "sent": 2250,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "mem0_oss",
+          "path": "host",
+          "operation": "open",
+          "call": "GET /memories/{memory_id}",
+          "rate": 10,
+          "p50": {
+            "median": 3.9,
+            "min": 3.9,
+            "max": 4.1,
+            "runs": [
+              3.9,
+              4.1,
+              3.9
+            ]
+          },
+          "p95": {
+            "median": 4.8,
+            "min": 4.5,
+            "max": 4.8,
+            "runs": [
+              4.5,
+              4.8,
+              4.8
+            ]
+          },
+          "p99": {
+            "median": 6.5,
+            "min": 5.8,
+            "max": 7.0,
+            "runs": [
+              5.8,
+              7.0,
+              6.5
+            ]
+          },
+          "max": {
+            "median": 10.6,
+            "min": 7.2,
+            "max": 15.1,
+            "runs": [
+              7.2,
+              15.1,
+              10.6
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 900,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "mem0_oss",
+          "path": "host",
+          "operation": "open",
+          "call": "GET /memories/{memory_id}",
+          "rate": 25,
+          "p50": {
+            "median": 3.4,
+            "min": 3.0,
+            "max": 3.5,
+            "runs": [
+              3.5,
+              3.4,
+              3.0
+            ]
+          },
+          "p95": {
+            "median": 4.2,
+            "min": 3.7,
+            "max": 4.4,
+            "runs": [
+              4.2,
+              4.4,
+              3.7
+            ]
+          },
+          "p99": {
+            "median": 5.8,
+            "min": 5.0,
+            "max": 6.4,
+            "runs": [
+              5.8,
+              6.4,
+              5.0
+            ]
+          },
+          "max": {
+            "median": 7.1,
+            "min": 6.7,
+            "max": 157.3,
+            "runs": [
+              7.1,
+              157.3,
+              6.7
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 2250,
+          "empty": 0,
+          "degraded": 0
+        }
+      ]
+    },
+    "ingest": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "mem0_oss",
+          "path": "host",
+          "operation": "add_raw",
+          "call": "POST /memories infer=false",
+          "rate": 10,
+          "p50": {
+            "median": 58.7,
+            "min": 57.0,
+            "max": 59.2,
+            "runs": [
+              58.7,
+              59.2,
+              57.0
+            ]
+          },
+          "p95": {
+            "median": 67.8,
+            "min": 67.6,
+            "max": 68.8,
+            "runs": [
+              67.6,
+              68.8,
+              67.8
+            ]
+          },
+          "p99": {
+            "median": 75.4,
+            "min": 73.7,
+            "max": 77.0,
+            "runs": [
+              75.4,
+              77.0,
+              73.7
+            ]
+          },
+          "max": {
+            "median": 78.2,
+            "min": 74.4,
+            "max": 156.6,
+            "runs": [
+              78.2,
+              156.6,
+              74.4
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 900,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "mem0_oss",
+          "path": "host",
+          "operation": "add_raw",
+          "call": "POST /memories infer=false",
+          "rate": 25,
+          "p50": {
+            "median": 67.7,
+            "min": 59.3,
+            "max": 70.7,
+            "runs": [
+              67.7,
+              70.7,
+              59.3
+            ]
+          },
+          "p95": {
+            "median": 98.7,
+            "min": 87.0,
+            "max": 106.4,
+            "runs": [
+              98.7,
+              106.4,
+              87.0
+            ]
+          },
+          "p99": {
+            "median": 133.4,
+            "min": 118.4,
+            "max": 161.6,
+            "runs": [
+              133.4,
+              161.6,
+              118.4
+            ]
+          },
+          "max": {
+            "median": 180.3,
+            "min": 136.0,
+            "max": 222.2,
+            "runs": [
+              180.3,
+              222.2,
+              136.0
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 2250,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "mem0_oss",
+          "path": "host",
+          "operation": "add_infer",
+          "call": "POST /memories",
+          "rate": 10,
+          "p50": {
+            "median": 1469.7,
+            "min": 1414.5,
+            "max": 1782.5,
+            "runs": [
+              1469.7,
+              1414.5,
+              1782.5
+            ]
+          },
+          "p95": {
+            "median": 2725.0,
+            "min": 2710.3,
+            "max": 2923.0,
+            "runs": [
+              2710.3,
+              2923.0,
+              2725.0
+            ]
+          },
+          "p99": {
+            "median": 3231.1,
+            "min": 3209.2,
+            "max": 3639.9,
+            "runs": [
+              3231.1,
+              3639.9,
+              3209.2
+            ]
+          },
+          "max": {
+            "median": 3632.1,
+            "min": 3497.7,
+            "max": 3954.2,
+            "runs": [
+              3632.1,
+              3954.2,
+              3497.7
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 900,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "mem0_oss",
+          "path": "host",
+          "operation": "add_infer",
+          "call": "POST /memories",
+          "rate": 25,
+          "p50": {
+            "median": 10449.8,
+            "min": 8786.7,
+            "max": 11502.5,
+            "runs": [
+              8786.7,
+              10449.8,
+              11502.5
+            ]
+          },
+          "p95": {
+            "median": 17300.3,
+            "min": 15947.1,
+            "max": 17989.5,
+            "runs": [
+              15947.1,
+              17989.5,
+              17300.3
+            ]
+          },
+          "p99": {
+            "median": 17974.3,
+            "min": 16533.3,
+            "max": 18596.7,
+            "runs": [
+              16533.3,
+              18596.7,
+              17974.3
+            ]
+          },
+          "max": {
+            "median": 18298.4,
+            "min": 17292.0,
+            "max": 18978.1,
+            "runs": [
+              17292.0,
+              18978.1,
+              18298.4
+            ]
+          },
+          "errors": 259,
+          "error_kinds": {
+            "PoolTimeout": 254,
+            "ReadTimeout": 5
+          },
+          "sent": 2250,
+          "empty": 0,
+          "degraded": 0
+        }
+      ]
+    },
+    "backing": {
+      "unit": "values without a source per 1000 answers",
+      "results": [
+        {
+          "system": "mem0_oss",
+          "scenario": "known_id",
+          "per_1000_answers": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "answers": 1068,
+          "unbacked": 0,
+          "by_kind": {},
+          "by_category": {
+            "continuity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "contradiction": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "identity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "long_history": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "order_time": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "paraphrase": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "privacy": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "promise_action": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "recurrence": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "recurrence_topic": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "unanswerable": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          }
+        },
+        {
+          "system": "mem0_oss",
+          "scenario": "per_channel_id",
+          "per_1000_answers": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "answers": 1068,
+          "unbacked": 0,
+          "by_kind": {},
+          "by_category": {
+            "continuity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "contradiction": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "identity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "long_history": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "order_time": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "paraphrase": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "privacy": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "promise_action": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "recurrence": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "recurrence_topic": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "unanswerable": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          }
+        },
+        {
+          "system": "mem0_oss_rerank",
+          "scenario": "known_id",
+          "per_1000_answers": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "answers": 1068,
+          "unbacked": 0,
+          "by_kind": {},
+          "by_category": {
+            "continuity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "contradiction": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "identity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "long_history": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "order_time": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "paraphrase": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "privacy": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "promise_action": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "recurrence": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "recurrence_topic": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "unanswerable": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          }
+        },
+        {
+          "system": "mem0_oss_rerank",
+          "scenario": "per_channel_id",
+          "per_1000_answers": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "answers": 1068,
+          "unbacked": 0,
+          "by_kind": {},
+          "by_category": {
+            "continuity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "contradiction": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "identity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "long_history": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "order_time": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "paraphrase": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "privacy": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "promise_action": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "recurrence": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "recurrence_topic": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "unanswerable": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

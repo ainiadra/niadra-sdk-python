@@ -1,0 +1,1235 @@
+{
+  "schema": "niadra-bench.results.v1",
+  "run_id": "20260927T091114Z-1f0e6a",
+  "date": "2026-09-27",
+  "started_at": "2026-09-27T09:11:14+00:00",
+  "finished_at": "2026-09-27T09:36:32+00:00",
+  "environment": {
+    "kind": "region",
+    "region": "us-east-2",
+    "machine_class": "m7i-flex.large",
+    "database_class": "db.t4g.micro",
+    "harness_host": "temporary EC2 instance in the cell's VPC, one system at a time (deploy/temp-host)",
+    "harness_machine_class": "m7i-flex.large",
+    "verified_by_instance_metadata": true,
+    "host": null,
+    "python": "3.12.14"
+  },
+  "versions": {
+    "harness": "0.1.0",
+    "harness_commit": "730b59950711fc14e2fb93141f54a251230cc97b",
+    "niadra_sdk": "0.5.0",
+    "niadra_server": "2026.09.27-0757-f053966",
+    "mem0ai": "2.2.0",
+    "hindsight": "0.10.1"
+  },
+  "config": {
+    "hash": "sha256:7ad9c33ec9a6e17da92f74654104b8494487a2b239bf8bddbb950f715d8b0ce0",
+    "repetitions": 1,
+    "agent_model": "openai/gpt-6-luna",
+    "judge_model": "openai/gpt-6-luna",
+    "agent": "llm",
+    "agent_reasoning_effort": "low",
+    "extraction_model": "openai/gpt-6-luna",
+    "reasoning_effort": "low",
+    "niadra_models": [
+      "openai/gpt-6-luna",
+      "typesafe/jev-1.13"
+    ],
+    "embedder": "paraphrase-multilingual-minilm-l12-v2-r1",
+    "latency_rates": [
+      10,
+      25
+    ],
+    "latency_duration_s": 30.0,
+    "latency_conversations": 20,
+    "mem0_top_k": 10,
+    "mem0_threshold": 0.1,
+    "token_encoding": "o200k_base",
+    "turns_per_conversation": 10,
+    "prices_checked_on": "2026-09-27",
+    "history_rates": [
+      10,
+      25
+    ],
+    "history_duration_s": 30.0,
+    "history_conversations": 20,
+    "history_max_tokens": 800,
+    "ingest_rates": [
+      10,
+      25
+    ],
+    "ingest_duration_s": 30.0,
+    "ingest_conversations": 20,
+    "ingest_mem0_modes": [
+      "raw",
+      "infer"
+    ],
+    "niadra_guards": "off",
+    "context_has_answer_rule": "specific-v2",
+    "references": "off",
+    "quick": false,
+    "limit": 178
+  },
+  "dataset": {
+    "version": "v2",
+    "hash": "sha256:afdd99efd133199eae45e6a2b229156df39e8659c26c2d00bb636529dbdbfb1d",
+    "generator_version": "2",
+    "cases": 178,
+    "valid": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "runs": [
+        0
+      ]
+    },
+    "excluded": [
+      []
+    ]
+  },
+  "metrics": {
+    "latency": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "hindsight",
+          "path": "host",
+          "rate": 10,
+          "p50": {
+            "median": 6003.1,
+            "min": 6003.1,
+            "max": 6003.1,
+            "runs": [
+              6003.1
+            ]
+          },
+          "p95": {
+            "median": 9377.6,
+            "min": 9377.6,
+            "max": 9377.6,
+            "runs": [
+              9377.6
+            ]
+          },
+          "p99": {
+            "median": 9883.5,
+            "min": 9883.5,
+            "max": 9883.5,
+            "runs": [
+              9883.5
+            ]
+          },
+          "max": {
+            "median": 9883.5,
+            "min": 9883.5,
+            "max": 9883.5,
+            "runs": [
+              9883.5
+            ]
+          },
+          "errors": 257,
+          "sent": 300
+        },
+        {
+          "system": "hindsight",
+          "path": "host",
+          "rate": 25,
+          "p50": {
+            "median": 6594.0,
+            "min": 6594.0,
+            "max": 6594.0,
+            "runs": [
+              6594.0
+            ]
+          },
+          "p95": {
+            "median": 9020.0,
+            "min": 9020.0,
+            "max": 9020.0,
+            "runs": [
+              9020.0
+            ]
+          },
+          "p99": {
+            "median": 9751.3,
+            "min": 9751.3,
+            "max": 9751.3,
+            "runs": [
+              9751.3
+            ]
+          },
+          "max": {
+            "median": 9751.3,
+            "min": 9751.3,
+            "max": 9751.3,
+            "runs": [
+              9751.3
+            ]
+          },
+          "errors": 718,
+          "sent": 750
+        }
+      ]
+    },
+    "accuracy": {
+      "unit": "share of valid cases",
+      "results": [
+        {
+          "system": "hindsight",
+          "scenario": "known_id",
+          "cases": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "runs": [
+              0
+            ]
+          },
+          "judge": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "deterministic": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "context_has_answer": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "by_category": {
+            "continuity": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "identity": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "recurrence": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "order_time": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "promise_action": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "privacy": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "contradiction": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "paraphrase": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "long_history": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "unanswerable": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "recurrence_topic": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            }
+          },
+          "retrieve_errors": 0,
+          "context_has_answer_loose": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          }
+        }
+      ]
+    },
+    "tokens": {
+      "unit": "tokens per turn",
+      "results": [
+        {
+          "system": "hindsight",
+          "scenario": "known_id",
+          "view": "default",
+          "median": {
+            "median": 677.0,
+            "min": 677.0,
+            "max": 677.0,
+            "runs": [
+              677.0
+            ]
+          },
+          "p95": {
+            "median": 2807,
+            "min": 2807,
+            "max": 2807,
+            "runs": [
+              2807
+            ]
+          }
+        }
+      ]
+    },
+    "privacy": {
+      "unit": "memory blocks with the sensitive value",
+      "results": [
+        {
+          "system": "hindsight",
+          "scenario": "known_id",
+          "verification": "none",
+          "cases": {
+            "median": 16,
+            "min": 16,
+            "max": 16,
+            "runs": [
+              16
+            ]
+          },
+          "leaks": {
+            "median": 13,
+            "min": 13,
+            "max": 13,
+            "runs": [
+              13
+            ]
+          },
+          "leak_rate": {
+            "median": 0.8125,
+            "min": 0.8125,
+            "max": 0.8125,
+            "runs": [
+              0.8125
+            ]
+          }
+        }
+      ]
+    },
+    "cost": {
+      "unit": "USD per 1000 conversations",
+      "results": [
+        {
+          "system": "niadra",
+          "variant": "price_low",
+          "basis": "public price, models included",
+          "memory_usd_per_1000": {
+            "median": 5.0,
+            "min": 5.0,
+            "max": 5.0,
+            "runs": [
+              5.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          }
+        },
+        {
+          "system": "niadra",
+          "variant": "price_high",
+          "basis": "public price, models included",
+          "memory_usd_per_1000": {
+            "median": 15.0,
+            "min": 15.0,
+            "max": 15.0,
+            "runs": [
+              15.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          }
+        },
+        {
+          "system": "mem0_platform",
+          "variant": "hobby",
+          "basis": "public plan price over its monthly quota",
+          "memory_usd_per_1000": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "conversations_per_month": 100
+        },
+        {
+          "system": "mem0_platform",
+          "variant": "starter",
+          "basis": "public plan price over its monthly quota",
+          "memory_usd_per_1000": {
+            "median": 38.0,
+            "min": 38.0,
+            "max": 38.0,
+            "runs": [
+              38.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "conversations_per_month": 500
+        },
+        {
+          "system": "mem0_platform",
+          "variant": "pro",
+          "basis": "public plan price over its monthly quota",
+          "memory_usd_per_1000": {
+            "median": 49.8,
+            "min": 49.8,
+            "max": 49.8,
+            "runs": [
+              49.8
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "conversations_per_month": 5000
+        },
+        {
+          "system": "hindsight",
+          "variant": "models_only",
+          "basis": "measured model spend (writes until the memory settled, and reads), servers not priced",
+          "memory_usd_per_1000": {
+            "median": 6.1072,
+            "min": 6.1072,
+            "max": 6.1072,
+            "runs": [
+              6.1072
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": 0.677,
+            "min": 0.677,
+            "max": 0.677,
+            "runs": [
+              0.677
+            ]
+          },
+          "cache_read_share": {
+            "median": 0.7631,
+            "min": 0.7631,
+            "max": 0.7631,
+            "runs": [
+              0.7631
+            ]
+          }
+        }
+      ]
+    },
+    "freshness": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "hindsight",
+          "p50": {
+            "median": 2588.8,
+            "min": 2588.8,
+            "max": 2588.8,
+            "runs": [
+              2588.8
+            ]
+          },
+          "p95": {
+            "median": 3235.5,
+            "min": 3235.5,
+            "max": 3235.5,
+            "runs": [
+              3235.5
+            ]
+          },
+          "max": {
+            "median": 7320.9,
+            "min": 7320.9,
+            "max": 7320.9,
+            "runs": [
+              7320.9
+            ]
+          },
+          "trials": 20,
+          "timeouts": 0
+        }
+      ]
+    },
+    "resilience": {
+      "results": [
+        {
+          "system": "hindsight",
+          "fault": "delay_2000ms",
+          "memory_stage_p50_ms": {
+            "median": 2354.8,
+            "min": 2354.8,
+            "max": 2354.8,
+            "runs": [
+              2354.8
+            ]
+          },
+          "memory_stage_max_ms": {
+            "median": 3148.9,
+            "min": 3148.9,
+            "max": 3148.9,
+            "runs": [
+              3148.9
+            ]
+          },
+          "within_budget_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "raised_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "empty_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "turn_budget_ms": 1000
+        },
+        {
+          "system": "hindsight",
+          "fault": "http_503",
+          "memory_stage_p50_ms": {
+            "median": 0.8,
+            "min": 0.8,
+            "max": 0.8,
+            "runs": [
+              0.8
+            ]
+          },
+          "memory_stage_max_ms": {
+            "median": 2.0,
+            "min": 2.0,
+            "max": 2.0,
+            "runs": [
+              2.0
+            ]
+          },
+          "within_budget_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "raised_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "empty_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "turn_budget_ms": 1000
+        }
+      ]
+    },
+    "history": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "embedder",
+          "path": "host",
+          "operation": "encode",
+          "call": "POST /v1/embed",
+          "rate": 10,
+          "p50": {
+            "median": 14.4,
+            "min": 14.4,
+            "max": 14.4,
+            "runs": [
+              14.4
+            ]
+          },
+          "p95": {
+            "median": 15.1,
+            "min": 15.1,
+            "max": 15.1,
+            "runs": [
+              15.1
+            ]
+          },
+          "p99": {
+            "median": 18.2,
+            "min": 18.2,
+            "max": 18.2,
+            "runs": [
+              18.2
+            ]
+          },
+          "max": {
+            "median": 18.6,
+            "min": 18.6,
+            "max": 18.6,
+            "runs": [
+              18.6
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "embedder",
+          "path": "host",
+          "operation": "encode",
+          "call": "POST /v1/embed",
+          "rate": 25,
+          "p50": {
+            "median": 14.1,
+            "min": 14.1,
+            "max": 14.1,
+            "runs": [
+              14.1
+            ]
+          },
+          "p95": {
+            "median": 14.8,
+            "min": 14.8,
+            "max": 14.8,
+            "runs": [
+              14.8
+            ]
+          },
+          "p99": {
+            "median": 17.0,
+            "min": 17.0,
+            "max": 17.0,
+            "runs": [
+              17.0
+            ]
+          },
+          "max": {
+            "median": 38.6,
+            "min": 38.6,
+            "max": 38.6,
+            "runs": [
+              38.6
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 750,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "hindsight",
+          "path": "host",
+          "operation": "search",
+          "call": "POST /v1/default/banks/cust-pt-001-1f0e6ar1/memories/recall",
+          "rate": 10,
+          "p50": {
+            "median": 5742.2,
+            "min": 5742.2,
+            "max": 5742.2,
+            "runs": [
+              5742.2
+            ]
+          },
+          "p95": {
+            "median": 9699.8,
+            "min": 9699.8,
+            "max": 9699.8,
+            "runs": [
+              9699.8
+            ]
+          },
+          "p99": {
+            "median": 9973.3,
+            "min": 9973.3,
+            "max": 9973.3,
+            "runs": [
+              9973.3
+            ]
+          },
+          "max": {
+            "median": 9973.3,
+            "min": 9973.3,
+            "max": 9973.3,
+            "runs": [
+              9973.3
+            ]
+          },
+          "errors": 260,
+          "error_kinds": {
+            "ReadTimeout": 260
+          },
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "hindsight",
+          "path": "host",
+          "operation": "search",
+          "call": "POST /v1/default/banks/cust-pt-001-1f0e6ar1/memories/recall",
+          "rate": 25,
+          "p50": {
+            "median": 5983.7,
+            "min": 5983.7,
+            "max": 5983.7,
+            "runs": [
+              5983.7
+            ]
+          },
+          "p95": {
+            "median": 9627.4,
+            "min": 9627.4,
+            "max": 9627.4,
+            "runs": [
+              9627.4
+            ]
+          },
+          "p99": {
+            "median": 9726.0,
+            "min": 9726.0,
+            "max": 9726.0,
+            "runs": [
+              9726.0
+            ]
+          },
+          "max": {
+            "median": 9726.0,
+            "min": 9726.0,
+            "max": 9726.0,
+            "runs": [
+              9726.0
+            ]
+          },
+          "errors": 718,
+          "error_kinds": {
+            "PoolTimeout": 325,
+            "ReadTimeout": 393
+          },
+          "sent": 750,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "hindsight",
+          "path": "host",
+          "operation": "open",
+          "call": "GET /v1/default/banks/cust-pt-001-1f0e6ar1/memories/2a3d9267-d136-4cec-b039-bcc5d9864b70",
+          "rate": 10,
+          "p50": {
+            "median": 12.4,
+            "min": 12.4,
+            "max": 12.4,
+            "runs": [
+              12.4
+            ]
+          },
+          "p95": {
+            "median": 55.3,
+            "min": 55.3,
+            "max": 55.3,
+            "runs": [
+              55.3
+            ]
+          },
+          "p99": {
+            "median": 65.9,
+            "min": 65.9,
+            "max": 65.9,
+            "runs": [
+              65.9
+            ]
+          },
+          "max": {
+            "median": 68.3,
+            "min": 68.3,
+            "max": 68.3,
+            "runs": [
+              68.3
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "hindsight",
+          "path": "host",
+          "operation": "open",
+          "call": "GET /v1/default/banks/cust-pt-001-1f0e6ar1/memories/2a3d9267-d136-4cec-b039-bcc5d9864b70",
+          "rate": 25,
+          "p50": {
+            "median": 10.7,
+            "min": 10.7,
+            "max": 10.7,
+            "runs": [
+              10.7
+            ]
+          },
+          "p95": {
+            "median": 12.7,
+            "min": 12.7,
+            "max": 12.7,
+            "runs": [
+              12.7
+            ]
+          },
+          "p99": {
+            "median": 15.6,
+            "min": 15.6,
+            "max": 15.6,
+            "runs": [
+              15.6
+            ]
+          },
+          "max": {
+            "median": 18.0,
+            "min": 18.0,
+            "max": 18.0,
+            "runs": [
+              18.0
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 750,
+          "empty": 0,
+          "degraded": 0
+        }
+      ]
+    },
+    "ingest": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "hindsight",
+          "path": "host",
+          "operation": "write",
+          "call": "POST /v1/default/banks/cust-pt-001-1f0e6ar1/memories",
+          "rate": 10,
+          "p50": {
+            "median": 6.1,
+            "min": 6.1,
+            "max": 6.1,
+            "runs": [
+              6.1
+            ]
+          },
+          "p95": {
+            "median": 20.3,
+            "min": 20.3,
+            "max": 20.3,
+            "runs": [
+              20.3
+            ]
+          },
+          "p99": {
+            "median": 33.2,
+            "min": 33.2,
+            "max": 33.2,
+            "runs": [
+              33.2
+            ]
+          },
+          "max": {
+            "median": 113.1,
+            "min": 113.1,
+            "max": 113.1,
+            "runs": [
+              113.1
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "hindsight",
+          "path": "host",
+          "operation": "write",
+          "call": "POST /v1/default/banks/cust-pt-001-1f0e6ar1/memories",
+          "rate": 25,
+          "p50": {
+            "median": 5.9,
+            "min": 5.9,
+            "max": 5.9,
+            "runs": [
+              5.9
+            ]
+          },
+          "p95": {
+            "median": 21.7,
+            "min": 21.7,
+            "max": 21.7,
+            "runs": [
+              21.7
+            ]
+          },
+          "p99": {
+            "median": 35.8,
+            "min": 35.8,
+            "max": 35.8,
+            "runs": [
+              35.8
+            ]
+          },
+          "max": {
+            "median": 77.2,
+            "min": 77.2,
+            "max": 77.2,
+            "runs": [
+              77.2
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 750,
+          "empty": 0,
+          "degraded": 0
+        }
+      ]
+    },
+    "backing": {
+      "unit": "values without a source per 1000 answers",
+      "results": [
+        {
+          "system": "hindsight",
+          "scenario": "known_id",
+          "per_1000_answers": {
+            "median": 11.2,
+            "min": 11.2,
+            "max": 11.2,
+            "runs": [
+              11.2
+            ]
+          },
+          "answers": 178,
+          "unbacked": 2,
+          "by_kind": {
+            "date": 2
+          },
+          "by_category": {
+            "continuity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "contradiction": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "identity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "long_history": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "order_time": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "paraphrase": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "privacy": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "promise_action": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "recurrence": {
+              "median": 62.5,
+              "min": 62.5,
+              "max": 62.5,
+              "runs": [
+                62.5
+              ]
+            },
+            "recurrence_topic": {
+              "median": 62.5,
+              "min": 62.5,
+              "max": 62.5,
+              "runs": [
+                62.5
+              ]
+            },
+            "unanswerable": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

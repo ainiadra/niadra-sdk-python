@@ -1,0 +1,448 @@
+{
+  "repetition": 1,
+  "tag": "63d738r1",
+  "seed": {
+    "cognee:known_id": {
+      "seconds": 1183.7,
+      "failures": [],
+      "writes": 1555,
+      "write_retries": 0,
+      "model_usage": {
+        "openai/gpt-6-luna": {
+          "calls": 2755,
+          "failed": 0,
+          "truncated": 0,
+          "reasoning_set": 0,
+          "prompt_tokens": 1577456,
+          "completion_tokens": 653289,
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "reasoning_tokens": 141845
+        }
+      }
+    }
+  },
+  "settle": {
+    "cognee:known_id": {
+      "settled": true,
+      "seconds": 0.0
+    }
+  },
+  "validity": {
+    "valid": 0,
+    "excluded": []
+  },
+  "accuracy": [
+    {
+      "system": "cognee",
+      "scenario": "known_id",
+      "cases": 0,
+      "deterministic": null,
+      "judge": null,
+      "context_has_answer": null,
+      "context_has_answer_loose": null,
+      "by_category": {
+        "continuity": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "identity": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "recurrence": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "order_time": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "promise_action": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "privacy": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "contradiction": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "paraphrase": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "long_history": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "unanswerable": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "recurrence_topic": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        }
+      },
+      "tokens": {
+        "default": {
+          "median": 14.0,
+          "p95": 35,
+          "mean": 17.6
+        }
+      },
+      "privacy": {
+        "cases": 16,
+        "leaks": 16,
+        "leak_rate": 1.0,
+        "verification": "none"
+      },
+      "retrieve_errors": 0,
+      "retrieve_ms_p50": 17794.61
+    }
+  ],
+  "backing": [
+    {
+      "system": "cognee",
+      "scenario": "known_id",
+      "answers": 178,
+      "values_checked": 144,
+      "unbacked": 0,
+      "answers_with_unbacked": 0,
+      "per_1000_answers": 0.0,
+      "by_kind": {},
+      "by_category": {
+        "continuity": {
+          "answers": 20,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "contradiction": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "identity": {
+          "answers": 20,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "long_history": {
+          "answers": 10,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "order_time": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "paraphrase": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "privacy": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "promise_action": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "recurrence": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "recurrence_topic": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "unanswerable": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        }
+      }
+    }
+  ],
+  "cost": [
+    {
+      "system": "niadra",
+      "variant": "price_low",
+      "memory_usd_per_1000": 5.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public price, models included"
+    },
+    {
+      "system": "niadra",
+      "variant": "price_high",
+      "memory_usd_per_1000": 15.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public price, models included"
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "hobby",
+      "memory_usd_per_1000": 0.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 0.0,
+      "conversations_per_month": 100
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "starter",
+      "memory_usd_per_1000": 38.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 19.0,
+      "conversations_per_month": 500
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "pro",
+      "memory_usd_per_1000": 49.8,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 249.0,
+      "conversations_per_month": 5000
+    },
+    {
+      "system": "cognee",
+      "variant": "models_only",
+      "memory_usd_per_1000": 6.9591,
+      "basis": "measured model spend (writes until the memory settled, and reads), servers not priced",
+      "usd_per_exchange": 0.00040808,
+      "usd_per_read": 0.00028783,
+      "cache_read_share": 0.1563,
+      "agent_prompt_usd_per_1000": 0.014
+    }
+  ],
+  "latency": [
+    {
+      "system": "cognee",
+      "path": "host",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null,
+      "sent": 300,
+      "errors": {
+        "ReadTimeout": 300
+      }
+    },
+    {
+      "system": "cognee",
+      "path": "host",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null,
+      "sent": 750,
+      "errors": {
+        "ReadTimeout": 400,
+        "PoolTimeout": 350
+      }
+    }
+  ],
+  "freshness": [
+    {
+      "system": "cognee",
+      "trials": 20,
+      "timeouts": 3,
+      "timeout_s": 30.0,
+      "n": 17,
+      "p50": 10093.1,
+      "p90": 10746.1,
+      "p95": 10798.7,
+      "p99": 17340.4,
+      "max": 17340.4
+    }
+  ],
+  "resilience": [
+    {
+      "system": "cognee",
+      "fault": "delay_2000ms",
+      "trials": 20,
+      "memory_stage_ms": {
+        "n": 20,
+        "p50": 5003.2,
+        "p90": 5004.6,
+        "p95": 5004.9,
+        "p99": 5005.7,
+        "max": 5005.7
+      },
+      "within_budget_rate": 0.0,
+      "raised_rate": 1.0,
+      "empty_rate": 1.0,
+      "turn_budget_ms": 1000
+    },
+    {
+      "system": "cognee",
+      "fault": "http_503",
+      "trials": 20,
+      "memory_stage_ms": {
+        "n": 20,
+        "p50": 0.8,
+        "p90": 1.0,
+        "p95": 2.0,
+        "p99": 2.3,
+        "max": 2.3
+      },
+      "within_budget_rate": 1.0,
+      "raised_rate": 1.0,
+      "empty_rate": 1.0,
+      "turn_budget_ms": 1000
+    }
+  ],
+  "history": [
+    {
+      "system": "embedder",
+      "path": "host",
+      "operation": "encode",
+      "call": "POST /v1/embed",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 16.0,
+      "p90": 16.5,
+      "p95": 16.9,
+      "p99": 19.8,
+      "max": 20.7,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "embedder",
+      "path": "host",
+      "operation": "encode",
+      "call": "POST /v1/embed",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 15.4,
+      "p90": 16.0,
+      "p95": 16.3,
+      "p99": 20.2,
+      "max": 49.5,
+      "sent": 750,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "cognee",
+      "path": "host",
+      "operation": "search",
+      "call": "POST /api/v1/search",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null,
+      "sent": 300,
+      "errors": {
+        "ReadTimeout": 300
+      },
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "cognee",
+      "path": "host",
+      "operation": "search",
+      "call": "POST /api/v1/search",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null,
+      "sent": 750,
+      "errors": {
+        "PoolTimeout": 313,
+        "ReadTimeout": 383,
+        "http500": 54
+      },
+      "empty": 0,
+      "degraded": 0
+    }
+  ],
+  "ingest": [
+    {
+      "system": "cognee",
+      "path": "host",
+      "operation": "write",
+      "call": "POST /api/v1/remember",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null,
+      "sent": 300,
+      "errors": {
+        "ReadTimeout": 300
+      },
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "cognee",
+      "path": "host",
+      "operation": "write",
+      "call": "POST /api/v1/remember",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null,
+      "sent": 750,
+      "errors": {
+        "PoolTimeout": 350,
+        "ReadTimeout": 400
+      },
+      "empty": 0,
+      "degraded": 0
+    }
+  ]
+}

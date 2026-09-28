@@ -1,0 +1,1229 @@
+{
+  "schema": "niadra-bench.results.v1",
+  "run_id": "20260927T202712Z-4cb045",
+  "date": "2026-09-27",
+  "started_at": "2026-09-27T20:27:12+00:00",
+  "finished_at": "2026-09-28T00:20:08+00:00",
+  "environment": {
+    "kind": "region",
+    "region": "us-east-2",
+    "machine_class": "m7i-flex.large",
+    "database_class": "db.t4g.micro",
+    "harness_host": "temporary EC2 instance in the cell's VPC, one system at a time (deploy/temp-host)",
+    "harness_machine_class": "m7i-flex.large",
+    "verified_by_instance_metadata": true,
+    "host": null,
+    "python": "3.12.14"
+  },
+  "versions": {
+    "harness": "0.1.0",
+    "harness_commit": "676d5e91f80cd9d854051f9355e502418abe3aff",
+    "niadra_sdk": "0.5.0",
+    "niadra_server": "2026.09.27-1855-3cf0804",
+    "mem0ai": "2.2.0",
+    "graphiti": "0.30.2"
+  },
+  "config": {
+    "hash": "sha256:7ad9c33ec9a6e17da92f74654104b8494487a2b239bf8bddbb950f715d8b0ce0",
+    "repetitions": 1,
+    "agent_model": "openai/gpt-6-luna",
+    "judge_model": "openai/gpt-6-luna",
+    "agent": "llm",
+    "agent_reasoning_effort": "low",
+    "extraction_model": "openai/gpt-6-luna",
+    "reasoning_effort": "low",
+    "niadra_models": [
+      "openai/gpt-6-luna",
+      "typesafe/jev-1.13"
+    ],
+    "embedder": "paraphrase-multilingual-minilm-l12-v2-r1",
+    "latency_rates": [
+      10,
+      25
+    ],
+    "latency_duration_s": 30.0,
+    "latency_conversations": 20,
+    "mem0_top_k": 10,
+    "mem0_threshold": 0.1,
+    "token_encoding": "o200k_base",
+    "turns_per_conversation": 10,
+    "prices_checked_on": "2026-09-27",
+    "history_rates": [
+      10,
+      25
+    ],
+    "history_duration_s": 30.0,
+    "history_conversations": 20,
+    "history_max_tokens": 800,
+    "ingest_rates": [
+      10,
+      25
+    ],
+    "ingest_duration_s": 30.0,
+    "ingest_conversations": 20,
+    "ingest_mem0_modes": [
+      "raw",
+      "infer"
+    ],
+    "niadra_guards": "off",
+    "context_has_answer_rule": "specific-v2",
+    "references": "off",
+    "max_settle_s": 21000.0,
+    "quick": false,
+    "limit": 178
+  },
+  "dataset": {
+    "version": "v2",
+    "hash": "sha256:afdd99efd133199eae45e6a2b229156df39e8659c26c2d00bb636529dbdbfb1d",
+    "generator_version": "2",
+    "cases": 178,
+    "valid": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "runs": [
+        0
+      ]
+    },
+    "excluded": [
+      []
+    ]
+  },
+  "metrics": {
+    "latency": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "graphiti",
+          "path": "host",
+          "rate": 10,
+          "p50": {
+            "median": 37.9,
+            "min": 37.9,
+            "max": 37.9,
+            "runs": [
+              37.9
+            ]
+          },
+          "p95": {
+            "median": 49.8,
+            "min": 49.8,
+            "max": 49.8,
+            "runs": [
+              49.8
+            ]
+          },
+          "p99": {
+            "median": 69.5,
+            "min": 69.5,
+            "max": 69.5,
+            "runs": [
+              69.5
+            ]
+          },
+          "max": {
+            "median": 145.1,
+            "min": 145.1,
+            "max": 145.1,
+            "runs": [
+              145.1
+            ]
+          },
+          "errors": 0,
+          "sent": 300
+        },
+        {
+          "system": "graphiti",
+          "path": "host",
+          "rate": 25,
+          "p50": {
+            "median": 42.1,
+            "min": 42.1,
+            "max": 42.1,
+            "runs": [
+              42.1
+            ]
+          },
+          "p95": {
+            "median": 78.9,
+            "min": 78.9,
+            "max": 78.9,
+            "runs": [
+              78.9
+            ]
+          },
+          "p99": {
+            "median": 142.5,
+            "min": 142.5,
+            "max": 142.5,
+            "runs": [
+              142.5
+            ]
+          },
+          "max": {
+            "median": 229.3,
+            "min": 229.3,
+            "max": 229.3,
+            "runs": [
+              229.3
+            ]
+          },
+          "errors": 0,
+          "sent": 750
+        }
+      ]
+    },
+    "accuracy": {
+      "unit": "share of valid cases",
+      "results": [
+        {
+          "system": "graphiti",
+          "scenario": "known_id",
+          "cases": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "runs": [
+              0
+            ]
+          },
+          "judge": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "deterministic": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "context_has_answer": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "by_category": {
+            "continuity": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "identity": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "recurrence": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "order_time": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "promise_action": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "privacy": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "contradiction": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "paraphrase": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "long_history": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "unanswerable": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "recurrence_topic": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            }
+          },
+          "retrieve_errors": 0,
+          "context_has_answer_loose": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          }
+        }
+      ]
+    },
+    "tokens": {
+      "unit": "tokens per turn",
+      "results": [
+        {
+          "system": "graphiti",
+          "scenario": "known_id",
+          "view": "default",
+          "median": {
+            "median": 285.0,
+            "min": 285.0,
+            "max": 285.0,
+            "runs": [
+              285.0
+            ]
+          },
+          "p95": {
+            "median": 445,
+            "min": 445,
+            "max": 445,
+            "runs": [
+              445
+            ]
+          }
+        }
+      ]
+    },
+    "privacy": {
+      "unit": "memory blocks with the sensitive value",
+      "results": [
+        {
+          "system": "graphiti",
+          "scenario": "known_id",
+          "verification": "none",
+          "cases": {
+            "median": 16,
+            "min": 16,
+            "max": 16,
+            "runs": [
+              16
+            ]
+          },
+          "leaks": {
+            "median": 9,
+            "min": 9,
+            "max": 9,
+            "runs": [
+              9
+            ]
+          },
+          "leak_rate": {
+            "median": 0.5625,
+            "min": 0.5625,
+            "max": 0.5625,
+            "runs": [
+              0.5625
+            ]
+          }
+        }
+      ]
+    },
+    "cost": {
+      "unit": "USD per 1000 conversations",
+      "results": [
+        {
+          "system": "niadra",
+          "variant": "price_low",
+          "basis": "public price, models included",
+          "memory_usd_per_1000": {
+            "median": 5.0,
+            "min": 5.0,
+            "max": 5.0,
+            "runs": [
+              5.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          }
+        },
+        {
+          "system": "niadra",
+          "variant": "price_high",
+          "basis": "public price, models included",
+          "memory_usd_per_1000": {
+            "median": 15.0,
+            "min": 15.0,
+            "max": 15.0,
+            "runs": [
+              15.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          }
+        },
+        {
+          "system": "mem0_platform",
+          "variant": "hobby",
+          "basis": "public plan price over its monthly quota",
+          "memory_usd_per_1000": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "conversations_per_month": 100
+        },
+        {
+          "system": "mem0_platform",
+          "variant": "starter",
+          "basis": "public plan price over its monthly quota",
+          "memory_usd_per_1000": {
+            "median": 38.0,
+            "min": 38.0,
+            "max": 38.0,
+            "runs": [
+              38.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "conversations_per_month": 500
+        },
+        {
+          "system": "mem0_platform",
+          "variant": "pro",
+          "basis": "public plan price over its monthly quota",
+          "memory_usd_per_1000": {
+            "median": 49.8,
+            "min": 49.8,
+            "max": 49.8,
+            "runs": [
+              49.8
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "conversations_per_month": 5000
+        },
+        {
+          "system": "graphiti",
+          "variant": "models_only",
+          "basis": "measured model spend (writes until the memory settled, and reads), servers not priced",
+          "memory_usd_per_1000": {
+            "median": 18.7246,
+            "min": 18.7246,
+            "max": 18.7246,
+            "runs": [
+              18.7246
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": 0.285,
+            "min": 0.285,
+            "max": 0.285,
+            "runs": [
+              0.285
+            ]
+          },
+          "cache_read_share": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          }
+        }
+      ]
+    },
+    "freshness": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "graphiti",
+          "p50": {
+            "median": 3836.5,
+            "min": 3836.5,
+            "max": 3836.5,
+            "runs": [
+              3836.5
+            ]
+          },
+          "p95": {
+            "median": 4587.5,
+            "min": 4587.5,
+            "max": 4587.5,
+            "runs": [
+              4587.5
+            ]
+          },
+          "max": {
+            "median": 4724.4,
+            "min": 4724.4,
+            "max": 4724.4,
+            "runs": [
+              4724.4
+            ]
+          },
+          "trials": 20,
+          "timeouts": 0
+        }
+      ]
+    },
+    "resilience": {
+      "results": [
+        {
+          "system": "graphiti",
+          "fault": "delay_2000ms",
+          "memory_stage_p50_ms": {
+            "median": 2039.5,
+            "min": 2039.5,
+            "max": 2039.5,
+            "runs": [
+              2039.5
+            ]
+          },
+          "memory_stage_max_ms": {
+            "median": 2048.0,
+            "min": 2048.0,
+            "max": 2048.0,
+            "runs": [
+              2048.0
+            ]
+          },
+          "within_budget_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "raised_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "empty_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "turn_budget_ms": 1000
+        },
+        {
+          "system": "graphiti",
+          "fault": "http_503",
+          "memory_stage_p50_ms": {
+            "median": 0.7,
+            "min": 0.7,
+            "max": 0.7,
+            "runs": [
+              0.7
+            ]
+          },
+          "memory_stage_max_ms": {
+            "median": 2.0,
+            "min": 2.0,
+            "max": 2.0,
+            "runs": [
+              2.0
+            ]
+          },
+          "within_budget_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "raised_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "empty_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "turn_budget_ms": 1000
+        }
+      ]
+    },
+    "history": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "embedder",
+          "path": "host",
+          "operation": "encode",
+          "call": "POST /v1/embed",
+          "rate": 10,
+          "p50": {
+            "median": 15.8,
+            "min": 15.8,
+            "max": 15.8,
+            "runs": [
+              15.8
+            ]
+          },
+          "p95": {
+            "median": 17.3,
+            "min": 17.3,
+            "max": 17.3,
+            "runs": [
+              17.3
+            ]
+          },
+          "p99": {
+            "median": 21.3,
+            "min": 21.3,
+            "max": 21.3,
+            "runs": [
+              21.3
+            ]
+          },
+          "max": {
+            "median": 22.4,
+            "min": 22.4,
+            "max": 22.4,
+            "runs": [
+              22.4
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "embedder",
+          "path": "host",
+          "operation": "encode",
+          "call": "POST /v1/embed",
+          "rate": 25,
+          "p50": {
+            "median": 16.0,
+            "min": 16.0,
+            "max": 16.0,
+            "runs": [
+              16.0
+            ]
+          },
+          "p95": {
+            "median": 19.0,
+            "min": 19.0,
+            "max": 19.0,
+            "runs": [
+              19.0
+            ]
+          },
+          "p99": {
+            "median": 21.6,
+            "min": 21.6,
+            "max": 21.6,
+            "runs": [
+              21.6
+            ]
+          },
+          "max": {
+            "median": 61.5,
+            "min": 61.5,
+            "max": 61.5,
+            "runs": [
+              61.5
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 750,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "graphiti",
+          "path": "host",
+          "operation": "search",
+          "call": "POST /search",
+          "rate": 10,
+          "p50": {
+            "median": 36.5,
+            "min": 36.5,
+            "max": 36.5,
+            "runs": [
+              36.5
+            ]
+          },
+          "p95": {
+            "median": 52.5,
+            "min": 52.5,
+            "max": 52.5,
+            "runs": [
+              52.5
+            ]
+          },
+          "p99": {
+            "median": 71.6,
+            "min": 71.6,
+            "max": 71.6,
+            "runs": [
+              71.6
+            ]
+          },
+          "max": {
+            "median": 75.6,
+            "min": 75.6,
+            "max": 75.6,
+            "runs": [
+              75.6
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "graphiti",
+          "path": "host",
+          "operation": "search",
+          "call": "POST /search",
+          "rate": 25,
+          "p50": {
+            "median": 39.6,
+            "min": 39.6,
+            "max": 39.6,
+            "runs": [
+              39.6
+            ]
+          },
+          "p95": {
+            "median": 66.8,
+            "min": 66.8,
+            "max": 66.8,
+            "runs": [
+              66.8
+            ]
+          },
+          "p99": {
+            "median": 107.0,
+            "min": 107.0,
+            "max": 107.0,
+            "runs": [
+              107.0
+            ]
+          },
+          "max": {
+            "median": 147.6,
+            "min": 147.6,
+            "max": 147.6,
+            "runs": [
+              147.6
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 750,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "graphiti",
+          "path": "host",
+          "operation": "open",
+          "call": "GET /entity-edge/d44b14ca-933e-4513-afdf-1fd2e73fbf35",
+          "rate": 10,
+          "p50": {
+            "median": 5.7,
+            "min": 5.7,
+            "max": 5.7,
+            "runs": [
+              5.7
+            ]
+          },
+          "p95": {
+            "median": 6.3,
+            "min": 6.3,
+            "max": 6.3,
+            "runs": [
+              6.3
+            ]
+          },
+          "p99": {
+            "median": 8.8,
+            "min": 8.8,
+            "max": 8.8,
+            "runs": [
+              8.8
+            ]
+          },
+          "max": {
+            "median": 11.7,
+            "min": 11.7,
+            "max": 11.7,
+            "runs": [
+              11.7
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "graphiti",
+          "path": "host",
+          "operation": "open",
+          "call": "GET /entity-edge/d44b14ca-933e-4513-afdf-1fd2e73fbf35",
+          "rate": 25,
+          "p50": {
+            "median": 5.6,
+            "min": 5.6,
+            "max": 5.6,
+            "runs": [
+              5.6
+            ]
+          },
+          "p95": {
+            "median": 6.4,
+            "min": 6.4,
+            "max": 6.4,
+            "runs": [
+              6.4
+            ]
+          },
+          "p99": {
+            "median": 9.4,
+            "min": 9.4,
+            "max": 9.4,
+            "runs": [
+              9.4
+            ]
+          },
+          "max": {
+            "median": 13.8,
+            "min": 13.8,
+            "max": 13.8,
+            "runs": [
+              13.8
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 750,
+          "empty": 0,
+          "degraded": 0
+        }
+      ]
+    },
+    "ingest": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "graphiti",
+          "path": "host",
+          "operation": "write",
+          "call": "POST /messages",
+          "rate": 10,
+          "p50": {
+            "median": 2.7,
+            "min": 2.7,
+            "max": 2.7,
+            "runs": [
+              2.7
+            ]
+          },
+          "p95": {
+            "median": 3.7,
+            "min": 3.7,
+            "max": 3.7,
+            "runs": [
+              3.7
+            ]
+          },
+          "p99": {
+            "median": 6.3,
+            "min": 6.3,
+            "max": 6.3,
+            "runs": [
+              6.3
+            ]
+          },
+          "max": {
+            "median": 13.4,
+            "min": 13.4,
+            "max": 13.4,
+            "runs": [
+              13.4
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "graphiti",
+          "path": "host",
+          "operation": "write",
+          "call": "POST /messages",
+          "rate": 25,
+          "p50": {
+            "median": 2.7,
+            "min": 2.7,
+            "max": 2.7,
+            "runs": [
+              2.7
+            ]
+          },
+          "p95": {
+            "median": 3.7,
+            "min": 3.7,
+            "max": 3.7,
+            "runs": [
+              3.7
+            ]
+          },
+          "p99": {
+            "median": 5.5,
+            "min": 5.5,
+            "max": 5.5,
+            "runs": [
+              5.5
+            ]
+          },
+          "max": {
+            "median": 22.9,
+            "min": 22.9,
+            "max": 22.9,
+            "runs": [
+              22.9
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 750,
+          "empty": 0,
+          "degraded": 0
+        }
+      ]
+    },
+    "backing": {
+      "unit": "values without a source per 1000 answers",
+      "results": [
+        {
+          "system": "graphiti",
+          "scenario": "known_id",
+          "per_1000_answers": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "answers": 178,
+          "unbacked": 0,
+          "by_kind": {},
+          "by_category": {
+            "continuity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "contradiction": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "identity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "long_history": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "order_time": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "paraphrase": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "privacy": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "promise_action": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "recurrence": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "recurrence_topic": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "unanswerable": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

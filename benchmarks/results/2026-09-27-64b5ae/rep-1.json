@@ -1,0 +1,442 @@
+{
+  "repetition": 1,
+  "tag": "64b5aer1",
+  "seed": {
+    "honcho_dialectic:known_id": {
+      "seconds": 52.0,
+      "failures": [],
+      "writes": 2089,
+      "write_retries": 0,
+      "model_usage": {
+        "openai/gpt-6-luna": {
+          "calls": 1151,
+          "failed": 0,
+          "truncated": 0,
+          "reasoning_set": 0,
+          "prompt_tokens": 958116,
+          "completion_tokens": 40568,
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "reasoning_tokens": 1246
+        }
+      }
+    }
+  },
+  "settle": {
+    "honcho_dialectic:known_id": {
+      "settled": true,
+      "seconds": 3662.9,
+      "rounds": 366,
+      "work_units_left": 0
+    }
+  },
+  "validity": {
+    "valid": 0,
+    "excluded": []
+  },
+  "accuracy": [
+    {
+      "system": "honcho_dialectic",
+      "scenario": "known_id",
+      "cases": 0,
+      "deterministic": null,
+      "judge": null,
+      "context_has_answer": null,
+      "context_has_answer_loose": null,
+      "by_category": {
+        "continuity": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "identity": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "recurrence": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "order_time": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "promise_action": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "privacy": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "contradiction": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "paraphrase": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "long_history": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "unanswerable": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "recurrence_topic": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        }
+      },
+      "tokens": {
+        "default": {
+          "median": 21.0,
+          "p95": 51,
+          "mean": 24.9
+        }
+      },
+      "privacy": {
+        "cases": 16,
+        "leaks": 16,
+        "leak_rate": 1.0,
+        "verification": "none"
+      },
+      "retrieve_errors": 0,
+      "retrieve_ms_p50": 2594.49
+    }
+  ],
+  "backing": [
+    {
+      "system": "honcho_dialectic",
+      "scenario": "known_id",
+      "answers": 178,
+      "values_checked": 140,
+      "unbacked": 0,
+      "answers_with_unbacked": 0,
+      "per_1000_answers": 0.0,
+      "by_kind": {},
+      "by_category": {
+        "continuity": {
+          "answers": 20,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "contradiction": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "identity": {
+          "answers": 20,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "long_history": {
+          "answers": 10,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "order_time": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "paraphrase": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "privacy": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "promise_action": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "recurrence": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "recurrence_topic": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "unanswerable": {
+          "answers": 16,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        }
+      }
+    }
+  ],
+  "cost": [
+    {
+      "system": "niadra",
+      "variant": "price_low",
+      "memory_usd_per_1000": 5.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public price, models included"
+    },
+    {
+      "system": "niadra",
+      "variant": "price_high",
+      "memory_usd_per_1000": 15.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public price, models included"
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "hobby",
+      "memory_usd_per_1000": 0.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 0.0,
+      "conversations_per_month": 100
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "starter",
+      "memory_usd_per_1000": 38.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 19.0,
+      "conversations_per_month": 500
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "pro",
+      "memory_usd_per_1000": 49.8,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 249.0,
+      "conversations_per_month": 5000
+    },
+    {
+      "system": "honcho_dialectic",
+      "variant": "models_only",
+      "memory_usd_per_1000": 6.9204,
+      "basis": "measured model spend (writes until the memory settled, and reads), servers not priced",
+      "usd_per_exchange": 9.781e-05,
+      "usd_per_read": 0.00059424,
+      "cache_read_share": 0.2193,
+      "agent_prompt_usd_per_1000": 0.021
+    }
+  ],
+  "latency": [
+    {
+      "system": "honcho_dialectic",
+      "path": "host",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 299,
+      "p50": 2361.8,
+      "p90": 3398.7,
+      "p95": 3753.0,
+      "p99": 4612.4,
+      "max": 5576.3,
+      "sent": 300,
+      "errors": {
+        "ReadTimeout": 1
+      }
+    },
+    {
+      "system": "honcho_dialectic",
+      "path": "host",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 534,
+      "p50": 10062.6,
+      "p90": 17164.7,
+      "p95": 18013.0,
+      "p99": 19385.3,
+      "max": 19672.8,
+      "sent": 750,
+      "errors": {
+        "ReadTimeout": 85,
+        "PoolTimeout": 131
+      }
+    }
+  ],
+  "freshness": [
+    {
+      "system": "honcho_dialectic",
+      "trials": 20,
+      "timeouts": 0,
+      "timeout_s": 30.0,
+      "n": 20,
+      "p50": 2135.4,
+      "p90": 2592.8,
+      "p95": 3616.2,
+      "p99": 3630.7,
+      "max": 3630.7
+    }
+  ],
+  "resilience": [
+    {
+      "system": "honcho_dialectic",
+      "fault": "delay_2000ms",
+      "trials": 20,
+      "memory_stage_ms": {
+        "n": 20,
+        "p50": 4405.0,
+        "p90": 5001.1,
+        "p95": 5001.3,
+        "p99": 5001.7,
+        "max": 5001.7
+      },
+      "within_budget_rate": 0.0,
+      "raised_rate": 0.15,
+      "empty_rate": 0.15,
+      "turn_budget_ms": 1000
+    },
+    {
+      "system": "honcho_dialectic",
+      "fault": "http_503",
+      "trials": 20,
+      "memory_stage_ms": {
+        "n": 20,
+        "p50": 0.8,
+        "p90": 0.8,
+        "p95": 1.2,
+        "p99": 1.9,
+        "max": 1.9
+      },
+      "within_budget_rate": 1.0,
+      "raised_rate": 1.0,
+      "empty_rate": 1.0,
+      "turn_budget_ms": 1000
+    }
+  ],
+  "history": [
+    {
+      "system": "embedder",
+      "path": "host",
+      "operation": "encode",
+      "call": "POST /v1/embed",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 14.3,
+      "p90": 16.8,
+      "p95": 17.8,
+      "p99": 20.6,
+      "max": 32.6,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "embedder",
+      "path": "host",
+      "operation": "encode",
+      "call": "POST /v1/embed",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 14.0,
+      "p90": 16.0,
+      "p95": 17.1,
+      "p99": 18.7,
+      "max": 36.5,
+      "sent": 750,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "honcho_dialectic",
+      "path": "host",
+      "operation": "search",
+      "call": "POST /v3/workspaces/niadra-bench-dialectic/peers/cust-pt-001-64b5aer1/chat",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 2353.5,
+      "p90": 3314.1,
+      "p95": 3620.9,
+      "p99": 4717.0,
+      "max": 8848.4,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "honcho_dialectic",
+      "path": "host",
+      "operation": "search",
+      "call": "POST /v3/workspaces/niadra-bench-dialectic/peers/cust-pt-001-64b5aer1/chat",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 535,
+      "p50": 9921.4,
+      "p90": 17209.6,
+      "p95": 18185.1,
+      "p99": 19462.6,
+      "max": 20098.0,
+      "sent": 750,
+      "errors": {
+        "PoolTimeout": 119,
+        "ReadTimeout": 96
+      },
+      "empty": 0,
+      "degraded": 0
+    }
+  ],
+  "ingest": [
+    {
+      "system": "honcho_dialectic",
+      "path": "host",
+      "operation": "write",
+      "call": "POST /v3/workspaces/niadra-bench-dialectic/sessions/cust-pt-001-64b5aer1-bench-64b5aer1-ing-honcho_dialectic-conv-0/messages",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 16.2,
+      "p90": 21.0,
+      "p95": 23.8,
+      "p99": 46.2,
+      "max": 74.4,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "honcho_dialectic",
+      "path": "host",
+      "operation": "write",
+      "call": "POST /v3/workspaces/niadra-bench-dialectic/sessions/cust-pt-001-64b5aer1-bench-64b5aer1-ing-honcho_dialectic-conv-0/messages",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 26.3,
+      "p90": 88.9,
+      "p95": 110.8,
+      "p99": 176.6,
+      "max": 327.2,
+      "sent": 750,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    }
+  ]
+}

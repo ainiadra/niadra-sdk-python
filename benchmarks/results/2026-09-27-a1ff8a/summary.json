@@ -1,0 +1,1229 @@
+{
+  "schema": "niadra-bench.results.v1",
+  "run_id": "20260927T154451Z-a1ff8a",
+  "date": "2026-09-27",
+  "started_at": "2026-09-27T15:44:51+00:00",
+  "finished_at": "2026-09-27T17:01:49+00:00",
+  "environment": {
+    "kind": "region",
+    "region": "us-east-2",
+    "machine_class": "m7i-flex.large",
+    "database_class": "db.t4g.micro",
+    "harness_host": "temporary EC2 instance in the cell's VPC, one system at a time (deploy/temp-host)",
+    "harness_machine_class": "m7i-flex.large",
+    "verified_by_instance_metadata": true,
+    "host": null,
+    "python": "3.12.14"
+  },
+  "versions": {
+    "harness": "0.1.0",
+    "harness_commit": "cbd81c2197e0e14f62fd8fbd7258f31896f58575",
+    "niadra_sdk": "0.5.0",
+    "niadra_server": "2026.09.27-1353-2a3ecb5",
+    "mem0ai": "2.2.0",
+    "langmem": "0.0.30"
+  },
+  "config": {
+    "hash": "sha256:7ad9c33ec9a6e17da92f74654104b8494487a2b239bf8bddbb950f715d8b0ce0",
+    "repetitions": 1,
+    "agent_model": "openai/gpt-6-luna",
+    "judge_model": "openai/gpt-6-luna",
+    "agent": "llm",
+    "agent_reasoning_effort": "low",
+    "extraction_model": "openai/gpt-6-luna",
+    "reasoning_effort": "low",
+    "niadra_models": [
+      "openai/gpt-6-luna",
+      "typesafe/jev-1.13"
+    ],
+    "embedder": "paraphrase-multilingual-minilm-l12-v2-r1",
+    "latency_rates": [
+      10,
+      25
+    ],
+    "latency_duration_s": 30.0,
+    "latency_conversations": 20,
+    "mem0_top_k": 10,
+    "mem0_threshold": 0.1,
+    "token_encoding": "o200k_base",
+    "turns_per_conversation": 10,
+    "prices_checked_on": "2026-09-27",
+    "history_rates": [
+      10,
+      25
+    ],
+    "history_duration_s": 30.0,
+    "history_conversations": 20,
+    "history_max_tokens": 800,
+    "ingest_rates": [
+      10,
+      25
+    ],
+    "ingest_duration_s": 30.0,
+    "ingest_conversations": 20,
+    "ingest_mem0_modes": [
+      "raw",
+      "infer"
+    ],
+    "niadra_guards": "off",
+    "context_has_answer_rule": "specific-v2",
+    "references": "off",
+    "max_settle_s": 10200.0,
+    "quick": false,
+    "limit": 178
+  },
+  "dataset": {
+    "version": "v2",
+    "hash": "sha256:afdd99efd133199eae45e6a2b229156df39e8659c26c2d00bb636529dbdbfb1d",
+    "generator_version": "2",
+    "cases": 178,
+    "valid": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "runs": [
+        0
+      ]
+    },
+    "excluded": [
+      []
+    ]
+  },
+  "metrics": {
+    "latency": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "langmem",
+          "path": "host",
+          "rate": 10,
+          "p50": {
+            "median": 25.2,
+            "min": 25.2,
+            "max": 25.2,
+            "runs": [
+              25.2
+            ]
+          },
+          "p95": {
+            "median": 30.0,
+            "min": 30.0,
+            "max": 30.0,
+            "runs": [
+              30.0
+            ]
+          },
+          "p99": {
+            "median": 36.1,
+            "min": 36.1,
+            "max": 36.1,
+            "runs": [
+              36.1
+            ]
+          },
+          "max": {
+            "median": 37.9,
+            "min": 37.9,
+            "max": 37.9,
+            "runs": [
+              37.9
+            ]
+          },
+          "errors": 0,
+          "sent": 300
+        },
+        {
+          "system": "langmem",
+          "path": "host",
+          "rate": 25,
+          "p50": {
+            "median": 26.1,
+            "min": 26.1,
+            "max": 26.1,
+            "runs": [
+              26.1
+            ]
+          },
+          "p95": {
+            "median": 34.5,
+            "min": 34.5,
+            "max": 34.5,
+            "runs": [
+              34.5
+            ]
+          },
+          "p99": {
+            "median": 38.3,
+            "min": 38.3,
+            "max": 38.3,
+            "runs": [
+              38.3
+            ]
+          },
+          "max": {
+            "median": 45.3,
+            "min": 45.3,
+            "max": 45.3,
+            "runs": [
+              45.3
+            ]
+          },
+          "errors": 0,
+          "sent": 750
+        }
+      ]
+    },
+    "accuracy": {
+      "unit": "share of valid cases",
+      "results": [
+        {
+          "system": "langmem",
+          "scenario": "known_id",
+          "cases": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "runs": [
+              0
+            ]
+          },
+          "judge": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "deterministic": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "context_has_answer": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "by_category": {
+            "continuity": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "identity": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "recurrence": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "order_time": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "promise_action": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "privacy": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "contradiction": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "paraphrase": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "long_history": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "unanswerable": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            },
+            "recurrence_topic": {
+              "judge": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              },
+              "deterministic": {
+                "median": null,
+                "min": null,
+                "max": null,
+                "runs": [
+                  null
+                ]
+              }
+            }
+          },
+          "retrieve_errors": 0,
+          "context_has_answer_loose": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          }
+        }
+      ]
+    },
+    "tokens": {
+      "unit": "tokens per turn",
+      "results": [
+        {
+          "system": "langmem",
+          "scenario": "known_id",
+          "view": "default",
+          "median": {
+            "median": 194.5,
+            "min": 194.5,
+            "max": 194.5,
+            "runs": [
+              194.5
+            ]
+          },
+          "p95": {
+            "median": 561,
+            "min": 561,
+            "max": 561,
+            "runs": [
+              561
+            ]
+          }
+        }
+      ]
+    },
+    "privacy": {
+      "unit": "memory blocks with the sensitive value",
+      "results": [
+        {
+          "system": "langmem",
+          "scenario": "known_id",
+          "verification": "none",
+          "cases": {
+            "median": 16,
+            "min": 16,
+            "max": 16,
+            "runs": [
+              16
+            ]
+          },
+          "leaks": {
+            "median": 5,
+            "min": 5,
+            "max": 5,
+            "runs": [
+              5
+            ]
+          },
+          "leak_rate": {
+            "median": 0.3125,
+            "min": 0.3125,
+            "max": 0.3125,
+            "runs": [
+              0.3125
+            ]
+          }
+        }
+      ]
+    },
+    "cost": {
+      "unit": "USD per 1000 conversations",
+      "results": [
+        {
+          "system": "niadra",
+          "variant": "price_low",
+          "basis": "public price, models included",
+          "memory_usd_per_1000": {
+            "median": 5.0,
+            "min": 5.0,
+            "max": 5.0,
+            "runs": [
+              5.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          }
+        },
+        {
+          "system": "niadra",
+          "variant": "price_high",
+          "basis": "public price, models included",
+          "memory_usd_per_1000": {
+            "median": 15.0,
+            "min": 15.0,
+            "max": 15.0,
+            "runs": [
+              15.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          }
+        },
+        {
+          "system": "mem0_platform",
+          "variant": "hobby",
+          "basis": "public plan price over its monthly quota",
+          "memory_usd_per_1000": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "conversations_per_month": 100
+        },
+        {
+          "system": "mem0_platform",
+          "variant": "starter",
+          "basis": "public plan price over its monthly quota",
+          "memory_usd_per_1000": {
+            "median": 38.0,
+            "min": 38.0,
+            "max": 38.0,
+            "runs": [
+              38.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "conversations_per_month": 500
+        },
+        {
+          "system": "mem0_platform",
+          "variant": "pro",
+          "basis": "public plan price over its monthly quota",
+          "memory_usd_per_1000": {
+            "median": 49.8,
+            "min": 49.8,
+            "max": 49.8,
+            "runs": [
+              49.8
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "conversations_per_month": 5000
+        },
+        {
+          "system": "langmem",
+          "variant": "models_only",
+          "basis": "measured model spend (writes until the memory settled, and reads), servers not priced",
+          "memory_usd_per_1000": {
+            "median": 3.7086,
+            "min": 3.7086,
+            "max": 3.7086,
+            "runs": [
+              3.7086
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": 0.1945,
+            "min": 0.1945,
+            "max": 0.1945,
+            "runs": [
+              0.1945
+            ]
+          },
+          "cache_read_share": {
+            "median": 0.0145,
+            "min": 0.0145,
+            "max": 0.0145,
+            "runs": [
+              0.0145
+            ]
+          }
+        }
+      ]
+    },
+    "freshness": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "langmem",
+          "p50": {
+            "median": 1424.1,
+            "min": 1424.1,
+            "max": 1424.1,
+            "runs": [
+              1424.1
+            ]
+          },
+          "p95": {
+            "median": 2028.9,
+            "min": 2028.9,
+            "max": 2028.9,
+            "runs": [
+              2028.9
+            ]
+          },
+          "max": {
+            "median": 2338.1,
+            "min": 2338.1,
+            "max": 2338.1,
+            "runs": [
+              2338.1
+            ]
+          },
+          "trials": 20,
+          "timeouts": 0
+        }
+      ]
+    },
+    "resilience": {
+      "results": [
+        {
+          "system": "langmem",
+          "fault": "delay_2000ms",
+          "memory_stage_p50_ms": {
+            "median": 2028.8,
+            "min": 2028.8,
+            "max": 2028.8,
+            "runs": [
+              2028.8
+            ]
+          },
+          "memory_stage_max_ms": {
+            "median": 2038.3,
+            "min": 2038.3,
+            "max": 2038.3,
+            "runs": [
+              2038.3
+            ]
+          },
+          "within_budget_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "raised_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "empty_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "turn_budget_ms": 1000
+        },
+        {
+          "system": "langmem",
+          "fault": "http_503",
+          "memory_stage_p50_ms": {
+            "median": 1.2,
+            "min": 1.2,
+            "max": 1.2,
+            "runs": [
+              1.2
+            ]
+          },
+          "memory_stage_max_ms": {
+            "median": 2.9,
+            "min": 2.9,
+            "max": 2.9,
+            "runs": [
+              2.9
+            ]
+          },
+          "within_budget_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "raised_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "empty_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "turn_budget_ms": 1000
+        }
+      ]
+    },
+    "history": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "embedder",
+          "path": "host",
+          "operation": "encode",
+          "call": "POST /v1/embed",
+          "rate": 10,
+          "p50": {
+            "median": 15.7,
+            "min": 15.7,
+            "max": 15.7,
+            "runs": [
+              15.7
+            ]
+          },
+          "p95": {
+            "median": 18.8,
+            "min": 18.8,
+            "max": 18.8,
+            "runs": [
+              18.8
+            ]
+          },
+          "p99": {
+            "median": 20.5,
+            "min": 20.5,
+            "max": 20.5,
+            "runs": [
+              20.5
+            ]
+          },
+          "max": {
+            "median": 21.2,
+            "min": 21.2,
+            "max": 21.2,
+            "runs": [
+              21.2
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "embedder",
+          "path": "host",
+          "operation": "encode",
+          "call": "POST /v1/embed",
+          "rate": 25,
+          "p50": {
+            "median": 15.8,
+            "min": 15.8,
+            "max": 15.8,
+            "runs": [
+              15.8
+            ]
+          },
+          "p95": {
+            "median": 18.2,
+            "min": 18.2,
+            "max": 18.2,
+            "runs": [
+              18.2
+            ]
+          },
+          "p99": {
+            "median": 20.6,
+            "min": 20.6,
+            "max": 20.6,
+            "runs": [
+              20.6
+            ]
+          },
+          "max": {
+            "median": 22.6,
+            "min": 22.6,
+            "max": 22.6,
+            "runs": [
+              22.6
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 750,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "langmem",
+          "path": "host",
+          "operation": "search",
+          "call": "POST /v1/search",
+          "rate": 10,
+          "p50": {
+            "median": 26.6,
+            "min": 26.6,
+            "max": 26.6,
+            "runs": [
+              26.6
+            ]
+          },
+          "p95": {
+            "median": 31.9,
+            "min": 31.9,
+            "max": 31.9,
+            "runs": [
+              31.9
+            ]
+          },
+          "p99": {
+            "median": 38.2,
+            "min": 38.2,
+            "max": 38.2,
+            "runs": [
+              38.2
+            ]
+          },
+          "max": {
+            "median": 69.0,
+            "min": 69.0,
+            "max": 69.0,
+            "runs": [
+              69.0
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "langmem",
+          "path": "host",
+          "operation": "search",
+          "call": "POST /v1/search",
+          "rate": 25,
+          "p50": {
+            "median": 26.6,
+            "min": 26.6,
+            "max": 26.6,
+            "runs": [
+              26.6
+            ]
+          },
+          "p95": {
+            "median": 33.7,
+            "min": 33.7,
+            "max": 33.7,
+            "runs": [
+              33.7
+            ]
+          },
+          "p99": {
+            "median": 38.8,
+            "min": 38.8,
+            "max": 38.8,
+            "runs": [
+              38.8
+            ]
+          },
+          "max": {
+            "median": 42.9,
+            "min": 42.9,
+            "max": 42.9,
+            "runs": [
+              42.9
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 750,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "langmem",
+          "path": "host",
+          "operation": "open",
+          "call": "GET /v1/memories/cust-pt-001-a1ff8ar1/abe0bbbe-2f5d-4f78-8837-94612b3e6951",
+          "rate": 10,
+          "p50": {
+            "median": 3.6,
+            "min": 3.6,
+            "max": 3.6,
+            "runs": [
+              3.6
+            ]
+          },
+          "p95": {
+            "median": 4.7,
+            "min": 4.7,
+            "max": 4.7,
+            "runs": [
+              4.7
+            ]
+          },
+          "p99": {
+            "median": 5.7,
+            "min": 5.7,
+            "max": 5.7,
+            "runs": [
+              5.7
+            ]
+          },
+          "max": {
+            "median": 6.4,
+            "min": 6.4,
+            "max": 6.4,
+            "runs": [
+              6.4
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "langmem",
+          "path": "host",
+          "operation": "open",
+          "call": "GET /v1/memories/cust-pt-001-a1ff8ar1/abe0bbbe-2f5d-4f78-8837-94612b3e6951",
+          "rate": 25,
+          "p50": {
+            "median": 3.5,
+            "min": 3.5,
+            "max": 3.5,
+            "runs": [
+              3.5
+            ]
+          },
+          "p95": {
+            "median": 4.5,
+            "min": 4.5,
+            "max": 4.5,
+            "runs": [
+              4.5
+            ]
+          },
+          "p99": {
+            "median": 6.3,
+            "min": 6.3,
+            "max": 6.3,
+            "runs": [
+              6.3
+            ]
+          },
+          "max": {
+            "median": 7.6,
+            "min": 7.6,
+            "max": 7.6,
+            "runs": [
+              7.6
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 750,
+          "empty": 0,
+          "degraded": 0
+        }
+      ]
+    },
+    "ingest": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "langmem",
+          "path": "host",
+          "operation": "write",
+          "call": "POST /v1/conversations",
+          "rate": 10,
+          "p50": {
+            "median": 2.4,
+            "min": 2.4,
+            "max": 2.4,
+            "runs": [
+              2.4
+            ]
+          },
+          "p95": {
+            "median": 3.6,
+            "min": 3.6,
+            "max": 3.6,
+            "runs": [
+              3.6
+            ]
+          },
+          "p99": {
+            "median": 5.1,
+            "min": 5.1,
+            "max": 5.1,
+            "runs": [
+              5.1
+            ]
+          },
+          "max": {
+            "median": 13.1,
+            "min": 13.1,
+            "max": 13.1,
+            "runs": [
+              13.1
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "langmem",
+          "path": "host",
+          "operation": "write",
+          "call": "POST /v1/conversations",
+          "rate": 25,
+          "p50": {
+            "median": 2.4,
+            "min": 2.4,
+            "max": 2.4,
+            "runs": [
+              2.4
+            ]
+          },
+          "p95": {
+            "median": 3.4,
+            "min": 3.4,
+            "max": 3.4,
+            "runs": [
+              3.4
+            ]
+          },
+          "p99": {
+            "median": 4.3,
+            "min": 4.3,
+            "max": 4.3,
+            "runs": [
+              4.3
+            ]
+          },
+          "max": {
+            "median": 10.7,
+            "min": 10.7,
+            "max": 10.7,
+            "runs": [
+              10.7
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 750,
+          "empty": 0,
+          "degraded": 0
+        }
+      ]
+    },
+    "backing": {
+      "unit": "values without a source per 1000 answers",
+      "results": [
+        {
+          "system": "langmem",
+          "scenario": "known_id",
+          "per_1000_answers": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "answers": 178,
+          "unbacked": 0,
+          "by_kind": {},
+          "by_category": {
+            "continuity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "contradiction": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "identity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "long_history": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "order_time": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "paraphrase": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "privacy": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "promise_action": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "recurrence": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "recurrence_topic": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "unanswerable": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
