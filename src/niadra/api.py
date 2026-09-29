@@ -39,6 +39,8 @@ from niadra.models.coordination import (
 )
 from niadra.models.signals import (
     AttributionReport,
+    BiUpload,
+    BiUploadRequest,
     ConstraintsBlock,
     ConstraintsRequest,
     CounterfactualRun,
@@ -65,6 +67,7 @@ from niadra.models.signals import (
 )
 from niadra.models.state import (
     AgentState,
+    AgentStateMetaPage,
     AgentStateReadRequest,
     AgentStateWrite,
     AgentStateWriteResult,
@@ -101,6 +104,7 @@ from niadra.models.turns import (
     ScenarioRun,
     ScenarioRunCreate,
     ScenarioUpdate,
+    TurnIndexPage,
     TurnSearchRequest,
     TurnSearchResponse,
     TurnsRequest,
@@ -118,12 +122,23 @@ class Api(SyncRoutes):
             ChangePage, "GET", "/v1/changes", params={"agent": agent, "cursor": cursor, "limit": limit}
         )
 
-    def data_issues(self, *, cursor: str | None = None, limit: int = 50) -> DataIssuePage:
-        """`GET /v1/data-issues`."""
-        return self._call(DataIssuePage, "GET", "/v1/data-issues", params={"cursor": cursor, "limit": limit})
+    def data_issues(
+        self, *, status: str = "open", kind: str | None = None, cursor: str | None = None, limit: int = 50
+    ) -> DataIssuePage:
+        """`GET /v1/data-issues`. Newest opened first: data problems, drift, divergence and rule conflicts,
+        with no personal data.
+        """
+        return self._call(
+            DataIssuePage,
+            "GET",
+            "/v1/data-issues",
+            params={"status": status, "kind": kind, "cursor": cursor, "limit": limit},
+        )
 
     def acknowledge_data_issue(self, issue_id: str) -> DataIssue:
-        """`POST /v1/data-issues/{issue_id}/ack`."""
+        """`POST /v1/data-issues/{issue_id}/ack`. Closes the issue; the next occurrence of the same problem
+        opens a new one.
+        """
         return self._call(DataIssue, "POST", f"/v1/data-issues/{segment(issue_id)}/ack")
 
     def replay_case(self, body: ReplayCaseRequest) -> ReplayCase:
@@ -187,6 +202,15 @@ class Api(SyncRoutes):
         """
         return self._call(TurnsResponse, "POST", "/v1/turns", body=body)
 
+    def turn_index(self, day: str, *, cursor: str | None = None, limit: int = 500) -> TurnIndexPage:
+        """`GET /v1/turns/index/{day}`. The rows the kept tier took on a UTC day with their digests, which
+        make the `turns.root` of the day's `audit.root` event: the company anchors them in its own audit
+        chain.
+        """
+        return self._call(
+            TurnIndexPage, "GET", f"/v1/turns/index/{segment(day)}", params={"cursor": cursor, "limit": limit}
+        )
+
     def promote_turns(self, body: PromoteRequest, *, idempotency_key: str | None = None) -> PromoteResponse:
         """`POST /v1/turns/promote`. Promoting is idempotent by itself: a turn promoted again counts as
         `already_kept`.
@@ -204,7 +228,9 @@ class Api(SyncRoutes):
         return self._call(TurnView, "GET", f"/v1/turns/{segment(turn_id)}")
 
     def notifications(self, *, cursor: str | None = None, limit: int = 100) -> NotificationPage:
-        """`GET /v1/notifications`."""
+        """`GET /v1/notifications`. The events the webhooks carry, oldest first, from `cursor` (the start of
+        the feed without one); a poll with nothing new answers the same cursor. Events stay 7 days.
+        """
         return self._call(
             NotificationPage, "GET", "/v1/notifications", params={"cursor": cursor, "limit": limit}
         )
@@ -224,7 +250,9 @@ class Api(SyncRoutes):
     def release_content(
         self, ref: str, body: ContentRelease, *, idempotency_key: str | None = None
     ) -> ContentReleaseResult:
-        """`POST /v1/content/{ref}/release`."""
+        """`POST /v1/content/{ref}/release`. A person clears content the scan flagged or holds, with a reason
+        and a receipt; the object's reads serve it from then on.
+        """
         return self._call(
             ContentReleaseResult,
             "POST",
@@ -234,7 +262,9 @@ class Api(SyncRoutes):
         )
 
     def object_coverage(self) -> ObjectCoverage:
-        """`GET /v1/objects/coverage`."""
+        """`GET /v1/objects/coverage`. Each declared type's fields, the share of its objects that carry each
+        and how old it is: the Console's Types screen. Stamps only, never a value.
+        """
         return self._call(ObjectCoverage, "GET", "/v1/objects/coverage")
 
     def push_objects(self, body: ObjectPushRequest) -> ObjectPushResponse:
@@ -249,6 +279,12 @@ class Api(SyncRoutes):
         push item per line, applied as pushes of provenance `snapshot` by the same version rule.
         """
         return self._call(ObjectSnapshotResponse, "POST", "/v1/objects/snapshot", params={"type": type})
+
+    def profile_agent_states(self, profile_id: str) -> AgentStateMetaPage:
+        """`GET /v1/profiles/{profile_id}/agent-state`. The customer's working states, as the Console shows
+        them: size, version and dates, never the content.
+        """
+        return self._call(AgentStateMetaPage, "GET", f"/v1/profiles/{segment(profile_id)}/agent-state")
 
     def sdk_profile(self) -> SdkProfile:
         """`GET /v1/sdk/profile`. What the SDK keeps in its local cache, from the configuration alone: no
@@ -285,7 +321,11 @@ class Api(SyncRoutes):
         return self._call(StateView, "POST", "/v1/state/view", body=body)
 
     def type_fingerprint(self, body: TypeFingerprintRequest) -> TypeFingerprintResponse:
-        """`POST /v1/types/fingerprint`."""
+        """`POST /v1/types/fingerprint`. A deriving tool's check of a declared type: a fingerprint other than
+        the declaration's is drift, and a type that alerts opens a data issue of kind `drift`, or counts
+        the open one, and announces `type.drift`. Only the fingerprint and the counts of what changed
+        travel: never a name, a value or a definition.
+        """
         return self._call(TypeFingerprintResponse, "POST", "/v1/types/fingerprint", body=body)
 
     def constraints(self, body: ConstraintsRequest) -> ConstraintsBlock:
@@ -369,10 +409,24 @@ class Api(SyncRoutes):
         """
         return self._call(ReconcileResult, "POST", "/v1/measure/reconcile", body=body)
 
-    def unmet_demand(self, *, cursor: str | None = None, limit: int = 50) -> UnmetDemandPage:
-        """`GET /v1/measure/unmet-demand`."""
+    def reconcile_upload(self, body: BiUploadRequest) -> BiUpload:
+        """`POST /v1/measure/reconcile/uploads`. Where to upload the company's BI file for a reconciliation: a
+        short-lived link for those bytes only.
+        """
+        return self._call(BiUpload, "POST", "/v1/measure/reconcile/uploads", body=body)
+
+    def unmet_demand(
+        self, *, since: date, until: date, tool: str | None = None, cursor: str | None = None, limit: int = 50
+    ) -> UnmetDemandPage:
+        """`GET /v1/measure/unmet-demand`. What people asked the tools for and did not get, by week and
+        combination of what was asked, where at least the space's minimum of distinct people asked it:
+        never per person.
+        """
         return self._call(
-            UnmetDemandPage, "GET", "/v1/measure/unmet-demand", params={"cursor": cursor, "limit": limit}
+            UnmetDemandPage,
+            "GET",
+            "/v1/measure/unmet-demand",
+            params={"since": since, "until": until, "tool": tool, "cursor": cursor, "limit": limit},
         )
 
     def list_inferences(
@@ -548,14 +602,23 @@ class AsyncApi(AsyncRoutes):
             ChangePage, "GET", "/v1/changes", params={"agent": agent, "cursor": cursor, "limit": limit}
         )
 
-    async def data_issues(self, *, cursor: str | None = None, limit: int = 50) -> DataIssuePage:
-        """`GET /v1/data-issues`."""
+    async def data_issues(
+        self, *, status: str = "open", kind: str | None = None, cursor: str | None = None, limit: int = 50
+    ) -> DataIssuePage:
+        """`GET /v1/data-issues`. Newest opened first: data problems, drift, divergence and rule conflicts,
+        with no personal data.
+        """
         return await self._call(
-            DataIssuePage, "GET", "/v1/data-issues", params={"cursor": cursor, "limit": limit}
+            DataIssuePage,
+            "GET",
+            "/v1/data-issues",
+            params={"status": status, "kind": kind, "cursor": cursor, "limit": limit},
         )
 
     async def acknowledge_data_issue(self, issue_id: str) -> DataIssue:
-        """`POST /v1/data-issues/{issue_id}/ack`."""
+        """`POST /v1/data-issues/{issue_id}/ack`. Closes the issue; the next occurrence of the same problem
+        opens a new one.
+        """
         return await self._call(DataIssue, "POST", f"/v1/data-issues/{segment(issue_id)}/ack")
 
     async def replay_case(self, body: ReplayCaseRequest) -> ReplayCase:
@@ -621,6 +684,15 @@ class AsyncApi(AsyncRoutes):
         """
         return await self._call(TurnsResponse, "POST", "/v1/turns", body=body)
 
+    async def turn_index(self, day: str, *, cursor: str | None = None, limit: int = 500) -> TurnIndexPage:
+        """`GET /v1/turns/index/{day}`. The rows the kept tier took on a UTC day with their digests, which
+        make the `turns.root` of the day's `audit.root` event: the company anchors them in its own audit
+        chain.
+        """
+        return await self._call(
+            TurnIndexPage, "GET", f"/v1/turns/index/{segment(day)}", params={"cursor": cursor, "limit": limit}
+        )
+
     async def promote_turns(
         self, body: PromoteRequest, *, idempotency_key: str | None = None
     ) -> PromoteResponse:
@@ -640,7 +712,9 @@ class AsyncApi(AsyncRoutes):
         return await self._call(TurnView, "GET", f"/v1/turns/{segment(turn_id)}")
 
     async def notifications(self, *, cursor: str | None = None, limit: int = 100) -> NotificationPage:
-        """`GET /v1/notifications`."""
+        """`GET /v1/notifications`. The events the webhooks carry, oldest first, from `cursor` (the start of
+        the feed without one); a poll with nothing new answers the same cursor. Events stay 7 days.
+        """
         return await self._call(
             NotificationPage, "GET", "/v1/notifications", params={"cursor": cursor, "limit": limit}
         )
@@ -660,7 +734,9 @@ class AsyncApi(AsyncRoutes):
     async def release_content(
         self, ref: str, body: ContentRelease, *, idempotency_key: str | None = None
     ) -> ContentReleaseResult:
-        """`POST /v1/content/{ref}/release`."""
+        """`POST /v1/content/{ref}/release`. A person clears content the scan flagged or holds, with a reason
+        and a receipt; the object's reads serve it from then on.
+        """
         return await self._call(
             ContentReleaseResult,
             "POST",
@@ -670,7 +746,9 @@ class AsyncApi(AsyncRoutes):
         )
 
     async def object_coverage(self) -> ObjectCoverage:
-        """`GET /v1/objects/coverage`."""
+        """`GET /v1/objects/coverage`. Each declared type's fields, the share of its objects that carry each
+        and how old it is: the Console's Types screen. Stamps only, never a value.
+        """
         return await self._call(ObjectCoverage, "GET", "/v1/objects/coverage")
 
     async def push_objects(self, body: ObjectPushRequest) -> ObjectPushResponse:
@@ -685,6 +763,12 @@ class AsyncApi(AsyncRoutes):
         push item per line, applied as pushes of provenance `snapshot` by the same version rule.
         """
         return await self._call(ObjectSnapshotResponse, "POST", "/v1/objects/snapshot", params={"type": type})
+
+    async def profile_agent_states(self, profile_id: str) -> AgentStateMetaPage:
+        """`GET /v1/profiles/{profile_id}/agent-state`. The customer's working states, as the Console shows
+        them: size, version and dates, never the content.
+        """
+        return await self._call(AgentStateMetaPage, "GET", f"/v1/profiles/{segment(profile_id)}/agent-state")
 
     async def sdk_profile(self) -> SdkProfile:
         """`GET /v1/sdk/profile`. What the SDK keeps in its local cache, from the configuration alone: no
@@ -723,7 +807,11 @@ class AsyncApi(AsyncRoutes):
         return await self._call(StateView, "POST", "/v1/state/view", body=body)
 
     async def type_fingerprint(self, body: TypeFingerprintRequest) -> TypeFingerprintResponse:
-        """`POST /v1/types/fingerprint`."""
+        """`POST /v1/types/fingerprint`. A deriving tool's check of a declared type: a fingerprint other than
+        the declaration's is drift, and a type that alerts opens a data issue of kind `drift`, or counts
+        the open one, and announces `type.drift`. Only the fingerprint and the counts of what changed
+        travel: never a name, a value or a definition.
+        """
         return await self._call(TypeFingerprintResponse, "POST", "/v1/types/fingerprint", body=body)
 
     async def constraints(self, body: ConstraintsRequest) -> ConstraintsBlock:
@@ -815,10 +903,24 @@ class AsyncApi(AsyncRoutes):
         """
         return await self._call(ReconcileResult, "POST", "/v1/measure/reconcile", body=body)
 
-    async def unmet_demand(self, *, cursor: str | None = None, limit: int = 50) -> UnmetDemandPage:
-        """`GET /v1/measure/unmet-demand`."""
+    async def reconcile_upload(self, body: BiUploadRequest) -> BiUpload:
+        """`POST /v1/measure/reconcile/uploads`. Where to upload the company's BI file for a reconciliation: a
+        short-lived link for those bytes only.
+        """
+        return await self._call(BiUpload, "POST", "/v1/measure/reconcile/uploads", body=body)
+
+    async def unmet_demand(
+        self, *, since: date, until: date, tool: str | None = None, cursor: str | None = None, limit: int = 50
+    ) -> UnmetDemandPage:
+        """`GET /v1/measure/unmet-demand`. What people asked the tools for and did not get, by week and
+        combination of what was asked, where at least the space's minimum of distinct people asked it:
+        never per person.
+        """
         return await self._call(
-            UnmetDemandPage, "GET", "/v1/measure/unmet-demand", params={"cursor": cursor, "limit": limit}
+            UnmetDemandPage,
+            "GET",
+            "/v1/measure/unmet-demand",
+            params={"since": since, "until": until, "tool": tool, "cursor": cursor, "limit": limit},
         )
 
     async def list_inferences(

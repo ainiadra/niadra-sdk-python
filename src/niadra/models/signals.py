@@ -49,6 +49,12 @@ class ArmOutcomes(ResponseModel):
     value_minor: int = Field(description="Their lines' money, each line once whatever the method.")
 
 
+class AskedAttribute(ResponseModel):
+    attr: Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}\.[a-z][a-z0-9_]{0,63}$")]
+    op: Literal["in", "not_in", "eq", "ne", "lt", "lte", "gt", "gte", "between"]
+    values: list[bool | int | float | Annotated[str, StringConstraints(max_length=256)]]
+
+
 class AttributeEntry(ResponseModel):
     apply: Literal["always", "when_asked"]
     category: ShortStr | None = None
@@ -109,13 +115,29 @@ class AttributionReport(ResponseModel):
 
 
 class BiFile(Model):
-    """The company's BI export for the period, as CSV with a header: `order` (the id the company knows the
-    object by), `line` (optional), `value` (in major units, as the signed definition nets it) and
-    `currency`.
+    """The company's BI export for the period, uploaded first (`POST /v1/measure/reconcile/uploads`), as CSV
+    with a header: `order` (the id the company knows the object by), `line` (optional), `value` (in major
+    units, as the signed definition nets it) and `currency`. It is read once and deleted.
     """
 
-    content: Annotated[str, StringConstraints(min_length=1, max_length=5000000)]
     format: Literal["csv"] = "csv"
+    upload_id: UUID
+
+
+class BiUpload(ResponseModel):
+    expires_at: datetime
+    upload_headers: dict[str, str] = Field(
+        default_factory=dict, description="Send exactly these headers; the storage refuses other bytes."
+    )
+    upload_id: UUID
+    upload_url: str
+
+
+class BiUploadRequest(Model):
+    """Reserves the upload of the company's BI file: its size and SHA-256, which the storage checks."""
+
+    sha256: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+    size_bytes: int = Field(ge=1, le=52428800)
 
 
 class BlockSubject(ResponseModel):
@@ -310,7 +332,9 @@ class CounterfactualRun(ResponseModel):
     completed: int
     created_at: datetime
     effect: float | None = Field(
-        description="`noise_floor - overlap`: how much of the first positions the element moves beyond noise."
+        description=(
+            "`noise_floor - overlap`: how much of the first positions the element moves beyond noise."
+        )
     )
     element: Literal["constraints", "hard", "size", "exclude"]
     engaged: CounterfactualEngagement
@@ -653,6 +677,28 @@ class ReviewResolution(Model):
     outcome: Literal["upheld", "reversed", "corrected"]
 
 
+class UnmetDemand(ResponseModel):
+    """One combination people asked a tool for, in one week, that came back with nothing or with fewer than
+    three results. Never a person: a combination fewer than the space's minimum of people asked is left
+    out.
+    """
+
+    asked: list[AskedAttribute] = Field(
+        description=(
+            "What the tool's arguments asked, on the type registry's fields, values normalized; empty "
+            "when the arguments named none."
+        )
+    )
+    calls: int
+    empty: int = Field(description="Calls that returned nothing; the rest returned one or two results.")
+    people: int = Field(description="Distinct people who asked it that week.")
+    tool: str
+    week: date = Field(description="The Monday the week starts on.")
+
+
 class UnmetDemandPage(ResponseModel):
-    items: list[dict[str, Any]]
+    items: list[UnmetDemand]
+    min_people: int
     next_cursor: str | None = None
+    since: date
+    until: date

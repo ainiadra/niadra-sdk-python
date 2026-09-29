@@ -3,14 +3,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from pydantic import Field, StringConstraints
 
 from niadra.models._base import IdStr, Model, ResponseModel, ShortStr
-from niadra.models.common import ObjectRef
 from niadra.models.events import ItemError
 
 BlobKey = Annotated[str, StringConstraints(pattern=r"^[a-z]{1,8}:[A-Za-z0-9_-]{1,32}$")]
@@ -76,8 +75,9 @@ class Attribute(Model):
 
 
 class Change(ResponseModel):
-    """One entry of the change log a bisection walks: a pin that changed between two builds of an agent, in
-    the order the builds were first seen.
+    """One entry of the change log a bisection walks: a pin that changed between two builds of an agent, or a
+    section of the space's configuration that changed between two applied snapshots (`config`, named by the
+    section, with no agent: every agent reads it, and its digests stand for the values).
     """
 
     after: str | None = None
@@ -191,7 +191,13 @@ class ClaimRecord(Model):
 
 
 class DataIssue(ResponseModel):
-    acknowledged_at: datetime | None = None
+    """A problem in the company's data, returned to its owner with no personal data: one open issue per class,
+    type, field and source, counted each time it is found again.
+    """
+
+    acknowledged_at: datetime | None = Field(
+        default=None, description="Once acknowledged, the next occurrence opens a new issue."
+    )
     field: ShortStr | None = None
     issue_id: IdStr
     kind: Literal[
@@ -203,12 +209,26 @@ class DataIssue(ResponseModel):
         "divergence",
         "drift",
         "rule_conflict",
-    ]
+        "type_undeclared",
+    ] = Field(
+        description=(
+            "`null_field`, `out_of_vocabulary`, `stale_source`, `invalid_value`: a value an agent's "
+            "tool showed; `coverage_drop`: a field filled less often than before; `divergence`: two "
+            "sources of one value disagree; `drift`: the schema a type mirrors changed; "
+            "`rule_conflict`: two rules decide one thing differently; `type_undeclared`: tools showed "
+            "objects of a type the space never declared."
+        )
+    )
+    last_seen_at: datetime
     object_type: ShortStr | None = None
     occurrences: int
     opened_at: datetime
-    refs: list[ObjectRef] = Field(default_factory=list, max_length=50)
-    source: ShortStr | None = None
+    refs: list[ObjectKey] = Field(
+        default_factory=list, max_length=50, description="The first objects it was seen on, up to 50."
+    )
+    source: ShortStr | None = Field(
+        default=None, description="Where the data came from: a tool or a system of record."
+    )
 
 
 class DataIssuePage(ResponseModel):
@@ -239,17 +259,25 @@ class Feedback(Model):
 
 
 class Notification(ResponseModel):
-    """A webhook's body, for who pulls instead of receiving it: the same body, in `change_seq` order."""
+    """A webhook's body, for the company that pulls instead of receiving it: the same fields, ids and pointers
+    only. An event aimed at one endpoint, or about a memory item only some sources may read, reaches its
+    webhooks only.
+    """
 
+    created_at: datetime
     data: dict[str, Any]
-    id: IdStr
-    occurred_at: datetime
+    id: IdStr = Field(description="The event's id; a webhook delivery of the same event has its own.")
+    links: dict[str, str] = Field(default_factory=dict)
+    subject: dict[str, Any] | None = None
+    tenant: IdStr
     type: ShortStr
 
 
 class NotificationPage(ResponseModel):
+    """Oldest first. `next_cursor` is where the next poll starts: the same cursor when nothing is new."""
+
     items: list[Notification]
-    next_cursor: str | None = None
+    next_cursor: str
 
 
 class Preference(Model):
@@ -768,6 +796,33 @@ class ScenarioUpdate(Model):
     assertions: Annotated[list[ReplayAssertion], Field(max_length=50)] | None = None
     name: ShortStr | None = None
     status: Literal["active", "retired"] | None = None
+
+
+class TurnIndexEntry(ResponseModel):
+    """One row of the kept tier's index, as the day's anchored root counts it: ids, times, the build and the
+    mode, never what the turn said. `digest` is SHA-256 over the RFC 8785 form of the other fields.
+    """
+
+    agent: ShortStr
+    build_hash: str | None = None
+    content_mode: Literal["stored", "pointer", "hash_only"]
+    digest: Sha256
+    kept_at: datetime
+    kind: Literal["message", "action", "event", "timer"]
+    source_id: IdStr
+    started_at: datetime
+    turn_id: TurnId
+
+
+class TurnIndexPage(ResponseModel):
+    """The rows the kept tier took on one UTC day, in turn id order. Their digests, as leaves in that order,
+    make the `turns.root` of the day's `audit.root` event (RFC 6962 prefixes, an odd node carried up), for
+    the company's own audit chain to anchor.
+    """
+
+    day: date
+    items: list[TurnIndexEntry]
+    next_cursor: str | None = None
 
 
 class TurnSearchRequest(Model):
