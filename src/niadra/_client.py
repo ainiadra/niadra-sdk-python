@@ -13,6 +13,7 @@ from contextlib import suppress
 from datetime import datetime
 from types import TracebackType
 from typing import Any, Literal, TypeVar
+from uuid import UUID
 
 import httpx
 from pydantic import BaseModel
@@ -34,13 +35,18 @@ from niadra._base import (
     logger,
 )
 from niadra._cache import ContextCache, cache_key
+from niadra._outbox import SyncOutbox
 from niadra._profile import ProfileCache
 from niadra._queue import SyncFlusher, is_retryable
 from niadra._transport import SyncTransport
 from niadra._voice import TurnRead, VoiceLine, VoiceLines, compose, words_of
+from niadra.agent_state import AgentStates
 from niadra.api import Api
+from niadra.content import ContentResolver
 from niadra.conversation import Conversation, Task
+from niadra.coordination.client import Coordinator
 from niadra.coordination.suppression import FAIL_OPEN, MAX_PAGES, SuppressionCopy
+from niadra.coordination.token import ContactGateway, SeenTokens
 from niadra.errors import APITimeoutError, NotFoundError
 from niadra.models.admin import IngestStatus, KeyIdentity
 from niadra.models.agent_memory import (
@@ -62,10 +68,20 @@ from niadra.models.events import (
 )
 from niadra.models.objects import ObjectTimeline
 from niadra.models.results import Context, MediaUpload, SearchResult, TimelinePage
-from niadra.models.state import ClaimContractSummary, SdkProfile
+from niadra.models.state import ClaimContractSummary, SdkProfile, StateRef
 from niadra.models.tokens import SubjectToken
 from niadra.models.turns import TurnPins
 from niadra.options import CacheOptions, QueueOptions, Timeouts, TurnOptions, VoiceOptions
+from niadra.resolvers import (
+    CLAIM_BUDGET,
+    ClaimVerdict,
+    Resolvers,
+    as_ref,
+    from_niadra,
+    from_resolver,
+    verdict_of,
+    verify_http,
+)
 from niadra.tools import ToolKit, definitions
 from niadra.turns.capture import TurnFrame
 from niadra.turns.claims import check_turn
@@ -143,6 +159,13 @@ class Niadra:
         self._suppressions = SuppressionCopy()
         self._suppressions_lock = threading.Lock()
         self._suppressions_reading = False
+        self._outbox = SyncOutbox(self._transport.request)
+        self._coordination = Coordinator(self._outbox, self._suppressions)
+        self._agent_states = AgentStates(self._outbox)
+        self.resolvers = Resolvers()
+        """The company's resolvers by object type: `resolvers.register(type, fn)` (`niadra.resolvers`)."""
+        self.content = ContentResolver()
+        """The company's content resolver, for content kept by pointer: `content.register(fetch)`."""
         self.turns.features = lambda: self._profile.features
         self.turns.recording_mode = self._profile.recording_mode
         self.turns.claims = self._claims_of
@@ -229,6 +252,49 @@ class Niadra:
     def _refresh_profile(self) -> None:
         with contextlib.suppress(Exception):
             self.profile()
+
+    def _contract(self) -> ClaimContractSummary | None:
+        """The claim contract in force, the profile read first when it is due."""
+        self._refresh_profile()
+        return self._profile.contract()
+
+    def verify_claim(
+        self,
+        ref: StateRef | Mapping[str, Any] | str,
+        field: str,
+        value: Any,
+        *,
+        subject: HandleLike | None = None,
+        budget: float | None = None,
+    ) -> ClaimVerdict:
+        """Whether `value` may be claimed for `field` of the object `ref` (`type:namespace:id`) now: Niadra's
+        verdict, and when that is not safe, a fresh read by the company's resolver of the type, all within
+        `budget` (300 ms). Never a stale value as verified; never raises (`niadra.resolvers`)."""
+        target = as_ref(ref)
+        seconds = budget if budget is not None else CLAIM_BUDGET
+        deadline = time.monotonic() + seconds
+        verdict = None
+        if self._core.enabled:
+            try:
+                who = as_handle(subject) if subject is not None else None
+                verdict = verdict_of(self._transport.request(verify_http(target, field, value, who, seconds)))
+            except Exception:
+                verdict = None
+        if verdict is not None and (verdict.claim_safe or not self.resolvers.available(target.type)):
+            return from_niadra(verdict)
+        left = deadline - time.monotonic()
+        resolved = self.resolvers.resolve(target, [field], left) if left > 0 else None
+        return from_resolver(target, field, value, resolved, verdict)
+
+    def contact_gateway(
+        self, gateway_id: str, *, space: str | UUID, key: str | bytes, seen: SeenTokens | None = None
+    ) -> ContactGateway:
+        """The contact token's offline check for a gateway of yours (`niadra.coordination.token`): its id, the
+        space's id and the key it shares with Niadra. The space's public keys are read through this client
+        and kept; `seen` shares the tokens let through between processes."""
+        return ContactGateway(
+            gateway_id, space=space, key=key, read=lambda: self.api.contact_keys(space=str(space)), seen=seen
+        )
 
     def may_contact(
         self,
@@ -381,10 +447,14 @@ class Niadra:
         query = self._core.turn_query(request, turn)
         request = request.model_copy(update={"query": None})  # the pack's key is the read's without it
         if self._core.voice_path(request, use_cache):
-            return self._voice_context(request, query, budget, requested)
-        if query is not None:
-            return self._turn_context(request, query, budget, use_cache, requested)
-        return self._pinned_context(request, budget, use_cache, requested)
+            result = self._voice_context(request, query, budget, requested)
+        elif query is not None:
+            result = self._turn_context(request, query, budget, use_cache, requested)
+        else:
+            result = self._pinned_context(request, budget, use_cache, requested)
+        if self.content.registered and result.state is not None:
+            return self.content.fill(result)
+        return result
 
     def begin(
         self,
@@ -1056,7 +1126,9 @@ class Niadra:
         try:
             events = self._flusher.flush(timeout)
             left = None if deadline is None else max(0.0, deadline - time.monotonic())
-            return self._turn_sender().flush(left) and events
+            turns = self._turn_sender().flush(left)
+            left = None if deadline is None else max(0.0, deadline - time.monotonic())
+            return self._outbox.flush(left) and turns and events
         except Exception as exc:
             return self._core.fail("flush", exc, False)
 
@@ -1070,6 +1142,7 @@ class Niadra:
                 deadline = None if timeout is None else time.monotonic() + timeout
                 self._flusher.stop(timeout)
                 self._turn_sender().stop(None if deadline is None else max(0.0, deadline - time.monotonic()))
+                self._outbox.stop(None if deadline is None else max(0.0, deadline - time.monotonic()))
             if self._refresher is not None:
                 self._refresher.shutdown(wait=True)  # refreshes are bounded by the context budget
             if self._prefetcher is not None:

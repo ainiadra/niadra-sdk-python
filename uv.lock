@@ -6624,6 +6624,9 @@ crewai = [
 dspy = [
     { name = "dspy" },
 ]
+gateway = [
+    { name = "cryptography" },
+]
 google-adk = [
     { name = "google-adk" },
 ]
@@ -6676,6 +6679,7 @@ strands = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "cryptography" },
     { name = "hypothesis" },
     { name = "mypy" },
     { name = "opentelemetry-sdk" },
@@ -6695,6 +6699,7 @@ requires-dist = [
     { name = "boto3", marker = "extra == 'bedrock'", specifier = ">=1.40,<2" },
     { name = "camel-ai", marker = "extra == 'camel'", specifier = ">=0.2.90,<0.3" },
     { name = "crewai", marker = "python_full_version >= '3.11' and python_full_version < '3.14' and extra == 'crewai'", specifier = ">=1.15,<2" },
+    { name = "cryptography", marker = "extra == 'gateway'", specifier = ">=42" },
     { name = "dspy", marker = "extra == 'dspy'", specifier = ">=3.4,<4" },
     { name = "google-adk", marker = "extra == 'google-adk'", specifier = ">=2.9,<3" },
     { name = "google-genai", marker = "extra == 'google-genai'", specifier = ">=2.25,<3" },
@@ -6716,10 +6721,11 @@ requires-dist = [
     { name = "semantic-kernel", marker = "extra == 'semantic-kernel'", specifier = ">=1.44.1,<2" },
     { name = "strands-agents", marker = "extra == 'strands'", specifier = ">=1.57,<2" },
 ]
-provides-extras = ["livekit", "pipecat", "elevenlabs", "vapi", "whatsapp", "twilio", "openai", "openai-agents", "langchain", "langgraph", "anthropic", "bedrock", "google-genai", "litellm", "google-adk", "strands", "pydantic-ai", "llamaindex", "crewai", "agno", "agent-framework", "retell", "semantic-kernel", "haystack", "camel", "dspy", "ag2", "otel"]
+provides-extras = ["livekit", "pipecat", "elevenlabs", "vapi", "whatsapp", "twilio", "openai", "openai-agents", "langchain", "langgraph", "anthropic", "bedrock", "google-genai", "litellm", "google-adk", "strands", "pydantic-ai", "llamaindex", "crewai", "agno", "agent-framework", "retell", "semantic-kernel", "haystack", "camel", "dspy", "ag2", "otel", "gateway"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "cryptography", specifier = ">=42" },
     { name = "hypothesis", specifier = ">=6.100" },
     { name = "mypy", specifier = ">=1.13" },
     { name = "opentelemetry-sdk", specifier = ">=1.20,<2" },

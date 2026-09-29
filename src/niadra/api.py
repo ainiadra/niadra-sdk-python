@@ -348,7 +348,7 @@ class Api(SyncRoutes):
             ReviewRequest, "POST", f"/v1/review-requests/{segment(request_id)}/resolve", body=body
         )
 
-    def contact_keys(self, *, space: str | None = None) -> ContactKeys:
+    def contact_keys(self, *, space: str) -> ContactKeys:
         """`GET /.well-known/niadra-contact-keys.json`."""
         return self._call(
             ContactKeys, "GET", "/.well-known/niadra-contact-keys.json", params={"space": space}
@@ -708,7 +708,7 @@ class AsyncApi(AsyncRoutes):
             ReviewRequest, "POST", f"/v1/review-requests/{segment(request_id)}/resolve", body=body
         )
 
-    async def contact_keys(self, *, space: str | None = None) -> ContactKeys:
+    async def contact_keys(self, *, space: str) -> ContactKeys:
         """`GET /.well-known/niadra-contact-keys.json`."""
         return await self._call(
             ContactKeys, "GET", "/.well-known/niadra-contact-keys.json", params={"space": space}

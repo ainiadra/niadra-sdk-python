@@ -2,25 +2,25 @@
 
 `scripts/sync_spec.py --spec` copies them into spec/vectors (and the claim contract examples, with their
 negative corpus, into spec/examples/claim-contract). `EXPECTED` lists every file the SDK runs, with the fields
-its spec gives a case. Nothing here passes without running:
+its spec gives a case, and its runner. Nothing here passes without running:
 
 - a file not published yet is skipped with the reason "pending vectors";
-- a published file whose runner the SDK does not have yet is an expected failure ("pending
-  implementation"), strict, so it turns red the day a runner makes it pass and nobody moved it;
 - a file nothing expects, a case field its spec does not define and a malformed envelope fail.
 """
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from niadra.claims import (
     Anchor,
@@ -40,6 +40,7 @@ from niadra.claims import (
 from niadra.claims.anchor import distance
 from niadra.constraints.render import Binding, BindingArg, Call, honored, render
 from niadra.coordination.destination import DestinationError, canonical_destination, suppression_key
+from niadra.coordination.token import ContactTokenError, verify_contact_token
 from niadra.exposure import ExposureTokenError, exposure_token, parse_exposure_token
 from niadra.models.signals import ConstraintsBlock
 from niadra.models.state import ClaimContractSummary
@@ -60,6 +61,7 @@ from niadra.state.expr import (
 )
 from niadra.state.logic import Logic
 from niadra.turns.digest import canonical, digest
+from niadra_mock.replay import scenario_verdict
 
 SPEC = Path(__file__).resolve().parents[1] / "spec"
 VECTORS = SPEC / "vectors"
@@ -74,8 +76,7 @@ class Expected:
 
     case_fields: frozenset[str]
     expect_fields: frozenset[str]
-    run: Runner | None
-    pending: str | None = None
+    run: Runner
 
 
 def _digest(case: dict[str, Any]) -> None:
@@ -364,6 +365,48 @@ def _suppression_key(case: dict[str, Any]) -> None:
     assert got == case["expect"]
 
 
+def _contact_token(case: dict[str, Any]) -> None:
+    if case["op"] == "issue":
+        # Niadra issues; the SDK only checks. The runner signs as the spec says, to prove the byte form the
+        # check reads is the one every issuer writes.
+        assert set(case) == {"id", "op", "description", "seed", "claims", "expect"}
+        seed = base64.urlsafe_b64decode(case["seed"] + "=")
+        payload = _b64url(json.dumps(case["claims"], separators=(",", ":")).encode())
+        signed = f"nct1.{payload}".encode()
+        signature = _b64url(Ed25519PrivateKey.from_private_bytes(seed).sign(signed))
+        assert {"token": f"nct1.{payload}.{signature}"} == case["expect"]
+        return
+    assert case["op"] == "verify"
+    gateway = case["gateway"]
+    try:
+        claims = verify_contact_token(
+            case["token"],
+            keys=case["keys"],
+            gateway_id=gateway["gateway_id"],
+            space=gateway["space"],
+            gateway_key=gateway["key"],
+            destination=case["destination"],
+            channel=case["channel"],
+            now=case["now"],
+            seen=frozenset(case["seen_jti"]),
+        )
+        got: dict[str, Any] = {"claims": asdict(claims)}
+    except ContactTokenError as refused:
+        got = {"error": refused.code}
+    assert got == case["expect"]
+
+
+def _regression_stats(case: dict[str, Any]) -> None:
+    # The statistic is the recorder's; the emulator computes it the same way, and its routes serve it.
+    for execution in case["executions"]:
+        assert set(execution) == {"status", "paraphrase", "outcomes"}
+    assert scenario_verdict(case["executions"], case["baseline"]) == case["expect"]
+
+
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
 def _exposure_token(case: dict[str, Any]) -> None:
     if case["op"] == "build":
         assert set(case) == {"id", "op", "description", "exposure_id", "position", "expect"}
@@ -430,11 +473,6 @@ def _constraint_render(case: dict[str, Any]) -> None:
     assert not inferred & set(got.injected), "an inferred attribute is never injected, whatever the mode"
 
 
-def _pending(case_fields: str, expect_fields: str, what: str) -> Expected:
-    """A published file whose runner the SDK does not have yet."""
-    return Expected(frozenset(case_fields.split()), frozenset(expect_fields.split()), None, pending=what)
-
-
 EXPECTED: dict[str, Expected] = {
     "turn-record-digest.v0": Expected(
         frozenset({"id", "note", "value", "expect"}), frozenset({"canonical", "sha256", "size"}), _digest
@@ -466,10 +504,17 @@ EXPECTED: dict[str, Expected] = {
         frozenset({"token", "exposure_id", "position"}),
         _exposure_token,
     ),
-    "contact-token.v0": _pending(
-        "id op description seed claims keys gateway token destination channel now seen_jti expect",
-        "token claims",
-        "the contact token's issue and offline check",
+    "contact-token.v0": Expected(
+        frozenset({"id", "op", "description", "seed", "claims", "keys", "gateway", "token"})
+        | frozenset({"destination", "channel", "now", "seen_jti", "expect"}),
+        frozenset({"token", "claims"}),
+        _contact_token,
+    ),
+    "regression-stats.v0": Expected(
+        frozenset({"id", "description", "executions", "baseline", "expect"}),
+        frozenset({"verdict", "completed", "infrastructure_errors", "pin_mismatches", "needs_paraphrase"})
+        | frozenset({"assertions"}),
+        _regression_stats,
     ),
     "suppression-key.v0": Expected(
         frozenset({"id", "description", "salt", "type", "value", "expect"}),
@@ -487,17 +532,13 @@ def _load(name: str) -> dict[str, Any]:
 
 def _cases() -> list[Any]:
     params = []
-    for name, expected in EXPECTED.items():
+    for name in EXPECTED:
         if not (VECTORS / f"{name}.json").exists():
             reason = f"pending vectors: {name}.json is not published in niadra-spec yet"
             params.append(pytest.param(name, {}, id=name, marks=pytest.mark.skip(reason=reason)))
             continue
-        marks = []
-        if expected.pending:
-            reason = f"pending implementation: {expected.pending}"
-            marks.append(pytest.mark.xfail(strict=True, raises=NotImplementedError, reason=reason))
         for case in _load(name)["cases"]:
-            params.append(pytest.param(name, case, id=f"{name}:{case.get('id')}", marks=marks))
+            params.append(pytest.param(name, case, id=f"{name}:{case.get('id')}"))
     return params
 
 
@@ -525,10 +566,7 @@ def test_a_published_file_has_the_envelope_and_only_the_fields_its_spec_defines(
 
 @pytest.mark.parametrize(("name", "case"), _cases())
 def test_case(name: str, case: dict[str, Any]) -> None:
-    run = EXPECTED[name].run
-    if run is None:
-        raise NotImplementedError(EXPECTED[name].pending)
-    run(case)
+    EXPECTED[name].run(case)
 
 
 @pytest.mark.parametrize("sector", NEGATIVE_CORPUS)

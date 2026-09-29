@@ -367,6 +367,9 @@ DeclareRequest = Annotated[
     | SuppressionLifted,
     Field(discriminator="kind"),
 ]
+"""What happened, after the fact: one kind of declaration, with the fields of its kind in `detail` (the
+coordination spec, 5).
+"""
 
 
 class DeclareResult(ResponseModel):

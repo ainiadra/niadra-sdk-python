@@ -79,9 +79,6 @@ STRING_ALIASES = {
     (None, None, r"^[a-z][a-z0-9_]{0,39}$"): "TypeName",
 }
 SHARED_ALIASES = {"ShortStr", "IdStr"}
-# Schemas the server's OpenAPI document publishes under a framework's default name, and the name the server's
-# code gives them: a body declared as an annotated union is published as `Body`.
-RENAMES = {"Body": "DeclareRequest"}
 # Wire names that are not Python names, named as the server's models name them.
 FIELD_NAMES = {"in": "input", "out": "output"}
 # Words that name how the server was planned and built, never what it does: a public SDK carries none.
@@ -130,11 +127,6 @@ def cut(document: dict[str, Any]) -> dict[str, Any]:
     for methods in paths.values():
         for op in methods.values():
             _hoist_body(op, schemas)
-    for old, new in RENAMES.items():
-        if old in schemas:
-            schemas[new] = schemas.pop(old)
-            paths = _renamed(paths, old, new)
-            schemas = _renamed(schemas, old, new)
     return _published(
         {
             "openapi": document["openapi"],
@@ -144,17 +136,6 @@ def cut(document: dict[str, Any]) -> dict[str, Any]:
         },
         "",
     )
-
-
-def _renamed(node: Any, old: str, new: str) -> Any:
-    if isinstance(node, list):
-        return [_renamed(v, old, new) for v in node]
-    if not isinstance(node, dict):
-        return node
-    out = {k: _renamed(v, old, new) for k, v in node.items()}
-    if out.get("$ref") == f"#/components/schemas/{old}":
-        out["$ref"] = f"#/components/schemas/{new}"
-    return out
 
 
 def _hoist_body(op: dict[str, Any], schemas: dict[str, Any]) -> None:
