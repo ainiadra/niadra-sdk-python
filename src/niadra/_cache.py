@@ -39,7 +39,11 @@ _OUTSIDE_THE_PACK = (
     "timing",
     "path",
     "elapsed_ms",
+    "budget",
 )
+# The blocks a read adds by `include` sit outside the pinned pack too: a fresh block wins, and one the answer
+# lacks keeps the cached copy.
+_BLOCKS = ("constraints", "state", "coordination")
 
 
 def cache_key(request: ContextRequest) -> str:
@@ -132,9 +136,9 @@ class ContextCache:
         """Folds an API answer into the cache and returns what the caller should see.
 
         `not_modified` means the pinned pack is unchanged: the cached text is kept, and what
-        lives outside the pack (live turns, verification, withheld, timing) comes from the new
-        answer. A `degraded` answer never replaces a good pack: the last good one is returned
-        instead. A background refresh passes `deliver=False`, so its delta waits for a reader.
+        lives outside the pack (live turns, verification, withheld, timing, the include blocks)
+        comes from the new answer. A `degraded` answer never replaces a good pack: the last good
+        one is returned instead. A background refresh passes `deliver=False`, so its delta waits for a reader.
         With `epoch`, an answer to a read started before the scope was purged is not stored.
         """
         now = time.monotonic()
@@ -143,9 +147,11 @@ class ContextCache:
                 return response
             entry = self._entries.get(key)
             if entry is not None and response.not_modified:
-                entry.context = entry.context.model_copy(
-                    update={name: getattr(response, name) for name in _OUTSIDE_THE_PACK}
-                )
+                outside = {name: getattr(response, name) for name in _OUTSIDE_THE_PACK}
+                for name in _BLOCKS:
+                    if getattr(response, name) is not None:
+                        outside[name] = getattr(response, name)
+                entry.context = entry.context.model_copy(update=outside)
                 entry.stored_at = now
                 self._pend(entry, response)
                 self._entries.move_to_end(key)
