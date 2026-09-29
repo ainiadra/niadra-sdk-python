@@ -173,10 +173,14 @@ def test_a_client_without_a_key_raises_instead_of_sending() -> None:
 @pytest.mark.parametrize(
     "text",
     [
-        "One entry of the turn record (front A5).",
-        "The features of the agent core wave.",
-        "Built in phase 2.",
-        "As study 23 says.",
+        "One entry of the record (front A9).",
+        "Kept by (A7) for now.",
+        "Shipped with the core wave.",
+        "Planned for the wave after next.",
+        "Built in phase 7.",
+        "Merged by the integrator.",
+        "As study 42 says.",
+        "Veja o estudo.",
     ],
 )
 def test_a_server_description_naming_internal_planning_stops_the_generator(text: str) -> None:
