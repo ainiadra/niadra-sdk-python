@@ -1,0 +1,738 @@
+{
+  "schema": "niadra-bench.typed.v1",
+  "run_id": "2026-09-29-650d77",
+  "environment": "local-cell",
+  "started_at": "2026-09-29T20:47:16.802144+00:00",
+  "ended_at": "2026-09-29T20:52:58.157540+00:00",
+  "dataset": {
+    "name": "typed",
+    "sha256": "82873e6cfd92b8ab6f7610a5d7ecd79dcd87bba8475072c54e179c35ad99ef30",
+    "cases": 12,
+    "generator_version": "typed-1"
+  },
+  "config": {
+    "arms": {
+      "without": null,
+      "with": [
+        "state",
+        "constraints"
+      ]
+    },
+    "agent": {
+      "model": "openai/gpt-6-luna",
+      "max_tokens": 2000,
+      "temperature": null,
+      "reasoning_effort": "low",
+      "seed": 20260924
+    },
+    "judge": {
+      "model": "openai/gpt-6-luna",
+      "max_tokens": 2000,
+      "temperature": null,
+      "reasoning_effort": "low",
+      "seed": 20260924
+    },
+    "agent_mode": "llm",
+    "cell_models": [
+      "openai/gpt-6-luna",
+      "typesafe/jev-1.13"
+    ],
+    "object_types_sha256": "cdf86863325bc5417b35015bc3ed125f9fd61a72b8a6746812da65316a284fe4",
+    "tokens": "o200k_base",
+    "repetitions": 3,
+    "levels": {
+      "retail": "V1",
+      "legal": "V1",
+      "health_plan_sales": "V1"
+    }
+  },
+  "versions": {
+    "niadra_sdk": "0.6.1",
+    "niadra_sdk_commit": "b198e14"
+  },
+  "setup": {
+    "features": [
+      "claims",
+      "coordination",
+      "legal_holds",
+      "measurement",
+      "notifications",
+      "signals",
+      "state",
+      "turns"
+    ],
+    "types": [
+      "cart",
+      "cart_quote",
+      "health_plan",
+      "intimacao_com_prazo",
+      "proposal"
+    ],
+    "scoped_keys": [
+      "billing",
+      "whatsapp"
+    ]
+  },
+  "settle": [
+    {
+      "repetition": 1,
+      "settled": true,
+      "seconds": 70.8,
+      "rounds": 15,
+      "not_ready": [],
+      "seed_failed": {}
+    },
+    {
+      "repetition": 2,
+      "settled": true,
+      "seconds": 45.6,
+      "rounds": 10,
+      "not_ready": [],
+      "seed_failed": {}
+    },
+    {
+      "repetition": 3,
+      "settled": true,
+      "seconds": 45.4,
+      "rounds": 10,
+      "not_ready": [],
+      "seed_failed": {}
+    }
+  ],
+  "metrics": {
+    "accuracy": {
+      "all": {
+        "changes_since_seen": {
+          "without": {
+            "judge": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 18,
+              "correct": 18,
+              "share": 1.0,
+              "ci95": [
+                0.8241,
+                1.0
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 15,
+              "share": 0.8333,
+              "ci95": [
+                0.6078,
+                0.9416
+              ]
+            }
+          }
+        },
+        "hard_constraint": {
+          "without": {
+            "judge": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 2,
+              "share": 0.1111,
+              "ci95": [
+                0.031,
+                0.328
+              ]
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 18,
+              "correct": 2,
+              "share": 0.1111,
+              "ci95": [
+                0.031,
+                0.328
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 2,
+              "share": 0.1111,
+              "ci95": [
+                0.031,
+                0.328
+              ]
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 18,
+              "correct": 18,
+              "share": 1.0,
+              "ci95": [
+                0.8241,
+                1.0
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 18,
+              "share": 1.0,
+              "ci95": [
+                0.8241,
+                1.0
+              ]
+            }
+          }
+        },
+        "all": {
+          "without": {
+            "judge": {
+              "n": 36,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.0964
+              ]
+            },
+            "exact": {
+              "n": 36,
+              "correct": 2,
+              "share": 0.0556,
+              "ci95": [
+                0.0154,
+                0.1814
+              ]
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 36,
+              "correct": 2,
+              "share": 0.0556,
+              "ci95": [
+                0.0154,
+                0.1814
+              ]
+            },
+            "exact": {
+              "n": 36,
+              "correct": 2,
+              "share": 0.0556,
+              "ci95": [
+                0.0154,
+                0.1814
+              ]
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 36,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.0964
+              ]
+            },
+            "exact": {
+              "n": 36,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.0964
+              ]
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 36,
+              "correct": 36,
+              "share": 1.0,
+              "ci95": [
+                0.9036,
+                1.0
+              ]
+            },
+            "exact": {
+              "n": 36,
+              "correct": 33,
+              "share": 0.9167,
+              "ci95": [
+                0.7817,
+                0.9713
+              ]
+            }
+          }
+        }
+      },
+      "valid": {
+        "changes_since_seen": {
+          "without": {
+            "judge": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 18,
+              "correct": 18,
+              "share": 1.0,
+              "ci95": [
+                0.8241,
+                1.0
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 15,
+              "share": 0.8333,
+              "ci95": [
+                0.6078,
+                0.9416
+              ]
+            }
+          }
+        },
+        "hard_constraint": {
+          "without": {
+            "judge": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 2,
+              "share": 0.1111,
+              "ci95": [
+                0.031,
+                0.328
+              ]
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 18,
+              "correct": 2,
+              "share": 0.1111,
+              "ci95": [
+                0.031,
+                0.328
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 2,
+              "share": 0.1111,
+              "ci95": [
+                0.031,
+                0.328
+              ]
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.1759
+              ]
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 18,
+              "correct": 18,
+              "share": 1.0,
+              "ci95": [
+                0.8241,
+                1.0
+              ]
+            },
+            "exact": {
+              "n": 18,
+              "correct": 18,
+              "share": 1.0,
+              "ci95": [
+                0.8241,
+                1.0
+              ]
+            }
+          }
+        },
+        "all": {
+          "without": {
+            "judge": {
+              "n": 36,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.0964
+              ]
+            },
+            "exact": {
+              "n": 36,
+              "correct": 2,
+              "share": 0.0556,
+              "ci95": [
+                0.0154,
+                0.1814
+              ]
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 36,
+              "correct": 2,
+              "share": 0.0556,
+              "ci95": [
+                0.0154,
+                0.1814
+              ]
+            },
+            "exact": {
+              "n": 36,
+              "correct": 2,
+              "share": 0.0556,
+              "ci95": [
+                0.0154,
+                0.1814
+              ]
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 36,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.0964
+              ]
+            },
+            "exact": {
+              "n": 36,
+              "correct": 0,
+              "share": 0.0,
+              "ci95": [
+                0.0,
+                0.0964
+              ]
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 36,
+              "correct": 36,
+              "share": 1.0,
+              "ci95": [
+                0.9036,
+                1.0
+              ]
+            },
+            "exact": {
+              "n": 36,
+              "correct": 33,
+              "share": 0.9167,
+              "ci95": [
+                0.7817,
+                0.9713
+              ]
+            }
+          }
+        }
+      }
+    },
+    "tokens": {
+      "voice": {
+        "cases": 36,
+        "without": {
+          "median": 77.0,
+          "p95": 79
+        },
+        "with": {
+          "median": 78.5,
+          "p95": 106
+        },
+        "added": {
+          "median": 0.0,
+          "p95": 35,
+          "max": 35
+        },
+        "section": {
+          "median": 0.0,
+          "p95": 35
+        },
+        "tool_json": {
+          "median": 425.5,
+          "p95": 508
+        },
+        "no_section": 24
+      },
+      "added_by_category": {
+        "changes_since_seen": 0.0,
+        "hard_constraint": 33.0,
+        "all": 0.0
+      }
+    },
+    "guard": {
+      "without": {
+        "claims": 5,
+        "verdicts": {
+          "unsupported": 5
+        },
+        "actions": {
+          "block": 5
+        },
+        "by_category": {
+          "price|unsupported": 5
+        },
+        "answers_acted_on": 4,
+        "acted_on_correct": 0,
+        "answers_changed": 4
+      },
+      "with": {
+        "claims": 4,
+        "verdicts": {
+          "unsupported": 4
+        },
+        "actions": {
+          "block": 4
+        },
+        "by_category": {
+          "price|unsupported": 4
+        },
+        "answers_acted_on": 3,
+        "acted_on_correct": 1,
+        "answers_changed": 3
+      }
+    },
+    "v0": {
+      "without": {
+        "reads": 36,
+        "effective_v0": 36,
+        "sensitive_in_block": 0,
+        "sensitive_in_block_v1": 0,
+        "proven": 36,
+        "withheld_when_proven": 24,
+        "levels": {
+          "V1": 36
+        }
+      },
+      "with": {
+        "reads": 36,
+        "effective_v0": 36,
+        "sensitive_in_block": 0,
+        "sensitive_in_block_v1": 0,
+        "proven": 36,
+        "withheld_when_proven": 24,
+        "levels": {
+          "V1": 36
+        }
+      }
+    },
+    "flips": [
+      {
+        "case_id": "typed-en-016",
+        "category": "hard_constraint",
+        "without": false,
+        "with": true,
+        "valid": true
+      },
+      {
+        "case_id": "typed-pt-017",
+        "category": "hard_constraint",
+        "without": false,
+        "with": true,
+        "valid": true
+      }
+    ],
+    "validity": {
+      "cases": 36,
+      "valid": 36,
+      "invalid": []
+    },
+    "probe_errors": {}
+  },
+  "tokens_without_blocks_v2": null,
+  "cost": {
+    "agent_and_judge": {
+      "calls": 288,
+      "input_tokens": 64384,
+      "output_tokens": 9321,
+      "cost_usd": 0.011099
+    },
+    "cell": {
+      "ledger_usd": 0.004679,
+      "by_purpose": {
+        "extraction": {
+          "usd": 0.004679,
+          "calls": 72
+        }
+      },
+      "extraction_runs": {
+        "runs": 72,
+        "with_a_model_call": 36,
+        "input_tokens": 68682,
+        "cached_input_tokens": 64224,
+        "output_tokens": 4532,
+        "usd": 0.003467
+      }
+    }
+  }
+}

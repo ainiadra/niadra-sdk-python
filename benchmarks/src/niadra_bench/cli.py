@@ -128,6 +128,8 @@ def _typed(args: argparse.Namespace) -> int:
             v2_sample=args.v2_sample,
             cell_pg=args.cell_pg,
             agent=args.agent,
+            baseline=Path(args.baseline) if args.baseline else None,
+            levels=_levels(args.verify_level),
         )
         if args.agent == "llm":
             from niadra_bench import ab
@@ -146,6 +148,22 @@ def _typed(args: argparse.Namespace) -> int:
     print((out / "typed.md").read_text())
     print(f"results in {out}")
     return 0
+
+
+def _levels(values: list[str] | None) -> dict[str, str]:
+    """`sector=LEVEL` pairs: the level each sector's probe proves."""
+    from niadra_bench import typed_ab
+
+    out: dict[str, str] = {}
+    for value in values or ():
+        sector, _, level = value.partition("=")
+        if sector not in typed_ab.SECTOR_CONTRACT or level not in typed_ab.LEVELS:
+            raise ValueError(
+                f"--verify-level {value}: expected <sector>=<level>, a sector of "
+                f"{', '.join(typed_ab.SECTOR_CONTRACT)} and a level of {', '.join(typed_ab.LEVELS)}"
+            )
+        out[sector] = level
+    return out
 
 
 def _csv(value: str, allowed: tuple[str, ...]) -> set[str]:
@@ -351,6 +369,12 @@ def main(argv: list[str] | None = None) -> None:
     typed_run.add_argument("--v2-sample", type=int, default=0, help="dataset v2 cases read with no block")
     typed_run.add_argument("--agent", choices=["llm", "context"], default="llm")
     typed_run.add_argument("--output", help="default: results/typed/<date>-<id>")
+    typed_run.add_argument("--baseline", help="a former run's results folder, to report the delta against")
+    typed_run.add_argument(
+        "--verify-level",
+        action="append",
+        help="<sector>=<level>: the level that sector's probe proves (default V1); repeatable",
+    )
     typed_run.set_defaults(func=_typed)
 
     run = sub.add_parser("run", help="seed every system and measure")

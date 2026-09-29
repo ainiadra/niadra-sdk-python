@@ -44,7 +44,7 @@ import time
 import uuid
 from collections import Counter
 from collections.abc import Callable, Coroutine, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -65,6 +65,7 @@ from niadra_bench.dataset.typed import Step, TypedCase
 from niadra_bench.identity import Identities, _subscriber
 from niadra_bench.runner import _tokenizer
 from niadra_bench.sources import ControlPlane, wait_until_served
+from niadra_bench.stats import share_difference, wilson
 from niadra_bench.targets.niadra import Keys, NiadraTarget
 from niadra_bench.text import contains, passes
 
@@ -86,6 +87,7 @@ SPACE_TIMEZONE = "America/Sao_Paulo"
 READ_TIMEOUT_S = 5.0
 KEY_SCOPES = {"billing": ("track", "context", "state:push"), "whatsapp": ("track", "context", "coordinate")}
 ACTED = frozenset({"block", "rewrite", "warn"})
+LEVELS = ("V1", "V2", "V3")
 
 log = logging.getLogger("niadra_bench")
 
@@ -140,6 +142,11 @@ class TypedOptions:
     v2_sample: int = 0
     cell_pg: str | None = None
     agent: str = "llm"
+    baseline: Path | None = None
+    #: The level each sector's probe proves, V1 unless named. A context read hands its blocks the pack's
+    #: verification gate: while the pack holds an item back for a higher level, the state block leaves out
+    #: what changed since seen and the constraints block says nothing of the subject.
+    levels: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -150,6 +157,7 @@ class Subject:
     tag: str
     today: date
     phone: str
+    level: str = "V1"
 
     @property
     def handle(self) -> dict[str, str]:
@@ -563,7 +571,7 @@ async def settle(cell: Cell, subjects: list[Subject], quiet_s: float, timeout_s:
                 body = view.json() if view.status_code == 200 else {}
                 ready[subject.case.id] = state_ready(subject.case, body, constraints, subject.today)
             context = await cell.client("voice").context(
-                phone(subject.phone), verification="V1", timeout=READ_TIMEOUT_S, use_cache=False
+                phone(subject.phone), verification=subject.level, timeout=READ_TIMEOUT_S, use_cache=False
             )
             return context.version, context.etag
 
@@ -665,15 +673,18 @@ async def probe(cell: Cell, subject: Subject, grader: Grader, count: Callable[[s
         "question": question,
         "reference_answer": expect.reference_answer,
         "view": view,
+        "level": subject.level,
         "arms": {},
     }
     for arm, include in ARMS.items():
         conversation = subject.conversation(f"probe-{arm}")
-        await client.verify(case.probe.verify_method, "V1", handle=handle, conversation_id=conversation)
+        await client.verify(
+            case.probe.verify_method, subject.level, handle=handle, conversation_id=conversation
+        )
         context = await client.context(
             handle,
             view=view,
-            verification="V1",
+            verification=subject.level,
             conversation_id=conversation,
             query=question,
             include=list(include) if include else None,
@@ -710,6 +721,7 @@ async def probe(cell: Cell, subject: Subject, grader: Grader, count: Callable[[s
             "tokens_tool_json": count(tool_json) if tool_json else None,
             "error": context.error,
             "effective": str(context.verification.effective.value),
+            "withheld": context.withheld,
             "degraded": getattr(context, "degraded", None),
             "section": section or None,
             "answer": answer,
@@ -853,11 +865,15 @@ def _grades(rows: list[dict[str, Any]], side: str, name: str) -> dict[str, Any]:
 
 
 def _share(rows: list[dict[str, Any]], pick: Callable[[dict[str, Any]], bool | None]) -> dict[str, Any]:
+    """The share of right answers with its 95% Wilson interval. The repetitions of one case are not
+    independent draws, so the interval is narrower than a set of new cases would give."""
     graded = [v for v in (pick(r) for r in rows) if v is not None]
+    interval = wilson(sum(graded), len(graded))
     return {
         "n": len(graded),
         "correct": sum(graded),
         "share": round(sum(graded) / len(graded), 4) if graded else None,
+        "ci95": [round(b, 4) for b in interval] if interval else None,
     }
 
 
@@ -930,6 +946,9 @@ def summarize(answered: list[dict[str, Any]]) -> dict[str, Any]:
             "effective_v0": sum(1 for r in rows if r["arms"][arm]["v0"]["effective"] == "V0"),
             "sensitive_in_block": sum(1 for r in rows if r["arms"][arm]["v0"]["sensitive_in_block"]),
             "sensitive_in_block_v1": sum(1 for r in rows if r["arms"][arm]["sensitive_in_block"]),
+            "proven": sum(1 for r in rows if r["arms"][arm]["effective"] == r.get("level", "V1")),
+            "withheld_when_proven": sum(1 for r in rows if r["arms"][arm].get("withheld")),
+            "levels": dict(sorted(Counter(r.get("level", "V1") for r in rows).items())),
         }
     for r in rows:
         before, after = r["arms"]["without"]["judge"], r["arms"]["with"]["judge"]
@@ -954,6 +973,39 @@ def summarize(answered: list[dict[str, Any]]) -> dict[str, Any]:
     return out
 
 
+def compare(metrics: dict[str, Any], baseline: dict[str, Any]) -> dict[str, Any]:
+    """Each side's share against a baseline run's, per scope, grade and category, with Newcombe's 95%
+    interval of the difference; a category either run lacks is left out."""
+    out: dict[str, Any] = {}
+    for scope, table in metrics["accuracy"].items():
+        before = baseline["accuracy"].get(scope) or {}
+        for category, row in table.items():
+            if category not in before:
+                continue
+            for arm in ARMS:
+                for grade in ("judge", "exact"):
+                    now, was = row[arm][grade], before[category][arm][grade]
+                    interval = share_difference(now["correct"], now["n"], was["correct"], was["n"])
+                    if interval is None:
+                        continue
+                    delta = now["correct"] / now["n"] - was["correct"] / was["n"]
+                    out.setdefault(scope, {}).setdefault(category, {}).setdefault(arm, {})[grade] = {
+                        "now": now["share"],
+                        "baseline": was["share"],
+                        "delta": round(delta, 4),
+                        "ci95": [round(b, 4) for b in interval],
+                    }
+    return out
+
+
+def load_baseline(directory: Path) -> dict[str, Any]:
+    """A former run's `typed.json`: its id, where it ran, and its metrics."""
+    path = directory / "typed.json"
+    if not path.exists():
+        raise TypedError(f"no typed.json in {directory}")
+    return dict(json.loads(path.read_text()))
+
+
 class TypedAb:
     def __init__(
         self, cases: list[TypedCase], options: TypedOptions, config: BenchConfig | None = None
@@ -971,6 +1023,7 @@ class TypedAb:
                 "with this repository's source (PYTHONPATH=../src)"
             )
         options = self.options
+        baseline = load_baseline(options.baseline) if options.baseline else None
         count = _tokenizer(self.config.tokens.encoding)
         cell = Cell(options)
         grader = Grader(self.config, self.chat, options.agent)
@@ -984,7 +1037,10 @@ class TypedAb:
                 tag = f"{self.run_id[-6:]}r{repetition}"
                 now = datetime.now(UTC)
                 today = now.astimezone(ZoneInfo(SPACE_TIMEZONE)).date()
-                subjects = [Subject(c, tag, today, subject_phone(c, tag)) for c in self.cases]
+                subjects = [
+                    Subject(c, tag, today, subject_phone(c, tag), options.levels.get(c.sector, "V1"))
+                    for c in self.cases
+                ]
                 failed = await gather_limited(
                     options.concurrency, [seed_or_fail(cell, s, now) for s in subjects]
                 )
@@ -1027,6 +1083,7 @@ class TypedAb:
                 "object_types_sha256": _sha(TYPES_FILE),
                 "tokens": self.config.tokens.encoding,
                 "repetitions": options.repetitions,
+                "levels": {sector: options.levels.get(sector, "V1") for sector in SECTOR_CONTRACT},
             },
             "versions": {
                 "niadra_sdk": niadra.__version__,
@@ -1038,6 +1095,13 @@ class TypedAb:
             "tokens_without_blocks_v2": sample,
             "cost": {"agent_and_judge": self.chat.usage()},
         }
+        if baseline is not None:
+            document["baseline"] = {
+                "run_id": baseline["run_id"],
+                "versions": baseline.get("versions"),
+                "repetitions": baseline["config"]["repetitions"],
+                "delta": compare(document["metrics"], baseline["metrics"]),
+            }
         output = options.output or RESULTS / self.run_id
         output.mkdir(parents=True, exist_ok=True)
         (output / "typed.json").write_text(json.dumps(document, indent=2, ensure_ascii=False) + "\n")
@@ -1092,6 +1156,8 @@ def report(document: dict[str, Any]) -> str:
         "customer.",
         "- Validity rule (right with the whole history, wrong with no memory): "
         f"{metrics['validity']['valid']} of {metrics['validity']['cases']} cases.",
+        "- Brackets: the 95% Wilson interval, in percent. The repetitions of a case are not independent "
+        "draws, so it is narrower than new cases would give.",
         "",
     ]
     for scope, title in (("all", "every case"), ("valid", "valid cases")):
@@ -1163,6 +1229,19 @@ def report(document: dict[str, Any]) -> str:
     ]
     for arm, v in metrics["v0"].items():
         lines.append(f"| {arm} | {v['reads']} | {v['effective_v0']} | {v['sensitive_in_block']} |")
+    lines += [
+        "",
+        "The answered reads, at the level each case proved ("
+        + ", ".join(f"{sector} {level}" for sector, level in document["config"].get("levels", {}).items())
+        + "), per side: "
+        + "; ".join(
+            f"{arm} {v.get('proven', '-')} of {v['reads']} served at the level proved, "
+            f"{v.get('withheld_when_proven', '-')} with an item withheld, "
+            f"{v['sensitive_in_block_v1']} with the sensitive value"
+            for arm, v in metrics["v0"].items()
+        )
+        + ".",
+    ]
     if "coordination" in metrics:
         c = metrics["coordination"]
         lines += [
@@ -1175,6 +1254,7 @@ def report(document: dict[str, Any]) -> str:
         f"{'' if f['valid'] else ' (not valid)'}"
         for f in metrics["flips"]
     ] or ["- none"]
+    lines += _baseline_lines(document.get("baseline"))
     cost = document["cost"]
     lines += [
         "",
@@ -1189,7 +1269,51 @@ def report(document: dict[str, Any]) -> str:
 
 
 def _pct(share: dict[str, Any]) -> str:
-    return "-" if share["share"] is None else f"{100 * share['share']:.1f}% ({share['correct']}/{share['n']})"
+    if share["share"] is None:
+        return "-"
+    interval = share.get("ci95")
+    bounds = f" [{100 * interval[0]:.0f}, {100 * interval[1]:.0f}]" if interval else ""
+    return f"{100 * share['share']:.1f}% ({share['correct']}/{share['n']}){bounds}"
+
+
+def _points(value: float) -> str:
+    return f"{100 * value:+.1f}"
+
+
+def _baseline_lines(baseline: dict[str, Any] | None) -> list[str]:
+    """The delta against a former run, in percentage points, with Newcombe's 95% interval."""
+    if not baseline:
+        return []
+    lines = [
+        "",
+        f"## Against {baseline['run_id']} ({baseline['repetitions']} repetition(s))",
+        "",
+        "Percentage points, now minus then, with the 95% interval of the difference (Newcombe). An interval "
+        "that crosses 0 does not show a change.",
+    ]
+    for scope, title in (("all", "every case"), ("valid", "valid cases")):
+        table = baseline["delta"].get(scope)
+        if not table:
+            continue
+        lines += [
+            "",
+            f"### {title}",
+            "",
+            "| Category | without, judge | with, judge | without, exact | with, exact |",
+            "|---|---|---|---|---|",
+        ]
+        for category, row in table.items():
+            cells = []
+            for grade in ("judge", "exact"):
+                for arm in ARMS:
+                    d = row.get(arm, {}).get(grade)
+                    cells.append(
+                        "-"
+                        if d is None
+                        else f"{_points(d['delta'])} [{_points(d['ci95'][0])}, {_points(d['ci95'][1])}]"
+                    )
+            lines.append(f"| {category} | {cells[0]} | {cells[1]} | {cells[2]} | {cells[3]} |")
+    return lines
 
 
 def _counts(counts: dict[str, int]) -> str:

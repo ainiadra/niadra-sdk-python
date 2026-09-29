@@ -158,6 +158,8 @@ def _row(
             "exact": judge,
             "guard": {"claims": claims, "changed": any(c["action"] == "block" for c in claims), "text": None},
             "sensitive_in_block": False,
+            "effective": "V1",
+            "withheld": 0,
             "v0": {"tokens": 10, "effective": "V0", "sensitive_in_block": leak},
         }
 
@@ -213,8 +215,39 @@ def test_the_summary_counts_both_sides_the_blocks_tokens_the_guard_and_the_flips
         "tokens_without_blocks_v2": None,
         "cost": {"agent_and_judge": {"cost_usd": 0.01, "calls": 12}},
     }
+    assert everything["price_freshness"]["without"]["judge"]["ci95"] == [0.0945, 0.9055]
+    assert metrics["v0"]["with"]["proven"] == 3 and metrics["v0"]["with"]["withheld_when_proven"] == 0
+    assert metrics["v0"]["with"]["levels"] == {"V1": 3}
     text = typed_ab.report(document)
-    assert "| price_freshness | 50.0% (1/2) | 100.0% (2/2)" in text and "`a` (price_freshness)" in text
+    assert "| price_freshness | 50.0% (1/2) [9, 91] | 100.0% (2/2) [34, 100]" in text
+    assert "`a` (price_freshness)" in text and "## Against" not in text
+
+
+def test_the_delta_against_a_former_run_carries_newcombes_interval() -> None:
+    now = typed_ab.summarize([_row(str(i), "price_freshness", False, True) for i in range(10)])
+    then = typed_ab.summarize(
+        [_row(str(i), "price_freshness", False, i < 5) for i in range(10)]
+        + [_row("q", "quote_expiry", False, False)]
+    )
+    delta = typed_ab.compare(now, then)
+    judge = delta["all"]["price_freshness"]["with"]["judge"]
+    assert judge["now"] == 1.0 and judge["baseline"] == 0.5 and judge["delta"] == 0.5
+    assert 0 < judge["ci95"][0] < 0.5 < judge["ci95"][1] <= 1.0
+    assert delta["all"]["price_freshness"]["without"]["judge"]["delta"] == 0.0
+    # A category only one run has is left out.
+    assert "quote_expiry" not in delta["all"]
+    document = {
+        "run_id": "t",
+        "environment": "local-cell",
+        "dataset": {"cases": 10},
+        "config": {"repetitions": 1},
+        "versions": {"niadra_sdk": "x"},
+        "metrics": now,
+        "tokens_without_blocks_v2": None,
+        "cost": {"agent_and_judge": {"cost_usd": 0.01, "calls": 40}},
+        "baseline": {"run_id": "b", "repetitions": 2, "delta": delta},
+    }
+    assert "| price_freshness | +0.0 [" in typed_ab.report(document)
 
 
 def test_the_cell_cost_is_the_ledger_growth_over_the_run() -> None:
