@@ -462,7 +462,7 @@ spend on OpenRouter after the second part and run what does not fit with `--limi
 
 ```
 config/                  frozen configuration (benchmark.toml, with the production caps) and Mem0's
-dataset/                 the committed dataset v1 and its manifest; dataset/v2/, the same for v2
+dataset/                 the committed dataset v1 and its manifest; dataset/v2/ and dataset/typed/, the same
 src/niadra_bench/        the harness (`bench` command)
 src/niadra_bench/systems/  one adapter per added system (base.py: what an adapter provides)
 tests/                   unit tests, dry runs against niadra-mock and fakes, the deploy scripts with a stand-in AWS CLI
@@ -477,6 +477,7 @@ deploy/cell/cleanup.sh   removes what the benchmark left on the cell when it ran
 results/                 published runs: results/<date>-<id>/{summary.json,rep-N.json,cases-repN.jsonl}
 results/ab/              A/B runs in the region: results/ab/<date>-<id>/{ab.json,ab.md,baseline/,candidate/}
 results/local/           A/B runs on a local cell or the emulator, and results/local/model-cache/ (not committed)
+results/typed/           the typed-object set on a local cell, with and without the blocks: typed.json, typed.md
 config/ab.toml           `bench ab`'s ceiling, apart from benchmark.toml so the published hash stays
 deploy/local/cell_server.py  the local cell `bench ab --local-cell` runs in a niadra-back checkout
 deploy/local/model_cache.py  the local cell's cache of model answers and its spend ledger (`--real-models`)
@@ -807,6 +808,95 @@ deploy/temp-host/bench.sh ab --same --dataset v2
 deploy/temp-host/bench.sh ab --candidate-config <file.toml> --dataset v2
 ```
 
+## The typed-object set: what the blocks of `include` do to an answer
+
+Dataset v2 has no typed object and never asks for the blocks a read adds with `include` (the subject's typed
+state and the constraints they declared), so every A/B on it only shows that a read without them did not
+change. `dataset/typed/` (`bench prepare --dataset typed`, 42 cases, 21 per language) asks questions whose
+answer depends on those blocks, one agent per sector, synthetic data only:
+
+| Category | Sector | Before the question | Right answer |
+|---|---|---|---|
+| `price_freshness` | retail | the checkout computed the cart's total 30 to 90 minutes ago | not confirming it as current (older than the type lets a price be affirmed) |
+| `quote_expiry` | retail | the customer changed the delivery postal code after a shipping quote | the quote no longer holds |
+| `deadline_revision` | legal | the court's calendar moved a deadline the agent had already given | the revised deadline |
+| `not_checked` | legal | nobody checked whether a notice is addressed to the client | not checked: never "no" |
+| `changes_since_seen` | health plan sales | a plan's price moved after the customer was shown it | the new price |
+| `hard_constraint` | health plan sales | the customer set a required filter in another agent's simulator | the option that meets it |
+| `effect_once` | retail | the closing agent already sent the farewell with the survey | already sent, not again |
+
+Each case is a script of writes (conversations, system events about objects of the types in
+`config/typed.object-types.json`, an agent's turn record with a tool's observation, an exposure or a
+preference, a platform push, a coordination effect) and one question. The object types follow the server's
+sector templates, cut to the fields the cases write. Every case carries one value of a `pii` field
+(`sensitive`) that no read at V0 may hand the agent. The ground truth is checked twice: by the judge, with the
+case's own rule next to the reference answer (`TYPED_JUDGE_PROMPT` in `agent.py`), and by an exact check with
+no model (`expect.all_of`/`none_of`, whole tokens; for a hedge, an expiry, a check nobody made or an effect
+already done, the words that say it, in both languages). The validity rule is v2's: a case counts where the
+agent is right with the whole history and wrong with no memory; both references answer once per case, and the
+report gives every case and the valid ones.
+
+`bench typed` runs it on a local cell of niadra-back, with production's models (GPT-6 Luna extracts, Jev
+decides) and the benchmark's agent and judge:
+
+```bash
+# Under the machine's e2e lock: a cell of niadra-back main, kept running.
+LOCAL_E2E_PORT=20300 LOCAL_E2E_DIR=$TMPDIR/niadra-local-e2e-bench \
+    ../../niadra-infra/scripts/local-e2e.sh ../../wt/niadra-back-main --keep
+# The SDK must be this repository's source: the pinned release does not place the blocks in the turn block.
+PYTHONPATH=../src uv run bench typed --api http://127.0.0.1:20309 --control http://127.0.0.1:20300 \
+    --cell-dir $TMPDIR/niadra-local-e2e-bench --cell-pg "host=127.0.0.1 port=20310 user=postgres" \
+    --v2-sample 20 [--limit 5]
+```
+
+It turns on the agent features and declares the typed set's types in the sandbox space with the bootstrap's
+admin account (the space keeps its language and time zone, as for dataset v2), seeds every case with a new
+customer, waits until each case's objects hold what its question is about and no customer's context moves,
+and then asks every question twice for the same customer: `without` (a plain read) and `with` (`include:
+["state", "constraints"]`, which the SDK places in the turn block inside its `<niadra>` section). It reports,
+per side and category (`results/typed/<date>-<id>/typed.json` and `typed.md`, every answer and memory block in
+`cases.jsonl`):
+
+- the judge's and the exact check's accuracy, and the cases that changed verdict;
+- tokens per turn of the memory block, what the blocks add, and what the same data weighs as a tool's JSON
+  result (what an agent without the blocks would fetch, in a round trip that sends the prompt again);
+- with `--v2-sample N`, N cases of dataset v2 read with no block in both views, against today's medians (voice
+  89, chat 98; a turn that asks for no block must stay within 5%);
+- the claim guard's verdicts and acts on every answer (the SDK's `guard_text`, a mutable chat output, with the
+  sector's example contract from `spec/examples/claim-contract/`, the case's language first; on the `with` side
+  the fields the state read served are the turn's evidence, as `context()` records them in a turn), and how
+  often it acted on an answer the judge graded correct;
+- reads at V0 (no proof) on both sides whose block held the case's sensitive value;
+- for the effect cases, whether the coordination check refuses a second attempt;
+- the agent's and the judge's spend (OpenRouter's `usage`) and, with `--cell-pg`, the cell's own model spend
+  over the run (`cell-cost.json`: its spend ledger before and after, and its extraction runs).
+
+A local cell's numbers compare two reads of the same code; they are never published.
+
+The first run (`results/typed/2026-09-29-28409a`, 29/09/2026: niadra-back 71529d7 on a local cell started by
+`local-e2e.sh`, whose own check had turned on its other features too; the SDK source at d10af9c; two
+repetitions, 84 answers per side) read, per side:
+
+- **Judge, every case:** 32.1% without the blocks, 63.1% with them. By category: price freshness 33.3 to
+  83.3%, quote expiry 0 to 91.7%, revised deadline 83.3 to 91.7%, not checked 75.0 to 83.3%, changes since seen
+  0 to 8.3%, hard constraint 0 to 25.0%, effect once 33.3 to 58.3%. On the 53 answers the validity rule keeps:
+  26.4 to 50.9%. The exact check: 45.2 to 65.5%.
+- **Tokens:** the blocks add a median of 43 tokens to a voice turn and 50 to a chat turn (p95 56 and 165; a
+  court notice's content in its envelope is the large one). The same data as a tool's JSON is 645 and 780
+  tokens. The 20 cases of dataset v2 read with no block: voice 92, chat 94.5 (today 89 and 98), within 5%.
+- **Claim guard:** it acted on 31 answers without the blocks (5 of them right) and on 34 with them (27 of them
+  right). A deadline the state block gave is `unsupported`, because a type's computed values (`values`) are
+  not evidence for the guard, only its fields; a hedged answer that names the earlier total as earlier is
+  `stale`; a price the customer or the earlier conversation stated is `unsupported`.
+- **V0:** no read at V0 on either side held a case's sensitive value; at V1, 42 of 84 reads on each side held
+  it, from the system event that wrote the `pii` field, in the pack's system line.
+- **What to read with care:** the agent is not deterministic even with its seed (3 of the 12 effect cases,
+  where both sides read the same bytes, changed verdict); the voice cases of `changes_since_seen` answer "I must
+  verify your identity first" on both sides, because the pack holds a recorded value back until the identity is
+  verified and tells the agent to ask for it, while the state block shows the new price; the constraint lines (`health_plan.copay: não`) name an
+  attribute the pack's summary of the offers does not carry, so the agent rarely ties them to an option.
+- **Cost:** US$ 0.031 for the agent and the judge (672 calls) and US$ 0.020 for the cell's models (its ledger).
+
 ## Ranking gate
 
 No change to how the memory picks and orders what a pack and its slots carry enters niadra-back's `main` without its
@@ -839,7 +929,7 @@ under `results/ab/`, and the decision cites that file.
 ```bash
 uv sync
 uv run pytest -q                       # unit tests, dry runs against niadra-mock and fakes, the deploy scripts
-uv run bench prepare --check           # both committed datasets are what the generator makes, and valid
+uv run bench prepare --check           # every committed dataset is what the generator makes, and valid
 uv run bench run --mock --systems niadra --quick --limit 28 --repetitions 1 --output /tmp/bench   # no network
 uv run bench ab --same --mock --quick --limit 28 --repetitions 1                    # the A/B plumbing
 deploy/local/run.sh                    # every system, one at a time, on Docker with fakes; then combined
