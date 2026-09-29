@@ -19,6 +19,10 @@ with niadra.conversation(thread_id, subject=phone(caller)) as conversation:
 - **Turns.** `NiadraCallbackHandler` records the customer's messages when a chat model starts,
   keyed by their position in the conversation (history replayed on the next call is not recorded
   twice), and the model's answer with its `usage_metadata` when the call ends.
+- **Turn records.** With `turns=True`, each top-level run (a chain, an agent, or a chat model called
+  alone) is a turn (`niadra.turns`), opened when it starts and closed when it ends, with its tool calls
+  (arguments, result, failure) and its model calls (tokens). A tool decorated with `@niadra.tool`
+  inside the run also sees the turn. Recorded only while the space records turns.
 - **Tools.** `history_tools()` are `StructuredTool`s with the kit's names, descriptions and JSON
   Schemas, bound to the customer; `agent_memory=` adds the agent memory tools.
 - **Agent memory.** `agent_memory=True` (or `{"write": True, "max_tokens": 300, "tags": [...]}`) puts
@@ -48,6 +52,8 @@ from niadra.integrations._common import (
     AnyKit,
     AnySession,
     Prompt,
+    TurnHooks,
+    adapter_version,
     agent_turn,
     call_tool,
     customer_turn,
@@ -188,7 +194,7 @@ def record_answer(conversation: AnySession, message: Any) -> None:
     said = message.text if isinstance(message.text, str) else ""
     if not said:
         return
-    metadata = message.usage_metadata or {}
+    metadata: dict[str, Any] = dict(message.usage_metadata or {})
     details = metadata.get("input_token_details") or {}
     model = (message.response_metadata or {}).get("model_name") or (message.response_metadata or {}).get(
         "model"
@@ -207,25 +213,89 @@ def record_answer(conversation: AnySession, message: Any) -> None:
 
 
 class NiadraCallbackHandler(BaseCallbackHandler):  # type: ignore[misc]
-    """Records the conversation from LangChain's callbacks: customer messages and model answers."""
+    """Records the conversation from LangChain's callbacks: customer messages and model answers, and with
+    `turns=True` the turn records of each top-level run."""
 
     raise_error = False
+    run_inline = True
 
-    def __init__(self, conversation: AnySession) -> None:
+    def __init__(self, conversation: AnySession, *, turns: bool = False) -> None:
         super().__init__()
         self.conversation = conversation
+        self.turns = TurnHooks(conversation, adapter_version("langchain", "langchain-core"), enabled=turns)
 
-    def on_chat_model_start(self, serialized: Any, messages: list[list[BaseMessage]], **kwargs: Any) -> None:
+    def on_chain_start(
+        self, serialized: Any, inputs: Any, *, run_id: Any, parent_run_id: Any = None, **kwargs: Any
+    ) -> None:
+        if parent_run_id is None:
+            self.turns.open(str(run_id), None)
+
+    def on_chain_end(self, outputs: Any, *, run_id: Any, **kwargs: Any) -> None:
+        self.turns.close(str(run_id))
+
+    def on_chain_error(self, error: BaseException, *, run_id: Any, **kwargs: Any) -> None:
+        self.turns.close(str(run_id), error)
+
+    def on_tool_start(
+        self,
+        serialized: Any,
+        input_str: str,
+        *,
+        run_id: Any,
+        inputs: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        name = (serialized or {}).get("name") or kwargs.get("name") or "tool"
+        self.turns.tool_start(str(run_id), str(name), inputs if inputs is not None else input_str)
+
+    def on_tool_end(self, output: Any, *, run_id: Any, **kwargs: Any) -> None:
+        self.turns.tool_end(str(run_id), getattr(output, "content", output))
+
+    def on_tool_error(self, error: BaseException, *, run_id: Any, **kwargs: Any) -> None:
+        self.turns.tool_end(str(run_id), error=error)
+
+    def on_chat_model_start(
+        self,
+        serialized: Any,
+        messages: list[list[BaseMessage]],
+        *,
+        run_id: Any = None,
+        parent_run_id: Any = None,
+        **kwargs: Any,
+    ) -> None:
+        if parent_run_id is None and run_id is not None:
+            self.turns.open(str(run_id), None)
         try:
             for batch in messages[:1]:
                 record_customer(self.conversation, batch)
         except Exception as exc:
             warn("record the customer's turn", exc)
 
-    def on_llm_end(self, response: Any, **kwargs: Any) -> None:
+    def on_llm_end(self, response: Any, *, run_id: Any = None, **kwargs: Any) -> None:
         try:
             generations = response.generations[0] if response.generations else []
-            if generations:
-                record_answer(self.conversation, getattr(generations[0], "message", None))
+            message = getattr(generations[0], "message", None) if generations else None
+            if isinstance(message, AIMessage):
+                self._model(message)
+            record_answer(self.conversation, message)
         except Exception as exc:
             warn("record the agent's turn", exc)
+        if run_id is not None:
+            self.turns.close(str(run_id))
+
+    def on_llm_error(self, error: BaseException, *, run_id: Any = None, **kwargs: Any) -> None:
+        if run_id is not None:
+            self.turns.close(str(run_id), error)
+
+    def _model(self, message: AIMessage) -> None:
+        metadata: dict[str, Any] = dict(message.usage_metadata or {})
+        details = metadata.get("input_token_details") or {}
+        model = (message.response_metadata or {}).get("model_name") or (message.response_metadata or {}).get(
+            "model"
+        )
+        self.turns.model(
+            model if isinstance(model, str) else None,
+            metadata.get("input_tokens"),
+            metadata.get("output_tokens"),
+            details.get("cache_read", 0),
+        )

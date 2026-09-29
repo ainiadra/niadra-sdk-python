@@ -68,6 +68,7 @@ Documentation = "https://docs.niadra.com/en"
 Source = "https://github.com/ainiadra/niadra-sdk-python"
 
 [project.scripts]
+niadra = "niadra.cli:main"
 niadra-mock = "niadra_mock.__main__:main"
 
 [dependency-groups]

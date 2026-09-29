@@ -39,6 +39,7 @@ from pydantic_core import to_json
 from niadra._ids import new_key
 
 if TYPE_CHECKING:
+    from niadra.replay.playback import Playback, Played
     from niadra.turns.recorder import TurnRecorder
 
 logger = logging.getLogger("niadra")
@@ -154,6 +155,8 @@ class CallCapture:
         self._started = time.perf_counter()
         self._done = False
         self._token: Token[CallCapture | None] | None = None
+        self.played: Played | None = None
+        """In a replay: how the call answers (`niadra.replay`)."""
 
     def result(
         self,
@@ -280,6 +283,8 @@ class TurnFrame:
         self.flags: set[str] = set()
         self.completeness: Literal["complete", "partial", "incomplete"] = "complete"
         self.handoff_id: str | None = None
+        self.playback: Playback | None = None
+        """Set in a replay: recorded answers for the tools, and where what the turn says goes."""
         self.mode: Literal["stored", "pointer", "hash_only"] | None = None
         """The content mode this turn must leave in, when the server refused the recorder's."""
         self.closed = False

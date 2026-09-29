@@ -22,9 +22,9 @@ from math import comb
 from typing import Any
 from uuid import uuid4
 
+from niadra.replay.runner import pin_differences
 from niadra_mock.turns import TurnStore
 
-PINS = ("prompts", "corpus_digest", "model", "assembler", "tool_schemas")
 ORDER = ("pass", "flaky", "infrastructure_error", "pin_mismatch", "regression")
 KEPT = timedelta(days=180)
 
@@ -104,23 +104,6 @@ def scenario_verdict(
         "needs_paraphrase": any(a["passed"] and a["failed"] for a in assertions),
         "assertions": assertions,
     }
-
-
-def pin_differences(
-    recorded: Mapping[str, Any], running: Mapping[str, Any], required: Iterable[str], vary: Iterable[str]
-) -> list[dict[str, Any]]:
-    """The pins that differ (the replay spec, 4.2): every pin outside `vary` the recording requires, or both
-    builds carry."""
-    need, free = set(required), set(vary)
-    out = []
-    for name in PINS:
-        if name in free:
-            continue
-        mine, theirs = recorded.get(name), running.get(name)
-        compared = name in need or (mine is not None and theirs is not None)
-        if compared and mine != theirs:
-            out.append({"name": name, "recorded": mine, "running": theirs})
-    return out
 
 
 @dataclass

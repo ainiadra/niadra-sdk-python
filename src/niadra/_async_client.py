@@ -66,6 +66,7 @@ from niadra.models.state import ClaimContractSummary, SdkProfile, StateRef
 from niadra.models.tokens import SubjectToken
 from niadra.models.turns import TurnPins
 from niadra.options import CacheOptions, QueueOptions, Timeouts, TurnOptions, VoiceOptions
+from niadra.replay.playback import replaying
 from niadra.resolvers import (
     CLAIM_BUDGET,
     ClaimVerdict,
@@ -185,11 +186,13 @@ class AsyncNiadra:
         provenance: Provenance | None = None,
         ui: Callable[[Any], Any] | None = None,
         exclude: Iterable[str] = (),
+        dry_run: bool = False,
     ) -> Callable[[F], F]:
         """A decorator that records each call of a tool of yours in the turn it runs in: arguments,
         result, latency and failure, and with `provenance` the objects the result showed. Outside a turn
-        the tool runs untouched. See `niadra.turns.tool`."""
-        return tool(name, provenance=provenance, ui=ui, exclude=exclude)
+        the tool runs untouched. `dry_run=True` lets a replay run it for real when the record has no answer.
+        See `niadra.turns.tool`."""
+        return tool(name, provenance=provenance, ui=ui, exclude=exclude, dry_run=dry_run)
 
     async def profile(self, *, timeout: float | None = None) -> SdkProfile | None:
         """The SDK profile of this key's space: the features it turned on, the claim contract and the
@@ -334,6 +337,8 @@ class AsyncNiadra:
     ) -> Context:
         """The context pack for a subject or a business object. See `Niadra.context`."""
         requested = Verification.V0
+        if (played := replaying()) is not None:
+            return played.context or Context.empty(requested=requested, error="replay")
         try:
             requested = Verification(verification)
             request = self._core.context_request(
@@ -528,6 +533,8 @@ class AsyncNiadra:
 
     def track(self, item: ItemLike) -> bool:
         """Queues a batch item and returns at once. Not a coroutine: it never waits. See `Niadra.track`."""
+        if (played := replaying()) is not None:
+            return played.muted(item)
         if not self._core.enabled:
             return False
         try:

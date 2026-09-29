@@ -123,3 +123,48 @@ class Suspending:
 def test_an_async_conversation_from_sync_code_is_left_out() -> None:
     original = [HumanMessage(content="hi")]
     assert with_context(Suspending(), original) == original  # type: ignore[arg-type]
+
+
+def test_with_turns_each_run_is_a_turn_record_with_its_tools_and_model(
+    on_mock: Niadra, mock_app: MockApp
+) -> None:
+    from langchain_core.runnables import RunnableLambda
+    from langchain_core.tools import tool as lc_tool
+
+    from niadra.turns import current_turn
+
+    seen: list[Any] = []
+
+    @lc_tool
+    def stock(sku: str) -> str:
+        """Units of an item in stock."""
+        seen.append(current_turn())
+        return f"{sku}: 3"
+
+    model = FakeChat(replies=[answer("3 in stock.")])
+    with on_mock.conversation("chat-9", subject=MARINA, agent_id="store") as conversation:
+        handler = NiadraCallbackHandler(conversation, turns=True)
+        chain = RunnableLambda(lambda question: [HumanMessage(stock.invoke({"sku": "PX-4471"}))]) | model
+        chain.invoke("Is the PX in stock?", config={"callbacks": [handler]})
+        model.invoke([HumanMessage("And the PY?")], config={"callbacks": [handler]})
+    on_mock.flush()
+    first, second = sorted(
+        (s.record for s in mock_app.cell.turns.turns.values()), key=lambda r: r["started_at"]
+    )
+    assert first["build"]["adapter"].startswith("langchain/")
+    (call,) = [c for c in first["calls"] if c["kind"] == "tool"]
+    assert (call["name"], call["status"]) == ("stock", "ok")
+    assert first["blobs"][call["result_model"]]["content"] == "PX-4471: 3"
+    assert seen[0] is not None and seen[0].turn_id == first["turn_id"]
+    assert [c["tokens"] for c in first["calls"] if c["kind"] == "model"] == [
+        {"in": 1200, "cached": 1024, "out": 7}
+    ]
+    assert [c["kind"] for c in second["calls"]] == ["model"]
+
+
+def test_without_turns_the_handler_records_no_turn(on_mock: Niadra, mock_app: MockApp) -> None:
+    model = FakeChat(replies=[answer("Hi.")])
+    with on_mock.conversation("chat-10", subject=MARINA) as conversation:
+        model.invoke([HumanMessage("Hello")], config={"callbacks": [NiadraCallbackHandler(conversation)]})
+    on_mock.flush()
+    assert mock_app.cell.turns.turns == {}
