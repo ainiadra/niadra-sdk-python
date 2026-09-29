@@ -67,13 +67,14 @@ class ReplayInput:
     context: Context | None
     record: Mapping[str, Any]
     run: int
+    """The execution's number, from 1."""
     paraphrase: bool = False
 
 
 Agent = Callable[[ReplayInput], Any]
 """Answers one input: the text the agent emitted (or None), or an awaitable of it."""
 Paraphrase = Callable[[str, int], str]
-"""A paraphrase of the input for run `n`: intermittent results must hold with other words too."""
+"""A paraphrase of the input for run `n` (from 1): intermittent results must hold with other words too."""
 
 
 def pin_differences(
@@ -162,7 +163,7 @@ class _Runner:
             cases.append(await self._case(plan, scenario["scenario_id"], turn_id, send))
         stopped: set[int] = set()
         for turn_id, case, status, error in cases:
-            for run in range(plan.runs):
+            for run in range(1, plan.runs + 1):  # runs are numbered from 1 (the replay spec, 7)
                 if run in stopped:
                     continue
                 if case is None:

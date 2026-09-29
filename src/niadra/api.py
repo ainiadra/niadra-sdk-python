@@ -110,9 +110,11 @@ from niadra.models.turns import (
 class Api(SyncRoutes):
     """The routes of `niadra.api`. See the module."""
 
-    def changes(self, *, cursor: str | None = None, limit: int = 50) -> ChangePage:
-        """`GET /v1/changes`."""
-        return self._call(ChangePage, "GET", "/v1/changes", params={"cursor": cursor, "limit": limit})
+    def changes(self, *, agent: str | None = None, cursor: str | None = None, limit: int = 50) -> ChangePage:
+        """`GET /v1/changes`. What changed between consecutive builds of each agent, newest first."""
+        return self._call(
+            ChangePage, "GET", "/v1/changes", params={"agent": agent, "cursor": cursor, "limit": limit}
+        )
 
     def data_issues(self, *, cursor: str | None = None, limit: int = 50) -> DataIssuePage:
         """`GET /v1/data-issues`."""
@@ -123,13 +125,17 @@ class Api(SyncRoutes):
         return self._call(DataIssue, "POST", f"/v1/data-issues/{segment(issue_id)}/ack")
 
     def replay_case(self, body: ReplayCaseRequest) -> ReplayCase:
-        """`POST /v1/replay/cases`."""
+        """`POST /v1/replay/cases`. One turn with what a runner needs to run it again, once the running build
+        shares its pins.
+        """
         return self._call(ReplayCase, "POST", "/v1/replay/cases", body=body)
 
     def create_scenario_run(
         self, body: ScenarioRunCreate, *, idempotency_key: str | None = None
     ) -> ScenarioRun:
-        """`POST /v1/scenario-runs`."""
+        """`POST /v1/scenario-runs`. The executions the company's CI ran; the answer carries the verdict
+        already decided.
+        """
         return self._call(
             ScenarioRun, "POST", "/v1/scenario-runs", body=body, key=idempotency_key or new_key()
         )
@@ -138,12 +144,23 @@ class Api(SyncRoutes):
         """`GET /v1/scenario-runs/{run_id}`."""
         return self._call(ScenarioRun, "GET", f"/v1/scenario-runs/{segment(run_id)}")
 
-    def list_scenarios(self, *, cursor: str | None = None, limit: int = 50) -> ScenarioPage:
-        """`GET /v1/scenarios`."""
-        return self._call(ScenarioPage, "GET", "/v1/scenarios", params={"cursor": cursor, "limit": limit})
+    def list_scenarios(
+        self, *, ids: str | None = None, status: str = "active", cursor: str | None = None, limit: int = 50
+    ) -> ScenarioPage:
+        """`GET /v1/scenarios`. A status's scenarios, newest first; or the ones named by `ids`, whatever their
+        status.
+        """
+        return self._call(
+            ScenarioPage,
+            "GET",
+            "/v1/scenarios",
+            params={"ids": ids, "status": status, "cursor": cursor, "limit": limit},
+        )
 
     def create_scenario(self, body: ScenarioCreate, *, idempotency_key: str | None = None) -> Scenario:
-        """`POST /v1/scenarios`."""
+        """`POST /v1/scenarios`. Keeps the turns as a scenario; without assertions, the ones suggested by
+        rule.
+        """
         return self._call(Scenario, "POST", "/v1/scenarios", body=body, key=idempotency_key or new_key())
 
     def scenario_from_report(
@@ -153,6 +170,10 @@ class Api(SyncRoutes):
         return self._call(
             Scenario, "POST", "/v1/scenarios/from-report", body=body, key=idempotency_key or new_key()
         )
+
+    def read_scenario(self, scenario_id: str) -> Scenario:
+        """`GET /v1/scenarios/{scenario_id}`."""
+        return self._call(Scenario, "GET", f"/v1/scenarios/{segment(scenario_id)}")
 
     def update_scenario(self, scenario_id: str, body: ScenarioUpdate) -> Scenario:
         """`PATCH /v1/scenarios/{scenario_id}`."""
@@ -286,9 +307,13 @@ class Api(SyncRoutes):
         """`POST /v1/measure/counterfactual-runs`."""
         return self._call(CounterfactualRun, "POST", "/v1/measure/counterfactual-runs", body=body)
 
-    def interleaving(self) -> InterleavingReport:
-        """`GET /v1/measure/interleaving`."""
-        return self._call(InterleavingReport, "GET", "/v1/measure/interleaving")
+    def interleaving(self, *, since: date, until: date) -> InterleavingReport:
+        """`GET /v1/measure/interleaving`. Interleaved lists of a tool's two rankings: which one engagement
+        credited, with the sign test.
+        """
+        return self._call(
+            InterleavingReport, "GET", "/v1/measure/interleaving", params={"since": since, "until": until}
+        )
 
     def outcomes(self, *, cursor: str | None = None, limit: int = 50) -> OutcomePage:
         """`GET /v1/measure/outcomes`. Outcomes attributed to what agents did, newest first: each link with
@@ -479,9 +504,13 @@ class Api(SyncRoutes):
 class AsyncApi(AsyncRoutes):
     """The routes of `AsyncNiadra.api`. See the module."""
 
-    async def changes(self, *, cursor: str | None = None, limit: int = 50) -> ChangePage:
-        """`GET /v1/changes`."""
-        return await self._call(ChangePage, "GET", "/v1/changes", params={"cursor": cursor, "limit": limit})
+    async def changes(
+        self, *, agent: str | None = None, cursor: str | None = None, limit: int = 50
+    ) -> ChangePage:
+        """`GET /v1/changes`. What changed between consecutive builds of each agent, newest first."""
+        return await self._call(
+            ChangePage, "GET", "/v1/changes", params={"agent": agent, "cursor": cursor, "limit": limit}
+        )
 
     async def data_issues(self, *, cursor: str | None = None, limit: int = 50) -> DataIssuePage:
         """`GET /v1/data-issues`."""
@@ -494,13 +523,17 @@ class AsyncApi(AsyncRoutes):
         return await self._call(DataIssue, "POST", f"/v1/data-issues/{segment(issue_id)}/ack")
 
     async def replay_case(self, body: ReplayCaseRequest) -> ReplayCase:
-        """`POST /v1/replay/cases`."""
+        """`POST /v1/replay/cases`. One turn with what a runner needs to run it again, once the running build
+        shares its pins.
+        """
         return await self._call(ReplayCase, "POST", "/v1/replay/cases", body=body)
 
     async def create_scenario_run(
         self, body: ScenarioRunCreate, *, idempotency_key: str | None = None
     ) -> ScenarioRun:
-        """`POST /v1/scenario-runs`."""
+        """`POST /v1/scenario-runs`. The executions the company's CI ran; the answer carries the verdict
+        already decided.
+        """
         return await self._call(
             ScenarioRun, "POST", "/v1/scenario-runs", body=body, key=idempotency_key or new_key()
         )
@@ -509,14 +542,23 @@ class AsyncApi(AsyncRoutes):
         """`GET /v1/scenario-runs/{run_id}`."""
         return await self._call(ScenarioRun, "GET", f"/v1/scenario-runs/{segment(run_id)}")
 
-    async def list_scenarios(self, *, cursor: str | None = None, limit: int = 50) -> ScenarioPage:
-        """`GET /v1/scenarios`."""
+    async def list_scenarios(
+        self, *, ids: str | None = None, status: str = "active", cursor: str | None = None, limit: int = 50
+    ) -> ScenarioPage:
+        """`GET /v1/scenarios`. A status's scenarios, newest first; or the ones named by `ids`, whatever their
+        status.
+        """
         return await self._call(
-            ScenarioPage, "GET", "/v1/scenarios", params={"cursor": cursor, "limit": limit}
+            ScenarioPage,
+            "GET",
+            "/v1/scenarios",
+            params={"ids": ids, "status": status, "cursor": cursor, "limit": limit},
         )
 
     async def create_scenario(self, body: ScenarioCreate, *, idempotency_key: str | None = None) -> Scenario:
-        """`POST /v1/scenarios`."""
+        """`POST /v1/scenarios`. Keeps the turns as a scenario; without assertions, the ones suggested by
+        rule.
+        """
         return await self._call(
             Scenario, "POST", "/v1/scenarios", body=body, key=idempotency_key or new_key()
         )
@@ -528,6 +570,10 @@ class AsyncApi(AsyncRoutes):
         return await self._call(
             Scenario, "POST", "/v1/scenarios/from-report", body=body, key=idempotency_key or new_key()
         )
+
+    async def read_scenario(self, scenario_id: str) -> Scenario:
+        """`GET /v1/scenarios/{scenario_id}`."""
+        return await self._call(Scenario, "GET", f"/v1/scenarios/{segment(scenario_id)}")
 
     async def update_scenario(self, scenario_id: str, body: ScenarioUpdate) -> Scenario:
         """`PATCH /v1/scenarios/{scenario_id}`."""
@@ -669,9 +715,13 @@ class AsyncApi(AsyncRoutes):
         """`POST /v1/measure/counterfactual-runs`."""
         return await self._call(CounterfactualRun, "POST", "/v1/measure/counterfactual-runs", body=body)
 
-    async def interleaving(self) -> InterleavingReport:
-        """`GET /v1/measure/interleaving`."""
-        return await self._call(InterleavingReport, "GET", "/v1/measure/interleaving")
+    async def interleaving(self, *, since: date, until: date) -> InterleavingReport:
+        """`GET /v1/measure/interleaving`. Interleaved lists of a tool's two rankings: which one engagement
+        credited, with the sign test.
+        """
+        return await self._call(
+            InterleavingReport, "GET", "/v1/measure/interleaving", params={"since": since, "until": until}
+        )
 
     async def outcomes(self, *, cursor: str | None = None, limit: int = 50) -> OutcomePage:
         """`GET /v1/measure/outcomes`. Outcomes attributed to what agents did, newest first: each link with

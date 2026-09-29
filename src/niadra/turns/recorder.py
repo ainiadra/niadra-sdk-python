@@ -48,6 +48,8 @@ class TurnRecorder:
         """The claim check the sender runs on a turn's outputs, when a claim contract applies."""
         self.recording_mode: Callable[[], str | None] = lambda: None
         """The mode the space's recording names, when the client knows it (the SDK profile)."""
+        self.required_pins: Callable[[], tuple[str, ...]] = lambda: ()
+        """The pins a turn needs to be replayable, when the client knows them (the SDK profile)."""
         self.features: Callable[[], frozenset[str] | None] = lambda: None
         """The features the space turned on, when the client knows them (the SDK profile)."""
         self._enabled = enabled
@@ -111,6 +113,14 @@ class TurnRecorder:
             return
         if not self.recording:
             return
+        missing = [pin for pin in self.required_pins() if not frame.pins.get(pin)]
+        if missing:
+            names = ", ".join(missing)
+            self._warn_once(
+                f"pins:{names}",
+                f"niadra: turns without the {names} pin are kept but cannot be replayed; "
+                "name them in Niadra.build()",
+            )
         try:
             self.queue.put(frame)
             if self.sender is not None:

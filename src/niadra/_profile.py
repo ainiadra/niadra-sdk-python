@@ -81,5 +81,10 @@ class ProfileCache:
         """The content mode the space's recording names for this source, when the profile says it."""
         with self._lock:
             recording = self.profile.recording if self.profile is not None else None
-        mode = (recording or {}).get("content_mode")
-        return mode if mode in ("stored", "pointer", "hash_only") else None
+        return recording.content_mode if recording is not None else None
+
+    def required_pins(self) -> tuple[str, ...]:
+        """The pins the space's recording needs for a turn to be replayable, when the profile says them."""
+        with self._lock:
+            recording = self.profile.recording if self.profile is not None else None
+        return tuple(recording.required_pins) if recording is not None else ()

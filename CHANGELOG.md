@@ -58,7 +58,10 @@ built on them.
   times with the build you pin, answers your tools from the record (`@niadra.tool(dry_run=True)` lets one run
   for real when the record has no answer), keeps everything the agent sends from leaving, evaluates the
   assertions and reports the run, and Niadra answers with the statistical verdict. The agent's working state
-  starts empty in a replay and its writes stay there.
+  starts empty in a replay and its writes stay there. Runs are numbered from 1, as the replay spec numbers
+  them.
+- The recording the SDK profile serves: a turn leaves in the content mode the space names for the source,
+  and a turn without a pin the space requires for replay is kept with a warning, once.
 - The `niadra` command: `niadra replay` for your CI (exit 1 on a regression) and `niadra resolver-worker`,
   which serves the space's refresh requests with your resolvers and pushes what they read.
 - LangChain: `NiadraCallbackHandler(conversation, turns=True)` records each top-level run as a turn, with

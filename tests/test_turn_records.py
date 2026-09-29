@@ -424,3 +424,21 @@ def test_the_baggage_processor_puts_the_turn_on_spans(
         "niadra.turn.id": turn.turn_id,
         "niadra.pack.hash": turn.pins["niadra"]["pack_hash"],
     }
+
+
+def test_a_turn_without_a_pin_the_space_requires_is_kept_with_one_warning(
+    mock_app: MockApp, niadra: Niadra, caplog: pytest.LogCaptureFixture
+) -> None:
+    niadra.turns.required_pins = lambda: ("prompts", "model")
+    with niadra.conversation("c-19", subject=CUSTOMER) as conversation:
+        for _ in range(2):
+            with conversation.turn(build=niadra.build(model="model-a")):
+                quote("ouro", 2)
+        with conversation.turn(build=niadra.build(prompts={"core": "v1"}, model="model-a")):
+            quote("ouro", 2)
+    assert niadra.flush(5)
+    assert len(_records(mock_app)) == 3
+    warnings = [r.getMessage() for r in caplog.records if "cannot be replayed" in r.getMessage()]
+    assert warnings == [
+        "niadra: turns without the prompts pin are kept but cannot be replayed; name them in Niadra.build()"
+    ]

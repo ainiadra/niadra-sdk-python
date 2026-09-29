@@ -66,7 +66,7 @@ def test_the_generated_files_are_what_the_cut_document_gives() -> None:
 def test_every_operation_of_the_document_is_a_method_of_both_clients() -> None:
     sync = _sync_spec()
     names = {op.name for op in sync.operations(json.loads(sync.CUT.read_text()))}
-    assert len(names) == 59
+    assert len(names) == 60
     client = Niadra(KEY)
     assert all(callable(getattr(client.api, name)) for name in names)
     assert all(callable(getattr(AsyncNiadra(KEY).api, name)) for name in names)
@@ -234,3 +234,14 @@ def test_a_field_that_would_hide_a_type_of_its_class_stops_the_generator() -> No
         sync.ModelWriter(schemas, {"Stamp": "niadra.models.turns"}, set(), "niadra.models.turns").definition(
             "Stamp"
         )
+
+
+def test_the_halves_of_a_model_documented_twice_get_names_of_their_own() -> None:
+    split = _sync_spec()._split_names
+    assert split({"Page": {}, "Result-Input": {}}) == {"Result-Input": "Result"}
+    assert split({"Result-Input": {}, "Result-Output": {}}) == {
+        "Result-Input": "Result",
+        "Result-Output": "ResultOutput",
+    }
+    with pytest.raises(ValueError, match="taken"):
+        split({"Result": {}, "Result-Input": {}})
