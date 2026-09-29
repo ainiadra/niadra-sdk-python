@@ -1,0 +1,386 @@
+{
+  "schema": "niadra-bench.results.v1",
+  "run_id": "20260929T074129Z-34b061",
+  "date": "2026-09-29",
+  "started_at": "2026-09-29T07:41:29+00:00",
+  "finished_at": "2026-09-29T07:55:04+00:00",
+  "environment": {
+    "kind": "dry-run",
+    "region": null,
+    "machine_class": null,
+    "database_class": null,
+    "harness_host": null,
+    "harness_machine_class": null,
+    "verified_by_instance_metadata": false,
+    "host": "bench-host-3837",
+    "python": "3.13.15"
+  },
+  "versions": {
+    "harness": "0.1.0",
+    "harness_commit": "unknown",
+    "niadra_sdk": "0.6.1",
+    "niadra_server": null,
+    "mem0ai": null
+  },
+  "config": {
+    "hash": "sha256:7ad9c33ec9a6e17da92f74654104b8494487a2b239bf8bddbb950f715d8b0ce0",
+    "repetitions": 3,
+    "agent_model": "openai/gpt-6-luna",
+    "judge_model": null,
+    "agent": "context_only",
+    "agent_reasoning_effort": "low",
+    "extraction_model": "openai/gpt-6-luna",
+    "reasoning_effort": "low",
+    "niadra_models": [
+      "openai/gpt-6-luna",
+      "typesafe/jev-1.13"
+    ],
+    "embedder": "paraphrase-multilingual-minilm-l12-v2-r1",
+    "latency_rates": [
+      10,
+      25
+    ],
+    "latency_duration_s": 30.0,
+    "latency_conversations": 20,
+    "mem0_top_k": 10,
+    "mem0_threshold": 0.1,
+    "token_encoding": "o200k_base",
+    "turns_per_conversation": 10,
+    "prices_checked_on": "2026-09-27",
+    "history_rates": [
+      10,
+      25
+    ],
+    "history_duration_s": 30.0,
+    "history_conversations": 20,
+    "history_max_tokens": 800,
+    "ingest_rates": [
+      10,
+      25
+    ],
+    "ingest_duration_s": 30.0,
+    "ingest_conversations": 20,
+    "ingest_mem0_modes": [
+      "raw",
+      "infer"
+    ],
+    "niadra_guards": "off",
+    "context_has_answer_rule": "specific-v2",
+    "references": "off",
+    "max_settle_s": null,
+    "quick": false,
+    "limit": 20
+  },
+  "dataset": {
+    "version": "v2",
+    "hash": "sha256:afdd99efd133199eae45e6a2b229156df39e8659c26c2d00bb636529dbdbfb1d",
+    "generator_version": "2",
+    "cases": 20,
+    "valid": {
+      "median": null,
+      "min": null,
+      "max": null,
+      "runs": [
+        null,
+        null,
+        null
+      ]
+    },
+    "excluded": [
+      [],
+      [],
+      []
+    ]
+  },
+  "metrics": {
+    "latency": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "niadra",
+          "path": "host",
+          "rate": 10,
+          "p50": {
+            "median": 13.7,
+            "min": 12.7,
+            "max": 14.5,
+            "runs": [
+              12.7,
+              14.5,
+              13.7
+            ]
+          },
+          "p95": {
+            "median": 53.5,
+            "min": 32.9,
+            "max": 61.8,
+            "runs": [
+              32.9,
+              53.5,
+              61.8
+            ]
+          },
+          "p99": {
+            "median": 99.0,
+            "min": 66.4,
+            "max": 121.6,
+            "runs": [
+              66.4,
+              121.6,
+              99.0
+            ]
+          },
+          "max": {
+            "median": 172.0,
+            "min": 89.2,
+            "max": 231.7,
+            "runs": [
+              89.2,
+              172.0,
+              231.7
+            ]
+          },
+          "errors": 0,
+          "sent": 900
+        },
+        {
+          "system": "niadra",
+          "path": "host",
+          "rate": 25,
+          "p50": {
+            "median": 11.0,
+            "min": 10.8,
+            "max": 17.1,
+            "runs": [
+              10.8,
+              11.0,
+              17.1
+            ]
+          },
+          "p95": {
+            "median": 24.0,
+            "min": 20.2,
+            "max": 279.1,
+            "runs": [
+              20.2,
+              24.0,
+              279.1
+            ]
+          },
+          "p99": {
+            "median": 67.4,
+            "min": 36.5,
+            "max": 500.3,
+            "runs": [
+              36.5,
+              67.4,
+              500.3
+            ]
+          },
+          "max": {
+            "median": 114.1,
+            "min": 109.4,
+            "max": 886.0,
+            "runs": [
+              114.1,
+              109.4,
+              886.0
+            ]
+          },
+          "errors": 0,
+          "sent": 2250
+        }
+      ]
+    },
+    "history": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "niadra",
+          "path": "host",
+          "operation": "search",
+          "call": "POST /v1/history/search",
+          "rate": 10,
+          "p50": {
+            "median": 27.5,
+            "min": 27.3,
+            "max": 28.3,
+            "runs": [
+              27.5,
+              27.3,
+              28.3
+            ]
+          },
+          "p95": {
+            "median": 67.2,
+            "min": 63.4,
+            "max": 90.2,
+            "runs": [
+              67.2,
+              63.4,
+              90.2
+            ]
+          },
+          "p99": {
+            "median": 124.1,
+            "min": 89.8,
+            "max": 201.6,
+            "runs": [
+              124.1,
+              89.8,
+              201.6
+            ]
+          },
+          "max": {
+            "median": 314.1,
+            "min": 130.9,
+            "max": 371.3,
+            "runs": [
+              371.3,
+              130.9,
+              314.1
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 900,
+          "empty": 0,
+          "degraded": 0,
+          "server_timing": {
+            "app": {
+              "p50": {
+                "median": 25.2,
+                "min": 24.8,
+                "max": 25.9,
+                "runs": [
+                  25.2,
+                  24.8,
+                  25.9
+                ]
+              },
+              "p95": {
+                "median": 76.3,
+                "min": 64.6,
+                "max": 85.3,
+                "runs": [
+                  64.6,
+                  85.3,
+                  76.3
+                ]
+              }
+            }
+          }
+        },
+        {
+          "system": "niadra",
+          "path": "host",
+          "operation": "open",
+          "call": "POST /v1/history/open",
+          "rate": 10,
+          "p50": {
+            "median": 10.6,
+            "min": 10.4,
+            "max": 10.7,
+            "runs": [
+              10.6,
+              10.7,
+              10.4
+            ]
+          },
+          "p95": {
+            "median": 22.2,
+            "min": 16.9,
+            "max": 25.3,
+            "runs": [
+              16.9,
+              25.3,
+              22.2
+            ]
+          },
+          "p99": {
+            "median": 63.8,
+            "min": 57.6,
+            "max": 66.6,
+            "runs": [
+              63.8,
+              66.6,
+              57.6
+            ]
+          },
+          "max": {
+            "median": 77.5,
+            "min": 70.7,
+            "max": 251.0,
+            "runs": [
+              70.7,
+              251.0,
+              77.5
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 900,
+          "empty": 0,
+          "degraded": 0
+        }
+      ]
+    },
+    "ingest": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "niadra",
+          "path": "host",
+          "operation": "batch",
+          "call": "POST /v1/batch",
+          "rate": 10,
+          "p50": {
+            "median": 9.7,
+            "min": 9.5,
+            "max": 13.1,
+            "runs": [
+              13.1,
+              9.7,
+              9.5
+            ]
+          },
+          "p95": {
+            "median": 57.3,
+            "min": 16.5,
+            "max": 79.9,
+            "runs": [
+              79.9,
+              57.3,
+              16.5
+            ]
+          },
+          "p99": {
+            "median": 98.5,
+            "min": 43.8,
+            "max": 226.1,
+            "runs": [
+              98.5,
+              226.1,
+              43.8
+            ]
+          },
+          "max": {
+            "median": 157.5,
+            "min": 86.9,
+            "max": 582.6,
+            "runs": [
+              157.5,
+              582.6,
+              86.9
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 900,
+          "empty": 0,
+          "degraded": 0
+        }
+      ]
+    }
+  }
+}

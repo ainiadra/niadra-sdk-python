@@ -1,0 +1,215 @@
+{
+  "what": "Niadra's own model spend for this run, measured on the cell (its extraction runs and its spend ledger), which the harness cannot see: Niadra's extraction runs in the cell, not through a harness gateway (on this temporary cell, on the benchmark's OpenRouter key). The same method the harness uses for an added system's models_only line: model spend from seeding until settled, over the exchanges written, times 10 exchanges, times 1,000 conversations.",
+  "exchanges_written": 2400,
+  "exchanges_per_conversation": 10,
+  "per_repetition": {
+    "1": {
+      "run_id": "2026-09-29-9d0229",
+      "window_utc": {
+        "from": "2026-09-29T05:03:27Z",
+        "to": "2026-09-29T05:28:38Z",
+        "note": "seeding start until settled (seeding ended 2026-09-29T05:26:37Z, settle 120.7 s)"
+      },
+      "exchanges_written": 2400,
+      "exchanges_per_conversation": 10,
+      "models_only": {
+        "source": "the cell's extraction_runs rows in the window",
+        "model": "openai/gpt-6-luna",
+        "runs": 1063,
+        "runs_without_a_model_call": 1239,
+        "tokens": {
+          "input": 920629,
+          "cached_input": 827416,
+          "output": 139011
+        },
+        "prices_usd_per_million": {
+          "input": 0.1,
+          "output": 0.5,
+          "cached_input": 0.01,
+          "source": "config/benchmark.toml, the prices every added system's models_only line uses"
+        },
+        "usd": 0.0871
+      },
+      "cell_ledger": {
+        "source": "the cell's own spend ledger, every purpose, snapshots 2026-09-29T05:02:05Z and 2026-09-29T05:29:36Z",
+        "usd": 0.121,
+        "by_purpose_usd": {
+          "extraction": 0.121
+        }
+      },
+      "until_drained": {
+        "from": "2026-09-29T05:02:56Z",
+        "to": "2026-09-29T05:48:50Z",
+        "ledger_usd": 0.121,
+        "note": "from the run's start until the cell had no extraction for 5 minutes; includes the timed loops' own writes, not part of the method. The extraction of this run's timed-loop sessions went on after this drain, when their idle time ran out (84 GPT-6 Luna runs around 06:00Z), in the next run's window, where they are counted apart",
+        "snapshots": [
+          "2026-09-29T05:02:05Z",
+          "2026-09-29T05:49:20Z"
+        ]
+      }
+    },
+    "2": {
+      "run_id": "2026-09-29-40cdd3",
+      "window_utc": {
+        "from": "2026-09-29T05:50:11Z",
+        "to": "2026-09-29T06:15:01Z",
+        "note": "seeding start until settled (seeding ended 2026-09-29T06:13:21Z, settle 99.2 s)"
+      },
+      "exchanges_written": 2400,
+      "exchanges_per_conversation": 10,
+      "models_only": {
+        "source": "the cell's extraction_runs rows in the window",
+        "model": "openai/gpt-6-luna",
+        "runs": 1063,
+        "runs_without_a_model_call": 1242,
+        "tokens": {
+          "input": 938672,
+          "cached_input": 848452,
+          "output": 140234
+        },
+        "prices_usd_per_million": {
+          "input": 0.1,
+          "output": 0.5,
+          "cached_input": 0.01,
+          "source": "config/benchmark.toml, the prices every added system's models_only line uses"
+        },
+        "usd": 0.0876,
+        "previous_run_excluded": {
+          "note": "extraction runs inside this window for sessions the previous run's timed loops opened live (2026-09-29T05:32:07Z to 2026-09-29T05:39:56Z), which the cell extracted after that run's drain, when their idle time ran out; they are that run's work, found by session, and left out here",
+          "runs": 84,
+          "runs_without_a_model_call": 170,
+          "tokens": {
+            "input": 148196,
+            "cached_input": 106933,
+            "output": 19083
+          },
+          "usd": 0.0147
+        },
+        "as_read": {
+          "runs": 1147,
+          "runs_without_a_model_call": 1412,
+          "tokens": {
+            "input": 1086868,
+            "cached_input": 955385,
+            "output": 159317
+          },
+          "usd": 0.1024,
+          "usd_per_1000": 0.4265
+        }
+      },
+      "cell_ledger": {
+        "source": "the cell's own spend ledger, every purpose, snapshots 2026-09-29T05:49:20Z and 2026-09-29T06:16:11Z",
+        "usd": 0.1491,
+        "by_purpose_usd": {
+          "extraction": 0.1491
+        },
+        "note": "includes the previous run's carried-over extractions (models_only.previous_run_excluded); the ledger books per day and purpose, so their share, decisions included, cannot be taken out"
+      },
+      "until_drained": {
+        "from": "2026-09-29T05:49:40Z",
+        "to": "2026-09-29T06:53:27Z",
+        "ledger_usd": 0.1695,
+        "note": "from the run's start until the cell had no extraction for 5 minutes; includes the timed loops' own writes, not part of the method",
+        "snapshots": [
+          "2026-09-29T05:49:20Z",
+          "2026-09-29T06:53:58Z"
+        ]
+      }
+    },
+    "3": {
+      "run_id": "2026-09-29-ba953f",
+      "window_utc": {
+        "from": "2026-09-29T06:54:50Z",
+        "to": "2026-09-29T07:19:49Z",
+        "note": "seeding start until settled (seeding ended 2026-09-29T07:18:00Z, settle 108.6 s)"
+      },
+      "exchanges_written": 2400,
+      "exchanges_per_conversation": 10,
+      "models_only": {
+        "source": "the cell's extraction_runs rows in the window",
+        "model": "openai/gpt-6-luna",
+        "runs": 1062,
+        "runs_without_a_model_call": 1242,
+        "tokens": {
+          "input": 929247,
+          "cached_input": 834428,
+          "output": 139644
+        },
+        "prices_usd_per_million": {
+          "input": 0.1,
+          "output": 0.5,
+          "cached_input": 0.01,
+          "source": "config/benchmark.toml, the prices every added system's models_only line uses"
+        },
+        "usd": 0.0876
+      },
+      "cell_ledger": {
+        "source": "the cell's own spend ledger, every purpose, snapshots 2026-09-29T06:53:58Z and 2026-09-29T07:21:46Z",
+        "usd": 0.1223,
+        "by_purpose_usd": {
+          "extraction": 0.1223
+        }
+      },
+      "until_drained": {
+        "from": "2026-09-29T06:54:19Z",
+        "to": "2026-09-29T07:40:49Z",
+        "ledger_usd": 0.1223,
+        "note": "from the run's start until the cell had no extraction for 5 minutes; includes the timed loops' own writes, not part of the method. The last ledger snapshot before the drain is the second one: from it to the drain the cell ran no extraction with a model call (extraction_runs), and the ledger held the same value from 07:18:57Z to it",
+        "snapshots": [
+          "2026-09-29T06:53:58Z",
+          "2026-09-29T07:33:08Z"
+        ]
+      }
+    }
+  },
+  "repetitions": {
+    "1": [
+      {
+        "system": "niadra",
+        "variant": "models_only",
+        "memory_usd_per_1000": 0.3629,
+        "agent_prompt_usd_per_1000": 0.0985,
+        "basis": "Niadra's extraction tokens (GPT-6 Luna) read from the cell over the run's window, at the harness's prices: the method of every added system's models_only line"
+      },
+      {
+        "system": "niadra",
+        "variant": "cell_ledger",
+        "memory_usd_per_1000": 0.5041,
+        "agent_prompt_usd_per_1000": 0.0985,
+        "basis": "the cell's own spend ledger over the run's window, every purpose (it books one purpose, extraction, which carries the decision model's calls too)"
+      }
+    ],
+    "2": [
+      {
+        "system": "niadra",
+        "variant": "models_only",
+        "memory_usd_per_1000": 0.3651,
+        "agent_prompt_usd_per_1000": 0.105,
+        "basis": "Niadra's extraction tokens (GPT-6 Luna) read from the cell over the run's window, at the harness's prices: the method of every added system's models_only line; the previous run's late extractions in the window are left out (cell-cost.json)"
+      },
+      {
+        "system": "niadra",
+        "variant": "cell_ledger",
+        "memory_usd_per_1000": 0.6214,
+        "agent_prompt_usd_per_1000": 0.105,
+        "basis": "the cell's own spend ledger over the run's window, every purpose (it books one purpose, extraction, which carries the decision model's calls too); in this window it also carries the previous run's late extractions"
+      }
+    ],
+    "3": [
+      {
+        "system": "niadra",
+        "variant": "models_only",
+        "memory_usd_per_1000": 0.3652,
+        "agent_prompt_usd_per_1000": 0.0985,
+        "basis": "Niadra's extraction tokens (GPT-6 Luna) read from the cell over the run's window, at the harness's prices: the method of every added system's models_only line"
+      },
+      {
+        "system": "niadra",
+        "variant": "cell_ledger",
+        "memory_usd_per_1000": 0.5097,
+        "agent_prompt_usd_per_1000": 0.0985,
+        "basis": "the cell's own spend ledger over the run's window, every purpose (it books one purpose, extraction, which carries the decision model's calls too)"
+      }
+    ]
+  }
+}
