@@ -81,6 +81,27 @@ class AnchorEvidence(ResponseModel):
     min_match: float = Field(default=0.9, ge=0.9, le=1.0)
 
 
+class StateRef(Model):
+    """An object of the type registry: a subject's or a shared one, whose key may name a variant."""
+
+    id: IdStr
+    namespace: ShortStr
+    type: ShortStr
+    variant: ShortStr | None = None
+
+
+class ChangeSinceSeen(ResponseModel):
+    """A field of an interest whose value is not the one the subject was shown."""
+
+    field: ShortStr
+    now: Any = None
+    observed_at: datetime | None = Field(
+        default=None, description="When the source observed the value now held."
+    )
+    ref: StateRef
+    seen: Any = None
+
+
 class ValueEvidence(ResponseModel):
     """A value in the turn record, from a tool's result or from state, that the number is checked against."""
 
@@ -166,7 +187,9 @@ class ClaimOutputs(ResponseModel):
 
 class InternalText(ResponseModel):
     """Fingerprints of the company's own prompt: hashes of every `n` words, computed by the SDK, never the
-    prompt itself. An output that repeats one gives way to `redact`.
+    prompt itself. An output that repeats one gives way to `redact`, recorded as a claim of the category
+    `internal_text` with the verdict `internal_text_found`, the action taken and, as evidence, the
+    `shingle_hashes_ref` in `document`.
     """
 
     n: int = Field(default=8, ge=4, le=32)
@@ -255,77 +278,6 @@ class FieldState(ResponseModel):
     v: Any = None
     valid_at: datetime | None = None
     was: PreviousValue | None = None
-
-
-class TypeCoverage(ResponseModel):
-    fields: list[FieldCoverage]
-    type: TypeName
-
-
-class ObjectCoverage(ResponseModel):
-    types: list[TypeCoverage]
-
-
-class Provenance(Model):
-    """Where pushed values come from: only a `live` source sustains a claim, and the age of every value counts
-    from `source_observed_at`.
-    """
-
-    scope: Literal["global", "customer", "context"] = "global"
-    source: Literal["live", "snapshot", "cache"]
-    source_observed_at: datetime
-
-
-class StateRef(Model):
-    """An object of the type registry: a subject's or a shared one, whose key may name a variant."""
-
-    id: IdStr
-    namespace: ShortStr
-    type: ShortStr
-    variant: ShortStr | None = None
-
-
-class ObjectPush(Model):
-    fields: dict[str, Any] = Field(max_length=200)
-    inputs: Annotated[dict[ShortStr, ShortStr], Field(max_length=20)] | None = Field(
-        default=None,
-        description=(
-            "For a customer's derived object (a quote): the objects its inputs are fields of, by the "
-            'name its type gives them, as `type:namespace:id` (`{"lead": "lead:crm:L-9"}`). When a '
-            "field of one of them changes, the object expires, naming the input."
-        ),
-    )
-    provenance: Provenance
-    ref: StateRef
-    version: int = Field(
-        ge=0,
-        le=9007199254740991,
-        description=(
-            "The source's version of the object. A field moves only when this is greater than the "
-            "version that last wrote it; a source never reuses a version for other content."
-        ),
-    )
-
-
-class ObjectPushRequest(Model):
-    objects: list[ObjectPush] = Field(min_length=1, max_length=1000)
-
-
-class ObjectPushResponse(ResponseModel):
-    """How many items of the request each decision took, against the hot layer, with no database statement.
-
-    A shared object's item is `applied` when at least one of its fields moved forward: reads serve it at
-    once, and the consolidator writes it within a second with the same per-field rule, so the stored object
-    never disagrees with the answer. `stale_version`: every field was already written by this version or a
-    greater one, as a retried request finds. `out_of_set`: the object is not in the working set, and
-    nothing is kept. A subject's object is `recorded`: accepted as a system event about it, in the
-    request's one statement, and its fields move by the same rule when the event is applied.
-    """
-
-    applied: int
-    out_of_set: int
-    recorded: int = 0
-    stale_version: int
 
 
 class OutcomeState(ResponseModel):
@@ -430,6 +382,80 @@ class ObjectRead(ResponseModel):
     )
 
 
+class InterestState(ResponseModel):
+    """A shared object the subject showed interest in, as it stands now."""
+
+    at: datetime
+    object: ObjectRead | None = Field(
+        default=None,
+        description="The object as a `display` read serves it; absent once it left the working set.",
+    )
+    reason: ShortStr = Field(description="`presented`, `engaged`, `feedback` or `watch`.")
+    ref: StateRef
+
+
+class TypeCoverage(ResponseModel):
+    fields: list[FieldCoverage]
+    type: TypeName
+
+
+class ObjectCoverage(ResponseModel):
+    types: list[TypeCoverage]
+
+
+class Provenance(Model):
+    """Where pushed values come from: only a `live` source sustains a claim, and the age of every value counts
+    from `source_observed_at`.
+    """
+
+    scope: Literal["global", "customer", "context"] = "global"
+    source: Literal["live", "snapshot", "cache"]
+    source_observed_at: datetime
+
+
+class ObjectPush(Model):
+    fields: dict[str, Any] = Field(max_length=200)
+    inputs: Annotated[dict[ShortStr, ShortStr], Field(max_length=20)] | None = Field(
+        default=None,
+        description=(
+            "For a customer's derived object (a quote): the objects its inputs are fields of, by the "
+            'name its type gives them, as `type:namespace:id` (`{"lead": "lead:crm:L-9"}`). When a '
+            "field of one of them changes, the object expires, naming the input."
+        ),
+    )
+    provenance: Provenance
+    ref: StateRef
+    version: int = Field(
+        ge=0,
+        le=9007199254740991,
+        description=(
+            "The source's version of the object. A field moves only when this is greater than the "
+            "version that last wrote it; a source never reuses a version for other content."
+        ),
+    )
+
+
+class ObjectPushRequest(Model):
+    objects: list[ObjectPush] = Field(min_length=1, max_length=1000)
+
+
+class ObjectPushResponse(ResponseModel):
+    """How many items of the request each decision took, against the hot layer, with no database statement.
+
+    A shared object's item is `applied` when at least one of its fields moved forward: reads serve it at
+    once, and the consolidator writes it within a second with the same per-field rule, so the stored object
+    never disagrees with the answer. `stale_version`: every field was already written by this version or a
+    greater one, as a retried request finds. `out_of_set`: the object is not in the working set, and
+    nothing is kept. A subject's object is `recorded`: accepted as a system event about it, in the
+    request's one statement, and its fields move by the same rule when the event is applied.
+    """
+
+    applied: int
+    out_of_set: int
+    recorded: int = 0
+    stale_version: int
+
+
 class ObjectSnapshotResponse(ResponseModel):
     """A snapshot taken in: its lines are applied as pushes of provenance `snapshot`, which never sustain a
     claim, by the same version rule.
@@ -519,12 +545,22 @@ class StateVerifyResponse(ResponseModel):
 
 
 class StateView(ResponseModel):
-    """The state of one subject: their objects of the declared types, each as a `display` read serves it."""
+    """The state of one subject (the `now` view): their objects of the declared types, each as a `display`
+    read serves it; the shared objects they showed interest in, and what changed since they saw them; and
+    the same as short lines for the turn block.
+    """
 
-    changes_since_seen: list[dict[str, Any]] = Field(default_factory=list)
+    changes_since_seen: list[ChangeSinceSeen] = Field(default_factory=list)
     degraded: bool = False
-    interests: list[dict[str, Any]] = Field(default_factory=list)
+    interests: list[InterestState] = Field(default_factory=list)
     objects: list[ObjectRead] = Field(default_factory=list)
+    text: str | None = Field(
+        default=None,
+        description=(
+            "The view as lines for the turn block, after `slots`: never part of the pack's `text`, so "
+            "the cached prefix keeps its bytes. Absent when there is nothing to say."
+        ),
+    )
 
 
 class StateViewRequest(Model):

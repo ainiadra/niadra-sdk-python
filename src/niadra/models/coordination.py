@@ -184,7 +184,8 @@ class ClaimRelease(Model):
 class ClaimRequest(Model):
     """A declared claim, held by `holder`. `level` defaults to the space's least restrictive level; a
     declaration is refused (409 `lease_held`) while another holder's claim is at least as restrictive, and
-    the same holder renews its own. `lease_s` is capped by the space's longest declared lease.
+    the same holder renews its own. `lease_s` is capped by the space's longest declared lease. A task lock
+    names an object and its `task`, and is refused (409 `task_locked`) while another holder has that task.
     """
 
     holder: ShortStr
@@ -193,12 +194,41 @@ class ClaimRequest(Model):
     lease_s: int = Field(ge=1, le=86400)
     level: TypeName | None = None
     object: ObjectRef | None = None
+    observed_at: datetime | None = Field(
+        default=None,
+        description="When the source saw it; an observation older than the source's last is ignored.",
+    )
+    source: TypeName | None = Field(
+        default=None,
+        description=(
+            "An observation of this ownership source, read and sent by the company's worker: never "
+            "refused, replacing what the source said before, and capped by the source's validity."
+        ),
+    )
     subject: Handle | None = None
     task: TypeName | None = None
 
 
-class CommitmentMadeDetail(Model):
+class CommitmentDecidedDetail(Model):
+    """The person accepted or declined a commitment, maybe in a later conversation."""
+
     commitment_id: IdStr
+    outcome: Literal["accepted", "declined"]
+
+
+class CommitmentDecided(Model):
+    agent: ShortStr
+    detail: CommitmentDecidedDetail
+    kind: Literal["commitment.decided"]
+    object: ObjectRef | None = None
+    subject: Handle | None = None
+
+
+class CommitmentMadeDetail(Model):
+    """`score` ranks commitments of a `best_wins` type: the higher holds."""
+
+    commitment_id: IdStr
+    score: float | None = None
     terms: dict[str, Any] = Field(default_factory=dict)
     type: TypeName
     valid_until: datetime | None = None
@@ -263,8 +293,21 @@ class ContactMade(Model):
     subject: Handle | None = None
 
 
+class CoordinationReport(ResponseModel):
+    """A shadow run: the space's policy applied to its outbound messages already ingested, with nothing
+    enforced. `summary` holds the conflicts found and per 1,000 customers a month, without anyone in them.
+    """
+
+    days: int
+    finished_at: datetime | None = None
+    report_id: IdStr
+    requested_at: datetime
+    status: Literal["pending", "done", "failed"]
+    summary: dict[str, Any] = Field(default_factory=dict)
+
+
 class CoordinationReportPage(ResponseModel):
-    items: list[dict[str, Any]]
+    items: list[CoordinationReport]
     next_cursor: str | None = None
 
 
@@ -362,6 +405,7 @@ DeclareRequest = Annotated[
     | EffectDeclared
     | CommitmentMade
     | CommitmentWithdrawn
+    | CommitmentDecided
     | HandoffDeclared
     | SuppressionAdded
     | SuppressionLifted,
@@ -408,9 +452,11 @@ class EffectSettle(Model):
 
 
 class HandoffContext(ResponseModel):
-    """The compiled `handoff` view, at the receiving side's policy and verification level."""
+    """The compiled `handoff` view, at the receiving side's policy and verification level. `etag` is the
+    pack's it was compiled from, absent for a subject the memory knows nothing of yet.
+    """
 
-    etag: ShortStr
+    etag: ShortStr | None = None
     policy_version: ShortStr | None = None
     text: str
 
@@ -444,12 +490,14 @@ class HandoffPackage(ResponseModel):
     promises_open: list[PromiseRef] = Field(default_factory=list)
     reason: Annotated[str, StringConstraints(min_length=1, max_length=500)] | None = None
     spec: Literal["handoff-package.v0"] = "handoff-package.v0"
+    subject: Handle | None = Field(default=None, description="Whom the handoff is about.")
     suppressions: list[TypeName] = Field(default_factory=list)
     target: ShortStr
 
 
 class Handoff(ResponseModel):
     created_at: datetime
+    expected_by: datetime | None = None
     handoff_id: IdStr
     outcome: ShortStr | None = None
     package: HandoffPackage | None = None
@@ -457,7 +505,18 @@ class Handoff(ResponseModel):
 
 
 class HandoffCreate(Model):
+    """Hands the subject to `target`. The package is compiled at `level`, the verification the receiving side
+    has of the subject, so it never carries what that side could not read.
+    """
+
+    agent: ShortStr | None = Field(
+        default=None, description="The agent handing off; the calling key's name when absent."
+    )
     conversation_id: IdStr | None = None
+    expected_by: datetime | None = Field(
+        default=None, description="When the outcome is due; the space's default wait when absent."
+    )
+    level: Verification = Verification("V0")
     reason: Annotated[str, StringConstraints(min_length=1, max_length=500)] | None = None
     subject: Handle
     target: ShortStr

@@ -7,6 +7,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from niadra.constraints.text import include_text
 from niadra.models._base import ResponseModel
 from niadra.models.context import (
     ContextResponse,
@@ -70,8 +71,9 @@ class Context(ContextResponse):
     @property
     def turn_block(self) -> str:
         """What changes every turn, for the end of the prompt: the recent turns from other
-        channels, this turn's slots (what the customer's last turn selected from memory) and
-        the delta, in that order, as the API places them.
+        channels, this turn's slots (what the customer's last turn selected from memory), the
+        blocks the read asked for by `include` (the state view, the constraints) and the delta, in
+        that order, as the API places them.
 
         None of them is part of the pinned pack: they go after the conversation, where they do
         not break the cached prefix. Empty string when there is none.
@@ -80,11 +82,13 @@ class Context(ContextResponse):
 
 
 def render_turn(context: ContextResponse) -> str:
-    """The turn block of an answer: the live turns, then the slots, then the delta. Empty for a holdout."""
+    """The turn block of an answer: the live turns, then the slots, then the blocks by `include`, then the
+    delta. Empty for a holdout."""
     if context.path == DeliveryPath.HOLDOUT:
         return ""
+    included = include_text(context.text, context.state, context.constraints)
     return "\n\n".join(
-        part for part in (render_live(context), context.slots or "", context.delta or "") if part
+        part for part in (render_live(context), context.slots or "", included, context.delta or "") if part
     )
 
 

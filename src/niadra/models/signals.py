@@ -15,6 +15,38 @@ from niadra.models._base import IdStr, Model, ResponseModel, ShortStr
 from niadra.models.common import Handle, ObjectRef
 
 ObjectKey = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}:[^:\s]{1,256}:\S{1,512}$")]
+TurnId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")]
+
+
+class ArmComparison(ResponseModel):
+    """One arm against `control` on one metric, adjusted by CUPED when the history varies, with the mixture
+    sequential test: its p-value and interval hold at any look, so the report may be read every day.
+    """
+
+    arm: str
+    arm_mean: float
+    ci_high: float
+    ci_low: float = Field(description="The always-valid interval of `difference` at the test's `alpha`.")
+    control_mean: float = Field(description="Per person, before the adjustment.")
+    decided: bool = Field(description="`p_value` at or below `alpha`: the difference is real.")
+    difference: float = Field(description="The arm minus the control, per person, adjusted.")
+    looks: int = Field(description="The daily looks kept before this one.")
+    metric: Literal["conversion", "value"]
+    p_value: float = Field(description="The running minimum over the daily looks and this one.")
+    relative: float | None = Field(description="`difference` over the control's mean.")
+    variance_reduction: float | None = Field(
+        description="The share of the variance CUPED removed; absent when it did not apply."
+    )
+
+
+class ArmOutcomes(ResponseModel):
+    """The people one arm holds and what they did after they were assigned, from the outcome links."""
+
+    arm: str
+    converted: int = Field(description="People with an outcome in a success state.")
+    outcomes: int
+    people: int
+    value_minor: int = Field(description="Their lines' money, each line once whatever the method.")
 
 
 class AttributeEntry(ResponseModel):
@@ -206,17 +238,154 @@ class ConstraintsRequest(Model):
     tool: ShortStr | None = Field(default=None, description="Rendered for this tool's bindings.")
 
 
+class CounterfactualEngaged(Model):
+    """An item the person engaged with in the recorded turn, by its 1-based position in each live list; absent
+    where the list does not hold it.
+    """
+
+    base: Annotated[int, Field(ge=1, le=10000)] | None = None
+    variant: Annotated[int, Field(ge=1, le=10000)] | None = None
+
+
+class CounterfactualCase(Model):
+    """One recorded tool call run live three times at the same moment: twice with the element (the base, whose
+    two lists measure the tool's own noise) and once without it (the variant). Positions and overlaps only:
+    never an item, an argument or a result.
+    """
+
+    base_count: Annotated[int, Field(ge=0)] | None = Field(
+        default=None, description="Items in the base's first list."
+    )
+    call_id: ShortStr
+    dry_run: bool = Field(default=False, description="The calls ran as the tool's dry run.")
+    engaged: list[CounterfactualEngaged] = Field(default_factory=list, max_length=50)
+    k: Annotated[int, Field(ge=1, le=100)] | None = Field(
+        default=None,
+        description="The positions compared: the recorded list's `visible_k`, else the run's `k`.",
+    )
+    noise: Annotated[float, Field(ge=0.0, le=1.0)] | None = Field(
+        default=None, description="overlap@k of the base's two lists: the tool's own noise."
+    )
+    overlap: Annotated[float, Field(ge=0.0, le=1.0)] | None = Field(
+        default=None, description="overlap@k of the base's first list and the variant's."
+    )
+    status: Literal["completed", "no_dry_run", "tool_error", "infrastructure_error"] = Field(
+        description=(
+            "`no_dry_run` for a tool that writes state and has no dry run: it is never called. "
+            "`tool_error` when a call failed, `infrastructure_error` when the runner could not run the "
+            "case."
+        )
+    )
+    turn_id: TurnId
+    variant_count: Annotated[int, Field(ge=0)] | None = Field(
+        default=None, description="Items in the variant's list."
+    )
+
+
+class CounterfactualEngagement(ResponseModel):
+    """Where the items the person engaged with went without the element, over the completed cases."""
+
+    gained: int = Field(description="Within the variant's first `k` and not the base's.")
+    items: int
+    kept: int = Field(description="Within the first `k` of both lists.")
+    lost: int = Field(description="Within the base's first `k` and not the variant's.")
+    mean_shift: float | None = Field(
+        default=None,
+        description=(
+            "The variant's position minus the base's, averaged over the items both lists hold; positive"
+            " when they fell."
+        ),
+    )
+    shown: int = Field(description="Within the first `k` of the base's list.")
+
+
 class CounterfactualRun(ResponseModel):
-    limits: list[str] = Field(default_factory=list)
-    noise_floor: float | None = None
-    overlap_at_k: float | None = None
+    """Whether the element changes what the tool returns, beyond the tool's own noise. It never says whether
+    the result got better, nor how the model reacts: `limits` says so, and what else holds the answer back.
+    """
+
+    above_noise: int
+    below_noise: int = Field(description="Completed cases whose overlap is below their own noise.")
+    cases: int
+    completed: int
+    created_at: datetime
+    effect: float | None = Field(
+        description="`noise_floor - overlap`: how much of the first positions the element moves beyond noise."
+    )
+    element: Literal["constraints", "hard", "size", "exclude"]
+    engaged: CounterfactualEngagement
+    label: str | None = None
+    limits: list[
+        Literal[
+            "not_quality",
+            "model_reaction_not_measured",
+            "trivial_for_hard",
+            "few_cases",
+            "noisy_tool",
+            "cases_skipped",
+            "dry_run",
+        ]
+    ]
+    noise_floor: float | None = Field(description="Mean overlap@k of the base with itself.")
+    overlap: float | None = Field(description="Mean overlap@k of the base and the variant.")
+    p_value: float | None = Field(
+        description=(
+            "The two-sided sign test of `below_noise` against `above_noise`: how likely a split this "
+            "uneven is when the element changes nothing."
+        )
+    )
     run_id: IdStr
+    skipped: dict[str, int] = Field(default_factory=dict, description="The cases not completed.")
+    ties: int
+    tool: str
 
 
 class CounterfactualRunCreate(Model):
-    element: ShortStr
-    results: list[dict[str, Any]] = Field(min_length=1, max_length=5000)
-    tool: ShortStr
+    """What a runner measured in the company's CI for one tool and one element (the tool counterfactual
+    spec).
+    """
+
+    cases: list[CounterfactualCase] = Field(min_length=1, max_length=5000)
+    element: Literal["constraints", "hard", "size", "exclude"]
+    k: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="The positions compared when a recorded list has no `visible_k`.",
+    )
+    label: ShortStr | None = Field(
+        default=None, description="A name for the run, such as the commit or the build it ran on."
+    )
+    tool: Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_.:-]{0,63}$")]
+
+
+class CounterfactualRunPage(ResponseModel):
+    items: list[CounterfactualRun]
+    next_cursor: str | None = None
+
+
+class ExperimentResult(ResponseModel):
+    agent: str | None = None
+    alpha: float
+    arms: list[ArmOutcomes]
+    comparisons: list[ArmComparison] = Field(
+        description="Empty until each arm holds enough people for the normal approximation."
+    )
+    cuped_days: int = Field(description="The days before each person's assignment taken as the covariate.")
+    element: str | None = None
+    ends_at: datetime | None = None
+    experiment: ShortStr
+    kind: Literal["element", "agent"]
+    starts_at: datetime
+
+
+class ExperimentReport(ResponseModel):
+    """Every experiment on an element or an agent, arm by arm, from what people did after they were assigned:
+    incremental, as only a holdout says.
+    """
+
+    as_of: datetime
+    experiments: list[ExperimentResult]
 
 
 class Inference(ResponseModel):
@@ -340,6 +509,13 @@ class OutcomeLink(ResponseModel):
     action_id: IdStr | None = None
     agent: ShortStr | None = None
     band: Literal["deterministic", "probable"]
+    confidence: float | None = Field(
+        default=None,
+        description=(
+            "Of an `identity` link: how often that method names the exposure a line's own token names "
+            "in this space, where both exist. Beside the value, never multiplied by it."
+        ),
+    )
     currency: ShortStr | None = None
     exposure_id: IdStr | None = None
     final_at: datetime | None = Field(default=None, description="When a provisional link becomes final.")
@@ -369,15 +545,43 @@ class OutcomePage(ResponseModel):
 
 
 class PowerRequest(Model):
-    alpha: float = Field(default=0.05, gt=0.0, lt=1.0)
-    effect: float = Field(gt=0.0, lt=1.0)
-    metric: ShortStr
-    power: float = Field(default=0.8, gt=0.0, lt=1.0)
+    """How long the space's traffic takes to detect a difference of `effect` (relative: 0.1 is 10%) on
+    `metric`. The traffic and the baseline come from the space's history, the named experiment's or the
+    busiest one's of the last 28 days, unless given.
+    """
+
+    alpha: float = Field(default=0.05, le=0.2, gt=0.0)
+    baseline_mean: Annotated[float, Field(ge=0.0)] | None = Field(
+        default=None, description="Per person: a rate for `conversion`, minor units for `value`."
+    )
+    baseline_sd: Annotated[float, Field(gt=0.0)] | None = Field(
+        default=None, description="Per person, for `value`; a rate's follows from its mean."
+    )
+    control_fraction: float = Field(default=0.5, gt=0.0, lt=1.0)
+    daily_people: Annotated[int, Field(ge=1)] | None = Field(
+        default=None, description="New people a day entering the test."
+    )
+    effect: float = Field(le=10.0, gt=0.0, description="The relative difference to detect: 0.1 is 10%.")
+    experiment: ShortStr | None = Field(default=None, description="The experiment whose history to use.")
+    metric: Literal["conversion", "value"] = "conversion"
+    power: float = Field(default=0.8, ge=0.5, lt=1.0)
 
 
 class PowerResult(ResponseModel):
-    days: int | None
-    sample_size: int | None
+    baseline_from: Literal["given", "history"]
+    baseline_mean: float
+    baseline_sd: float
+    daily_people: float
+    days: int | None = Field(description="At a fixed horizon, looked at once, at the end.")
+    days_sequential: int | None
+    effect: float
+    experiment: str | None = Field(default=None, description="The experiment whose history was used.")
+    metric: Literal["conversion", "value"]
+    people: int | None = Field(description="Both arms together, at a fixed horizon.")
+    people_sequential: int | None = Field(
+        description="Both arms together, for the daily-looked sequential test to have decided with `power`."
+    )
+    traffic_from: Literal["given", "history"]
 
 
 class ReconcileRequest(Model):

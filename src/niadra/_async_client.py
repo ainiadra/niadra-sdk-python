@@ -36,6 +36,7 @@ from niadra._transport import AsyncTransport
 from niadra._voice import TurnRead, VoiceLine, VoiceLines, compose, words_of
 from niadra.agent_state import AgentStates
 from niadra.api import AsyncApi
+from niadra.claims.internal import InternalText
 from niadra.content import ContentResolver
 from niadra.conversation import AsyncConversation, AsyncTask
 from niadra.coordination.client import Coordinator
@@ -144,6 +145,10 @@ class AsyncNiadra:
         self.turns.recording_mode = self._profile.recording_mode
         self.turns.required_pins = self._profile.required_pins
         self.turns.claims = self._claims_of
+        self.internal_text = InternalText()
+        """Fingerprints of the company's own prompt, by version:
+        `internal_text.register("prompts@v16", text)`. An output that repeats a passage of it gives way to the
+        claim contract's line (`niadra.claims.internal`); the prompt never leaves the process."""
         self.turns.sender = AsyncTurnSender(
             self.turns,
             self.turns.queue,
@@ -219,7 +224,7 @@ class AsyncNiadra:
 
     def _claims_of(self, frame: TurnFrame) -> list[dict[str, Any]]:
         contract = self._profile.contract()
-        return check_turn(frame, contract) if contract is not None else []
+        return check_turn(frame, contract, self.internal_text) if contract is not None else []
 
     async def _refresh_profile(self) -> None:
         with contextlib.suppress(Exception):

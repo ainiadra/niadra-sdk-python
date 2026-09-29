@@ -41,12 +41,14 @@ from typing import Any
 
 from niadra.claims import Finding, TurnValue, mentions
 from niadra.claims.check import PATTERNS
+from niadra.claims.internal import InternalText
+from niadra.claims.internal import record as internal_record
 from niadra.claims.numbers import to_decimal
 from niadra.claims.text import as_words, fold
 from niadra.models.state import ClaimCategory, ClaimContractSummary
 from niadra.models.turns import ClaimRecord
 from niadra.turns.capture import Said, TurnFrame
-from niadra.turns.claims import findings_of, record_of
+from niadra.turns.claims import findings_of, passages, record_of
 
 logger = logging.getLogger("niadra")
 
@@ -94,8 +96,13 @@ class Guard:
         hold: float = HOLD,
         message: float = MESSAGE,
         clock: Callable[[], float] = time.monotonic,
+        internal: InternalText | None = None,
     ) -> None:
         self.contract = contract
+        self._internal = internal
+        # A repeated passage of the company's prompt can be anywhere: every sentence is held and checked.
+        config = contract.internal_text
+        watching = config is not None and internal is not None and config.shingle_hashes_ref in internal
         self.frame = frame
         self.context = context
         self.immutable = context in contract.outputs.immutable if immutable is None else immutable
@@ -104,9 +111,9 @@ class Guard:
         self._message = message
         self._clock = clock
         self._categories = [c for c in contract.categories if not c.agents or self.agent in c.agents]
-        self._candidate = _candidates(self._categories)
+        self._candidate = re.compile(r"[a-z0-9]") if watching else _candidates(self._categories)
         # Where a context blocks, text goes sentence by sentence: a blocked claim takes its whole sentence.
-        self._whole = not self.immutable and any(_blocks(c, context) for c in self._categories)
+        self._whole = not self.immutable and (watching or any(_blocks(c, context) for c in self._categories))
         self.text = ""
         self._out: list[str] = []
         self._released = 0
@@ -222,8 +229,17 @@ class Guard:
         text = self.text[:upto]
         piece = text[low:]
         try:
-            findings = [f for f in self._findings(text) if low <= f.start < upto]
-            piece = self._act(text, low, findings)
+            repeated = [
+                ((max(s, low), e), ref)
+                for (s, e), ref in passages(self.contract, self._internal, text)
+                if e > low
+            ]
+            findings = [
+                f
+                for f in self._findings(text)
+                if low <= f.start < upto and not any(s <= f.start < e for (s, e), _ in repeated)
+            ]
+            piece = self._act(text, low, findings, repeated)
         except Exception:
             logger.warning("niadra: the claim guard failed; the text goes as it is", exc_info=True)
             if self.frame is not None:
@@ -235,7 +251,9 @@ class Guard:
     def _findings(self, text: str) -> list[Finding]:
         return findings_of(self.frame, self.contract, Said(text, self.context, self.immutable, self.agent))
 
-    def _act(self, text: str, low: int, findings: list[Finding]) -> str:
+    def _act(
+        self, text: str, low: int, findings: list[Finding], repeated: list[tuple[tuple[int, int], str]]
+    ) -> str:
         rewrites: dict[tuple[int, int], str] = {}
         blocked: dict[tuple[int, int], str | None] = {}
         """Each blocked sentence, with the caveat of the first of its categories that has one."""
@@ -255,6 +273,14 @@ class Guard:
                     blocked[span] = blocked.get(span) or self._caveat(finding.category)
             if (record := record_of(finding, act)) is not None:
                 self._records.append(record)
+        # A passage of the company's own prompt gives way to the contract's line; a document goes to a person.
+        redact = self.contract.internal_text.redact if self.contract.internal_text is not None else ""
+        for span, ref in repeated:
+            self._records.append(internal_record(span, ref, "block"))
+            if self.immutable:
+                self._review = True
+            else:
+                rewrites[span] = redact
         edits = [(s, e, t) for (s, e), t in rewrites.items() if not any(b <= s < c for b, c in blocked)]
         for (start, end), caveat in sorted(blocked.items()):
             # The sentence goes with the space before it; the space after it stays for the next one.
@@ -297,6 +323,9 @@ class Guard:
                 act = finding.action if finding.action in ("none", "count", "discard_anchor") else "warn"
                 if (record := record_of(finding, act)) is not None:
                     self._records.append(record)
+        for span, ref in passages(self.contract, self._internal, self.text):
+            if any(s <= span[0] < e for s, e in self._unchecked):
+                self._records.append(internal_record(span, ref, "warn"))
 
 
 def guard_text(
@@ -307,9 +336,10 @@ def guard_text(
     context: str = "chat",
     immutable: bool | None = None,
     agent: str | None = None,
+    internal: InternalText | None = None,
 ) -> Guarded:
     """The guard on a whole output: nothing is held, so nothing goes unchecked."""
-    guard = Guard(contract, frame, context=context, immutable=immutable, agent=agent)
+    guard = Guard(contract, frame, context=context, immutable=immutable, agent=agent, internal=internal)
     guard.text = text
     guard.finish()
     assert guard.result is not None

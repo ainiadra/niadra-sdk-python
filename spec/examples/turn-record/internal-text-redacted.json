@@ -1,0 +1,40 @@
+{
+  "spec": "turn-record.v0",
+  "turn_id": "t-legal-0107",
+  "conversation_id": "portal-4471",
+  "agent": {
+    "name": "petition_drafter"
+  },
+  "started_at": "2026-09-29T13:10:00Z",
+  "ended_at": "2026-09-29T13:10:04Z",
+  "content_mode": "hash_only",
+  "calls": [
+    {
+      "call_id": "m1",
+      "kind": "model",
+      "name": "drafting-model",
+      "tokens": {
+        "in": 5200,
+        "cached": 4800,
+        "out": 310
+      }
+    }
+  ],
+  "claims": [
+    {
+      "category": "internal_text",
+      "span": [
+        412,
+        496
+      ],
+      "evidence": {
+        "document": "core-prompt@v16"
+      },
+      "verdict": "internal_text_found",
+      "action": "block"
+    }
+  ],
+  "flags": [
+    "guard_acted"
+  ]
+}
