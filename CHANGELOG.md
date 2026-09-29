@@ -19,6 +19,9 @@ built on them.
   from the server's OpenAPI document by `scripts/sync_spec.py`.
 - `niadra.turns.digest`: the digest of a turn record's value, SHA-256 over its canonical JSON (RFC 8785),
   as every producer computes it.
+- `niadra.state.expr`: niadra-expr, the type registry's expression language, evaluated as the server
+  evaluates it: `parse`, `compile_expression` (resolution against a type declaration) and `evaluate` over
+  an `Environment`, with the four logical values in `niadra.state.logic`.
 - The conformance vectors of the open specifications, run by `tests/test_vectors.py`, and the design of
   the turn capture (`docs/design/turn-capture.md`).
 
