@@ -73,7 +73,7 @@ from niadra.replay.playback import replaying
 from niadra.resolvers import ClaimVerdict
 from niadra.tools import AsyncToolKit, ToolKit, definitions
 from niadra.turns.capture import TurnFrame, TurnKind, current_turn
-from niadra.turns.claims import ClaimCheck, state_values
+from niadra.turns.claims import ClaimCheck, block_values
 from niadra.turns.recorder import PinsLike, TurnRecorder
 from niadra.vocabulary import Speaker, Verification
 
@@ -309,7 +309,8 @@ class _Session:
             frame.constraints = context.constraints
         if frame is not None and context.state is not None:
             frame.read("state")
-            frame.observe_state(state_values(context.state.objects))
+        if frame is not None and (context.state is not None or context.constraints is not None):
+            frame.observe_state(block_values(context.state, context.constraints))
         self._sources.add(context.text)
         self._sources.add(render_turn(context))
         # The guards of the last read hold the answers to the turn they were written for.

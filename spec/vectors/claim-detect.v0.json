@@ -1101,6 +1101,352 @@
       }
     },
     {
+      "id": "health.hedge.denial",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Não consigo confirmar se o plano ainda sai por R$ 612,00.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": []
+      }
+    },
+    {
+      "id": "health.hedge.denial_es",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "No puedo confirmar si el plan todavía cuesta R$ 612,00.",
+        "lang": "es",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": []
+      }
+    },
+    {
+      "id": "health.hedge.past_marker_after",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "O plano sai por R$ 689,00; o valor de R$ 612,00 era o anterior.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "689"
+            },
+            "call_id": null,
+            "ref": "health_plan:operadora:essencial-200",
+            "name": "monthly_price"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 689,00",
+            "class": "money",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "amount": "689",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.hedge.past_marker_before",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "O plano sai por R$ 689,00 e o valor anterior era R$ 612,00.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "689"
+            },
+            "call_id": null,
+            "ref": "health_plan:operadora:essencial-200",
+            "name": "monthly_price"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 689,00",
+            "class": "money",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "amount": "689",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.hedge.opener",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "O plano sai por R$ 689,00; antes, ele estava em R$ 612,00.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "689"
+            },
+            "call_id": null,
+            "ref": "health_plan:operadora:essencial-200",
+            "name": "monthly_price"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 689,00",
+            "class": "money",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "amount": "689",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.hedge.past_marker_es",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "El precio anterior era R$ 612,00.",
+        "lang": "es",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": []
+      }
+    },
+    {
+      "id": "health.hedge.asserted_beside_denial",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Não consigo confirmar o prazo, mas o plano sai por R$ 380,00.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              51,
+              60
+            ],
+            "text": "R$ 380,00",
+            "class": "money",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "380",
+              "unit": "BRL"
+            },
+            "verdict": "unsupported",
+            "action": "block"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.hedge.asserted_after_pt_e",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Não consigo confirmar o prazo e o plano sai por R$ 380,00.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              48,
+              57
+            ],
+            "text": "R$ 380,00",
+            "class": "money",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "380",
+              "unit": "BRL"
+            },
+            "verdict": "unsupported",
+            "action": "block"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.hedge.asserted_light_hedge",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Acho que o plano ainda sai por R$ 380,00.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              31,
+              40
+            ],
+            "text": "R$ 380,00",
+            "class": "money",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "380",
+              "unit": "BRL"
+            },
+            "verdict": "unsupported",
+            "action": "block"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.hedge.asserted_doubt_elsewhere",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "O plano sai por R$ 380,00, mas pode ter mudado.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 380,00",
+            "class": "money",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "380",
+              "unit": "BRL"
+            },
+            "verdict": "unsupported",
+            "action": "block"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.hedge.asserted_es",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "No puedo confirmar la fecha, pero el plan cuesta R$ 380,00.",
+        "lang": "es",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              49,
+              58
+            ],
+            "text": "R$ 380,00",
+            "class": "money",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "380",
+              "unit": "BRL"
+            },
+            "verdict": "unsupported",
+            "action": "block"
+          }
+        ]
+      }
+    },
+    {
       "id": "retail.price.list_and_sale",
       "contract": "examples/claim-contract/retail.json",
       "output": {
@@ -1516,6 +1862,201 @@
             ],
             "text": "agotado",
             "verdict": "no_evidence",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.hedge.en_denial",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "I can't confirm that the $24.90 shipping quote still applies.",
+        "lang": "en",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": []
+      }
+    },
+    {
+      "id": "retail.hedge.en_curly_apostrophe",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "I can’t confirm whether your cart total is still $412.70.",
+        "lang": "en",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": []
+      }
+    },
+    {
+      "id": "retail.hedge.en_doubt",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "It is now $60; the $80 price has changed.",
+        "lang": "en",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_sale",
+            "value": {
+              "amount": "60"
+            },
+            "call_id": "k3",
+            "name": "price_sale"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              10,
+              13
+            ],
+            "text": "$60",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_sale",
+            "value": {
+              "amount": "60"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.hedge.past_then_denied",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "A última cotação foi de R$ 238,40, mas não consigo confirmar se esse total continua igual.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": []
+      }
+    },
+    {
+      "id": "retail.hedge.en_past_then_denied",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "Your cart was quoted at $412.70, but I can't confirm whether that total is still current.",
+        "lang": "en",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": []
+      }
+    },
+    {
+      "id": "retail.hedge.en_asserted_change_to",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "The price changed to $150.00.",
+        "lang": "en",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              21,
+              28
+            ],
+            "text": "$150.00",
+            "class": "money",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "150"
+            },
+            "verdict": "unsupported",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.hedge.en_present_word_cancels",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "The model previously shown now costs $150.00.",
+        "lang": "en",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              37,
+              44
+            ],
+            "text": "$150.00",
+            "class": "money",
+            "nature": "model",
+            "role": "price_sale",
+            "value": {
+              "amount": "150"
+            },
+            "verdict": "unsupported",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.hedge.en_asserted_beside_denial",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "I can't confirm the delivery date, but the total is $150.00.",
+        "lang": "en",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              52,
+              59
+            ],
+            "text": "$150.00",
+            "class": "money",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "150"
+            },
+            "verdict": "unsupported",
             "action": "warn"
           }
         ]
@@ -2055,6 +2596,20 @@
             "action": "count"
           }
         ]
+      }
+    },
+    {
+      "id": "legal.hedge.deadline_denial",
+      "contract": "examples/claim-contract/legal.json",
+      "output": {
+        "text": "Não consigo confirmar se o prazo vence em 23/10/2026.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": []
       }
     }
   ]

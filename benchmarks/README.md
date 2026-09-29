@@ -876,8 +876,8 @@ per side and category (`results/typed/<date>-<id>/typed.json` and `typed.md`, ev
   89, chat 98; a turn that asks for no block must stay within 5%);
 - the claim guard's verdicts and acts on every answer (the SDK's `guard_text`, a mutable chat output, with the
   sector's example contract from `spec/examples/claim-contract/`, the case's language first; on the `with` side
-  the fields the state read served are the turn's evidence, as `context()` records them in a turn), and how
-  often it acted on an answer the judge graded correct;
+  the values the state and constraints blocks placed in the turn block are the turn's evidence, as `context()`
+  records them in a turn), and how often it acted on an answer the judge graded correct;
 - reads at V0 (no proof) on both sides whose block held the case's sensitive value, and the answered reads:
   served at the level proved, with an item withheld, with the sensitive value;
 - for the effect cases, whether the coordination check refuses a second attempt;

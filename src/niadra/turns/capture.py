@@ -116,10 +116,10 @@ class Blob:
 
 @dataclass(frozen=True, slots=True)
 class StateValue:
-    """A field of an object a read served the turn: the claim check's evidence, with whether it may back a
-    claim now (`claim_safe`) and the gaps its object declares."""
+    """A value a read's include blocks served the turn: the claim check's evidence, with whether it may back a
+    claim now (`claim_safe`) and the gaps its object declares. A constraint has no `ref`."""
 
-    ref: str
+    ref: str | None
     field: str
     value: Any
     claim_safe: bool
@@ -282,7 +282,7 @@ class TurnFrame:
         self.reads: list[dict[str, Any]] = []
         self.said: list[Said] = []
         self.state: list[StateValue] = []
-        """Fields of objects the turn read from state, for the claim check: a value with its freshness."""
+        """Values the turn's reads placed in the turn block, for the claim check: each with its freshness."""
         self._guarded: set[str] = set()
         """Outputs the claim guard already checked: the sender does not count them again."""
         self.claims: list[dict[str, Any]] = []
@@ -418,7 +418,7 @@ class TurnFrame:
                 self.reads.append({k: v for k, v in entry.items() if v is not None})
 
     def observe_state(self, values: Iterable[StateValue]) -> None:
-        """Fields of objects a read served the turn, kept for the claim check."""
+        """Values a read's include blocks served the turn, kept for the claim check."""
         with self._lock:
             if not self.closed:
                 self.state.extend(values)

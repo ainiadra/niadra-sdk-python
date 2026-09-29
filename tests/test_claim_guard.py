@@ -14,10 +14,11 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from niadra import Niadra, phone
-from niadra.models.state import ClaimContractSummary, ObjectRead
+from niadra.models.signals import ConstraintsBlock
+from niadra.models.state import ClaimContractSummary, ObjectRead, StateView
 from niadra.options import CacheOptions, TurnOptions
 from niadra.turns.capture import StateValue, TurnFrame
-from niadra.turns.claims import state_values
+from niadra.turns.claims import block_values
 from niadra.turns.guard import Guard, guard_async_stream, guard_stream, guard_text
 from niadra_mock import MOCK_KEY, MockApp
 
@@ -251,7 +252,7 @@ def _served(due: str, *, claim_safe: bool = True, blocked: bool = False) -> Turn
         }
     )
     frame = TurnFrame(None, agent="clerk", conversation_id="c-9")
-    frame.observe_state(state_values([read]))
+    frame.observe_state(block_values(StateView(objects=[read]), None))
     return frame
 
 
@@ -271,3 +272,68 @@ def test_a_stale_or_blocked_computed_value_is_still_flagged() -> None:
         assert (claim.verdict, claim.nature, claim.action) == ("unsupported", "model", "block")
     (other,) = guard_text(LEGAL, _served("2026-10-22"), text).claims
     assert (other.verdict, other.action) == ("unsupported", "block"), "a date the state never gave"
+
+
+PLAN = {"type": "health_plan", "namespace": "operadora", "id": "essencial-200"}
+
+
+def _plan_view(*, claim_safe: bool = True, with_object: bool = True) -> StateView:
+    """A shared plan the subject was shown at R$ 612,00, which costs R$ 689,00 now."""
+    price = {"v": 689.0, "logic": "yes", "status": "fresh", "claim_safe": claim_safe, "role": "price_full"}
+    interest: dict[str, Any] = {"ref": PLAN, "reason": "presented", "at": "2026-09-29T10:00:00Z"}
+    if with_object:
+        interest["object"] = {"ref": PLAN, "fields": {"monthly_price": price}}
+    change = {"ref": PLAN, "field": "monthly_price", "seen": 612.0, "now": 689.0}
+    return StateView.model_validate({"interests": [interest], "changes_since_seen": [change]})
+
+
+def _blocks(state: StateView | None, constraints: ConstraintsBlock | None = None) -> TurnFrame:
+    frame = TurnFrame(None, agent="sales", conversation_id="c-11")
+    frame.observe_state(block_values(state, constraints))
+    return frame
+
+
+def test_the_new_value_of_what_changed_since_seen_backs_the_claim() -> None:
+    text = "O Essencial 200 está por R$ 689,00 por mês; o valor de R$ 612,00 era o anterior."
+    guarded = guard_text(CONTRACT, _blocks(_plan_view()), text)
+    assert guarded.text == text
+    (claim,) = guarded.claims  # the old price is said as the old one: no claim
+    assert (claim.verdict, claim.action) == ("matched", "none")
+    assert claim.evidence is not None and claim.evidence.field == "monthly_price"
+    assert claim.evidence.ref == "health_plan:operadora:essencial-200"
+
+
+def test_a_value_that_is_not_claim_safe_or_the_one_seen_is_still_flagged() -> None:
+    for view in (_plan_view(claim_safe=False), _plan_view(with_object=False)):
+        (claim,) = guard_text(CONTRACT, _blocks(view), "O Essencial 200 sai por R$ 689,00 por mês.").claims
+        assert (claim.verdict, claim.action) == ("stale", "warn")
+    (seen,) = guard_text(CONTRACT, _blocks(_plan_view()), "O Essencial 200 ainda sai por R$ 612,00.").claims
+    assert (seen.verdict, seen.action) == ("unsupported", "block"), "the value seen before is no evidence"
+
+
+def test_a_constraint_the_block_placed_backs_the_claim_unless_it_lost_a_conflict() -> None:
+    def hard(key: str, value: int) -> dict[str, Any]:
+        return {
+            "id": key,
+            "attr": "health_plan.monthly_price",
+            "op": "lte",
+            "values": [value],
+            "source": "stated",
+            "scope": "session",
+            "origin": {"kind": "stated"},
+        }
+
+    block = ConstraintsBlock.model_validate(
+        {
+            "version": "cv_0123456789abcdef",
+            "hard": [hard("h1", 700), hard("h2", 650)],
+            "conflicts": [{"by": "current_utterance", "ids": ["h1", "h2"], "kept": "h1"}],
+        }
+    )
+    kept, lost = (
+        guard_text(CONTRACT, _blocks(None, block), f"Você pediu mensalidade de no máximo R$ {v},00.").claims
+        for v in (700, 650)
+    )
+    assert [(c.verdict, c.action) for c in kept] == [("matched", "none")]
+    assert kept[0].evidence is not None and kept[0].evidence.field == "monthly_price"
+    assert [(c.verdict, c.action) for c in lost] == [("unsupported", "block")]

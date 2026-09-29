@@ -7,7 +7,8 @@ the contract's configured action would do. It runs on the sender, off the agent'
 turn said that the guard did not see, and on demand (`conversation.claims.check()`). The guard
 (`conversation.claims.guard()`, `niadra.turns.guard`) acts, and records the act it took.
 
-The evidence is what the turn's tools returned, in their results and in the objects they showed:
+The evidence is what the turn's tools returned, in their results and in the objects they showed, and what the
+include blocks of its reads placed in the turn block (`block_values`):
 
 - a field named like a role of a category is a value of that role and of that category's classes, so a
   number said with the role and a different value is a `mismatch`, and one with the same value `matched`;
@@ -33,7 +34,8 @@ from niadra.claims import STANDING, Finding, Mention, Output, Turn, TurnValue, c
 from niadra.claims.internal import InternalText
 from niadra.claims.internal import record as internal_record
 from niadra.claims.numbers import decimal_text
-from niadra.models.state import ClaimContractSummary, ObjectRead
+from niadra.models.signals import ConstraintsBlock
+from niadra.models.state import ClaimContractSummary, StateView
 from niadra.models.turns import ClaimRecord
 from niadra.turns.capture import Said, StateValue, TurnFrame, current_turn
 
@@ -241,26 +243,47 @@ async def _quietly(work: Awaitable[object]) -> object:
         return None
 
 
-def state_values(objects: Iterable[ObjectRead]) -> list[StateValue]:
-    """The fields and computed values of objects a state read served, as the claim check's evidence. A
-    computed value (a deadline the company's rule recomputed) backs a claim by its name, and only while it is
-    claim-safe and no unknown field of its object blocks claims. A field that is not claim-safe stays as a
-    copy too old to back one, so a claim that repeats it is `stale`. A masked or unknown value backs
-    nothing."""
+def block_values(state: StateView | None, constraints: ConstraintsBlock | None) -> list[StateValue]:
+    """Every value a read's include blocks placed in the turn block, as the claim check's evidence: the fields
+    and computed values of the state view's objects and of the shared objects the subject showed interest in,
+    the new value of each field that changed since they saw it, and the values of the constraints block's
+    lines (what the subject requires, prefers and is).
+
+    A value backs a claim only while it is claim-safe. A field that is not stays as a copy too old to back
+    one, so a claim that repeats it is `stale`; a computed value that is not backs nothing. A changed field's
+    new value is as claim-safe as the object's field, and not at all without the object; the value it was
+    seen at is not evidence. The subject's own constraints always back a claim, except one that lost a
+    conflict and was left out of the block. A masked or unknown value backs nothing."""
     out: list[StateValue] = []
-    for item in objects:
-        ref = f"{item.ref.type}:{item.ref.namespace}:{item.ref.id}"
-        gaps = tuple(item.declared_gaps)
-        claimable = not item.blocked.get("claim")
-        for name, field in item.fields.items():
-            if field.masked or field.logic != "yes" or field.v is None:
-                continue
-            out.append(StateValue(ref, name, field.v, field.claim_safe and claimable, field.role, gaps))
-        for name, value in item.values.items():
-            if value.logic != "yes" or value.v is None or not (value.claim_safe and claimable):
-                continue
-            value_gaps = tuple(dict.fromkeys((*gaps, *value.declared_gaps)))
-            out.append(StateValue(ref, name, value.v, True, None, value_gaps))
+    if state is not None:
+        objects = [*state.objects, *(i.object for i in state.interests if i.object is not None)]
+        for item in objects:
+            ref = f"{item.ref.type}:{item.ref.namespace}:{item.ref.id}"
+            gaps = tuple(item.declared_gaps)
+            claimable = not item.blocked.get("claim")
+            for name, field in item.fields.items():
+                if field.masked or field.logic != "yes" or field.v is None:
+                    continue
+                out.append(StateValue(ref, name, field.v, field.claim_safe and claimable, field.role, gaps))
+            for name, value in item.values.items():
+                if value.logic != "yes" or value.v is None or not (value.claim_safe and claimable):
+                    continue
+                value_gaps = tuple(dict.fromkeys((*gaps, *value.declared_gaps)))
+                out.append(StateValue(ref, name, value.v, True, None, value_gaps))
+        served = {(v.ref, v.field) for v in out}
+        for change in state.changes_since_seen:
+            ref = f"{change.ref.type}:{change.ref.namespace}:{change.ref.id}"
+            if change.now is not None and (ref, change.field) not in served:
+                out.append(StateValue(ref, change.field, change.now, False))
+    if constraints is not None:
+        lost = {i for c in constraints.conflicts for i in c.ids if i != c.kept}
+        said: list[tuple[str, Any]] = [
+            (h.attr, v) for h in constraints.hard if h.id not in lost for v in h.values
+        ]
+        said += [(s.attr, s.value) for s in constraints.soft]
+        said += [(a.name, a.value) for a in constraints.attributes]
+        # A constraint names a field of a type (`health_plan.monthly_price`), and backs a claim by the field.
+        out += [StateValue(None, attr.rsplit(".", 1)[-1], value, True) for attr, value in said]
     return out
 
 
@@ -286,7 +309,7 @@ def evidence(frame: TurnFrame, contract: ClaimContractSummary, spoken: Sequence[
             for key, leaf in _leaves(data):
                 values += _values(key, leaf, ref, call["call_id"], roles, spoken, lang)
     for item in list(frame.state):
-        # A field read from state backs a claim only while it is fresh enough for one.
+        # A value from a block backs a claim only while it is fresh enough for one.
         name = item.role if item.role in roles else item.field
         for key, leaf in _leaves(item.value, name):
             found = _values(key, leaf, item.ref, None, roles, spoken, lang)
