@@ -106,6 +106,10 @@ built on them.
 
 ### Fixed
 
+- A read answered `not_modified` (the conversation's pinned pack) now takes the include blocks of the
+  answer: the state view, the constraints and coordination used to stay as the first read served them for as
+  long as the pack stayed pinned. A block the answer lacks keeps the cached copy, as the TypeScript SDK does;
+  the budget block is always the answer's.
 - The claim contract reads the computed values a state read serves (`ObjectRead.values`, a deadline the
   company's rule recomputed) as evidence, by their name, while they are claim-safe and no unknown field of
   their object blocks claims. The guard used to find no evidence for such a value and blocked a correct

@@ -116,6 +116,29 @@ def test_a_read_with_constraints_records_the_block_it_served(store: MockApp, nia
     assert record["blobs"][read["blob"]]["content"]["version"] == "cv_0123456789abcdef", "the block it served"
 
 
+def test_a_block_changes_while_the_pinned_pack_does_not(store: MockApp) -> None:
+    store.cell.features.add("state")
+    store.cell.agent_features.show(CUSTOMER, {"objects": [], "text": "Pedido 881: separado."})
+    niadra = Niadra(
+        MOCK_KEY,
+        base_url="http://mock",
+        channel="whatsapp",
+        cache=CacheOptions(ttl=0, stale_while_revalidate=0),
+        http_client=httpx.Client(transport=httpx.WSGITransport(app=store.wsgi)),
+        turns=TurnOptions(interval=3600),
+    )
+    with niadra.conversation("c-3", subject=CUSTOMER) as conversation:
+        first = conversation.context(include=["state", "constraints"])
+        store.cell.agent_features.show(CUSTOMER, {"objects": [], "text": "Pedido 881: saiu para entrega."})
+        second = conversation.context(include=["state", "constraints"])
+    assert first.state is not None and first.state.text == "Pedido 881: separado."
+    assert second.origin == "cache", "the pack stayed pinned: the server answered not_modified"
+    assert second.state is not None and second.state.text == "Pedido 881: saiu para entrega."
+    assert second.constraints is not None and second.constraints.version == "cv_0123456789abcdef"
+    assert not second.degraded
+    niadra.close()
+
+
 def test_a_block_the_space_does_not_serve_leaves_the_read_whole(store: MockApp, niadra: Niadra) -> None:
     store.cell.features.discard("signals")
     with niadra.conversation("c-2", subject=CUSTOMER) as conversation:
