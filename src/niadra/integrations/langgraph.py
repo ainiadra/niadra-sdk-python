@@ -23,6 +23,11 @@ async with niadra.conversation(thread_id, subject=phone(caller)) as conversation
   `tools`, so `create_agent` offers them without you listing them.
 - **Handoff.** `transferred_to_agent()` and `transferred_to_human()` record a transfer; call them
   where your graph hands the conversation over.
+- **Turn records.** With `turns=True`, each invocation of the agent is a turn (`niadra.turns`), opened
+  before the agent runs and closed after it ends: every tool call with its arguments, result and call
+  id (`wrap_tool_call`), each model call with its tokens, and what the agent said. A tool decorated with
+  `@niadra.tool` also sees the turn. Recorded only while the space records turns. One invocation at a
+  time per middleware, which follows one conversation.
 
 For the older `langgraph.prebuilt.create_react_agent`, pass `pre_model_hook=pre_model_hook(conversation)`:
 it gives the model the same messages through `llm_input_messages`, again without touching state.
@@ -36,7 +41,7 @@ from typing import Any
 
 try:
     from langchain.agents.middleware import AgentMiddleware
-    from langchain_core.messages import SystemMessage
+    from langchain_core.messages import AIMessage, SystemMessage
     from langchain_core.runnables import RunnableLambda
 except ImportError as exc:  # pragma: no cover - depends on the environment
     raise ImportError("LangGraph and LangChain are not installed: pip install 'niadra[langgraph]'") from exc
@@ -45,6 +50,8 @@ from niadra.integrations._common import (
     AgentMemoryLike,
     AnySession,
     Prompt,
+    TurnHooks,
+    adapter_version,
     handoff,
     join_instructions,
     mark_injected,
@@ -68,12 +75,18 @@ class NiadraMiddleware(AgentMiddleware):  # type: ignore[misc]
     """`create_agent` middleware that reads and records one Niadra conversation."""
 
     def __init__(
-        self, conversation: AnySession, *, history_tools: bool = True, agent_memory: AgentMemoryLike = None
+        self,
+        conversation: AnySession,
+        *,
+        history_tools: bool = True,
+        agent_memory: AgentMemoryLike = None,
+        turns: bool = False,
     ) -> None:
         super().__init__()
         self.conversation = conversation
         self.agent_memory = memory_option(agent_memory)
         self.tools = _tools(conversation, agent_memory) if history_tools else []
+        self.turns = TurnHooks(conversation, adapter_version("langgraph", "langgraph"), enabled=turns)
 
     @property
     def name(self) -> str:
@@ -86,6 +99,46 @@ class NiadraMiddleware(AgentMiddleware):  # type: ignore[misc]
     def transferred_to_human(self, reason: str | None = None) -> None:
         """Records that the conversation went to a person."""
         handoff(self.conversation, "human", reason=reason)
+
+    def before_agent(self, state: Any, runtime: Any) -> None:
+        self.turns.open(RUN, None)
+
+    async def abefore_agent(self, state: Any, runtime: Any) -> None:
+        self.turns.open(RUN, None)
+
+    def after_agent(self, state: Any, runtime: Any) -> None:
+        self.turns.close_all()
+
+    async def aafter_agent(self, state: Any, runtime: Any) -> None:
+        self.turns.close_all()
+
+    def wrap_tool_call(self, request: Any, handler: Callable[[Any], Any]) -> Any:
+        key = self._tool_start(request)
+        try:
+            with self.turns.current(RUN):
+                result = handler(request)
+        except BaseException as exc:
+            self.turns.tool_end(key, error=exc)
+            raise
+        self.turns.tool_end(key, _tool_result(result))
+        return result
+
+    async def awrap_tool_call(self, request: Any, handler: Callable[[Any], Awaitable[Any]]) -> Any:
+        key = self._tool_start(request)
+        try:
+            with self.turns.current(RUN):
+                result = await handler(request)
+        except BaseException as exc:
+            self.turns.tool_end(key, error=exc)
+            raise
+        self.turns.tool_end(key, _tool_result(result))
+        return result
+
+    def _tool_start(self, request: Any) -> str:
+        call = getattr(request, "tool_call", None) or {}
+        key = str(call.get("id") or "")
+        self.turns.tool_start(key, str(call.get("name") or "tool"), call.get("args"), frame_key=RUN)
+        return key
 
     def wrap_model_call(self, request: Any, handler: Callable[[Any], Any]) -> Any:
         try:
@@ -126,9 +179,34 @@ class NiadraMiddleware(AgentMiddleware):  # type: ignore[misc]
             result = getattr(response, "result", None)
             messages = result if isinstance(result, list) else [response]
             for message in messages:
-                record_answer(self.conversation, message)
+                self._model_call(message)
+                with self.turns.current(RUN):
+                    record_answer(self.conversation, message)
         except Exception as exc:
             warn("record the agent's turn", exc)
+
+    def _model_call(self, message: Any) -> None:
+        if not isinstance(message, AIMessage):
+            return
+        usage: dict[str, Any] = dict(message.usage_metadata or {})
+        details: dict[str, Any] = dict(usage.get("input_token_details") or {})
+        metadata: dict[str, Any] = dict(message.response_metadata or {})
+        model = metadata.get("model_name") or metadata.get("model")
+        self.turns.model(
+            model if isinstance(model, str) else None,
+            usage.get("input_tokens"),
+            usage.get("output_tokens"),
+            details.get("cache_read", 0) or 0,
+            frame_key=RUN,
+        )
+
+
+RUN = "run"
+
+
+def _tool_result(result: Any) -> Any:
+    """What a tool returned, as the model saw it: a `ToolMessage`'s content, or the value itself."""
+    return getattr(result, "content", result)
 
 
 def _tools(conversation: AnySession, agent_memory: AgentMemoryLike) -> list[Any]:

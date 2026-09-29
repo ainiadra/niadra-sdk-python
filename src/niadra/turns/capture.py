@@ -333,6 +333,11 @@ class TurnFrame:
             entry["parent_call_id"] = parent.call_id
         self._add(entry)
 
+    def pin_model(self, model: str) -> None:
+        """The model the turn called, as its `model` pin, unless the build named one."""
+        with self._lock:
+            self.pins.setdefault("model", model)
+
     def read(
         self,
         surface: str,

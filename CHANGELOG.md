@@ -38,6 +38,10 @@ built on them.
   returned, and each claim goes to the turn record with its verdict; `conversation.claims.check()` runs the
   check on demand. Count mode never changes an output.
 - `niadra-mock` serves the SDK profile, the constraints and state blocks, and the suppression list.
+- Turn records from the framework adapters, with `turns=True`: Google ADK (agent and tool callbacks; a
+  sub-agent or an `AgentTool` is a sub-turn), OpenAI Agents (`RunHooks`; a handoff opens a sub-turn) and
+  LangGraph (`before_agent`, `after_agent` and `wrap_tool_call` of the middleware) record each run's tool
+  calls with the provider's call ids, its model calls with their tokens, and what the agent said.
 - The conformance vectors of the open specifications, run by `tests/test_vectors.py`, and the design of
   the turn capture (`docs/design/turn-capture.md`).
 - `niadra.claims`: the claim contract's checker, pure and without a model: the number and role parser,

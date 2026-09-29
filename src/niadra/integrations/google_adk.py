@@ -27,6 +27,13 @@ agent = LlmAgent(
   and JSON Schemas, bound to the customer.
 - **Handoff.** A `transfer_to_agent` call in the model's answer records `handoff("agent")`;
   `transferred_to_human()` records a transfer to a person.
+- **Turn records.** With `turns=True`, each agent run is a turn (`niadra.turns`): pass
+  `before_agent_callback=memory.before_agent`, `after_agent_callback=memory.after_agent`,
+  `before_tool_callback=memory.before_tool`, `after_tool_callback=memory.after_tool` and
+  `on_tool_error_callback=memory.on_tool_error` too. The turn records every tool call with its
+  arguments and result, the model calls with their tokens, and what the agent said. Give a sub-agent
+  (or an agent wrapped in an `AgentTool`) the same callbacks: its run is a sub-turn of the one that
+  called it. Recorded only while the space records turns.
 
 If the agent has callbacks of its own, pass lists: ADK runs them in order.
 """
@@ -46,6 +53,8 @@ from niadra.integrations._common import (
     AnyKit,
     AnySession,
     ToolSpec,
+    TurnHooks,
+    adapter_version,
     agent_turn,
     call_tool,
     customer_turn,
@@ -102,12 +111,47 @@ class NiadraADK:
     """The callbacks and tools that wire one Niadra conversation into an ADK agent."""
 
     def __init__(
-        self, conversation: AnySession, *, history_tools: bool = True, agent_memory: AgentMemoryLike = None
+        self,
+        conversation: AnySession,
+        *,
+        history_tools: bool = True,
+        agent_memory: AgentMemoryLike = None,
+        turns: bool = False,
     ) -> None:
         self.conversation = conversation
         self.agent_memory = memory_option(agent_memory)
         self.tools: list[Any] = _tools(conversation, agent_memory) if history_tools else []
+        self.turns = TurnHooks(conversation, adapter_version("google_adk", "google-adk"), enabled=turns)
         self._seen: set[str] = set()
+
+    async def before_agent(self, callback_context: Any) -> None:
+        """ADK's `before_agent_callback`: opens the agent's turn (a sub-turn inside another agent's)."""
+        self.turns.open(_run_key(callback_context), str(getattr(callback_context, "agent_name", "") or ""))
+
+    async def after_agent(self, callback_context: Any) -> None:
+        """ADK's `after_agent_callback`: closes the agent's turn, after its last answer."""
+        self.turns.close(_run_key(callback_context))
+
+    async def before_tool(self, tool: Any, args: dict[str, Any], tool_context: Any) -> None:
+        """ADK's `before_tool_callback`: the call starts, with its arguments copied now."""
+        self.turns.tool_start(
+            str(getattr(tool_context, "function_call_id", "") or ""),
+            str(getattr(tool, "name", "") or "tool"),
+            args,
+            frame_key=_run_key(tool_context),
+        )
+
+    async def after_tool(
+        self, tool: Any, args: dict[str, Any], tool_context: Any, tool_response: Any
+    ) -> None:
+        """ADK's `after_tool_callback`: the call's result."""
+        self.turns.tool_end(str(getattr(tool_context, "function_call_id", "") or ""), tool_response)
+
+    async def on_tool_error(
+        self, tool: Any, args: dict[str, Any], tool_context: Any, error: Exception
+    ) -> None:
+        """ADK's `on_tool_error_callback`: the call failed; ADK goes on as it would without it."""
+        self.turns.tool_end(str(getattr(tool_context, "function_call_id", "") or ""), error=error)
 
     def transferred_to_human(self, reason: str | None = None) -> None:
         """Records that the conversation went to a person."""
@@ -147,15 +191,28 @@ class NiadraADK:
                     handoff(self.conversation, "agent", reason=f"transfer to {target}" if target else None)
             usage = getattr(llm_response, "usage_metadata", None)
             version = getattr(llm_response, "model_version", None)
+            self.turns.model(
+                version if isinstance(version, str) else None,
+                getattr(usage, "prompt_token_count", None),
+                getattr(usage, "candidates_token_count", None),
+                getattr(usage, "cached_content_token_count", None) or 0,
+                frame_key=_run_key(callback_context),
+            )
             reported = model_usage(
                 "google",
                 version if isinstance(version, str) else None,
                 getattr(usage, "prompt_token_count", None),
                 getattr(usage, "cached_content_token_count", None) or 0,
             )
-            agent_turn(self.conversation, _text(content), usage=reported)
+            with self.turns.current(_run_key(callback_context)):
+                agent_turn(self.conversation, _text(content), usage=reported)
         except Exception as exc:
             warn("record the agent's turn", exc)
+
+
+def _run_key(context: Any) -> str:
+    """One agent's run in one invocation: what its turn is keyed by."""
+    return f"{getattr(context, 'invocation_id', '')}:{getattr(context, 'agent_name', '')}"
 
 
 def _tools(conversation: AnySession, agent_memory: AgentMemoryLike) -> list[Any]:

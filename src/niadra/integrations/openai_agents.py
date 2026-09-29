@@ -29,6 +29,11 @@ async with niadra.conversation(thread_id, subject=phone(caller)) as conversation
   run the same `memory`.
 - **Verification.** What your app proved (a login, an OTP) goes to `conversation.verify()` before
   the run; the next context is read at the new level.
+- **Turn records.** With `turns=True`, each `Runner.run` is a turn (`niadra.turns`), opened when the
+  first agent starts and closed when the run's last agent ends. `hooks` record every tool call with its
+  arguments, result and the provider's call id, and each model call with its tokens; a handoff opens a
+  sub-turn for the agent that takes over. Recorded only while the space records turns. One run at a time
+  per `NiadraAgentsMemory`, which follows one conversation.
 
 This adapter does not implement the SDK's `Session`: a `Session` stores the agent's own items,
 and Niadra keeps derived memory, not a copy of each item. Use any `Session` next to it.
@@ -38,6 +43,7 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import json
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
@@ -51,6 +57,8 @@ from niadra.integrations._common import (
     AgentMemoryLike,
     AnyKit,
     AnySession,
+    TurnHooks,
+    adapter_version,
     agent_turn,
     call_tool,
     customer_turn,
@@ -114,11 +122,17 @@ class NiadraAgentsMemory:
     """Wires one Niadra conversation into OpenAI Agents SDK runs. See the module documentation."""
 
     def __init__(
-        self, conversation: AnySession, *, history_tools: bool = True, agent_memory: AgentMemoryLike = None
+        self,
+        conversation: AnySession,
+        *,
+        history_tools: bool = True,
+        agent_memory: AgentMemoryLike = None,
+        turns: bool = False,
     ) -> None:
         self.conversation = conversation
         self.agent_memory = memory_option(agent_memory)
         self.tools: list[Any] = _tools(conversation, agent_memory) if history_tools else []
+        self.turns = TurnHooks(conversation, adapter_version("openai_agents", "openai-agents"), enabled=turns)
         self.hooks = _Hooks(self)
 
     def run_config(self, config: Any = None) -> Any:
@@ -174,10 +188,49 @@ def _tools(conversation: AnySession, agent_memory: AgentMemoryLike) -> list[Any]
         return []
 
 
+RUN = "run"
+
+
+def _call_id(context: Any) -> str:
+    call = getattr(context, "tool_call", None)
+    return str(getattr(call, "call_id", None) or getattr(call, "id", None) or "")
+
+
+def _arguments(context: Any) -> Any:
+    raw = getattr(getattr(context, "tool_call", None), "arguments", None)
+    if not isinstance(raw, str):
+        return raw
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return raw
+
+
 class _Hooks(RunHooks[Any]):  # type: ignore[misc]
+    """The SDK may run a hook in a task of its own, where the turn's context does not reach: each hook
+    names the turn of its agent by key (the run's, or the sub-turn a handoff opened)."""
+
     def __init__(self, memory: NiadraAgentsMemory) -> None:
         super().__init__()
         self._memory = memory
+
+    def _key(self, agent: Any) -> str:
+        handed = f"{RUN}:{getattr(agent, 'name', '')}"
+        return handed if handed in self._memory.turns else RUN
+
+    async def on_agent_start(self, context: Any, agent: Any) -> None:
+        self._memory.turns.open(RUN, agent.name)
+
+    async def on_agent_end(self, context: Any, agent: Any, output: Any) -> None:
+        self._memory.turns.close_all()
+
+    async def on_tool_start(self, context: Any, agent: Any, tool: Any) -> None:
+        self._memory.turns.tool_start(
+            _call_id(context), getattr(tool, "name", "tool"), _arguments(context), frame_key=self._key(agent)
+        )
+
+    async def on_tool_end(self, context: Any, agent: Any, tool: Any, result: Any) -> None:
+        self._memory.turns.tool_end(_call_id(context), result)
 
     async def on_llm_start(
         self, context: Any, agent: Any, system_prompt: str | None, input_items: list[Any]
@@ -191,26 +244,35 @@ class _Hooks(RunHooks[Any]):  # type: ignore[misc]
             if _field(item, "type") == "message" and _field(item, "role") == "assistant"
         ]
         said = "\n".join(text for text in texts if text)
-        if not said:
-            return
         usage = response.usage
         details = getattr(usage, "input_tokens_details", None)
         model = agent.model if isinstance(agent.model, str) else getattr(agent.model, "model", None)
+        self._memory.turns.model(
+            model if isinstance(model, str) else None,
+            getattr(usage, "input_tokens", None),
+            getattr(usage, "output_tokens", None),
+            getattr(details, "cached_tokens", 0) or 0,
+            frame_key=self._key(agent),
+        )
+        if not said:
+            return
         extra: dict[str, Any] = {}
         if response.response_id:
             extra["idempotency_key"] = f"{self._memory.conversation.id}:agent:{response.response_id}"
-        agent_turn(
-            self._memory.conversation,
-            said,
-            usage=model_usage(
-                None,
-                model,
-                getattr(usage, "input_tokens", None),
-                getattr(details, "cached_tokens", 0),
-                getattr(details, "cache_write_tokens", 0),
-            ),
-            **extra,
-        )
+        with self._memory.turns.current(self._key(agent)):
+            agent_turn(
+                self._memory.conversation,
+                said,
+                usage=model_usage(
+                    None,
+                    model,
+                    getattr(usage, "input_tokens", None),
+                    getattr(details, "cached_tokens", 0),
+                    getattr(details, "cache_write_tokens", 0),
+                ),
+                **extra,
+            )
 
     async def on_handoff(self, context: Any, from_agent: Any, to_agent: Any) -> None:
         handoff(self._memory.conversation, "agent", reason=f"{from_agent.name} to {to_agent.name}")
+        self._memory.turns.open(f"{RUN}:{to_agent.name}", to_agent.name, parent=RUN)
