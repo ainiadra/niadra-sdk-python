@@ -13,8 +13,8 @@ built on them.
 
 - `niadra.api` and `AsyncNiadra.api`: one method per route of turn records, replay and scenarios, typed
   state and the agent's working state, subject signals and measurement, and coordination, named as the
-  server names the operation. Unlike the rest of the SDK they raise; the server answers 501 until it
-  builds a route, and the SDK raises `NotAvailableError` for it.
+  server names the operation. Unlike the rest of the SDK they raise; a route a server does not serve
+  (501) raises `NotAvailableError`.
 - `niadra.models.turns`, `state`, `signals` and `coordination`: the models of those routes, generated
   from the server's OpenAPI document by `scripts/sync_spec.py`.
 - `niadra.turns.digest`: the digest of a turn record's value, SHA-256 over its canonical JSON (RFC 8785),

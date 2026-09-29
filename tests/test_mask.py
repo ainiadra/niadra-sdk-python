@@ -14,7 +14,7 @@ from niadra.options import CacheOptions, TurnOptions
 from niadra.turns.mask import MASKED, WITHHELD
 from niadra_mock import MOCK_KEY, MockApp
 
-ITEM = {
+ITEM: dict[str, Any] = {
     "type": "item_variant",
     "ownership": "shared",
     "mirror_of": {"system": "erp"},
@@ -25,7 +25,7 @@ ITEM = {
     },
     "field_access": {"cost_price": "deny", "margin": "mask"},
 }
-CARDS = {
+CARDS: dict[str, Any] = {
     "cards": [{"variant_id": "991", "price_sale": 199.9, "cost_price": 80.0, "margin": 0.6}],
     "meta": {"cost_price": 1},
 }
@@ -83,7 +83,7 @@ def test_niadra_down_keeps_the_last_profile_and_none_ever_read_passes_unless_blo
         return {"cards": [dict(c) for c in CARDS["cards"]]}
 
     @niadra.tool("strict_search", provenance=_shown, mask_output=True, on_unknown="block")
-    def strict_search() -> dict[str, Any]:
+    def strict_search() -> dict[str, Any] | str:
         return {"cards": [dict(c) for c in CARDS["cards"]]}
 
     assert search()["cards"][0]["cost_price"] == 80.0, "no profile read yet: it passes"

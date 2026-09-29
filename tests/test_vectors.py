@@ -2,10 +2,8 @@
 
 `scripts/sync_spec.py --spec` copies them into spec/vectors (and the claim contract examples, with their
 negative corpus, into spec/examples/claim-contract). `EXPECTED` lists every file the SDK runs, with the fields
-its spec gives a case, and its runner. Nothing here passes without running:
-
-- a file not published yet is skipped with the reason "pending vectors";
-- a file nothing expects, a case field its spec does not define and a malformed envelope fail.
+its spec gives a case, and its runner. Nothing here passes without running: a missing file, a file nothing
+expects, a case field its spec does not define and a malformed envelope fail.
 """
 
 from __future__ import annotations
@@ -571,15 +569,11 @@ def _load(name: str) -> dict[str, Any]:
 
 
 def _cases() -> list[Any]:
-    params = []
-    for name in EXPECTED:
-        if not (VECTORS / f"{name}.json").exists():
-            reason = f"pending vectors: {name}.json is not published in niadra-spec yet"
-            params.append(pytest.param(name, {}, id=name, marks=pytest.mark.skip(reason=reason)))
-            continue
-        for case in _load(name)["cases"]:
-            params.append(pytest.param(name, case, id=f"{name}:{case.get('id')}"))
-    return params
+    return [
+        pytest.param(name, case, id=f"{name}:{case.get('id')}")
+        for name in EXPECTED
+        for case in _load(name)["cases"]
+    ]
 
 
 def test_every_published_vector_file_is_expected() -> None:
@@ -588,7 +582,7 @@ def test_every_published_vector_file_is_expected() -> None:
     assert not unknown, f"vector files the SDK does not run: {sorted(unknown)}; add them to EXPECTED"
 
 
-@pytest.mark.parametrize("name", [n for n in EXPECTED if (VECTORS / f"{n}.json").exists()])
+@pytest.mark.parametrize("name", EXPECTED)
 def test_a_published_file_has_the_envelope_and_only_the_fields_its_spec_defines(name: str) -> None:
     data = _load(name)
     stem, version = name.rsplit(".", 1)
@@ -611,10 +605,7 @@ def test_case(name: str, case: dict[str, Any]) -> None:
 
 @pytest.mark.parametrize("sector", NEGATIVE_CORPUS)
 def test_the_negative_corpus_never_triggers_the_claim_contract(sector: str) -> None:
-    path = SPEC / "examples" / "claim-contract" / f"{sector}.json"
-    if not path.exists():
-        pytest.skip(f"pending vectors: examples/claim-contract/{sector}.json is not published yet")
-    document = json.loads(path.read_text())
+    document = json.loads((SPEC / "examples" / "claim-contract" / f"{sector}.json").read_text())
     phrases = document["negative_corpus"]["phrases"]
     assert phrases, f"{sector}: an empty negative corpus proves nothing"
     contract = ClaimContractSummary.model_validate(document)

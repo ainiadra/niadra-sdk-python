@@ -49,7 +49,8 @@ class PersonalDataError(ValueError):
     """The note carries personal data; the API refuses it instead of masking it."""
 
 
-def _words(text: str) -> set[str]:
+def words(text: str) -> set[str]:
+    """The lowercased words of two or more characters, as the emulator's keyword search matches them."""
     return {w.lower() for w in _WORD.findall(text)}
 
 
@@ -113,12 +114,12 @@ class AgentMemoryStore:
     def search(self, query: str, tags: list[str], limit: int) -> list[AgentNote]:
         if not self.enabled:
             return []
-        words = _words(query)
+        wanted = words(query)
         scored = []
         for note in self._active():
             if tags and not set(tags) & set(note.tags):
                 continue
-            score = len(words & _words(f"{note.title} {note.body} {' '.join(note.tags)}"))
+            score = len(wanted & words(f"{note.title} {note.body} {' '.join(note.tags)}"))
             if score:
                 scored.append((score, note))
         scored.sort(key=lambda pair: (-pair[0], pair[1].title))

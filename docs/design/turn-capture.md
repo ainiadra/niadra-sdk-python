@@ -1,8 +1,9 @@
 # Turn capture
 
-Status: built, except the rows of section 4's table other than Google ADK, OpenAI Agents and LangGraph
-(LangChain and the TypeScript SDK come next), and in section 3 the contact keys and the quotes. Where the code settled a detail differently from the first
-draft of this note, the note now says what the code does, and why.
+Status: built, except two parts. In section 4's table, Google ADK, OpenAI Agents, LangGraph and LangChain
+record turns; the voice, webhook and messaging rows do not yet. In section 3, the conversation's quotes are
+not kept locally. Where the code settled a detail differently from the first draft of this note, the note
+now says what the code does, and why.
 
 A turn runs from its input (a message, an interface action, an event, a timer firing) to the last thing
 it emits to the customer or to a document. Its record says what the agent read, called, showed, claimed
@@ -133,7 +134,8 @@ As built:
 - The claim contract runs in count mode: what the agent says in a turn is checked on the sender against
   the values its tools returned (a field named like a role is a value of that role), and each claim goes to
   the record with its verdict and the act `none` (it stands) or `count`. `conversation.claims.check()` runs
-  the same check on demand and returns the records. Nothing ever changes the output.
+  the same check on demand and returns the records. This check never changes an output; the calls that
+  act on one are `conversation.claims.guard()` and `guard_text()`.
 - `may_contact(handle, purpose, channel=)` (`niadra.coordination.suppression`) reads the list by cursor on
   first need, then in the background once a minute. The last copy applies however old it is; with no copy
   and Niadra out of reach, `transactional` and `service` go and every other purpose waits; a space without
