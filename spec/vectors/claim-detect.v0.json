@@ -1,0 +1,2061 @@
+{
+  "vectors": "claim-detect",
+  "version": "v0",
+  "spec": "spec/claim-contract.md",
+  "cases": [
+    {
+      "id": "health.price.matched",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "O plano sai por R$ 511,06 sem desconto.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false,
+        "agent": "sales"
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "call_id": "k1",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_full"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.price.two_roles_matched",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Fica R$ 511,06 sem desconto e R$ 459,95 com desconto.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "call_id": "k1",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_full"
+          },
+          {
+            "class": "money",
+            "role": "price_discounted",
+            "value": {
+              "amount": "459.95",
+              "unit": "BRL"
+            },
+            "call_id": "k1",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_discounted"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              5,
+              14
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 0
+            }
+          },
+          {
+            "category": "price",
+            "span": [
+              30,
+              39
+            ],
+            "text": "R$ 459,95",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_discounted",
+            "value": {
+              "amount": "459.95",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.price.mismatch_warns",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "O plano sai por R$ 520,00 sem desconto.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "call_id": "k1",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_full"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 520,00",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_full",
+            "value": {
+              "amount": "520",
+              "unit": "BRL"
+            },
+            "verdict": "mismatch",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.price.stale_copy_rewrites",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "O plano sai por R$ 511,06 sem desconto.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "call_id": null,
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_full",
+            "fresh": false
+          },
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "515.4",
+              "unit": "BRL"
+            },
+            "call_id": "k4",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_full"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "verdict": "stale",
+            "action": "rewrite",
+            "evidence": {
+              "value": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.price.stale_copy_immutable_counts",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Valor de R$ 511,06 sem desconto.",
+        "lang": "pt",
+        "context": "proposal",
+        "immutable": true
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "call_id": null,
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_full",
+            "fresh": false
+          },
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "515.4",
+              "unit": "BRL"
+            },
+            "call_id": "k4",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_full"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              9,
+              18
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "verdict": "stale",
+            "action": "count",
+            "evidence": {
+              "value": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.price.mismatch_immutable_counts",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Valor mensal de R$ 520,00 sem desconto.",
+        "lang": "pt",
+        "context": "proposal",
+        "immutable": true
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "call_id": "k1",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_full"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 520,00",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_full",
+            "value": {
+              "amount": "520",
+              "unit": "BRL"
+            },
+            "verdict": "mismatch",
+            "action": "count"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.price.mismatch_two_numbers_warns",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Sem desconto dá R$ 520,00, e com desconto R$ 459,95.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "call_id": "k1",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_full"
+          },
+          {
+            "class": "money",
+            "role": "price_discounted",
+            "value": {
+              "amount": "459.95",
+              "unit": "BRL"
+            },
+            "call_id": "k1",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_discounted"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 520,00",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_full",
+            "value": {
+              "amount": "520",
+              "unit": "BRL"
+            },
+            "verdict": "mismatch",
+            "action": "warn"
+          },
+          {
+            "category": "price",
+            "span": [
+              42,
+              51
+            ],
+            "text": "R$ 459,95",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_discounted",
+            "value": {
+              "amount": "459.95",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.price.role_swapped",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Com desconto fica R$ 511,06.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "call_id": "k1",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_full"
+          },
+          {
+            "class": "money",
+            "role": "price_discounted",
+            "value": {
+              "amount": "459.95",
+              "unit": "BRL"
+            },
+            "call_id": "k1",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_discounted"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              18,
+              27
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_discounted",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "verdict": "mismatch",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.price.ambiguous",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Sem desconto R$ 511,06 com desconto.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "call_id": "k1",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_full"
+          },
+          {
+            "class": "money",
+            "role": "price_discounted",
+            "value": {
+              "amount": "459.95",
+              "unit": "BRL"
+            },
+            "call_id": "k1",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_discounted"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              13,
+              22
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "verdict": "role_ambiguous",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.price.model_blocks",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Esse plano costuma sair por R$ 380,00.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": []
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              28,
+              37
+            ],
+            "text": "R$ 380,00",
+            "class": "money",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "380",
+              "unit": "BRL"
+            },
+            "verdict": "unsupported",
+            "action": "block"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.price.stale",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "O plano sai por R$ 511,06 sem desconto.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "call_id": "k1",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_full",
+            "fresh": false
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "verdict": "stale",
+            "action": "warn",
+            "evidence": {
+              "value": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.price.by_value_without_role",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "O valor fica em 511,06 por mês.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "call_id": "k1",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_full"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              16,
+              22
+            ],
+            "text": "511,06",
+            "class": "money",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "amount": "511.06"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.price.quoted_found",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "No documento está escrito “valor de R$ 511,06 sem desconto”.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [],
+        "documents": {
+          "orcamento": "Plano família: valor de R$ 511,06 sem desconto, vigência imediata."
+        }
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              36,
+              45
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "nature": "quoted",
+            "role": "price_full",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "verdict": "quoted_found",
+            "action": "none"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.price.quoted_missing",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "No documento está escrito “valor de R$ 499,00”.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [],
+        "documents": {
+          "orcamento": "Plano família: valor de R$ 511,06 sem desconto."
+        }
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              36,
+              45
+            ],
+            "text": "R$ 499,00",
+            "class": "money",
+            "nature": "quoted",
+            "role": null,
+            "value": {
+              "amount": "499",
+              "unit": "BRL"
+            },
+            "verdict": "quoted_missing",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.business.no_tool_blocks",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Para o seu CNPJ o plano fica R$ 1.200,00.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false,
+        "agent": "sales"
+      },
+      "turn": {
+        "values": []
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              29,
+              40
+            ],
+            "text": "R$ 1.200,00",
+            "class": "money",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "1200",
+              "unit": "BRL"
+            },
+            "verdict": "unsupported",
+            "action": "block"
+          },
+          {
+            "category": "business_plan_price",
+            "span": [
+              29,
+              40
+            ],
+            "text": "R$ 1.200,00",
+            "class": "money",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "1200",
+              "unit": "BRL"
+            },
+            "verdict": "no_evidence",
+            "action": "block"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.business.with_tool",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Para o seu CNPJ o plano fica R$ 1.200,00.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false,
+        "agent": "sales"
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "value": {
+              "amount": "1200",
+              "unit": "BRL"
+            },
+            "call_id": "k9",
+            "name": "price"
+          }
+        ],
+        "tools": [
+          "quote_business_plan"
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              29,
+              40
+            ],
+            "text": "R$ 1.200,00",
+            "class": "money",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "amount": "1200",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 0
+            }
+          },
+          {
+            "category": "business_plan_price",
+            "span": [
+              29,
+              40
+            ],
+            "text": "R$ 1.200,00",
+            "class": "money",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "amount": "1200",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.business.other_agent",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Para o seu CNPJ o plano fica R$ 1.200,00.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false,
+        "agent": "closing"
+      },
+      "turn": {
+        "values": []
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              29,
+              40
+            ],
+            "text": "R$ 1.200,00",
+            "class": "money",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "1200",
+              "unit": "BRL"
+            },
+            "verdict": "unsupported",
+            "action": "block"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.grace.matched",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "A carência para consultas é de 30 dias.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "duration",
+            "value": {
+              "amount": "30",
+              "unit": "day"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "grace_period",
+            "span": [
+              31,
+              38
+            ],
+            "text": "30 dias",
+            "class": "duration",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "amount": "30",
+              "unit": "day"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.grace.model_warns",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "A carência para parto é de 300 dias.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": []
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "grace_period",
+            "span": [
+              27,
+              35
+            ],
+            "text": "300 dias",
+            "class": "duration",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "300",
+              "unit": "day"
+            },
+            "verdict": "unsupported",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.grace.no_term",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "A carteirinha chega em 10 dias.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": []
+      },
+      "expect": {
+        "findings": []
+      }
+    },
+    {
+      "id": "health.promise.without_tool",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Pronto, já enviei a proposta no seu e-mail.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": []
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "proposal_promise",
+            "span": [
+              8,
+              28
+            ],
+            "text": "já enviei a proposta",
+            "verdict": "no_evidence",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.promise.with_tool",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Pronto, já enviei a proposta no seu e-mail.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [],
+        "tools": [
+          "send_proposal"
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "proposal_promise",
+            "span": [
+              8,
+              28
+            ],
+            "text": "já enviei a proposta",
+            "verdict": "matched",
+            "action": "none"
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.es.price_matched",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "El plan queda en R$ 459,95 con descuento.",
+        "lang": "es",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_discounted",
+            "value": {
+              "amount": "459.95",
+              "unit": "BRL"
+            },
+            "call_id": "k1",
+            "ref": "cotacao_plano_saude:op:q-77",
+            "name": "price_discounted"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              17,
+              26
+            ],
+            "text": "R$ 459,95",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_discounted",
+            "value": {
+              "amount": "459.95",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.price.list_and_sale",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "De R$ 299,90 por R$ 199,90, com R$ 20 de frete.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_list",
+            "value": {
+              "amount": "299.9",
+              "unit": "BRL"
+            },
+            "call_id": "k2",
+            "name": "price_list"
+          },
+          {
+            "class": "money",
+            "role": "price_sale",
+            "value": {
+              "amount": "199.9",
+              "unit": "BRL"
+            },
+            "call_id": "k2",
+            "name": "price_sale"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              3,
+              12
+            ],
+            "text": "R$ 299,90",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_list",
+            "value": {
+              "amount": "299.9",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 0
+            }
+          },
+          {
+            "category": "price",
+            "span": [
+              17,
+              26
+            ],
+            "text": "R$ 199,90",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_sale",
+            "value": {
+              "amount": "199.9",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 1
+            }
+          },
+          {
+            "category": "price",
+            "span": [
+              32,
+              37
+            ],
+            "text": "R$ 20",
+            "class": "money",
+            "nature": "model",
+            "role": "shipping",
+            "value": {
+              "amount": "20",
+              "unit": "BRL"
+            },
+            "verdict": "unsupported",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.price.model_warns",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "Esse tênis está por R$ 150,00.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": []
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              20,
+              29
+            ],
+            "text": "R$ 150,00",
+            "class": "money",
+            "nature": "model",
+            "role": "price_sale",
+            "value": {
+              "amount": "150",
+              "unit": "BRL"
+            },
+            "verdict": "unsupported",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.price.sale_mismatch_warns",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "Esse tênis está por R$ 199,90.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_sale",
+            "value": {
+              "amount": "179.9",
+              "unit": "BRL"
+            },
+            "call_id": "k2",
+            "name": "price_sale"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              20,
+              29
+            ],
+            "text": "R$ 199,90",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_sale",
+            "value": {
+              "amount": "199.9",
+              "unit": "BRL"
+            },
+            "verdict": "mismatch",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.price.shown_then_changed_rewrites",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "Esse tênis está por R$ 199,90.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_sale",
+            "value": {
+              "amount": "199.9",
+              "unit": "BRL"
+            },
+            "fresh": false,
+            "ref": "item_variant:loja:123",
+            "name": "price_sale"
+          },
+          {
+            "class": "money",
+            "role": "price_sale",
+            "value": {
+              "amount": "179.9",
+              "unit": "BRL"
+            },
+            "call_id": "k2",
+            "ref": "item_variant:loja:123",
+            "name": "price_sale"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              20,
+              29
+            ],
+            "text": "R$ 199,90",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_sale",
+            "value": {
+              "amount": "199.9",
+              "unit": "BRL"
+            },
+            "verdict": "stale",
+            "action": "rewrite",
+            "evidence": {
+              "value": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.price.en_now",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "It is now $60.",
+        "lang": "en",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_sale",
+            "value": {
+              "amount": "60"
+            },
+            "call_id": "k3",
+            "name": "price_sale"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              10,
+              13
+            ],
+            "text": "$60",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_sale",
+            "value": {
+              "amount": "60"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.denial.without_search",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "Infelizmente esse modelo está esgotado.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": []
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "availability_denial",
+            "span": [
+              25,
+              38
+            ],
+            "text": "está esgotado",
+            "verdict": "no_evidence",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.denial.with_search",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "Infelizmente esse modelo está esgotado.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [],
+        "tools": [
+          "search_products"
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "availability_denial",
+            "span": [
+              25,
+              38
+            ],
+            "text": "está esgotado",
+            "verdict": "matched",
+            "action": "none"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.promise.without_tool",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "Separei a peça pra você no tamanho 38.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": []
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "action_promise",
+            "span": [
+              0,
+              7
+            ],
+            "text": "Separei",
+            "verdict": "no_evidence",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.promise.with_tool",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "Separei a peça pra você no tamanho 38.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [],
+        "tools": [
+          "reserve_item"
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "action_promise",
+            "span": [
+              0,
+              7
+            ],
+            "text": "Separei",
+            "verdict": "matched",
+            "action": "none"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.es.denial",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "Ese modelo está agotado.",
+        "lang": "es",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": []
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "availability_denial",
+            "span": [
+              16,
+              23
+            ],
+            "text": "agotado",
+            "verdict": "no_evidence",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "legal.deadline.matched_with_gap",
+      "contract": "examples/claim-contract/legal.json",
+      "output": {
+        "text": "O prazo vence em 20/10/2026, sem contar feriado local.",
+        "lang": "pt",
+        "context": "contestacao",
+        "immutable": true
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "date",
+            "role": null,
+            "value": {
+              "date": "2026-10-20"
+            },
+            "object_type": "intimacao_com_prazo",
+            "name": "due_date",
+            "ref": "intimacao_com_prazo:diario:i-9",
+            "declared_gaps": [
+              "feriado_estadual_e_municipal"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "deadline",
+            "span": [
+              17,
+              27
+            ],
+            "text": "20/10/2026",
+            "class": "date",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "date": "2026-10-20"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "legal.deadline.gap_not_stated",
+      "contract": "examples/claim-contract/legal.json",
+      "output": {
+        "text": "O prazo vence em 20/10/2026.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "date",
+            "role": null,
+            "value": {
+              "date": "2026-10-20"
+            },
+            "object_type": "intimacao_com_prazo",
+            "name": "due_date",
+            "ref": "intimacao_com_prazo:diario:i-9",
+            "declared_gaps": [
+              "feriado_estadual_e_municipal"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "deadline",
+            "span": [
+              17,
+              27
+            ],
+            "text": "20/10/2026",
+            "class": "date",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "date": "2026-10-20"
+            },
+            "verdict": "gap_not_stated",
+            "action": "warn",
+            "evidence": {
+              "value": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "legal.deadline.not_in_record",
+      "contract": "examples/claim-contract/legal.json",
+      "output": {
+        "text": "O prazo final é 23/10/2026, considerando feriado local.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "date",
+            "role": null,
+            "value": {
+              "date": "2026-10-20"
+            },
+            "object_type": "intimacao_com_prazo",
+            "name": "due_date",
+            "ref": "intimacao_com_prazo:diario:i-9",
+            "declared_gaps": [
+              "feriado_estadual_e_municipal"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "deadline",
+            "span": [
+              16,
+              26
+            ],
+            "text": "23/10/2026",
+            "class": "date",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "date": "2026-10-23"
+            },
+            "verdict": "unsupported",
+            "action": "block"
+          }
+        ]
+      }
+    },
+    {
+      "id": "legal.deadline.model_blocks",
+      "contract": "examples/claim-contract/legal.json",
+      "output": {
+        "text": "O prazo vence em 23/10/2026.",
+        "lang": "pt",
+        "context": "manifestacao",
+        "immutable": true
+      },
+      "turn": {
+        "values": []
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "deadline",
+            "span": [
+              17,
+              27
+            ],
+            "text": "23/10/2026",
+            "class": "date",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "date": "2026-10-23"
+            },
+            "verdict": "unsupported",
+            "action": "block"
+          }
+        ]
+      }
+    },
+    {
+      "id": "legal.deadline.no_term",
+      "contract": "examples/claim-contract/legal.json",
+      "output": {
+        "text": "A audiência foi em 12/09/2026.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "date",
+            "role": null,
+            "value": {
+              "date": "2026-10-20"
+            },
+            "object_type": "intimacao_com_prazo",
+            "name": "due_date",
+            "ref": "intimacao_com_prazo:diario:i-9",
+            "declared_gaps": [
+              "feriado_estadual_e_municipal"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "findings": []
+      }
+    },
+    {
+      "id": "legal.concession.contestacao_blocks",
+      "contract": "examples/claim-contract/legal.json",
+      "output": {
+        "text": "Quanto ao pedido de danos materiais, nada a opor.",
+        "lang": "pt",
+        "context": "contestacao",
+        "immutable": true
+      },
+      "turn": {
+        "values": []
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "concession",
+            "span": [
+              37,
+              48
+            ],
+            "text": "nada a opor",
+            "verdict": "no_evidence",
+            "action": "block"
+          }
+        ]
+      }
+    },
+    {
+      "id": "legal.concession.manifestacao_warns",
+      "contract": "examples/claim-contract/legal.json",
+      "output": {
+        "text": "Quanto ao pedido de danos materiais, nada a opor.",
+        "lang": "pt",
+        "context": "manifestacao",
+        "immutable": true
+      },
+      "turn": {
+        "values": []
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "concession",
+            "span": [
+              37,
+              48
+            ],
+            "text": "nada a opor",
+            "verdict": "no_evidence",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "legal.concession.with_instruction",
+      "contract": "examples/claim-contract/legal.json",
+      "output": {
+        "text": "Quanto ao pedido de danos materiais, nada a opor.",
+        "lang": "pt",
+        "context": "contestacao",
+        "immutable": true
+      },
+      "turn": {
+        "values": [],
+        "tools": [
+          "record_client_instruction"
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "concession",
+            "span": [
+              37,
+              48
+            ],
+            "text": "nada a opor",
+            "verdict": "matched",
+            "action": "none"
+          }
+        ]
+      }
+    },
+    {
+      "id": "legal.citation.anchored",
+      "contract": "examples/claim-contract/legal.json",
+      "output": {
+        "text": "Nos termos do art. 186 do Código Civil, comete ato ilícito quem causa dano a outrem.",
+        "lang": "pt",
+        "context": "contestacao",
+        "immutable": true
+      },
+      "turn": {
+        "values": [],
+        "documents": {
+          "codigo_civil": "Art. 186. Aquele que, por ação ou omissão voluntária, negligência ou imprudência, violar direito e causar dano a outrem, ainda que exclusivamente moral, comete ato ilícito."
+        },
+        "anchors": [
+          {
+            "span": [
+              14,
+              21
+            ],
+            "quote": "Aquele que, por ação ou omissão voluntária, negligência ou imprudência, violar direito e causar dano a outrem",
+            "document": "codigo_civil"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "legal_citation",
+            "span": [
+              14,
+              22
+            ],
+            "text": "art. 186",
+            "verdict": "anchored",
+            "action": "none",
+            "evidence": {
+              "anchor": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "legal.citation.below_threshold",
+      "contract": "examples/claim-contract/legal.json",
+      "output": {
+        "text": "Nos termos do art. 186 do Código Civil, responde pelo dano quem age com culpa grave.",
+        "lang": "pt",
+        "context": "contestacao",
+        "immutable": true
+      },
+      "turn": {
+        "values": [],
+        "documents": {
+          "codigo_civil": "Art. 186. Aquele que, por ação ou omissão voluntária, negligência ou imprudência, violar direito e causar dano a outrem, ainda que exclusivamente moral, comete ato ilícito."
+        },
+        "anchors": [
+          {
+            "span": [
+              14,
+              21
+            ],
+            "quote": "responde objetivamente pelo dano quem age com culpa grave ou dolo",
+            "document": "codigo_civil"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "legal_citation",
+            "span": [
+              14,
+              22
+            ],
+            "text": "art. 186",
+            "verdict": "below_threshold",
+            "action": "discard_anchor",
+            "evidence": {
+              "anchor": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "legal.citation.source_missing",
+      "contract": "examples/claim-contract/legal.json",
+      "output": {
+        "text": "Conforme a Súmula 7 do tribunal superior, não se reexamina prova.",
+        "lang": "pt",
+        "context": "contestacao",
+        "immutable": true
+      },
+      "turn": {
+        "values": [],
+        "anchors": [
+          {
+            "span": [
+              11,
+              20
+            ],
+            "quote": "A pretensão de simples reexame de prova não enseja recurso especial",
+            "document": "sumulas"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "legal_citation",
+            "span": [
+              11,
+              19
+            ],
+            "text": "Súmula 7",
+            "verdict": "source_missing",
+            "action": "discard_anchor",
+            "evidence": {
+              "anchor": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "legal.citation.not_checked",
+      "contract": "examples/claim-contract/legal.json",
+      "output": {
+        "text": "Nos termos do art. 186 do Código Civil.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": []
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "legal_citation",
+            "span": [
+              14,
+              22
+            ],
+            "text": "art. 186",
+            "verdict": "not_checked",
+            "action": "count"
+          }
+        ]
+      }
+    },
+    {
+      "id": "legal.facts.anchored",
+      "contract": "examples/claim-contract/legal.json",
+      "output": {
+        "text": "DOS FATOS\nO autor afirma que o valor devido é R$ 12.000,00.\nDO DIREITO\nNão procede.",
+        "lang": "pt",
+        "context": "contestacao",
+        "immutable": true
+      },
+      "turn": {
+        "values": [],
+        "documents": {
+          "inicial": "O autor afirma que o valor devido é R$ 12.000,00, conforme planilha anexa."
+        },
+        "sections": {
+          "facts": [
+            [
+              10,
+              60
+            ]
+          ]
+        },
+        "anchors": [
+          {
+            "span": [
+              10,
+              60
+            ],
+            "quote": "O autor afirma que o valor devido é R$ 12.000,00",
+            "document": "inicial"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "fact_from_record",
+            "span": [
+              10,
+              59
+            ],
+            "text": "O autor afirma que o valor devido é R$ 12.000,00.",
+            "verdict": "anchored",
+            "action": "none",
+            "evidence": {
+              "anchor": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "legal.facts.unanchored",
+      "contract": "examples/claim-contract/legal.json",
+      "output": {
+        "text": "DOS FATOS\nO autor confessou a dívida em audiência.\nDO DIREITO\nNão procede.",
+        "lang": "pt",
+        "context": "contestacao",
+        "immutable": true
+      },
+      "turn": {
+        "values": [],
+        "documents": {
+          "inicial": "O autor afirma que o valor devido é R$ 12.000,00, conforme planilha anexa."
+        },
+        "sections": {
+          "facts": [
+            [
+              10,
+              51
+            ]
+          ]
+        }
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "fact_from_record",
+            "span": [
+              10,
+              50
+            ],
+            "text": "O autor confessou a dívida em audiência.",
+            "verdict": "not_checked",
+            "action": "count"
+          }
+        ]
+      }
+    }
+  ]
+}

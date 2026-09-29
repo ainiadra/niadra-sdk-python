@@ -1,0 +1,138 @@
+{
+  "vectors": "exposure-token",
+  "version": "v0",
+  "spec": "spec/exposure-token.md",
+  "cases": [
+    {
+      "id": "build.first",
+      "op": "build",
+      "description": "The first card of a list: 33 characters.",
+      "exposure_id": "0199a3b2-6d10-7c2a-9e11-4f0b8a7c3e55",
+      "position": 1,
+      "expect": {
+        "token": "nx1.AZmjsm0QfCqeEU8Linw-VQ.1.SEY1"
+      }
+    },
+    {
+      "id": "build.twelfth",
+      "op": "build",
+      "description": "A two-digit position.",
+      "exposure_id": "0199a3b2-6d10-7c2a-9e11-4f0b8a7c3e55",
+      "position": 12,
+      "expect": {
+        "token": "nx1.AZmjsm0QfCqeEU8Linw-VQ.12.jcR2"
+      }
+    },
+    {
+      "id": "build.largest",
+      "op": "build",
+      "description": "The largest position.",
+      "exposure_id": "0199a3b2-6d10-7c2a-9e11-4f0b8a7c3e55",
+      "position": 9999,
+      "expect": {
+        "token": "nx1.AZmjsm0QfCqeEU8Linw-VQ.9999.KZY4"
+      }
+    },
+    {
+      "id": "parse.first",
+      "op": "parse",
+      "description": "Back to the exposure and the position.",
+      "token": "nx1.AZmjsm0QfCqeEU8Linw-VQ.1.SEY1",
+      "expect": {
+        "exposure_id": "0199a3b2-6d10-7c2a-9e11-4f0b8a7c3e55",
+        "position": 1
+      }
+    },
+    {
+      "id": "parse.twelfth",
+      "op": "parse",
+      "description": "A two-digit position.",
+      "token": "nx1.AZmjsm0QfCqeEU8Linw-VQ.12.jcR2",
+      "expect": {
+        "exposure_id": "0199a3b2-6d10-7c2a-9e11-4f0b8a7c3e55",
+        "position": 12
+      }
+    },
+    {
+      "id": "parse.moved_position",
+      "op": "parse",
+      "description": "A position changed by hand no longer matches its verifier.",
+      "token": "nx1.AZmjsm0QfCqeEU8Linw-VQ.2.SEY1",
+      "expect": {
+        "error": "bad_verifier"
+      }
+    },
+    {
+      "id": "parse.position_zero",
+      "op": "parse",
+      "description": "Positions start at 1.",
+      "token": "nx1.AZmjsm0QfCqeEU8Linw-VQ.0.AAAA",
+      "expect": {
+        "error": "bad_position"
+      }
+    },
+    {
+      "id": "parse.leading_zero",
+      "op": "parse",
+      "description": "A position has no leading zero.",
+      "token": "nx1.AZmjsm0QfCqeEU8Linw-VQ.01.AAAA",
+      "expect": {
+        "error": "bad_position"
+      }
+    },
+    {
+      "id": "parse.position_too_large",
+      "op": "parse",
+      "description": "Positions end at 9999.",
+      "token": "nx1.AZmjsm0QfCqeEU8Linw-VQ.10000.AAAA",
+      "expect": {
+        "error": "bad_position"
+      }
+    },
+    {
+      "id": "parse.non_canonical_id",
+      "op": "parse",
+      "description": "The id's last character carries bits the 16 bytes do not have.",
+      "token": "nx1.AZmjsm0QfCqeEU8Linw-VR.1.SEY1",
+      "expect": {
+        "error": "malformed"
+      }
+    },
+    {
+      "id": "parse.short_id",
+      "op": "parse",
+      "description": "An id of 21 characters.",
+      "token": "nx1.AZmjsm0QfCqeEU8Linw-V.1.SEY1",
+      "expect": {
+        "error": "malformed"
+      }
+    },
+    {
+      "id": "parse.long_verifier",
+      "op": "parse",
+      "description": "A verifier of five characters.",
+      "token": "nx1.AZmjsm0QfCqeEU8Linw-VQ.1.SEY1A",
+      "expect": {
+        "error": "malformed"
+      }
+    },
+    {
+      "id": "parse.missing_segment",
+      "op": "parse",
+      "description": "Three segments.",
+      "token": "nx1.AZmjsm0QfCqeEU8Linw-VQ.1",
+      "expect": {
+        "error": "malformed"
+      }
+    },
+    {
+      "id": "parse.unsupported_version",
+      "op": "parse",
+      "description": "A version this reader does not know.",
+      "token": "nx2.AZmjsm0QfCqeEU8Linw-VQ.1.SEY1",
+      "expect": {
+        "error": "unsupported_version"
+      }
+    }
+  ]
+}

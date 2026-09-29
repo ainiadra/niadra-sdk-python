@@ -1,0 +1,77 @@
+{
+  "version": "2026-09-29.1",
+  "languages": ["pt"],
+  "categories": [
+    {
+      "id": "deadline",
+      "detect": {
+        "classes": ["date"],
+        "terms": ["vence", "vencimento", "termo final", "prazo final", "último dia do prazo", "prazo termina",
+                  "prazo se encerra"]
+      },
+      "evidence": {
+        "value": {
+          "type": "intimacao_com_prazo",
+          "value": "due_date",
+          "must_state_gaps": true,
+          "gap_terms": {
+            "feriado_estadual_e_municipal": ["feriado local", "feriados locais", "feriado estadual",
+                                             "feriado municipal"],
+            "portaria_de_tribunal": ["portaria do tribunal", "suspensão de expediente"],
+            "prazo_em_dobro": ["prazo em dobro"]
+          }
+        }
+      },
+      "natures": {"computed": "check", "model": "block"},
+      "actions": {"default": "count", "contexts": {"chat": "warn"}}
+    },
+    {
+      "id": "concession",
+      "detect": {"terms": ["nada a opor", "concorda integralmente", "reconhece o pedido", "renuncia ao direito"]},
+      "evidence": {"tool": "record_client_instruction"},
+      "actions": {"default": "warn", "contexts": {"contestacao": "block", "manifestacao": "warn"}}
+    },
+    {
+      "id": "fact_from_record",
+      "detect": {"document_sections": ["facts"]},
+      "evidence": {"anchor": {"min_match": 0.9, "coverage": "fact"}},
+      "actions": {"default": "discard_anchor_and_count"}
+    },
+    {
+      "id": "legal_citation",
+      "detect": {"patterns": ["article_citation", "precedent_citation"]},
+      "evidence": {"anchor": {"min_match": 0.9, "coverage": "law"}},
+      "actions": {"default": "discard_anchor_and_count"}
+    }
+  ],
+  "negative_corpus": {
+    "version": "2026-09-29",
+    "phrases": [
+      "O réu ignora todas as regras do contrato.",
+      "O prazo para contestação é de 15 dias úteis.",
+      "Não houve prazo em dobro neste caso.",
+      "A parte autora alega que a obrigação vence no fim do mês.",
+      "O processo 0001234-56.2026.8.26.0100 tramita na 2ª Vara Cível.",
+      "Segue a minuta para revisão do advogado responsável.",
+      "A audiência de conciliação foi redesignada.",
+      "O cliente não concorda com os cálculos apresentados.",
+      "Nada a declarar sobre os documentos juntados.",
+      "O valor da causa foi fixado na petição inicial.",
+      "A sentença julgou parcialmente procedentes os pedidos.",
+      "Juntou-se procuração e substabelecimento.",
+      "O termo de audiência foi assinado por todos.",
+      "Os autos foram conclusos ao juiz em 12/09/2026.",
+      "Intimem-se as partes da decisão.",
+      "Houve publicação no diário oficial, mas sem prazo aberto.",
+      "O réu ignora o que dispõe o contrato social da empresa.",
+      "Você é quem deve assinar a procuração.",
+      "Conforme a cláusula 5 do contrato, a multa é devida.",
+      "O último dia útil do mês é feriado nesta comarca?",
+      "A petição foi protocolada às 16h40 de ontem.",
+      "O pedido de tutela de urgência ainda não foi apreciado.",
+      "A parte contrária opõe embargos de declaração.",
+      "Não há concordância do cliente com o acordo proposto."
+    ]
+  },
+  "outputs": {"immutable": ["contestacao", "manifestacao", "peticao"], "mutable": ["chat"]}
+}

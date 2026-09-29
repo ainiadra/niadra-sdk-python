@@ -34,8 +34,8 @@ Runner = Callable[[dict[str, Any]], None]
 class Expected:
     """A vector file the SDK runs: the fields its spec gives a case and its `expect`, and the runner."""
 
-    case_fields: frozenset[str] | None
-    expect_fields: frozenset[str] | None
+    case_fields: frozenset[str]
+    expect_fields: frozenset[str]
     run: Runner | None
     pending: str | None = None
 
@@ -46,28 +46,45 @@ def _digest(case: dict[str, Any]) -> None:
     assert digest(case["value"]) == (expect["sha256"], expect["size"])
 
 
-def _pending(what: str) -> Expected:
-    """A file another spec is still writing: its case fields are listed when it is published."""
-    return Expected(None, None, None, pending=what)
+def _pending(case_fields: str, expect_fields: str, what: str) -> Expected:
+    """A published file whose runner the SDK does not have yet."""
+    return Expected(frozenset(case_fields.split()), frozenset(expect_fields.split()), None, pending=what)
 
 
 EXPECTED: dict[str, Expected] = {
     "turn-record-digest.v0": Expected(
         frozenset({"id", "note", "value", "expect"}), frozenset({"canonical", "sha256", "size"}), _digest
     ),
-    "niadra-expr.v0": Expected(
-        frozenset({"id", "expr", "input", "expect"}),
-        frozenset({"value"}),
-        None,
-        pending="the niadra-expr evaluator",
+    "niadra-expr.v0": _pending("id expr input expect", "value", "the niadra-expr evaluator"),
+    "claim-parser.v0": _pending(
+        "id lang text roles evidence expect", "mentions", "the claim contract's number and role parser"
     ),
-    "claim-parser.v0": _pending("the claim contract's number and role parser"),
-    "claim-detect.v0": _pending("the claim contract's detection"),
-    "claim-anchor.v0": _pending("the claim contract's text anchor"),
-    "constraint-render.v0": _pending("the constraints block's rendering per tool binding"),
-    "exposure-token.v0": _pending("the exposure token"),
-    "contact-token.v0": _pending("the contact token's offline check"),
-    "suppression-key.v0": _pending("the suppression list's per-source key"),
+    "claim-detect.v0": _pending(
+        "id contract output turn expect", "findings", "the claim contract's detection"
+    ),
+    "claim-anchor.v0": _pending(
+        "id quote document expect",
+        "normalized_quote_length distance holds",
+        "the claim contract's text anchor",
+    ),
+    "constraint-render.v0": _pending(
+        "id block binding families call mode results expect",
+        "applies args suggested injected hard_sent residual post_filter conflicts honored",
+        "the constraints block's rendering per tool binding",
+    ),
+    "exposure-token.v0": _pending(
+        "id op description exposure_id position token expect",
+        "token exposure_id position",
+        "the exposure token",
+    ),
+    "contact-token.v0": _pending(
+        "id op description seed claims keys gateway token destination channel now seen_jti expect",
+        "token claims",
+        "the contact token's issue and offline check",
+    ),
+    "suppression-key.v0": _pending(
+        "id description salt type value expect", "canonical key", "the suppression list's per-source key"
+    ),
 }
 NEGATIVE_CORPUS = ("retail", "legal", "health-plan-sales")
 
@@ -109,9 +126,6 @@ def test_a_published_file_has_the_envelope_and_only_the_fields_its_spec_defines(
     ids = [case["id"] for case in data["cases"]]
     assert ids and len(ids) == len(set(ids)) and all(CASE_ID.match(i) for i in ids)
     expected = EXPECTED[name]
-    assert expected.case_fields is not None and expected.expect_fields is not None, (
-        f"{name} is published: read its spec and list the fields of its cases"
-    )
     for case in data["cases"]:
         assert set(case) <= expected.case_fields, f"{case['id']}: {sorted(set(case) - expected.case_fields)}"
         outcome = set(case.get("expect", {}))

@@ -21,7 +21,7 @@ the example. When the specification changes, copy the files again and run the te
 reach. The script generates the models (`src/niadra/models/turns.py`, `state.py`, `signals.py`,
 `coordination.py`) and the route methods (`src/niadra/api.py`) from it, and `tests/test_generated.py`
 fails when a generated file differs from what the script writes. A route the server has not built yet
-answers 501, and a module whose models the server has not fixed yet says it is a draft.
+answers 501.
 
 `examples/turn-record/` holds the Turn Record spec's examples; the tests read each through `TurnRecord`.
 

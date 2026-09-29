@@ -333,9 +333,11 @@ class Api(SyncRoutes):
             ReviewRequest, "POST", f"/v1/review-requests/{segment(request_id)}/resolve", body=body
         )
 
-    def contact_keys(self) -> ContactKeys:
+    def contact_keys(self, *, space: str | None = None) -> ContactKeys:
         """`GET /.well-known/niadra-contact-keys.json`."""
-        return self._call(ContactKeys, "GET", "/.well-known/niadra-contact-keys.json")
+        return self._call(
+            ContactKeys, "GET", "/.well-known/niadra-contact-keys.json", params={"space": space}
+        )
 
     def check(self, body: CheckRequest) -> CheckResult:
         """`POST /v1/coordination/check`."""
@@ -375,12 +377,14 @@ class Api(SyncRoutes):
             Effect, "POST", "/v1/coordination/effects", body=body, key=idempotency_key or new_key()
         )
 
-    def settle_effect(self, key: str, body: EffectSettle, *, idempotency_key: str | None = None) -> Effect:
-        """`POST /v1/coordination/effects/{key}/settle`."""
+    def settle_effect(
+        self, effect_id: str, body: EffectSettle, *, idempotency_key: str | None = None
+    ) -> Effect:
+        """`POST /v1/coordination/effects/{effect_id}/settle`."""
         return self._call(
             Effect,
             "POST",
-            f"/v1/coordination/effects/{segment(key)}/settle",
+            f"/v1/coordination/effects/{segment(effect_id)}/settle",
             body=body,
             key=idempotency_key or new_key(),
         )
@@ -674,9 +678,11 @@ class AsyncApi(AsyncRoutes):
             ReviewRequest, "POST", f"/v1/review-requests/{segment(request_id)}/resolve", body=body
         )
 
-    async def contact_keys(self) -> ContactKeys:
+    async def contact_keys(self, *, space: str | None = None) -> ContactKeys:
         """`GET /.well-known/niadra-contact-keys.json`."""
-        return await self._call(ContactKeys, "GET", "/.well-known/niadra-contact-keys.json")
+        return await self._call(
+            ContactKeys, "GET", "/.well-known/niadra-contact-keys.json", params={"space": space}
+        )
 
     async def check(self, body: CheckRequest) -> CheckResult:
         """`POST /v1/coordination/check`."""
@@ -717,13 +723,13 @@ class AsyncApi(AsyncRoutes):
         )
 
     async def settle_effect(
-        self, key: str, body: EffectSettle, *, idempotency_key: str | None = None
+        self, effect_id: str, body: EffectSettle, *, idempotency_key: str | None = None
     ) -> Effect:
-        """`POST /v1/coordination/effects/{key}/settle`."""
+        """`POST /v1/coordination/effects/{effect_id}/settle`."""
         return await self._call(
             Effect,
             "POST",
-            f"/v1/coordination/effects/{segment(key)}/settle",
+            f"/v1/coordination/effects/{segment(effect_id)}/settle",
             body=body,
             key=idempotency_key or new_key(),
         )

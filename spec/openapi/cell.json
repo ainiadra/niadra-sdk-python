@@ -1,6 +1,59 @@
 {
   "components": {
     "schemas": {
+      "Actions": {
+        "additionalProperties": false,
+        "description": "What happens to a claim that does not stand, by the task's context (an output kind or a document kind);\n`default` for any other. A context the contract lists as immutable is never rewritten.",
+        "properties": {
+          "contexts": {
+            "maxProperties": 32,
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "enum": [
+                  "block",
+                  "warn",
+                  "count",
+                  "rewrite_if_unequivocal",
+                  "discard_anchor_and_count"
+                ],
+                "type": "string"
+              }
+            },
+            "title": "Contexts",
+            "type": "object"
+          },
+          "default": {
+            "enum": [
+              "block",
+              "warn",
+              "count",
+              "rewrite_if_unequivocal",
+              "discard_anchor_and_count"
+            ],
+            "title": "Default",
+            "type": "string"
+          },
+          "replace_with": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The caveat a blocked passage gives way to, in a mutable output.",
+            "title": "Replace With"
+          }
+        },
+        "required": [
+          "default"
+        ],
+        "title": "Actions",
+        "type": "object"
+      },
       "AgentState": {
         "additionalProperties": false,
         "properties": {
@@ -162,6 +215,127 @@
         "title": "AgentStateWriteResult",
         "type": "object"
       },
+      "AnchorEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "coverage": {
+            "description": "Counted apart: law and fact never add up.",
+            "enum": [
+              "fact",
+              "law"
+            ],
+            "title": "Coverage",
+            "type": "string"
+          },
+          "min_match": {
+            "default": 0.9,
+            "maximum": 1.0,
+            "minimum": 0.9,
+            "title": "Min Match",
+            "type": "number"
+          }
+        },
+        "required": [
+          "coverage"
+        ],
+        "title": "AnchorEvidence",
+        "type": "object"
+      },
+      "AttributeEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "apply": {
+            "enum": [
+              "always",
+              "when_asked"
+            ],
+            "title": "Apply",
+            "type": "string"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "id": {
+            "pattern": "^z[0-9]{1,4}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "pattern": "^[a-z][a-z0-9_]{0,63}(?:\\.[a-z0-9_]{1,64}){0,3}$",
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "stated",
+              "correction",
+              "acquired",
+              "kept",
+              "returned_for_size",
+              "inferred"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "system": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "maxLength": 256,
+                "type": "string"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "value",
+          "confidence",
+          "source",
+          "apply"
+        ],
+        "title": "AttributeEntry",
+        "type": "object"
+      },
       "AttributionReport": {
         "additionalProperties": false,
         "description": "Value by method and band, deterministic and probable apart; weights are never summed as money.",
@@ -191,6 +365,19 @@
           "rows"
         ],
         "title": "AttributionReport",
+        "type": "object"
+      },
+      "BlockSubject": {
+        "additionalProperties": false,
+        "properties": {
+          "for": {
+            "default": "self",
+            "pattern": "^(?:self|gift|beneficiary:[A-Za-z0-9_-]{1,64})$",
+            "title": "For",
+            "type": "string"
+          }
+        },
+        "title": "BlockSubject",
         "type": "object"
       },
       "Change": {
@@ -359,6 +546,7 @@
       },
       "CheckRequest": {
         "additionalProperties": false,
+        "description": "What an agent is about to do. Without a subject there is no budget, suppression or owner to consult:\nsuch a check only asks about the effect key.",
         "properties": {
           "agent": {
             "maxLength": 256,
@@ -369,8 +557,7 @@
           "channel": {
             "anyOf": [
               {
-                "maxLength": 256,
-                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_]{0,39}$",
                 "type": "string"
               },
               {
@@ -382,14 +569,14 @@
           "destination_hash": {
             "anyOf": [
               {
-                "maxLength": 256,
-                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_-]{43}$",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "The token's `rcpt`, computed by a caller that holds the gateway's key, when the destination is not the subject's handle.",
             "title": "Destination Hash"
           },
           "direction": {
@@ -411,13 +598,17 @@
                 "type": "null"
               }
             ],
+            "description": "The business fact's key; reserved atomically when nothing holds it.",
             "title": "Effect Key"
+          },
+          "effect_kind": {
+            "$ref": "#/components/schemas/EffectKind",
+            "default": "delivery"
           },
           "gateway_id": {
             "anyOf": [
               {
-                "maxLength": 256,
-                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_]{0,39}$",
                 "type": "string"
               },
               {
@@ -427,8 +618,7 @@
             "title": "Gateway Id"
           },
           "intent": {
-            "maxLength": 256,
-            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
             "title": "Intent",
             "type": "string"
           },
@@ -443,8 +633,7 @@
             ]
           },
           "purpose": {
-            "maxLength": 256,
-            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
             "title": "Purpose",
             "type": "string"
           },
@@ -461,8 +650,7 @@
           "task": {
             "anyOf": [
               {
-                "maxLength": 256,
-                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_]{0,39}$",
                 "type": "string"
               },
               {
@@ -483,6 +671,7 @@
       },
       "CheckResult": {
         "additionalProperties": false,
+        "description": "The coordination decision. `reasons` are codes (the coordination spec, 4); `holder` is who to hand\noff to with `handoff_to`. `contact_token` comes only with an allowed outbound contact of a purpose that\nneeds one.",
         "properties": {
           "channel": {
             "anyOf": [
@@ -496,8 +685,7 @@
           },
           "commitments_active": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/CommitmentRef"
             },
             "title": "Commitments Active",
             "type": "array"
@@ -512,6 +700,8 @@
           "contact_token": {
             "anyOf": [
               {
+                "maxLength": 1024,
+                "pattern": "^nct1\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]{86}$",
                 "type": "string"
               },
               {
@@ -548,6 +738,8 @@
           "holder": {
             "anyOf": [
               {
+                "maxLength": 256,
+                "minLength": 1,
                 "type": "string"
               },
               {
@@ -575,14 +767,15 @@
           },
           "promises_open": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/PromiseRef"
             },
             "title": "Promises Open",
             "type": "array"
           },
           "reasons": {
             "items": {
+              "maxLength": 256,
+              "minLength": 1,
               "type": "string"
             },
             "title": "Reasons",
@@ -590,12 +783,14 @@
           },
           "suppressions": {
             "items": {
+              "pattern": "^[a-z][a-z0-9_]{0,39}$",
               "type": "string"
             },
             "title": "Suppressions",
             "type": "array"
           },
           "valid_for_s": {
+            "minimum": 0.0,
             "title": "Valid For S",
             "type": "integer"
           }
@@ -608,15 +803,78 @@
         "title": "CheckResult",
         "type": "object"
       },
+      "ClaimCategory": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "$ref": "#/components/schemas/Actions"
+          },
+          "agents": {
+            "description": "Empty: every agent.",
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Agents",
+            "type": "array"
+          },
+          "detect": {
+            "$ref": "#/components/schemas/Detect"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/ClaimEvidence"
+          },
+          "id": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "natures": {
+            "$ref": "#/components/schemas/Natures"
+          }
+        },
+        "required": [
+          "id",
+          "detect",
+          "evidence",
+          "actions"
+        ],
+        "title": "ClaimCategory",
+        "type": "object"
+      },
       "ClaimContractSummary": {
         "additionalProperties": false,
+        "description": "The contract as the SDK keeps it: everything but the negative corpus's phrases, which only the CI's\n`niadra contract test` reads, from the company's own copy.",
         "properties": {
           "categories": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/ClaimCategory"
             },
             "title": "Categories",
+            "type": "array"
+          },
+          "internal_text": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InternalText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "languages": {
+            "items": {
+              "enum": [
+                "pt",
+                "en",
+                "es"
+              ],
+              "type": "string"
+            },
+            "title": "Languages",
             "type": "array"
           },
           "negative_corpus_version": {
@@ -633,14 +891,7 @@
             "title": "Negative Corpus Version"
           },
           "outputs": {
-            "additionalProperties": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "title": "Outputs",
-            "type": "object"
+            "$ref": "#/components/schemas/ClaimOutputs"
           },
           "version": {
             "maxLength": 256,
@@ -650,9 +901,94 @@
           }
         },
         "required": [
-          "version"
+          "version",
+          "languages"
         ],
         "title": "ClaimContractSummary",
+        "type": "object"
+      },
+      "ClaimEvidence": {
+        "additionalProperties": false,
+        "description": "What the turn record must hold for a claim of the category to stand: exactly one kind.",
+        "properties": {
+          "anchor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnchorEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,63}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A call of this tool in the turn.",
+            "title": "Tool"
+          },
+          "tool_any": {
+            "items": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,63}$",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Tool Any",
+            "type": "array"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValueEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "ClaimEvidence",
+        "type": "object"
+      },
+      "ClaimKind": {
+        "enum": [
+          "owner",
+          "case",
+          "task_lock"
+        ],
+        "title": "ClaimKind",
+        "type": "string"
+      },
+      "ClaimOutputs": {
+        "additionalProperties": false,
+        "properties": {
+          "immutable": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_]{0,39}$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Immutable",
+            "type": "array"
+          },
+          "mutable": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_]{0,39}$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Mutable",
+            "type": "array"
+          }
+        },
+        "title": "ClaimOutputs",
         "type": "object"
       },
       "ClaimRelease": {
@@ -671,6 +1007,7 @@
       },
       "ClaimRequest": {
         "additionalProperties": false,
+        "description": "A declared claim. `level` defaults to the space's least restrictive level for an owner lease and to\n`case` for a case; a declaration is refused (409 `lease_held`) while another holder's claim is at least\nas restrictive.",
         "properties": {
           "holder": {
             "maxLength": 256,
@@ -680,27 +1017,33 @@
           },
           "intents": {
             "items": {
-              "maxLength": 256,
-              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_]{0,39}$",
               "type": "string"
             },
+            "maxItems": 20,
             "title": "Intents",
             "type": "array"
           },
           "kind": {
-            "enum": [
-              "owner",
-              "case",
-              "task_lock"
-            ],
-            "title": "Kind",
-            "type": "string"
+            "$ref": "#/components/schemas/ClaimKind"
           },
           "lease_s": {
             "maximum": 86400.0,
             "minimum": 1.0,
             "title": "Lease S",
             "type": "integer"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{0,39}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
           },
           "object": {
             "anyOf": [
@@ -725,8 +1068,7 @@
           "task": {
             "anyOf": [
               {
-                "maxLength": 256,
-                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_]{0,39}$",
                 "type": "string"
               },
               {
@@ -744,20 +1086,234 @@
         "title": "ClaimRequest",
         "type": "object"
       },
+      "ClaimVia": {
+        "description": "The three ways in: a declaration through the API, an observation mapped from a webhook, an observation\nthe company's worker read and sent.",
+        "enum": [
+          "declaration",
+          "mapping",
+          "worker"
+        ],
+        "title": "ClaimVia",
+        "type": "string"
+      },
+      "CommitmentRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "title": "Type",
+            "type": "string"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "title": "CommitmentRef",
+        "type": "object"
+      },
+      "CompanyRule": {
+        "additionalProperties": false,
+        "description": "A rule of the company delivered in the block, with where it lives and its rank in the order the company\ndeclared: the block never ranks two origins by itself.",
+        "properties": {
+          "attr": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{0,39}\\.[a-z][a-z0-9_]{0,63}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attr"
+          },
+          "id": {
+            "pattern": "^r[0-9]{1,4}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "op": {
+            "anyOf": [
+              {
+                "enum": [
+                  "in",
+                  "not_in",
+                  "eq",
+                  "ne",
+                  "lt",
+                  "lte",
+                  "gt",
+                  "gte",
+                  "between"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Op"
+          },
+          "origin": {
+            "description": "`code`, `db:<table>`, `prompt:<version>`, `policy:<version>`...",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Origin",
+            "type": "string"
+          },
+          "rank": {
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "values": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                }
+              ]
+            },
+            "maxItems": 50,
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "origin",
+          "rank"
+        ],
+        "title": "CompanyRule",
+        "type": "object"
+      },
+      "Conflict": {
+        "additionalProperties": false,
+        "description": "Two entries that cannot both hold, and the one that won: the current utterance over what was stated\nbefore, and a stated entry over an inferred one. Between two company rules, it is also a data issue.",
+        "properties": {
+          "by": {
+            "enum": [
+              "current_utterance",
+              "precedence",
+              "rule_rank"
+            ],
+            "title": "By",
+            "type": "string"
+          },
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "minItems": 2,
+            "title": "Ids",
+            "type": "array"
+          },
+          "kept": {
+            "title": "Kept",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ids",
+          "kept",
+          "by"
+        ],
+        "title": "Conflict",
+        "type": "object"
+      },
+      "ConstraintOrigin": {
+        "additionalProperties": false,
+        "properties": {
+          "event_key": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Key"
+          },
+          "kind": {
+            "enum": [
+              "stated",
+              "tool_args",
+              "correction"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "turn_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn Id"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "ConstraintOrigin",
+        "type": "object"
+      },
       "ConstraintsBlock": {
         "additionalProperties": false,
-        "description": "The `constraints.v0` block.",
+        "description": "What one subject wants, refuses and is, for the tools of this turn (`constraints.v0`).",
         "properties": {
           "already_presented": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/Shown"
             },
+            "maxItems": 200,
             "title": "Already Presented",
             "type": "array"
           },
           "ask": {
+            "description": "Questions the agent should ask, as `for_whom`, before assuming.",
             "items": {
+              "maxLength": 256,
+              "minLength": 1,
               "type": "string"
             },
             "title": "Ask",
@@ -765,39 +1321,51 @@
           },
           "attributes": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/AttributeEntry"
             },
+            "maxItems": 50,
             "title": "Attributes",
+            "type": "array"
+          },
+          "conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/Conflict"
+            },
+            "maxItems": 50,
+            "title": "Conflicts",
             "type": "array"
           },
           "exclude": {
             "items": {
+              "pattern": "^[a-z][a-z0-9_]{0,39}:[^:\\s]{1,256}:\\S{1,512}$",
               "type": "string"
             },
+            "maxItems": 200,
             "title": "Exclude",
             "type": "array"
           },
           "hard": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/HardConstraint"
             },
+            "maxItems": 100,
             "title": "Hard",
             "type": "array"
           },
           "precedence": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Precedence"
+            "items": {
+              "enum": [
+                "current_utterance",
+                "stated_persistent",
+                "inferred"
+              ],
+              "type": "string"
+            },
+            "title": "Precedence",
+            "type": "array"
           },
           "relaxation_order": {
+            "description": "What gives way first when a search finds nothing: `soft`, ids.",
             "items": {
               "type": "string"
             },
@@ -807,46 +1375,41 @@
           "rendered": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/Rendered"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Rendered"
+            ]
           },
           "rules": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/CompanyRule"
             },
+            "maxItems": 50,
             "title": "Rules",
             "type": "array"
           },
           "soft": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/SoftConstraint"
             },
+            "maxItems": 100,
             "title": "Soft",
             "type": "array"
           },
           "subject": {
-            "additionalProperties": true,
-            "title": "Subject",
-            "type": "object"
+            "$ref": "#/components/schemas/BlockSubject"
           },
           "version": {
-            "maxLength": 256,
-            "minLength": 1,
+            "description": "A digest of the block, which the turn record cites.",
+            "pattern": "^cv_[0-9a-f]{8,64}$",
             "title": "Version",
             "type": "string"
           }
         },
         "required": [
-          "version",
-          "subject"
+          "version"
         ],
         "title": "ConstraintsBlock",
         "type": "object"
@@ -869,8 +1432,7 @@
           },
           "for": {
             "default": "self",
-            "maxLength": 256,
-            "minLength": 1,
+            "pattern": "^(?:self|gift|beneficiary:[A-Za-z0-9_-]{1,64})$",
             "title": "For",
             "type": "string"
           },
@@ -924,16 +1486,74 @@
         "title": "ContactBudget",
         "type": "object"
       },
+      "ContactKey": {
+        "additionalProperties": false,
+        "description": "An Ed25519 public key as a JWK (RFC 8037). A `retiring` key still verifies and signs nothing new.",
+        "properties": {
+          "crv": {
+            "const": "Ed25519",
+            "default": "Ed25519",
+            "title": "Crv",
+            "type": "string"
+          },
+          "kid": {
+            "pattern": "^[A-Za-z0-9_-]{8,64}$",
+            "title": "Kid",
+            "type": "string"
+          },
+          "kty": {
+            "const": "OKP",
+            "default": "OKP",
+            "title": "Kty",
+            "type": "string"
+          },
+          "not_after": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not After"
+          },
+          "space": {
+            "format": "uuid",
+            "title": "Space",
+            "type": "string"
+          },
+          "status": {
+            "default": "active",
+            "enum": [
+              "active",
+              "retiring"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "x": {
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "title": "X",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kid",
+          "x",
+          "space"
+        ],
+        "title": "ContactKey",
+        "type": "object"
+      },
       "ContactKeys": {
         "additionalProperties": false,
-        "description": "The spaces' Ed25519 public keys a gateway checks a contact token with, offline.",
+        "description": "A space's public keys a gateway checks a contact token with, offline.",
         "properties": {
           "keys": {
             "items": {
-              "additionalProperties": {
-                "type": "string"
-              },
-              "type": "object"
+              "$ref": "#/components/schemas/ContactKey"
             },
             "title": "Keys",
             "type": "array"
@@ -1270,6 +1890,7 @@
       },
       "DeclareRequest": {
         "additionalProperties": false,
+        "description": "What happened, after the fact. `detail` holds the fields of each kind (the coordination spec, 5).",
         "properties": {
           "agent": {
             "maxLength": 256,
@@ -1351,8 +1972,81 @@
         "title": "DeclareResult",
         "type": "object"
       },
+      "Detect": {
+        "additionalProperties": false,
+        "description": "How a category finds its claims in the text, without a model: numbers of these classes, the words\naround them that give their role, terms of the trade, named patterns, or sections of a document.",
+        "properties": {
+          "classes": {
+            "items": {
+              "enum": [
+                "money",
+                "percent",
+                "date",
+                "duration",
+                "quantity",
+                "count",
+                "dosage"
+              ],
+              "type": "string"
+            },
+            "maxItems": 7,
+            "title": "Classes",
+            "type": "array"
+          },
+          "document_sections": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_]{0,39}$",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Document Sections",
+            "type": "array"
+          },
+          "patterns": {
+            "items": {
+              "enum": [
+                "article_citation",
+                "precedent_citation"
+              ],
+              "type": "string"
+            },
+            "title": "Patterns",
+            "type": "array"
+          },
+          "roles": {
+            "description": "The words that give a number its role, synonyms and every language in one list.",
+            "maxProperties": 32,
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "items": {
+                  "maxLength": 80,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "title": "Roles",
+            "type": "object"
+          },
+          "terms": {
+            "description": "With `classes`, a number counts only in a sentence that holds one of them; alone, the term is the claim.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Terms",
+            "type": "array"
+          }
+        },
+        "title": "Detect",
+        "type": "object"
+      },
       "Effect": {
         "additionalProperties": false,
+        "description": "`effect_id` is the key's keyed hash: it names the effect in paths, where the key itself, which may\ncarry a conversation id, never goes.",
         "properties": {
           "attempt": {
             "title": "Attempt",
@@ -1370,10 +2064,9 @@
             ],
             "title": "Done At"
           },
-          "effect_key": {
-            "maxLength": 512,
-            "minLength": 1,
-            "title": "Effect Key",
+          "effect_id": {
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "title": "Effect Id",
             "type": "string"
           },
           "reserved_at": {
@@ -1393,13 +2086,25 @@
           }
         },
         "required": [
-          "effect_key",
+          "effect_id",
           "state",
           "attempt",
           "reserved_at"
         ],
         "title": "Effect",
         "type": "object"
+      },
+      "EffectKind": {
+        "enum": [
+          "delivery",
+          "document",
+          "notice",
+          "filing",
+          "paid_call",
+          "external_action"
+        ],
+        "title": "EffectKind",
+        "type": "string"
       },
       "EffectReserve": {
         "additionalProperties": false,
@@ -1427,16 +2132,7 @@
             ]
           },
           "kind": {
-            "enum": [
-              "delivery",
-              "document",
-              "notice",
-              "filing",
-              "paid_call",
-              "external_action"
-            ],
-            "title": "Kind",
-            "type": "string"
+            "$ref": "#/components/schemas/EffectKind"
           }
         },
         "required": [
@@ -1446,9 +2142,44 @@
         "title": "EffectReserve",
         "type": "object"
       },
+      "EffectSeen": {
+        "additionalProperties": false,
+        "properties": {
+          "effect_id": {
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "title": "Effect Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EffectKind"
+          },
+          "state": {
+            "enum": [
+              "reserved",
+              "done",
+              "failed",
+              "unknown_outcome"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "effect_id",
+          "kind",
+          "state"
+        ],
+        "title": "EffectSeen",
+        "type": "object"
+      },
       "EffectSettle": {
         "additionalProperties": false,
         "properties": {
+          "attempt": {
+            "minimum": 1.0,
+            "title": "Attempt",
+            "type": "integer"
+          },
           "state": {
             "enum": [
               "done",
@@ -1460,14 +2191,27 @@
           }
         },
         "required": [
-          "state"
+          "state",
+          "attempt"
         ],
         "title": "EffectSettle",
         "type": "object"
       },
       "EffectStatus": {
         "additionalProperties": false,
+        "description": "`none` means nothing held the key and this check reserved it: the caller acts and then declares.",
         "properties": {
+          "attempt": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempt"
+          },
           "state": {
             "enum": [
               "none",
@@ -1791,15 +2535,21 @@
             "title": "Outcome"
           },
           "package": {
-            "additionalProperties": true,
-            "title": "Package",
-            "type": "object"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandoffPackage"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "status": {
             "enum": [
               "created",
               "accepted",
-              "closed"
+              "closed",
+              "expired"
             ],
             "title": "Status",
             "type": "string"
@@ -1811,6 +2561,41 @@
           "created_at"
         ],
         "title": "Handoff",
+        "type": "object"
+      },
+      "HandoffContext": {
+        "additionalProperties": false,
+        "description": "The compiled `handoff` view, at the receiving side's policy and verification level.",
+        "properties": {
+          "etag": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Etag",
+            "type": "string"
+          },
+          "policy_version": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Version"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "etag"
+        ],
+        "title": "HandoffContext",
         "type": "object"
       },
       "HandoffCreate": {
@@ -1868,8 +2653,7 @@
             "type": "object"
           },
           "outcome": {
-            "maxLength": 256,
-            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
             "title": "Outcome",
             "type": "string"
           }
@@ -1878,6 +2662,240 @@
           "outcome"
         ],
         "title": "HandoffOutcome",
+        "type": "object"
+      },
+      "HandoffPackage": {
+        "additionalProperties": false,
+        "description": "What a handoff carries to whoever receives it (the coordination spec, 7).",
+        "properties": {
+          "commitments_active": {
+            "items": {
+              "$ref": "#/components/schemas/CommitmentRef"
+            },
+            "title": "Commitments Active",
+            "type": "array"
+          },
+          "context": {
+            "$ref": "#/components/schemas/HandoffContext"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "effects": {
+            "items": {
+              "$ref": "#/components/schemas/EffectSeen"
+            },
+            "title": "Effects",
+            "type": "array"
+          },
+          "from_agent": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "From Agent",
+            "type": "string"
+          },
+          "handoff_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Handoff Id",
+            "type": "string"
+          },
+          "level": {
+            "$ref": "#/components/schemas/Verification"
+          },
+          "open_objects": {
+            "items": {
+              "$ref": "#/components/schemas/OpenObject"
+            },
+            "maxItems": 50,
+            "title": "Open Objects",
+            "type": "array"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/OutcomeRequest"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Owner"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "promises_open": {
+            "items": {
+              "$ref": "#/components/schemas/PromiseRef"
+            },
+            "title": "Promises Open",
+            "type": "array"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "spec": {
+            "const": "handoff-package.v0",
+            "default": "handoff-package.v0",
+            "title": "Spec",
+            "type": "string"
+          },
+          "suppressions": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_]{0,39}$",
+              "type": "string"
+            },
+            "title": "Suppressions",
+            "type": "array"
+          },
+          "target": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "handoff_id",
+          "created_at",
+          "from_agent",
+          "target",
+          "level",
+          "context"
+        ],
+        "title": "HandoffPackage",
+        "type": "object"
+      },
+      "HardConstraint": {
+        "additionalProperties": false,
+        "description": "Only what the person said: an inference is never hard.",
+        "properties": {
+          "attr": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}\\.[a-z][a-z0-9_]{0,63}$",
+            "title": "Attr",
+            "type": "string"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "pattern": "^h[0-9]{1,4}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "in",
+              "not_in",
+              "eq",
+              "ne",
+              "lt",
+              "lte",
+              "gt",
+              "gte",
+              "between"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/ConstraintOrigin"
+          },
+          "relax": {
+            "default": "never",
+            "enum": [
+              "never",
+              "ask"
+            ],
+            "title": "Relax",
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "turn",
+              "session",
+              "persistent"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "stated",
+              "tool_args",
+              "correction"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                }
+              ]
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "attr",
+          "op",
+          "values",
+          "source",
+          "scope",
+          "origin"
+        ],
+        "title": "HardConstraint",
         "type": "object"
       },
       "Inference": {
@@ -2016,6 +3034,38 @@
           "rows"
         ],
         "title": "InterleavingReport",
+        "type": "object"
+      },
+      "InternalText": {
+        "additionalProperties": false,
+        "description": "Fingerprints of the company's own prompt: hashes of every `n` words, computed by the SDK, never the\nprompt itself. An output that repeats one gives way to `redact`.",
+        "properties": {
+          "n": {
+            "default": 8,
+            "maximum": 32.0,
+            "minimum": 4.0,
+            "title": "N",
+            "type": "integer"
+          },
+          "redact": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Redact",
+            "type": "string"
+          },
+          "shingle_hashes_ref": {
+            "description": "The prompt version the hashes were computed from.",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Shingle Hashes Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shingle_hashes_ref",
+          "redact"
+        ],
+        "title": "InternalText",
         "type": "object"
       },
       "ItemError": {
@@ -2196,6 +3246,48 @@
           "until"
         ],
         "title": "Lock",
+        "type": "object"
+      },
+      "Natures": {
+        "additionalProperties": false,
+        "description": "How a number is handled by where it came from: computed (a value with provenance in the turn, by rule\nor observed) is checked against it; quoted (inside quotation marks) is checked only for being in a source,\nas written, even when it is false; said by the model (no origin) takes this action, or the category's.",
+        "properties": {
+          "computed": {
+            "default": "check",
+            "enum": [
+              "check",
+              "count"
+            ],
+            "title": "Computed",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "enum": [
+                  "block",
+                  "warn",
+                  "count"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "quoted": {
+            "default": "verbatim",
+            "enum": [
+              "verbatim",
+              "count"
+            ],
+            "title": "Quoted",
+            "type": "string"
+          }
+        },
+        "title": "Natures",
         "type": "object"
       },
       "Notification": {
@@ -2598,6 +3690,44 @@
         "title": "ObjectSnapshotResponse",
         "type": "object"
       },
+      "OpenObject": {
+        "additionalProperties": false,
+        "properties": {
+          "ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "required": [
+          "ref"
+        ],
+        "title": "OpenObject",
+        "type": "object"
+      },
       "OutcomePage": {
         "additionalProperties": false,
         "properties": {
@@ -2625,6 +3755,35 @@
           "items"
         ],
         "title": "OutcomePage",
+        "type": "object"
+      },
+      "OutcomeRequest": {
+        "additionalProperties": false,
+        "description": "How the receiving side reports back: one of `vocabulary`, by `expected_by`.",
+        "properties": {
+          "expected_by": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected By"
+          },
+          "vocabulary": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_]{0,39}$",
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Vocabulary",
+            "type": "array"
+          }
+        },
+        "title": "OutcomeRequest",
         "type": "object"
       },
       "OutcomeState": {
@@ -2663,6 +3822,7 @@
       },
       "Owner": {
         "additionalProperties": false,
+        "description": "Who holds the subject or the object now: the most restrictive valid claim, where it came from and\nuntil when. `epoch` fences a release.",
         "properties": {
           "epoch": {
             "title": "Epoch",
@@ -2675,9 +3835,11 @@
             "type": "string"
           },
           "kind": {
-            "maxLength": 256,
-            "minLength": 1,
-            "title": "Kind",
+            "$ref": "#/components/schemas/ClaimKind"
+          },
+          "level": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "title": "Level",
             "type": "string"
           },
           "since": {
@@ -2692,23 +3854,22 @@
             "type": "string"
           },
           "valid_until": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Valid Until"
+            "format": "date-time",
+            "title": "Valid Until",
+            "type": "string"
+          },
+          "via": {
+            "$ref": "#/components/schemas/ClaimVia"
           }
         },
         "required": [
           "holder",
           "kind",
+          "level",
           "source",
+          "via",
           "since",
+          "valid_until",
           "epoch"
         ],
         "title": "Owner",
@@ -2732,12 +3893,11 @@
             "type": "string"
           },
           "kind": {
-            "enum": [
-              "owner",
-              "case",
-              "task_lock"
-            ],
-            "title": "Kind",
+            "$ref": "#/components/schemas/ClaimKind"
+          },
+          "level": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "title": "Level",
             "type": "string"
           },
           "valid_until": {
@@ -2750,6 +3910,7 @@
           "claim_id",
           "kind",
           "holder",
+          "level",
           "valid_until",
           "epoch"
         ],
@@ -2902,6 +4063,41 @@
           "code"
         ],
         "title": "Problem",
+        "type": "object"
+      },
+      "PromiseRef": {
+        "additionalProperties": false,
+        "properties": {
+          "due": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due"
+          },
+          "id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "owner": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Owner",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "owner"
+        ],
+        "title": "PromiseRef",
         "type": "object"
       },
       "PromoteRequest": {
@@ -3235,6 +4431,55 @@
           "reason"
         ],
         "title": "Refusal",
+        "type": "object"
+      },
+      "Rendered": {
+        "additionalProperties": false,
+        "description": "The block for one tool, through its bindings (`constraints.v0`, rendering).",
+        "properties": {
+          "args": {
+            "additionalProperties": true,
+            "description": "Argument values that carry hard constraints and attributes.",
+            "title": "Args",
+            "type": "object"
+          },
+          "mode": {
+            "enum": [
+              "advisory",
+              "apply"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "post_filter": {
+            "description": "Residual ids the SDK filters from the results of an overfetch.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Post Filter",
+            "type": "array"
+          },
+          "residual": {
+            "description": "Ids no argument of the tool can express.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Residual",
+            "type": "array"
+          },
+          "tool": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool",
+          "mode",
+          "args"
+        ],
+        "title": "Rendered",
         "type": "object"
       },
       "ReplayCase": {
@@ -3864,6 +5109,124 @@
         "title": "ShadowRun",
         "type": "object"
       },
+      "Shown": {
+        "additionalProperties": false,
+        "properties": {
+          "last_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last At"
+          },
+          "ref": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}:[^:\\s]{1,256}:\\S{1,512}$",
+            "title": "Ref",
+            "type": "string"
+          },
+          "times": {
+            "minimum": 1.0,
+            "title": "Times",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ref",
+          "times"
+        ],
+        "title": "Shown",
+        "type": "object"
+      },
+      "SoftConstraint": {
+        "additionalProperties": false,
+        "properties": {
+          "attr": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}\\.[a-z][a-z0-9_]{0,63}$",
+            "title": "Attr",
+            "type": "string"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "id": {
+            "pattern": "^s[0-9]{1,4}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "polarity": {
+            "default": "prefer",
+            "enum": [
+              "prefer",
+              "avoid"
+            ],
+            "title": "Polarity",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "inferred",
+              "stated"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "maxLength": 256,
+                "type": "string"
+              }
+            ],
+            "title": "Value"
+          },
+          "weight": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "attr",
+          "value",
+          "weight",
+          "confidence",
+          "source"
+        ],
+        "title": "SoftConstraint",
+        "type": "object"
+      },
       "StateReadRequest": {
         "additionalProperties": false,
         "properties": {
@@ -4117,12 +5480,12 @@
       },
       "Suppression": {
         "additionalProperties": false,
+        "description": "One entry of the suppression list: `key` is the subject's handle keyed with the reading source's salt\n(the suppression-list spec); `removed` takes the entry `id` out of the reader's copy. The reason stays\nwith the producer: a vendor learns that it may not contact, never why.",
         "properties": {
           "channel": {
             "anyOf": [
               {
-                "maxLength": 256,
-                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_]{0,39}$",
                 "type": "string"
               },
               {
@@ -4131,22 +5494,20 @@
             ],
             "title": "Channel"
           },
-          "key": {
-            "maxLength": 256,
+          "id": {
+            "maxLength": 512,
             "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "pattern": "^[A-Za-z0-9_-]{43}$",
             "title": "Key",
             "type": "string"
           },
           "purpose": {
-            "maxLength": 256,
-            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
             "title": "Purpose",
-            "type": "string"
-          },
-          "reason": {
-            "maxLength": 256,
-            "minLength": 1,
-            "title": "Reason",
             "type": "string"
           },
           "removed": {
@@ -4173,9 +5534,9 @@
           }
         },
         "required": [
+          "id",
           "key",
           "purpose",
-          "reason",
           "since"
         ],
         "title": "Suppression",
@@ -4183,6 +5544,7 @@
       },
       "SuppressionPage": {
         "additionalProperties": false,
+        "description": "A page of changes, oldest first. With `reset`, the reader drops its copy before applying `items`:\nthe salt changed, or the cursor is older than what the list keeps.",
         "properties": {
           "items": {
             "items": {
@@ -4201,9 +5563,21 @@
               }
             ],
             "title": "Next Cursor"
+          },
+          "reset": {
+            "default": false,
+            "title": "Reset",
+            "type": "boolean"
+          },
+          "salt_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Salt Id",
+            "type": "string"
           }
         },
         "required": [
+          "salt_id",
           "items"
         ],
         "title": "SuppressionPage",
@@ -4213,7 +5587,14 @@
         "additionalProperties": false,
         "properties": {
           "salt": {
+            "pattern": "^[A-Za-z0-9_-]{43}$",
             "title": "Salt",
+            "type": "string"
+          },
+          "salt_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Salt Id",
             "type": "string"
           },
           "valid_from": {
@@ -4223,6 +5604,7 @@
           }
         },
         "required": [
+          "salt_id",
           "salt",
           "valid_from"
         ],
@@ -5904,6 +7286,80 @@
         "title": "UnmetDemandPage",
         "type": "object"
       },
+      "ValueEvidence": {
+        "additionalProperties": false,
+        "description": "A value in the turn record, from a tool's result or from state, that the number is checked against.",
+        "properties": {
+          "fresh_for": {
+            "anyOf": [
+              {
+                "const": "claim",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The value is within its type's `claim_max_age`, or the claim is `stale`.",
+            "title": "Fresh For"
+          },
+          "gap_terms": {
+            "description": "The words that state each declared gap; a gap without them is stated by its name.",
+            "maxProperties": 32,
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "items": {
+                  "maxLength": 80,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "title": "Gap Terms",
+            "type": "object"
+          },
+          "must_state_gaps": {
+            "default": false,
+            "description": "The value's declared gaps must be said with it, or `gap_not_stated`.",
+            "title": "Must State Gaps",
+            "type": "boolean"
+          },
+          "same_role": {
+            "default": false,
+            "description": "The value's role is the number's role.",
+            "title": "Same Role",
+            "type": "boolean"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{0,39}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{0,39}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A field or a computed value of `type`.",
+            "title": "Value"
+          }
+        },
+        "title": "ValueEvidence",
+        "type": "object"
+      },
       "ValueState": {
         "additionalProperties": false,
         "description": "A value the company computed, kept as a versioned fact with the rule that produced it.",
@@ -6064,6 +7520,19 @@
         "title": "Verdict",
         "type": "object"
       },
+      "Verification": {
+        "description": "Session verification levels. `no_customer` sits outside the V0-V4 scale.",
+        "enum": [
+          "V0",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "no_customer"
+        ],
+        "title": "Verification",
+        "type": "string"
+      },
       "VerifyCheck": {
         "additionalProperties": false,
         "properties": {
@@ -6098,6 +7567,25 @@
     "/.well-known/niadra-contact-keys.json": {
       "get": {
         "operationId": "contact_keys__well_known_niadra_contact_keys_json_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "space",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Space"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -6108,6 +7596,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not match the contract."
           }
         },
         "summary": "Contact Keys",
@@ -6677,16 +8175,16 @@
         ]
       }
     },
-    "/v1/coordination/effects/{key}/settle": {
+    "/v1/coordination/effects/{effect_id}/settle": {
       "post": {
-        "operationId": "settle_effect_v1_coordination_effects__key__settle_post",
+        "operationId": "settle_effect_v1_coordination_effects__effect_id__settle_post",
         "parameters": [
           {
             "in": "path",
-            "name": "key",
+            "name": "effect_id",
             "required": true,
             "schema": {
-              "title": "Key",
+              "title": "Effect Id",
               "type": "string"
             }
           },

@@ -1,0 +1,535 @@
+{
+  "vectors": "contact-token",
+  "version": "v0",
+  "spec": "spec/contact-token.md",
+  "cases": [
+    {
+      "id": "issue.marketing",
+      "op": "issue",
+      "description": "Compact JSON in the member order of the spec, signed with the space's key.",
+      "seed": "bDVY2gkVevVraNJ3WgB0KXPCvudpSneOJVJXF-obJF8",
+      "claims": {
+        "kid": "ck_test_space_a_1",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "jti": "0199a3b2-5c00-7a1e-8f3d-2b6c0e4a9d01",
+        "purpose": "marketing",
+        "channel": "whatsapp",
+        "rcpt": "GgDKNynckNBxoc-4yKRQQTK_p5XjdU2tnM-DAbIDXDI",
+        "gateway": "wa_gateway",
+        "iat": 1790000000,
+        "exp": 1790000120
+      },
+      "expect": {
+        "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0.Ia4bN-vqYirRYvJCdAiYDiJwagYiR19hh-rOclLSJWeBr8Jv4HjKVIsE_hEgVzAqdh1e-Hgygcu58DPROmlEBw"
+      }
+    },
+    {
+      "id": "issue.retention_by_email",
+      "op": "issue",
+      "description": "Another purpose, channel and destination.",
+      "seed": "bDVY2gkVevVraNJ3WgB0KXPCvudpSneOJVJXF-obJF8",
+      "claims": {
+        "kid": "ck_test_space_a_1",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "jti": "0199a3b2-5c00-7a1e-8f3d-2b6c0e4a9d02",
+        "purpose": "retention",
+        "channel": "email",
+        "rcpt": "F8uvog4AfDuUSZdqyz0Tssw_8FwAohP_yk7LzKH82sU",
+        "gateway": "wa_gateway",
+        "iat": 1790000000,
+        "exp": 1790000120
+      },
+      "expect": {
+        "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAyIiwicHVycG9zZSI6InJldGVudGlvbiIsImNoYW5uZWwiOiJlbWFpbCIsInJjcHQiOiJGOHV2b2c0QWZEdVVTWmRxeXowVHNzd184RndBb2hQX3lrN0x6S0g4MnNVIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0.DwA3J9Etc4aj2J7FgMZyaykESxQt7RlV7hV_YaOD1I9E-Ysaqni3ekIArPvsTz6qbdL-dTiwS4WeGVRh9GGZCQ"
+      }
+    },
+    {
+      "id": "verify.valid",
+      "op": "verify",
+      "description": "A token for this gateway, destination and channel, inside its life.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "omoiyCMT2fCMygdy36vVlCghIgGVyQ3ppQGIY8Rnpik",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "active"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "wa_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0.Ia4bN-vqYirRYvJCdAiYDiJwagYiR19hh-rOclLSJWeBr8Jv4HjKVIsE_hEgVzAqdh1e-Hgygcu58DPROmlEBw",
+      "destination": "phone:+5511987654321",
+      "channel": "whatsapp",
+      "now": 1790000010,
+      "seen_jti": [],
+      "expect": {
+        "claims": {
+          "kid": "ck_test_space_a_1",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "jti": "0199a3b2-5c00-7a1e-8f3d-2b6c0e4a9d01",
+          "purpose": "marketing",
+          "channel": "whatsapp",
+          "rcpt": "GgDKNynckNBxoc-4yKRQQTK_p5XjdU2tnM-DAbIDXDI",
+          "gateway": "wa_gateway",
+          "iat": 1790000000,
+          "exp": 1790000120
+        }
+      }
+    },
+    {
+      "id": "verify.valid_with_a_retiring_key",
+      "op": "verify",
+      "description": "A retiring key still verifies what it signed.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "omoiyCMT2fCMygdy36vVlCghIgGVyQ3ppQGIY8Rnpik",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "retiring"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "wa_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0.Ia4bN-vqYirRYvJCdAiYDiJwagYiR19hh-rOclLSJWeBr8Jv4HjKVIsE_hEgVzAqdh1e-Hgygcu58DPROmlEBw",
+      "destination": "phone:+5511987654321",
+      "channel": "whatsapp",
+      "now": 1790000010,
+      "seen_jti": [],
+      "expect": {
+        "claims": {
+          "kid": "ck_test_space_a_1",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "jti": "0199a3b2-5c00-7a1e-8f3d-2b6c0e4a9d01",
+          "purpose": "marketing",
+          "channel": "whatsapp",
+          "rcpt": "GgDKNynckNBxoc-4yKRQQTK_p5XjdU2tnM-DAbIDXDI",
+          "gateway": "wa_gateway",
+          "iat": 1790000000,
+          "exp": 1790000120
+        }
+      }
+    },
+    {
+      "id": "verify.wrong_recipient",
+      "op": "verify",
+      "description": "The message goes to another destination than the token's.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "omoiyCMT2fCMygdy36vVlCghIgGVyQ3ppQGIY8Rnpik",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "active"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "wa_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0.Ia4bN-vqYirRYvJCdAiYDiJwagYiR19hh-rOclLSJWeBr8Jv4HjKVIsE_hEgVzAqdh1e-Hgygcu58DPROmlEBw",
+      "destination": "phone:+5511912345678",
+      "channel": "whatsapp",
+      "now": 1790000010,
+      "seen_jti": [],
+      "expect": {
+        "error": "wrong_recipient"
+      }
+    },
+    {
+      "id": "verify.replayed",
+      "op": "verify",
+      "description": "The gateway already let this jti through.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "omoiyCMT2fCMygdy36vVlCghIgGVyQ3ppQGIY8Rnpik",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "active"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "wa_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0.Ia4bN-vqYirRYvJCdAiYDiJwagYiR19hh-rOclLSJWeBr8Jv4HjKVIsE_hEgVzAqdh1e-Hgygcu58DPROmlEBw",
+      "destination": "phone:+5511987654321",
+      "channel": "whatsapp",
+      "now": 1790000010,
+      "seen_jti": [
+        "0199a3b2-5c00-7a1e-8f3d-2b6c0e4a9d01"
+      ],
+      "expect": {
+        "error": "replayed"
+      }
+    },
+    {
+      "id": "verify.expired",
+      "op": "verify",
+      "description": "Past the expiry and the five seconds of leeway.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "omoiyCMT2fCMygdy36vVlCghIgGVyQ3ppQGIY8Rnpik",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "active"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "wa_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0.Ia4bN-vqYirRYvJCdAiYDiJwagYiR19hh-rOclLSJWeBr8Jv4HjKVIsE_hEgVzAqdh1e-Hgygcu58DPROmlEBw",
+      "destination": "phone:+5511987654321",
+      "channel": "whatsapp",
+      "now": 1790000126,
+      "seen_jti": [],
+      "expect": {
+        "error": "expired"
+      }
+    },
+    {
+      "id": "verify.inside_the_leeway",
+      "op": "verify",
+      "description": "Four seconds past the expiry is still within the leeway.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "omoiyCMT2fCMygdy36vVlCghIgGVyQ3ppQGIY8Rnpik",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "active"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "wa_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0.Ia4bN-vqYirRYvJCdAiYDiJwagYiR19hh-rOclLSJWeBr8Jv4HjKVIsE_hEgVzAqdh1e-Hgygcu58DPROmlEBw",
+      "destination": "phone:+5511987654321",
+      "channel": "whatsapp",
+      "now": 1790000124,
+      "seen_jti": [],
+      "expect": {
+        "claims": {
+          "kid": "ck_test_space_a_1",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "jti": "0199a3b2-5c00-7a1e-8f3d-2b6c0e4a9d01",
+          "purpose": "marketing",
+          "channel": "whatsapp",
+          "rcpt": "GgDKNynckNBxoc-4yKRQQTK_p5XjdU2tnM-DAbIDXDI",
+          "gateway": "wa_gateway",
+          "iat": 1790000000,
+          "exp": 1790000120
+        }
+      }
+    },
+    {
+      "id": "verify.not_yet_valid",
+      "op": "verify",
+      "description": "Issued in the future of the gateway's clock, beyond the leeway.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "omoiyCMT2fCMygdy36vVlCghIgGVyQ3ppQGIY8Rnpik",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "active"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "wa_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0.Ia4bN-vqYirRYvJCdAiYDiJwagYiR19hh-rOclLSJWeBr8Jv4HjKVIsE_hEgVzAqdh1e-Hgygcu58DPROmlEBw",
+      "destination": "phone:+5511987654321",
+      "channel": "whatsapp",
+      "now": 1789999994,
+      "seen_jti": [],
+      "expect": {
+        "error": "not_yet_valid"
+      }
+    },
+    {
+      "id": "verify.bad_signature",
+      "op": "verify",
+      "description": "The payload changed after signing.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "omoiyCMT2fCMygdy36vVlCghIgGVyQ3ppQGIY8Rnpik",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "active"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "wa_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6InNlcnZpY2UiLCJjaGFubmVsIjoid2hhdHNhcHAiLCJyY3B0IjoiR2dES055bmNrTkJ4b2MtNHlLUlFRVEtfcDVYamRVMnRuTS1EQWJJRFhESSIsImdhdGV3YXkiOiJ3YV9nYXRld2F5IiwiaWF0IjoxNzkwMDAwMDAwLCJleHAiOjE3OTAwMDAxMjB9.Ia4bN-vqYirRYvJCdAiYDiJwagYiR19hh-rOclLSJWeBr8Jv4HjKVIsE_hEgVzAqdh1e-Hgygcu58DPROmlEBw",
+      "destination": "phone:+5511987654321",
+      "channel": "whatsapp",
+      "now": 1790000010,
+      "seen_jti": [],
+      "expect": {
+        "error": "bad_signature"
+      }
+    },
+    {
+      "id": "verify.unknown_key",
+      "op": "verify",
+      "description": "No key of the space has the token's kid.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_0",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "ljskoX0_wjxjipGVESK9-V32Pn9IxyNWPPh8ubebKv4",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "active"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "wa_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0.Ia4bN-vqYirRYvJCdAiYDiJwagYiR19hh-rOclLSJWeBr8Jv4HjKVIsE_hEgVzAqdh1e-Hgygcu58DPROmlEBw",
+      "destination": "phone:+5511987654321",
+      "channel": "whatsapp",
+      "now": 1790000010,
+      "seen_jti": [],
+      "expect": {
+        "error": "unknown_key"
+      }
+    },
+    {
+      "id": "verify.wrong_space",
+      "op": "verify",
+      "description": "A valid token of another space.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "omoiyCMT2fCMygdy36vVlCghIgGVyQ3ppQGIY8Rnpik",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "active"
+        },
+        {
+          "kid": "ck_test_space_b_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "ljskoX0_wjxjipGVESK9-V32Pn9IxyNWPPh8ubebKv4",
+          "space": "0192f5a0-0000-7000-8000-00000000b004",
+          "status": "active"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "wa_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2JfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBiMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0.4qgxmjicmITtM28_TPUiNRvM-VF41PyYYJUeh2cDFFjeZDjk_l54RCTW3SAu3k_lon8dEYNfOHa-MbXmof90Dg",
+      "destination": "phone:+5511987654321",
+      "channel": "whatsapp",
+      "now": 1790000010,
+      "seen_jti": [],
+      "expect": {
+        "error": "wrong_space"
+      }
+    },
+    {
+      "id": "verify.wrong_gateway",
+      "op": "verify",
+      "description": "The token names another gateway.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "omoiyCMT2fCMygdy36vVlCghIgGVyQ3ppQGIY8Rnpik",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "active"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "sms_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0.Ia4bN-vqYirRYvJCdAiYDiJwagYiR19hh-rOclLSJWeBr8Jv4HjKVIsE_hEgVzAqdh1e-Hgygcu58DPROmlEBw",
+      "destination": "phone:+5511987654321",
+      "channel": "whatsapp",
+      "now": 1790000010,
+      "seen_jti": [],
+      "expect": {
+        "error": "wrong_gateway"
+      }
+    },
+    {
+      "id": "verify.wrong_channel",
+      "op": "verify",
+      "description": "The message goes out on another channel.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "omoiyCMT2fCMygdy36vVlCghIgGVyQ3ppQGIY8Rnpik",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "active"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "wa_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0.Ia4bN-vqYirRYvJCdAiYDiJwagYiR19hh-rOclLSJWeBr8Jv4HjKVIsE_hEgVzAqdh1e-Hgygcu58DPROmlEBw",
+      "destination": "phone:+5511987654321",
+      "channel": "sms",
+      "now": 1790000010,
+      "seen_jti": [],
+      "expect": {
+        "error": "wrong_channel"
+      }
+    },
+    {
+      "id": "verify.lifetime_too_long",
+      "op": "verify",
+      "description": "Signed, but meant to live ten minutes.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "omoiyCMT2fCMygdy36vVlCghIgGVyQ3ppQGIY8Rnpik",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "active"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "wa_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDYwMH0.rUjVBUGKffiVWUEqc_w-NFOpETLRIDnvXjPog-niTqY6vVtkXUjlZOk9Ay82s-BlidWN80q9hNsQgL0724JOCw",
+      "destination": "phone:+5511987654321",
+      "channel": "whatsapp",
+      "now": 1790000010,
+      "seen_jti": [],
+      "expect": {
+        "error": "lifetime_too_long"
+      }
+    },
+    {
+      "id": "verify.malformed",
+      "op": "verify",
+      "description": "Two segments.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "omoiyCMT2fCMygdy36vVlCghIgGVyQ3ppQGIY8Rnpik",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "active"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "wa_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0",
+      "destination": "phone:+5511987654321",
+      "channel": "whatsapp",
+      "now": 1790000010,
+      "seen_jti": [],
+      "expect": {
+        "error": "malformed"
+      }
+    },
+    {
+      "id": "verify.padded",
+      "op": "verify",
+      "description": "Base64url with padding is not the token's encoding.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "omoiyCMT2fCMygdy36vVlCghIgGVyQ3ppQGIY8Rnpik",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "active"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "wa_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct1.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0=.Ia4bN-vqYirRYvJCdAiYDiJwagYiR19hh-rOclLSJWeBr8Jv4HjKVIsE_hEgVzAqdh1e-Hgygcu58DPROmlEBw",
+      "destination": "phone:+5511987654321",
+      "channel": "whatsapp",
+      "now": 1790000010,
+      "seen_jti": [],
+      "expect": {
+        "error": "malformed"
+      }
+    },
+    {
+      "id": "verify.unsupported_version",
+      "op": "verify",
+      "description": "A version this verifier does not know.",
+      "keys": [
+        {
+          "kid": "ck_test_space_a_1",
+          "kty": "OKP",
+          "crv": "Ed25519",
+          "x": "omoiyCMT2fCMygdy36vVlCghIgGVyQ3ppQGIY8Rnpik",
+          "space": "0192f5a0-0000-7000-8000-00000000a004",
+          "status": "active"
+        }
+      ],
+      "gateway": {
+        "gateway_id": "wa_gateway",
+        "space": "0192f5a0-0000-7000-8000-00000000a004",
+        "key": "riek7z_rHd_G7N33oq2D1NbSwLw4WccsF_7L4z82zMc"
+      },
+      "token": "nct2.eyJraWQiOiJja190ZXN0X3NwYWNlX2FfMSIsInNwYWNlIjoiMDE5MmY1YTAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDBhMDA0IiwianRpIjoiMDE5OWEzYjItNWMwMC03YTFlLThmM2QtMmI2YzBlNGE5ZDAxIiwicHVycG9zZSI6Im1hcmtldGluZyIsImNoYW5uZWwiOiJ3aGF0c2FwcCIsInJjcHQiOiJHZ0RLTnluY2tOQnhvYy00eUtSUVFUS19wNVhqZFUydG5NLURBYklEWERJIiwiZ2F0ZXdheSI6IndhX2dhdGV3YXkiLCJpYXQiOjE3OTAwMDAwMDAsImV4cCI6MTc5MDAwMDEyMH0.J2hE_cZeGNT0x-cPlFHDnPE_avsni0anJuutkZ3H4G9EdoXJwDA1wTImxrAeAphUiRYrfvg8OFQ8m4JOVDv_BQ",
+      "destination": "phone:+5511987654321",
+      "channel": "whatsapp",
+      "now": 1790000010,
+      "seen_jti": [],
+      "expect": {
+        "error": "unsupported_version"
+      }
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "version": "2026-09-29.1",
+  "languages": ["pt", "es"],
+  "categories": [
+    {
+      "id": "price",
+      "detect": {
+        "classes": ["money"],
+        "roles": {
+          "price_full": ["sem desconto", "cheio", "valor cheio", "preço cheio", "de tabela", "sin descuento"],
+          "price_discounted": ["com desconto", "promocional", "no promocional", "con descuento"],
+          "price_health_only": ["só saúde", "sem dental", "somente saúde", "apenas saúde", "solo salud"],
+          "per_person": ["por pessoa", "por vida", "por beneficiário", "cada vida", "por persona"],
+          "enrollment_fee": ["taxa de adesão", "adesão", "taxa de inscrição", "cuota de inscripción"]
+        }
+      },
+      "evidence": {"value": {"same_role": true, "fresh_for": "claim"}},
+      "natures": {"computed": "check", "quoted": "verbatim", "model": "block"},
+      "actions": {
+        "default": "warn",
+        "contexts": {"chat": "rewrite_if_unequivocal", "proposal": "count"}
+      }
+    },
+    {
+      "id": "business_plan_price",
+      "agents": ["sales"],
+      "detect": {"classes": ["money"], "terms": ["pme", "cnpj", "mei", "empresarial", "plano empresa", "pyme"]},
+      "evidence": {"tool": "quote_business_plan"},
+      "actions": {
+        "default": "block",
+        "replace_with": "Não consigo cotar plano empresarial por aqui; já te passo para quem cota."
+      }
+    },
+    {
+      "id": "grace_period",
+      "detect": {"classes": ["duration"], "terms": ["carência", "carências", "período de carência", "carencia"]},
+      "evidence": {"value": {"fresh_for": "claim"}},
+      "natures": {"model": "warn"},
+      "actions": {"default": "warn", "contexts": {"proposal": "count"}}
+    },
+    {
+      "id": "proposal_promise",
+      "detect": {
+        "terms": ["já enviei a proposta", "te enviei a proposta", "já mandei o link", "te mandei o link de pagamento",
+                  "enviei o contrato", "ya te envié la propuesta"]
+      },
+      "evidence": {"tool_any": ["send_proposal", "send_payment_link"]},
+      "actions": {"default": "warn"}
+    }
+  ],
+  "negative_corpus": {
+    "version": "2026-09-29",
+    "phrases": [
+      "Qual é a sua idade e a dos seus dependentes?",
+      "Me passa o CEP, por favor, que eu vejo a rede na sua região.",
+      "Seu CEP é 01310-100, certo?",
+      "O protocolo do seu atendimento é 20260929123.",
+      "A proposta de número 457812 está em análise.",
+      "Me confirma o número do seu celular: (11) 98765-4321.",
+      "A consulta ficou para as 14h30.",
+      "Você tem 2 dependentes, certo?",
+      "Tenho opções para 1, 2 ou 3 vidas.",
+      "O plano empresarial exige CNPJ ativo há pelo menos 6 meses.",
+      "Você é MEI ou tem CNPJ?",
+      "A carência é um período previsto em contrato; te explico como funciona.",
+      "Isso é por pessoa ou para a família toda?",
+      "O valor com desconto depende da idade de cada beneficiário.",
+      "Temos planos com e sem coparticipação.",
+      "Sua mensalidade vence todo dia 10.",
+      "Posso te mandar a proposta por e-mail?",
+      "Vou verificar a rede credenciada e já te respondo.",
+      "O reajuste por faixa etária segue as regras da agência reguladora.",
+      "O plano tem cobertura nacional para urgência e emergência.",
+      "Quem vai pagar o plano é você ou a empresa?",
+      "Deixa eu confirmar os valores antes de te passar.",
+      "O plano sem dental costuma sair mais em conta.",
+      "Prefere pagar no boleto ou no cartão?",
+      "Sua carteirinha chega em até 10 dias úteis depois da assinatura.",
+      "¿Cuántos años tienen tus dependientes?",
+      "¿Prefieres que te llame mañana a las 10?",
+      "El plan con descuento depende de la edad de cada persona."
+    ]
+  },
+  "outputs": {"immutable": ["proposal"], "mutable": ["chat"]}
+}
