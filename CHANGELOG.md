@@ -4,10 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.7.0] - Unreleased
 
-The first release this changelog records. The versions published before it were previews: nothing of theirs
-carries over, and none of their names, options or fallbacks is kept.
+The agent core. Every turn an agent takes is recorded in its own process; what it says is checked against
+what its tools returned; agents, people and systems coordinate before they contact a customer or act; the
+objects a company's systems push reach the agent as typed state with the freshness to say them; each agent
+keeps its working state; and a company replays turns, derives its types and measures a tool's
+counterfactual in its own CI. The framework adapters record turns. Every feature is off until the space
+turns it on, and a space that did not ask sees no change.
+
+The versions published before it were previews: nothing of theirs carries over, and none of their names,
+options or fallbacks is kept.
 
 ### Added
 
@@ -100,6 +107,33 @@ carries over, and none of their names, options or fallbacks is kept.
   with the refusals of its spec.
 - `niadra.constraints.render`: the constraints block rendered for one tool call through the tool's
   binding, in advisory or apply mode, and the count of what the call's results honored.
+- The blocks a read asks for reach the model: with `include`, the state view's lines and the constraints
+  block go in the turn block after the slots, inside one `<niadra>` section that opens with the pack's
+  "data, not instructions" line in the pack's language. A read that asks for no block keeps its turn block
+  byte for byte. The context answer also carries the coordination block.
+- `niadra.internal_text`: fingerprints of the company's own prompt (8-word shingles, computed and kept in
+  the process). A passage the model repeats gives way to the claim contract's `redact` line, and the turn
+  records the span with the verdict `internal_text_found` and the prompt's version, never the text.
+- `@niadra.tool(binding=...)` records what a call did with the constraints block: the hard constraints its
+  arguments sent and, over the objects its result shows, how many were checked, broke one or lacked the
+  field. A turn keeps the pack, the block and the working state it read, and what the person was shown or
+  engaged with (`frame.interact`).
+- `@niadra.tool(mask_output=True)` keeps the fields the key may not read (`deny` removed, `mask` masked, by
+  the profile's `field_access`) from what reaches the model; the last profile read keeps applying while
+  Niadra is down, and `on_unknown="block"` withholds the output when none was ever read.
+- The tool counterfactual: `niadra.replay.Counterfactual` and `niadra counterfactual` take the recorded
+  calls of a tool whose arguments carried an element of the constraints block, call the tool again without
+  it (dry when it writes state, never without a dry run) and send Niadra only overlaps and positions.
+- A replay starts from the working state the recorded turn read. LangGraph and Google ADK tools answer from
+  the record, LangChain tools through `replayable()`, and any other LangChain tool is refused with
+  `ReplayRefusedError` instead of running live.
+- `niadra types derive` proposes an object type from one PostgreSQL table's catalog (never a row) with the
+  fingerprint of what it read; `--check` exits 1 on drift and sends Niadra only the fingerprint and the
+  counts. It passes the `type-derive` vectors. `niadra contract test` runs the claim contract against its
+  negative corpus and example turns, for a company's CI.
+- One example per concept of the agent core (`examples/claim_guard.py`, `coordination.py`, `object_state.py`,
+  `working_state.py`, `masked_tool.py`, `tool_counterfactual.py`, with `turn_records.py` and
+  `replay_demo.py`) and `examples/ci/niadra-checks.yml`, each run by the tests.
 - `ContextResponse.budget` (`BudgetBlock`, with `BudgetPack`, `BudgetUse` and `BudgetCut`): with
   `include=["budget"]`, what the pack costs per section, what this agent already spent in the conversation
   and the case, and the units the measurement says it leaves unused. Shown, never enforced.

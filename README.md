@@ -535,6 +535,65 @@ token = niadra.subject_token(customer, conversation_id=thread_id, verification="
 # connect to niadra.mcp_url with the source key as Bearer and token.headers
 ```
 
+## The agent core
+
+What an agent does in a turn, recorded and checked in its own process, with Niadra never on the agent's
+path. Every feature below is off until the space turns it on; a space that did not ask sees no change.
+
+```python
+from niadra import Niadra, phone
+
+niadra = Niadra(channel="whatsapp")
+
+
+def shown(p: dict) -> list[dict]:  # the objects a result showed, for the claim contract
+    return [{"ref": f"product:store:{p['sku']}", "fields": {"price_sale": p["price_sale"]}}]
+
+
+@Niadra.tool("check_price", provenance=shown)
+def check_price(sku: str) -> dict:
+    return catalog[sku]
+
+
+with niadra.conversation("thread-82", subject=phone("+5511912345678"), agent_id="store") as conversation:
+    conversation.customer("Quanto está o vestido PX?")
+    with conversation.turn(build=Niadra.build(prompts={"store": "v16"}, model="gpt-4.1-mini")):
+        context = conversation.context(include=["state", "constraints"])
+        check_price("PX-4471")
+        guarded = conversation.claims.guard_text(draft)  # the claim contract acts before the text goes
+        conversation.agent(guarded.text)
+```
+
+| Concept | In the SDK | Example |
+| --- | --- | --- |
+| Turn records | `conversation.turn()`, `@niadra.tool`, the adapters' `turns=True` | `examples/turn_records.py` |
+| Claims | `conversation.claims.guard()`, `guard_text()`, `check()`; `niadra.internal_text` | `examples/claim_guard.py` |
+| Coordination | `conversation.check()`, `declare`, `claim()`; `niadra.may_contact()`; `niadra.contact_gateway()` | `examples/coordination.py` |
+| Typed state | `context(include=["state", "constraints", "coordination", "budget"])`, `verify_claim()`, `niadra.resolvers` | `examples/object_state.py` |
+| Working state | `conversation.agent_state.get()` and `put()` | `examples/working_state.py` |
+| Field access | `@niadra.tool(mask_output=True)` | `examples/masked_tool.py` |
+| Replay | `niadra.replay.Replayer`, `niadra replay` | `examples/replay_demo.py` |
+| Tool counterfactual | `niadra.replay.Counterfactual`, `niadra counterfactual` | `examples/tool_counterfactual.py` |
+| Type derivation and the claim contract in CI | `niadra types derive --check`, `niadra contract test` | `examples/ci/niadra-checks.yml` |
+
+- **Turn records** leave from a bounded queue in the background, in the content mode the space names:
+  the values themselves, pointers to your own bucket (`turns.store()`), or only their digests. Closing a
+  turn never waits for the network.
+- **Include blocks** come in the same read as the pack. The state view's lines and the constraints go in
+  the turn block after the slots, inside one `<niadra>` section; a read without `include` keeps its turn
+  block byte for byte. With Niadra down, the last good blocks serve, marked `degraded`.
+- **Coordination** decides by each purpose's direction when Niadra does not answer within 200 ms: a
+  customer's message and service go, marketing, retention, collection and an effect with a key wait, and
+  the local copy of the opt-out list always holds.
+- **Tool bindings** the space declares come in the SDK profile: a tool without `binding=` in code measures
+  the constraints block through the one served for its name, and its `capabilities.mask_output` decides the
+  masking when the code leaves `mask_output` unset.
+- **The `niadra` command** runs `replay` (exit 1 on a regression), `counterfactual`, `resolver-worker`
+  (the space's refresh requests, read with your resolvers inside your boundary; a watch fires only on a value
+  the worker confirmed, and a resolver returns `niadra.resolvers.NOT_FOUND` when the source no longer has the
+  object), `types derive` and `contract test`.
+- `niadra.api` has one typed method per route of these features; unlike the rest of the SDK, it raises.
+
 ## Failure behavior
 
 Niadra must never take your agent down.
