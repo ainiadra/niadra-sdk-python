@@ -1,0 +1,7802 @@
+{
+ "vectors": "niadra-expr",
+ "version": "v0",
+ "spec": "spec/object-type.md",
+ "cases": [
+  {
+   "id": "lit.number",
+   "expr": "42",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 42
+    }
+   }
+  },
+  {
+   "id": "lit.decimal",
+   "expr": "19.90",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 19.9
+    }
+   }
+  },
+  {
+   "id": "lit.string",
+   "expr": "'beige'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "string",
+     "logic": "yes",
+     "v": "beige"
+    }
+   }
+  },
+  {
+   "id": "lit.string_escapes",
+   "expr": "'it\\'s a \\\\ sign'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "string",
+     "logic": "yes",
+     "v": "it's a \\ sign"
+    }
+   }
+  },
+  {
+   "id": "lit.string_other_quote",
+   "expr": "'say \"hi\"'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "string",
+     "logic": "yes",
+     "v": "say \"hi\""
+    }
+   }
+  },
+  {
+   "id": "lit.true",
+   "expr": "true",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "lit.false",
+   "expr": "false",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "lit.none",
+   "expr": "none",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "logic": "no"
+    }
+   }
+  },
+  {
+   "id": "lit.duration_ms",
+   "expr": "250ms",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 250
+    }
+   }
+  },
+  {
+   "id": "lit.duration_s",
+   "expr": "30s",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 30000
+    }
+   }
+  },
+  {
+   "id": "lit.duration_min",
+   "expr": "10min",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 600000
+    }
+   }
+  },
+  {
+   "id": "lit.duration_h",
+   "expr": "24h",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 86400000
+    }
+   }
+  },
+  {
+   "id": "lit.duration_d",
+   "expr": "7d",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 604800000
+    }
+   }
+  },
+  {
+   "id": "lit.duration_zero",
+   "expr": "0s",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 0
+    }
+   }
+  },
+  {
+   "id": "lit.duration_max_digits",
+   "expr": "999999s",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 999999000
+    }
+   }
+  },
+  {
+   "id": "lit.list",
+   "expr": "['a', 1, true]",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "list",
+     "logic": "yes",
+     "v": [
+      {
+       "type": "string",
+       "logic": "yes",
+       "v": "a"
+      },
+      {
+       "type": "number",
+       "logic": "yes",
+       "v": 1
+      },
+      {
+       "type": "bool",
+       "logic": "yes",
+       "v": true
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "lit.list_empty",
+   "expr": "[]",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "list",
+     "logic": "yes",
+     "v": []
+    }
+   }
+  },
+  {
+   "id": "lit.list_with_unknown",
+   "expr": "['a', color]",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "list",
+     "logic": "yes",
+     "v": [
+      {
+       "type": "string",
+       "logic": "yes",
+       "v": "a"
+      },
+      {
+       "logic": "unobserved"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "lit.whitespace",
+   "expr": "  1 +\n\t2  ",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 3
+    }
+   }
+  },
+  {
+   "id": "lit.parentheses",
+   "expr": "(((1)))",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 1
+    }
+   }
+  },
+  {
+   "id": "lit.nesting_at_limit",
+   "expr": "((((((((((((((((1))))))))))))))))",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 1
+    }
+   }
+  },
+  {
+   "id": "logic.yes",
+   "expr": "available == yes",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.false_is_no",
+   "expr": "available == no",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": false
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.false_is_not_yes",
+   "expr": "available == yes",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": false
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "logic.unobserved",
+   "expr": "available == unobserved",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.unobserved_is_not_no",
+   "expr": "available == no",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "logic.known_defect",
+   "expr": "enrollment_fee == known_defect",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "enrollment_fee": {
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.known_defect_is_not_unobserved",
+   "expr": "enrollment_fee == unobserved",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "enrollment_fee": {
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "logic.not_equal",
+   "expr": "available != yes",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.word_on_the_left",
+   "expr": "yes == available",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.absent_is_no",
+   "expr": "discount == no",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "discount": {
+      "type": "number",
+      "logic": "no"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.named_absence_is_no",
+   "expr": "due_date == no",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "logic": "no",
+      "absent": "sem_prazo"
+     }
+    },
+    "absent_names": [
+     "sem_prazo"
+    ]
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.value_is_yes",
+   "expr": "color == yes",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "color": {
+      "type": "enum",
+      "v": "beige"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.default_from_value",
+   "expr": "color == yes",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "color": {
+      "v": "beige"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.bare_true",
+   "expr": "available",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.bare_false",
+   "expr": "available",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": false
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "logic.bare_unobserved",
+   "expr": "available",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "logic.bare_known_defect",
+   "expr": "enrollment_fee",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "enrollment_fee": {
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "known_defect"
+    }
+   }
+  },
+  {
+   "id": "logic.bool_slot_no_without_value",
+   "expr": "flag",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "flag": {
+      "type": "bool",
+      "logic": "no"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "logic.compare_unobserved",
+   "expr": "color == 'beige'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "color": {
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "logic.compare_known_defect",
+   "expr": "enrollment_fee > 0",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "enrollment_fee": {
+      "type": "money",
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "known_defect"
+    }
+   }
+  },
+  {
+   "id": "logic.known_defect_wins",
+   "expr": "enrollment_fee == color",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "enrollment_fee": {
+      "logic": "known_defect"
+     },
+     "color": {
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "known_defect"
+    }
+   }
+  },
+  {
+   "id": "logic.not_true",
+   "expr": "not true",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "logic.not_false",
+   "expr": "not false",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.not_unobserved",
+   "expr": "not (color == 'beige')",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "color": {
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "logic.not_known_defect",
+   "expr": "not enrollment_fee",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "enrollment_fee": {
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "known_defect"
+    }
+   }
+  },
+  {
+   "id": "logic.not_not",
+   "expr": "not not available",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.not_binds_looser_than_comparison",
+   "expr": "not 1 == 2",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.and_true_true",
+   "expr": "true and true",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.and_true_false",
+   "expr": "true and false",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "logic.and_unobserved_true",
+   "expr": "u and true",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "u": {
+      "type": "bool",
+      "logic": "unobserved"
+     },
+     "k": {
+      "type": "bool",
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "logic.and_unobserved_false",
+   "expr": "u and false",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "u": {
+      "type": "bool",
+      "logic": "unobserved"
+     },
+     "k": {
+      "type": "bool",
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "logic.and_false_unobserved",
+   "expr": "false and u",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "u": {
+      "type": "bool",
+      "logic": "unobserved"
+     },
+     "k": {
+      "type": "bool",
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "logic.and_known_defect_unobserved",
+   "expr": "u and k",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "u": {
+      "type": "bool",
+      "logic": "unobserved"
+     },
+     "k": {
+      "type": "bool",
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "known_defect"
+    }
+   }
+  },
+  {
+   "id": "logic.and_known_defect_false",
+   "expr": "k and false",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "u": {
+      "type": "bool",
+      "logic": "unobserved"
+     },
+     "k": {
+      "type": "bool",
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "logic.or_false_false",
+   "expr": "false or false",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "logic.or_unobserved_true",
+   "expr": "u or true",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "u": {
+      "type": "bool",
+      "logic": "unobserved"
+     },
+     "k": {
+      "type": "bool",
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.or_unobserved_false",
+   "expr": "u or false",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "u": {
+      "type": "bool",
+      "logic": "unobserved"
+     },
+     "k": {
+      "type": "bool",
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "logic.or_known_defect_unobserved",
+   "expr": "k or u",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "u": {
+      "type": "bool",
+      "logic": "unobserved"
+     },
+     "k": {
+      "type": "bool",
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "known_defect"
+    }
+   }
+  },
+  {
+   "id": "logic.or_true_known_defect",
+   "expr": "true or k",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "u": {
+      "type": "bool",
+      "logic": "unobserved"
+     },
+     "k": {
+      "type": "bool",
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.and_three",
+   "expr": "true and u and true",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "u": {
+      "type": "bool",
+      "logic": "unobserved"
+     },
+     "k": {
+      "type": "bool",
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "logic.or_three",
+   "expr": "false or false or true",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.and_before_or",
+   "expr": "true or false and false",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.and_stops_at_false",
+   "expr": "false and 1 < 'a'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "logic.or_stops_at_true",
+   "expr": "true or not 1",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "logic.unknown_does_not_stop",
+   "expr": "color == 'beige' and 1 < 'a'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "color": {
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "missing.field",
+   "expr": "promo_end_at",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "missing.field_is_unobserved",
+   "expr": "promo_end_at == unobserved",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "missing.field_compared",
+   "expr": "launch_at < now()",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "missing.input",
+   "expr": "lead.city == 'recife'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "missing.config",
+   "expr": "config.discount_source",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "logic": "no"
+    }
+   }
+  },
+  {
+   "id": "missing.config_compared",
+   "expr": "config.discount_source == 'table'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "missing.age",
+   "expr": "age(content)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "missing.observer",
+   "expr": "observer(content) == none",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "missing.changed",
+   "expr": "changed(last_movement_at)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "missing.was_word",
+   "expr": "was(available == no)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "missing.was_value",
+   "expr": "was(available)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "missing.completeness_of_missing_field",
+   "expr": "content.completeness == 'full'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "missing.completeness_not_given",
+   "expr": "content.completeness == 'full'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "content": {
+      "type": "text",
+      "v": "dispositive text"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "missing.quote",
+   "expr": "quote(checkout_quote).available == yes",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "missing.quote_value",
+   "expr": "quote(checkout_quote).available",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "missing.quote_field",
+   "expr": "quote(checkout_quote).available",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "quotes": {
+     "checkout_quote": {
+      "price": {
+       "type": "money",
+       "v": 199
+      }
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "missing.rank",
+   "expr": "presented_in_top(3)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "missing.state",
+   "expr": "state == 'active'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "missing.state_is_absent",
+   "expr": "state",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "logic": "no"
+    }
+   }
+  },
+  {
+   "id": "missing.purpose_is_display",
+   "expr": "purpose == 'display'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "missing.watch_count_is_zero",
+   "expr": "watch_count",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 0
+    }
+   }
+  },
+  {
+   "id": "missing.derived_status",
+   "expr": "derived_status == 'expired_by_input'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "missing.count",
+   "expr": "count(tags)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "missing.count_of_absent",
+   "expr": "count(tags)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "tags": {
+      "type": "list",
+      "logic": "no"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 0
+    }
+   }
+  },
+  {
+   "id": "absent.named_equal",
+   "expr": "due_date == sem_prazo",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "logic": "no",
+      "absent": "sem_prazo"
+     }
+    },
+    "absent_names": [
+     "sem_prazo"
+    ]
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "absent.named_not_equal",
+   "expr": "due_date != sem_prazo",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "logic": "no",
+      "absent": "sem_prazo"
+     }
+    },
+    "absent_names": [
+     "sem_prazo"
+    ]
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "absent.present_is_not_the_absence",
+   "expr": "due_date != sem_prazo",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     }
+    },
+    "absent_names": [
+     "sem_prazo"
+    ]
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "absent.none_matches_any_name",
+   "expr": "due_date == none",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "logic": "no",
+      "absent": "sem_prazo"
+     }
+    },
+    "absent_names": [
+     "sem_prazo"
+    ]
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "absent.names_differ",
+   "expr": "due_date == sem_prazo",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "logic": "no",
+      "absent": "sem_data"
+     }
+    },
+    "absent_names": [
+     "sem_prazo",
+     "sem_data"
+    ]
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "absent.name_alone",
+   "expr": "sem_prazo",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "absent_names": [
+     "sem_prazo"
+    ]
+   },
+   "expect": {
+    "value": {
+     "logic": "no",
+     "absent": "sem_prazo"
+    }
+   }
+  },
+  {
+   "id": "absent.name_value",
+   "expr": "due_date",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "logic": "no",
+      "absent": "sem_prazo"
+     }
+    },
+    "absent_names": [
+     "sem_prazo"
+    ]
+   },
+   "expect": {
+    "value": {
+     "logic": "no",
+     "absent": "sem_prazo"
+    }
+   }
+  },
+  {
+   "id": "absent.arithmetic",
+   "expr": "due_date - 48h",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "logic": "no",
+      "absent": "sem_prazo"
+     }
+    },
+    "absent_names": [
+     "sem_prazo"
+    ]
+   },
+   "expect": {
+    "value": {
+     "logic": "no"
+    }
+   }
+  },
+  {
+   "id": "absent.ordering",
+   "expr": "discount < 10",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "discount": {
+      "type": "number",
+      "logic": "no"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "absent.ordering_negated",
+   "expr": "not (discount < 10)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "discount": {
+      "type": "number",
+      "logic": "no"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "absent.in_left",
+   "expr": "discount in [1, 2]",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "discount": {
+      "type": "number",
+      "logic": "no"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "absent.in_right",
+   "expr": "'vip' in tags",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "tags": {
+      "type": "list",
+      "logic": "no"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "absent.false_is_not_absent",
+   "expr": "flag == none",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "flag": {
+      "type": "bool",
+      "v": false
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "absent.none_equals_none",
+   "expr": "none == none",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "time.now",
+   "expr": "now()",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "datetime",
+     "logic": "yes",
+     "v": "2026-09-29T12:00:00.000Z"
+    }
+   }
+  },
+  {
+   "id": "time.age",
+   "expr": "age(available)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true,
+      "at": "2026-09-29T11:59:55Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 5000
+    }
+   }
+  },
+  {
+   "id": "time.age_at_the_bound",
+   "expr": "age(available) <= 5s",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true,
+      "at": "2026-09-29T11:59:55Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "time.age_past_the_bound",
+   "expr": "age(available) <= 5s",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true,
+      "at": "2026-09-29T11:59:54.999Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "time.age_never_negative",
+   "expr": "age(available)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true,
+      "at": "2026-09-29T12:00:01Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 0
+    }
+   }
+  },
+  {
+   "id": "time.age_without_observation_time",
+   "expr": "age(available)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "time.age_of_an_expired_observation",
+   "expr": "age(addressee_is_client)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "addressee_is_client": {
+      "type": "bool",
+      "logic": "unobserved",
+      "at": "2026-09-28T11:00:00Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 90000000
+    }
+   }
+  },
+  {
+   "id": "time.age_of_a_value",
+   "expr": "age(due_date)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15",
+      "at": "2026-09-29T10:00:00Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 7200000
+    }
+   }
+  },
+  {
+   "id": "time.age_of_an_input",
+   "expr": "age(campaign.discount_validity)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "inputs": {
+     "campaign.discount_validity": {
+      "type": "date",
+      "v": "2026-10-31",
+      "at": "2026-09-28T12:00:00Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 86400000
+    }
+   }
+  },
+  {
+   "id": "time.datetime_plus_duration",
+   "expr": "now() + 90s",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "datetime",
+     "logic": "yes",
+     "v": "2026-09-29T12:01:30.000Z"
+    }
+   }
+  },
+  {
+   "id": "time.datetime_minus_duration",
+   "expr": "now() - 1d",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "datetime",
+     "logic": "yes",
+     "v": "2026-09-28T12:00:00.000Z"
+    }
+   }
+  },
+  {
+   "id": "time.duration_plus_datetime",
+   "expr": "10min + now()",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "datetime",
+     "logic": "yes",
+     "v": "2026-09-29T12:10:00.000Z"
+    }
+   }
+  },
+  {
+   "id": "time.datetime_difference",
+   "expr": "promo_end_at - now()",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "promo_end_at": {
+      "type": "datetime",
+      "v": "2026-09-29T12:05:00Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 300000
+    }
+   }
+  },
+  {
+   "id": "time.promo_boundary",
+   "expr": "promo_end_at - now() < 10min",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "promo_end_at": {
+      "type": "datetime",
+      "v": "2026-09-29T12:05:00Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "time.negative_duration",
+   "expr": "promo_end_at - now()",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "promo_end_at": {
+      "type": "datetime",
+      "v": "2026-09-29T11:00:00Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": -3600000
+    }
+   }
+  },
+  {
+   "id": "time.offset_read_as_utc",
+   "expr": "launch_at",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "launch_at": {
+      "type": "datetime",
+      "v": "2026-09-29T09:00:00-03:00"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "datetime",
+     "logic": "yes",
+     "v": "2026-09-29T12:00:00.000Z"
+    }
+   }
+  },
+  {
+   "id": "time.below_a_millisecond_dropped",
+   "expr": "launch_at",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "launch_at": {
+      "type": "datetime",
+      "v": "2026-09-29T12:00:00.1239Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "datetime",
+     "logic": "yes",
+     "v": "2026-09-29T12:00:00.123Z"
+    }
+   }
+  },
+  {
+   "id": "time.datetime_compare",
+   "expr": "launch_at <= now()",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "launch_at": {
+      "type": "datetime",
+      "v": "2026-09-29T12:00:00Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "time.date",
+   "expr": "due_date",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     },
+     "published_on": {
+      "type": "date",
+      "v": "2026-09-20"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "date",
+     "logic": "yes",
+     "v": "2026-10-15"
+    }
+   }
+  },
+  {
+   "id": "time.date_minus_duration",
+   "expr": "due_date - 48h",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     },
+     "published_on": {
+      "type": "date",
+      "v": "2026-09-20"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "datetime",
+     "logic": "yes",
+     "v": "2026-10-13T00:00:00.000Z"
+    }
+   }
+  },
+  {
+   "id": "time.date_minus_duration_at_offset",
+   "expr": "due_date - 48h",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     },
+     "published_on": {
+      "type": "date",
+      "v": "2026-09-20"
+     }
+    },
+    "utc_offset": "-03:00"
+   },
+   "expect": {
+    "value": {
+     "type": "datetime",
+     "logic": "yes",
+     "v": "2026-10-13T03:00:00.000Z"
+    }
+   }
+  },
+  {
+   "id": "time.date_plus_duration",
+   "expr": "due_date + 1h",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     },
+     "published_on": {
+      "type": "date",
+      "v": "2026-09-20"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "datetime",
+     "logic": "yes",
+     "v": "2026-10-15T01:00:00.000Z"
+    }
+   }
+  },
+  {
+   "id": "time.duration_plus_date",
+   "expr": "1h + due_date",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     },
+     "published_on": {
+      "type": "date",
+      "v": "2026-09-20"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "datetime",
+     "logic": "yes",
+     "v": "2026-10-15T01:00:00.000Z"
+    }
+   }
+  },
+  {
+   "id": "time.date_minus_now",
+   "expr": "due_date - now()",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     },
+     "published_on": {
+      "type": "date",
+      "v": "2026-09-20"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 1339200000
+    }
+   }
+  },
+  {
+   "id": "time.date_minus_now_at_offset",
+   "expr": "due_date - now()",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     },
+     "published_on": {
+      "type": "date",
+      "v": "2026-09-20"
+     }
+    },
+    "utc_offset": "-03:00"
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 1350000000
+    }
+   }
+  },
+  {
+   "id": "time.date_minus_date",
+   "expr": "due_date - published_on",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     },
+     "published_on": {
+      "type": "date",
+      "v": "2026-09-20"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 2160000000
+    }
+   }
+  },
+  {
+   "id": "time.date_after_now",
+   "expr": "due_date > now()",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     },
+     "published_on": {
+      "type": "date",
+      "v": "2026-09-20"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "time.date_equals_its_start",
+   "expr": "due_date == due_start",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     },
+     "published_on": {
+      "type": "date",
+      "v": "2026-09-20"
+     },
+     "due_start": {
+      "type": "datetime",
+      "v": "2026-10-15T00:00:00Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "time.date_equals_its_start_at_offset",
+   "expr": "due_date == due_start",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     },
+     "published_on": {
+      "type": "date",
+      "v": "2026-09-20"
+     },
+     "due_start": {
+      "type": "datetime",
+      "v": "2026-10-15T03:00:00Z"
+     }
+    },
+    "utc_offset": "-03:00"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "time.date_start_moves_with_offset",
+   "expr": "due_date == due_start",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     },
+     "published_on": {
+      "type": "date",
+      "v": "2026-09-20"
+     },
+     "due_start": {
+      "type": "datetime",
+      "v": "2026-10-15T00:00:00Z"
+     }
+    },
+    "utc_offset": "+05:30"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "time.date_order",
+   "expr": "published_on < due_date",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     },
+     "published_on": {
+      "type": "date",
+      "v": "2026-09-20"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "time.duration_equal",
+   "expr": "48h == 2d",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "time.duration_order",
+   "expr": "90s > 1min",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "time.duration_sum",
+   "expr": "1h + 30min",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 5400000
+    }
+   }
+  },
+  {
+   "id": "time.duration_difference",
+   "expr": "1d - 1h",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 82800000
+    }
+   }
+  },
+  {
+   "id": "time.floor_expired",
+   "expr": "age(content) > 7d",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "content": {
+      "type": "text",
+      "v": "x",
+      "at": "2026-09-21T11:59:59Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "time.business_days_skip_weekend_and_holiday",
+   "expr": "published_on + business_days(1, court)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "published_on": {
+      "type": "date",
+      "v": "2026-10-09"
+     }
+    },
+    "calendars": {
+     "court": {
+      "holidays": [
+       "2026-10-12"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "date",
+     "logic": "yes",
+     "v": "2026-10-13"
+    }
+   }
+  },
+  {
+   "id": "time.business_days_fifteen",
+   "expr": "published_on + business_days(15, court)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "published_on": {
+      "type": "date",
+      "v": "2026-10-09"
+     }
+    },
+    "calendars": {
+     "court": {
+      "holidays": [
+       "2026-10-12"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "date",
+     "logic": "yes",
+     "v": "2026-11-02"
+    }
+   }
+  },
+  {
+   "id": "time.business_days_zero",
+   "expr": "saturday + business_days(0, court)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "saturday": {
+      "type": "date",
+      "v": "2026-10-10"
+     }
+    },
+    "calendars": {
+     "court": {
+      "holidays": [
+       "2026-10-12"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "date",
+     "logic": "yes",
+     "v": "2026-10-10"
+    }
+   }
+  },
+  {
+   "id": "time.business_days_backwards",
+   "expr": "published_on - business_days(2, court)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "published_on": {
+      "type": "date",
+      "v": "2026-10-09"
+     }
+    },
+    "calendars": {
+     "court": {
+      "holidays": [
+       "2026-10-12"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "date",
+     "logic": "yes",
+     "v": "2026-10-07"
+    }
+   }
+  },
+  {
+   "id": "time.business_days_on_the_left",
+   "expr": "business_days(3, court) + published_on",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "published_on": {
+      "type": "date",
+      "v": "2026-10-09"
+     }
+    },
+    "calendars": {
+     "court": {
+      "holidays": [
+       "2026-10-12"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "date",
+     "logic": "yes",
+     "v": "2026-10-15"
+    }
+   }
+  },
+  {
+   "id": "time.business_days_own_weekend",
+   "expr": "published_on + business_days(2, retail)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "published_on": {
+      "type": "date",
+      "v": "2026-10-09"
+     }
+    },
+    "calendars": {
+     "retail": {
+      "weekend": [
+       7
+      ]
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "date",
+     "logic": "yes",
+     "v": "2026-10-12"
+    }
+   }
+  },
+  {
+   "id": "time.business_days_count_from_a_field",
+   "expr": "published_on + business_days(days_in_text, court)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "published_on": {
+      "type": "date",
+      "v": "2026-10-09"
+     },
+     "days_in_text": {
+      "type": "number",
+      "v": 5
+     }
+    },
+    "calendars": {
+     "court": {
+      "holidays": [
+       "2026-10-12"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "date",
+     "logic": "yes",
+     "v": "2026-10-19"
+    }
+   }
+  },
+  {
+   "id": "time.business_days_absent_count",
+   "expr": "published_on + business_days(days_in_text, court)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "published_on": {
+      "type": "date",
+      "v": "2026-10-09"
+     },
+     "days_in_text": {
+      "type": "number",
+      "logic": "no"
+     }
+    },
+    "calendars": {
+     "court": {
+      "holidays": [
+       "2026-10-12"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "no"
+    }
+   }
+  },
+  {
+   "id": "time.business_days_unobserved_count",
+   "expr": "published_on + business_days(days_in_text, court)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "published_on": {
+      "type": "date",
+      "v": "2026-10-09"
+     }
+    },
+    "calendars": {
+     "court": {
+      "holidays": [
+       "2026-10-12"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "cmp.eq",
+   "expr": "2 == 2",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.eq_false",
+   "expr": "2 == 3",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "cmp.ne",
+   "expr": "2 != 3",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.lt",
+   "expr": "2 < 3",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.lt_false",
+   "expr": "3 < 3",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "cmp.le",
+   "expr": "3 <= 3",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.gt",
+   "expr": "4 > 3",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.ge",
+   "expr": "3 >= 4",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "cmp.whole_and_decimal",
+   "expr": "1 == 1.0",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.string_eq",
+   "expr": "'beige' == 'beige'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.string_case",
+   "expr": "'Beige' == 'beige'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "cmp.string_order",
+   "expr": "'B' < 'a'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.string_code_points",
+   "expr": "'😀' > 'ﬁ'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.bool_eq",
+   "expr": "true == true",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.bool_ne",
+   "expr": "true != false",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.list_eq",
+   "expr": "[1, 'a'] == [1, 'a']",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.list_length",
+   "expr": "[1] == [1, 2]",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "cmp.list_unknown_item",
+   "expr": "[color] == ['beige']",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "color": {
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "cmp.list_differs_despite_unknown",
+   "expr": "[color, 1] == ['beige', 2]",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "color": {
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "cmp.in_list",
+   "expr": "'beige' in ['black', 'beige']",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.in_list_false",
+   "expr": "'white' in ['black', 'beige']",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "cmp.in_list_field",
+   "expr": "'vip' in tags",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "tags": {
+      "type": "list",
+      "v": [
+       "vip",
+       "b2b"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.not_in",
+   "expr": "not ('retail' in tags)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "tags": {
+      "type": "list",
+      "v": [
+       "vip",
+       "b2b"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.in_unknown_item",
+   "expr": "'x' in [color]",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "color": {
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "cmp.in_found_despite_unknown",
+   "expr": "'x' in [color, 'x']",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "color": {
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.in_numbers",
+   "expr": "2 in [1, 2.0]",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "cmp.in_unknown_left",
+   "expr": "color in ['beige']",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "color": {
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "cmp.in_empty",
+   "expr": "1 in []",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "arith.number_sum",
+   "expr": "1 + 2.5",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 3.5
+    }
+   }
+  },
+  {
+   "id": "arith.number_difference",
+   "expr": "price_sale - 10",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "price_sale": {
+      "type": "money",
+      "v": 200.5
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 190.5
+    }
+   }
+  },
+  {
+   "id": "arith.left_to_right",
+   "expr": "10 - 3 - 2",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 5
+    }
+   }
+  },
+  {
+   "id": "arith.before_comparison",
+   "expr": "1 + 2 == 3",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "arith.unobserved",
+   "expr": "price_sale + 1",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "price_sale": {
+      "type": "money",
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "arith.known_defect_wins",
+   "expr": "a + b",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "a": {
+      "type": "number",
+      "logic": "unobserved"
+     },
+     "b": {
+      "type": "number",
+      "logic": "known_defect"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "known_defect"
+    }
+   }
+  },
+  {
+   "id": "arith.absent",
+   "expr": "discount + 1",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "discount": {
+      "type": "number",
+      "logic": "no"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "no"
+    }
+   }
+  },
+  {
+   "id": "fn.observer",
+   "expr": "observer(content)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "content": {
+      "v": "x",
+      "observer": "machine"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "string",
+     "logic": "yes",
+     "v": "machine"
+    }
+   }
+  },
+  {
+   "id": "fn.observer_source",
+   "expr": "observer(content) == 'source:public_publications'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "content": {
+      "v": "x",
+      "observer": "source:public_publications"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.observer_none",
+   "expr": "observer(content) == none",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "content": {
+      "v": "x"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.changed",
+   "expr": "changed(last_movement_at)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "last_movement_at": {
+      "type": "datetime",
+      "v": "2026-09-29T10:00:00Z",
+      "was": {
+       "type": "datetime",
+       "v": "2026-09-20T10:00:00Z"
+      }
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.changed_same_value",
+   "expr": "changed(last_movement_at)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "last_movement_at": {
+      "type": "datetime",
+      "v": "2026-09-29T10:00:00Z",
+      "was": {
+       "type": "datetime",
+       "v": "2026-09-29T07:00:00-03:00"
+      }
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "fn.changed_logic",
+   "expr": "changed(available)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true,
+      "was": {
+       "type": "bool",
+       "logic": "unobserved"
+      }
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.changed_input",
+   "expr": "changed(campaign.discount_validity)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "inputs": {
+     "campaign.discount_validity": {
+      "type": "date",
+      "v": "2026-10-31",
+      "was": {
+       "type": "date",
+       "v": "2026-10-15"
+      }
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.changed_without_previous",
+   "expr": "changed(available)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "fn.was",
+   "expr": "was(price_sale)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "price_sale": {
+      "type": "money",
+      "v": 199,
+      "was": {
+       "type": "money",
+       "v": 249
+      }
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 249
+    }
+   }
+  },
+  {
+   "id": "fn.was_compared",
+   "expr": "was(price_sale) > price_sale",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "price_sale": {
+      "type": "money",
+      "v": 199,
+      "was": {
+       "type": "money",
+       "v": 249
+      }
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.was_back_in_stock",
+   "expr": "was(available == no) and available == yes",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true,
+      "was": {
+       "type": "bool",
+       "v": false
+      }
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.was_without_previous",
+   "expr": "was(price_sale)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "price_sale": {
+      "type": "money",
+      "v": 199
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "fn.was_reads_context_now",
+   "expr": "was(state == 'active')",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "state": "active"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.was_attribute_is_absent",
+   "expr": "was(content.completeness)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "content": {
+      "type": "text",
+      "v": "x",
+      "completeness": "full",
+      "was": {
+       "type": "text",
+       "v": "y"
+      }
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "no"
+    }
+   }
+  },
+  {
+   "id": "fn.count",
+   "expr": "count(tags)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "tags": {
+      "type": "list",
+      "v": [
+       "vip",
+       "b2b"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 2
+    }
+   }
+  },
+  {
+   "id": "fn.count_literal",
+   "expr": "count([1, 2, 3])",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 3
+    }
+   }
+  },
+  {
+   "id": "fn.count_empty",
+   "expr": "count([])",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 0
+    }
+   }
+  },
+  {
+   "id": "fn.count_unknown",
+   "expr": "count(tags)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "tags": {
+      "type": "list",
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "fn.count_input",
+   "expr": "count(lead.ages)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "inputs": {
+     "lead.ages": {
+      "type": "list",
+      "v": [
+       34,
+       36,
+       8
+      ]
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 3
+    }
+   }
+  },
+  {
+   "id": "fn.sha256",
+   "expr": "sha256(case_number, made_available_on, content_hash)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "case_number": {
+      "v": "0001234-56.2026.8.26.0100"
+     },
+     "made_available_on": {
+      "type": "date",
+      "v": "2026-09-21"
+     },
+     "content_hash": {
+      "v": "4f1c"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "string",
+     "logic": "yes",
+     "v": "sha256:ecc28986c78b22a1cf2c138e783315bfa4a71404619c41ae3559b0b605e946e3"
+    }
+   }
+  },
+  {
+   "id": "fn.sha256_kinds",
+   "expr": "sha256(1, 0 - 7, true, 90s, now())",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "string",
+     "logic": "yes",
+     "v": "sha256:5119f4824aff0991b2642dd11a9228b0e3ad35f231ca31b8de29a4389e970250"
+    }
+   }
+  },
+  {
+   "id": "fn.sha256_unicode",
+   "expr": "sha256('ação')",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "string",
+     "logic": "yes",
+     "v": "sha256:0664077f33cc3ebbaa4bbdacac0eb70e740983080f01dce29929e73b7785a7ad"
+    }
+   }
+  },
+  {
+   "id": "fn.sha256_unobserved",
+   "expr": "sha256(case_number, content_hash)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "content_hash": {
+      "v": "4f1c"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "fn.sha256_absent",
+   "expr": "sha256(case_number)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "case_number": {
+      "logic": "no"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "logic": "no"
+    }
+   }
+  },
+  {
+   "id": "fn.quote_field",
+   "expr": "quote(checkout_quote).available == yes",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "quotes": {
+     "checkout_quote": {
+      "available": {
+       "type": "bool",
+       "v": true
+      }
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.quote_field_value",
+   "expr": "quote(checkout_quote).price",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "quotes": {
+     "checkout_quote": {
+      "price": {
+       "type": "money",
+       "v": 189.9
+      }
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 189.9
+    }
+   }
+  },
+  {
+   "id": "fn.presented_in_top",
+   "expr": "presented_in_top(3)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "presented_rank": 2
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.presented_in_top_at_the_bound",
+   "expr": "presented_in_top(3)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "presented_rank": 3
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.presented_in_top_below",
+   "expr": "presented_in_top(3)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "presented_rank": 4
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "fn.presented_in_top_first",
+   "expr": "presented_in_top(1)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "presented_rank": 1
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.completeness",
+   "expr": "content.completeness == 'full'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "content": {
+      "type": "text",
+      "v": "x",
+      "completeness": "full"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.completeness_partial",
+   "expr": "content.completeness",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "content": {
+      "type": "text",
+      "v": "x",
+      "completeness": "dispositive"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "string",
+     "logic": "yes",
+     "v": "dispositive"
+    }
+   }
+  },
+  {
+   "id": "fn.config",
+   "expr": "config.discount_source == 'table'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "config": {
+     "discount_source": "table"
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.config_number",
+   "expr": "config.max_items > 10",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "config": {
+     "max_items": 50
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.config_dotted_key",
+   "expr": "config.discount.source",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "config": {
+     "discount.source": "table"
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "string",
+     "logic": "yes",
+     "v": "table"
+    }
+   }
+  },
+  {
+   "id": "fn.state",
+   "expr": "state == 'open'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "state": "open"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.derived_status",
+   "expr": "derived_status == 'expired_by_input'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "derived_status": "expired_by_input"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.watch_count",
+   "expr": "watch_count > 0",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "watch_count": 2
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.purpose",
+   "expr": "purpose == 'claim'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "purpose": "claim"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "fn.input",
+   "expr": "lead.city",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "inputs": {
+     "lead.city": {
+      "v": "recife"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "string",
+     "logic": "yes",
+     "v": "recife"
+    }
+   }
+  },
+  {
+   "id": "fn.input_before_field",
+   "expr": "lead.city",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "lead": {
+      "v": "someone"
+     }
+    },
+    "inputs": {
+     "lead.city": {
+      "v": "recife"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "string",
+     "logic": "yes",
+     "v": "recife"
+    }
+   }
+  },
+  {
+   "id": "decl.item_variant.display_available_unobserved_active",
+   "expr": "available == yes or (available == unobserved and state == 'active')",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "logic": "unobserved"
+     }
+    },
+    "state": "active"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "decl.item_variant.display_available_unobserved_paused",
+   "expr": "available == yes or (available == unobserved and state == 'active')",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "logic": "unobserved"
+     }
+    },
+    "state": "paused"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "decl.item_variant.claim_available",
+   "expr": "available == yes and age(available) <= 5s",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true,
+      "at": "2026-09-29T11:59:57Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "decl.item_variant.claim_available_too_old",
+   "expr": "available == yes and age(available) <= 5s",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true,
+      "at": "2026-09-29T11:59:52Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "decl.item_variant.checkout_buyable",
+   "expr": "quote(checkout_quote).available == yes",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "quotes": {
+     "checkout_quote": {
+      "available": {
+       "type": "bool",
+       "v": false
+      }
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "decl.item_variant.alert_back",
+   "expr": "was(available == no) and available == yes",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true,
+      "was": {
+       "type": "bool",
+       "logic": "unobserved"
+      }
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "decl.item_variant.never_observed",
+   "expr": "observer(available) == none",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "logic": "unobserved"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "decl.item_variant.exposed_now",
+   "expr": "presented_in_top(3)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "presented_rank": 3
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "decl.item_variant.claim_pending",
+   "expr": "purpose == 'claim'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "purpose": "claim"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "decl.item_variant.interest_alert",
+   "expr": "watch_count > 0",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "decl.item_variant.promo_boundary",
+   "expr": "promo_end_at - now() < 10min",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "decl.item_variant.floor_expired",
+   "expr": "age(available) > 90s",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "available": {
+      "type": "bool",
+      "v": true,
+      "at": "2026-09-29T11:58:00Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "decl.item_variant.launch_timer",
+   "expr": "launch_at",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "decl.health_quote.input_changed",
+   "expr": "derived_status == 'expired_by_input'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "derived_status": "expired_by_input"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "decl.health_quote.time_expired",
+   "expr": "age(price_full) > 72h",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "price_full": {
+      "type": "money",
+      "v": 511.06,
+      "at": "2026-09-25T12:00:00Z"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "decl.health_quote.discount_expired",
+   "expr": "changed(campaign.discount_validity)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "inputs": {
+     "campaign.discount_validity": {
+      "type": "date",
+      "v": "2026-10-31"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "decl.health_quote.table_source_active",
+   "expr": "config.discount_source == 'table'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "config": {
+     "discount_source": "api"
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "decl.court_notice.opens",
+   "expr": "addressee_is_client == yes and due_date != sem_prazo",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "addressee_is_client": {
+      "type": "bool",
+      "v": true,
+      "observer": "machine",
+      "at": "2026-09-29T08:00:00Z"
+     },
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     }
+    },
+    "absent_names": [
+     "sem_prazo"
+    ]
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "decl.court_notice.unconfirmed_addressee_does_not_open",
+   "expr": "addressee_is_client == yes and due_date != sem_prazo",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "addressee_is_client": {
+      "type": "bool",
+      "logic": "unobserved"
+     },
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     }
+    },
+    "absent_names": [
+     "sem_prazo"
+    ]
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "decl.court_notice.no_deadline_does_not_open",
+   "expr": "addressee_is_client == yes and due_date != sem_prazo",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "addressee_is_client": {
+      "type": "bool",
+      "v": true,
+      "observer": "machine",
+      "at": "2026-09-29T08:00:00Z"
+     },
+     "due_date": {
+      "type": "date",
+      "logic": "no",
+      "absent": "sem_prazo"
+     }
+    },
+    "absent_names": [
+     "sem_prazo"
+    ]
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "decl.court_notice.notice_48h",
+   "expr": "due_date - 48h",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "addressee_is_client": {
+      "type": "bool",
+      "v": true,
+      "observer": "machine",
+      "at": "2026-09-29T08:00:00Z"
+     },
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     }
+    },
+    "utc_offset": "-03:00"
+   },
+   "expect": {
+    "value": {
+     "type": "datetime",
+     "logic": "yes",
+     "v": "2026-10-13T03:00:00.000Z"
+    }
+   }
+  },
+  {
+   "id": "decl.court_notice.portfolio",
+   "expr": "due_date - now()",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "addressee_is_client": {
+      "type": "bool",
+      "v": true,
+      "observer": "machine",
+      "at": "2026-09-29T08:00:00Z"
+     },
+     "due_date": {
+      "type": "date",
+      "v": "2026-10-15"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "duration",
+     "logic": "yes",
+     "v": 1339200000
+    }
+   }
+  },
+  {
+   "id": "decl.court_notice.night_batch",
+   "expr": "state == 'open' and content.completeness == 'full' and under_seal == no",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "content": {
+      "type": "text",
+      "v": "full text",
+      "completeness": "full"
+     },
+     "under_seal": {
+      "type": "bool",
+      "v": false,
+      "observer": "human"
+     }
+    },
+    "state": "open"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "decl.court_notice.night_batch_unconfirmed_seal",
+   "expr": "state == 'open' and content.completeness == 'full' and under_seal == no",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "content": {
+      "type": "text",
+      "v": "full text",
+      "completeness": "full"
+     },
+     "under_seal": {
+      "type": "bool",
+      "logic": "unobserved"
+     }
+    },
+    "state": "open"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "decl.court_notice.new_activity",
+   "expr": "changed(last_movement_at)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "last_movement_at": {
+      "type": "datetime",
+      "v": "2026-09-29T10:00:00Z",
+      "was": {
+       "type": "datetime",
+       "v": "2026-09-20T10:00:00Z"
+      }
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "yes",
+     "v": true
+    }
+   }
+  },
+  {
+   "id": "decl.court_notice.never_updated",
+   "expr": "observer(content) == none",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "content": {
+      "type": "text",
+      "v": "x",
+      "observer": "source:public_publications"
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "decl.court_notice.open_deadline",
+   "expr": "state == 'open'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "state": "fulfilled"
+   },
+   "expect": {
+    "value": {
+     "type": "bool",
+     "logic": "no",
+     "v": false
+    }
+   }
+  },
+  {
+   "id": "err.empty",
+   "expr": "",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.blank",
+   "expr": "   ",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.unclosed_group",
+   "expr": "(1 + 2",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.unopened_group",
+   "expr": "1 + 2)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.trailing_operator",
+   "expr": "1 +",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.multiplication",
+   "expr": "2 * 3",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.single_equals",
+   "expr": "a = 1",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.bang",
+   "expr": "!a",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.uppercase_name",
+   "expr": "Available == yes",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.uppercase_inside_name",
+   "expr": "availAble",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.accented_name",
+   "expr": "cotação",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.minute_unit",
+   "expr": "10m",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.unknown_unit",
+   "expr": "3w",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.fractional_duration",
+   "expr": "1.5h",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.point_without_digits",
+   "expr": "1.",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.unclosed_string",
+   "expr": "'abc",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.line_break_in_string",
+   "expr": "'a\nb'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.unknown_escape",
+   "expr": "'a\\nb'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.double_quotes",
+   "expr": "\"a\"",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.chained_comparison",
+   "expr": "1 < 2 < 3",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.unknown_function",
+   "expr": "agee(available)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.now_with_argument",
+   "expr": "now(1)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.age_of_a_number",
+   "expr": "age(1)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.age_of_an_expression",
+   "expr": "age(a + b)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.age_two_arguments",
+   "expr": "age(a, b)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.count_two_arguments",
+   "expr": "count(a, b)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.quote_of_a_string",
+   "expr": "quote('checkout_quote')",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.quote_of_a_path",
+   "expr": "quote(a.b)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.presented_in_top_zero",
+   "expr": "presented_in_top(0)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.presented_in_top_name",
+   "expr": "presented_in_top(n)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.presented_in_top_fraction",
+   "expr": "presented_in_top(1.5)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.business_days_without_calendar",
+   "expr": "business_days(3)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.business_days_calendar_string",
+   "expr": "business_days(3, 'court')",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.sha256_without_arguments",
+   "expr": "sha256()",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.sha256_nine_arguments",
+   "expr": "sha256(1, 2, 3, 4, 5, 6, 7, 8, 9)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.logic_word_alone",
+   "expr": "yes",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.logic_word_in_and",
+   "expr": "available and yes",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.logic_word_ordered",
+   "expr": "available < yes",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.logic_words_both_sides",
+   "expr": "yes == no",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.logic_word_in_list",
+   "expr": "available in [yes]",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.logic_word_in_arithmetic",
+   "expr": "unobserved + 1",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.was_inside_was",
+   "expr": "was(was(a))",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.changed_inside_was",
+   "expr": "was(changed(a))",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.age_inside_was",
+   "expr": "was(age(a) > 1s)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.keyword_after_point",
+   "expr": "a.in",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.operator_first",
+   "expr": "and a",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.not_in",
+   "expr": "a not in b",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.empty_group",
+   "expr": "()",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.list_trailing_comma",
+   "expr": "[1, ]",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "err.member_of_a_number",
+   "expr": "1.a",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_invalid"
+   }
+  },
+  {
+   "id": "type.string_plus_number",
+   "expr": "'a' + 1",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.number_order_string",
+   "expr": "1 < 'a'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.number_equals_string",
+   "expr": "1 == 'a'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.bool_order",
+   "expr": "true < false",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.list_order",
+   "expr": "[1] < [2]",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.list_equals_string",
+   "expr": "[1] == '1'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.not_a_number",
+   "expr": "not 1",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.and_a_string",
+   "expr": "'a' and true",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.absent_as_condition",
+   "expr": "discount and true",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "discount": {
+      "type": "number",
+      "logic": "no"
+     }
+    }
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.count_of_a_number",
+   "expr": "count(1)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.in_a_string",
+   "expr": "'a' in 'abc'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.member_of_a_value",
+   "expr": "(1).x",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.attribute_through_a_group",
+   "expr": "(content).completeness",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "content": {
+      "v": "x"
+     }
+    }
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.bool_plus_number",
+   "expr": "true + 1",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.false_plus_number",
+   "expr": "false + 1",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.datetime_plus_datetime",
+   "expr": "now() + now()",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.duration_minus_datetime",
+   "expr": "1h - now()",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.number_plus_duration",
+   "expr": "1 + 1h",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.sha256_of_a_list",
+   "expr": "sha256([1])",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.sha256_of_a_fraction",
+   "expr": "sha256(1.5)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.sha256_of_a_large_number",
+   "expr": "sha256(9007199254740992)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.date_out_of_range",
+   "expr": "last_day + 1d",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "last_day": {
+      "type": "date",
+      "v": "9999-12-31"
+     }
+    }
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.business_days_negative",
+   "expr": "published_on + business_days(0 - 1, court)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "published_on": {
+      "type": "date",
+      "v": "2026-10-09"
+     }
+    },
+    "calendars": {
+     "court": {
+      "holidays": [
+       "2026-10-12"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.business_days_fraction",
+   "expr": "published_on + business_days(1.5, court)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "published_on": {
+      "type": "date",
+      "v": "2026-10-09"
+     }
+    },
+    "calendars": {
+     "court": {
+      "holidays": [
+       "2026-10-12"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.business_days_string",
+   "expr": "published_on + business_days('1', court)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "published_on": {
+      "type": "date",
+      "v": "2026-10-09"
+     }
+    },
+    "calendars": {
+     "court": {
+      "holidays": [
+       "2026-10-12"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.business_days_unknown_calendar",
+   "expr": "published_on + business_days(1, labour)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "published_on": {
+      "type": "date",
+      "v": "2026-10-09"
+     }
+    },
+    "calendars": {
+     "court": {
+      "holidays": [
+       "2026-10-12"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.business_days_on_a_datetime",
+   "expr": "now() + business_days(1, court)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "calendars": {
+     "court": {
+      "holidays": [
+       "2026-10-12"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.business_days_as_result",
+   "expr": "business_days(1, court)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "calendars": {
+     "court": {
+      "holidays": [
+       "2026-10-12"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.business_days_every_day_weekend",
+   "expr": "published_on + business_days(1, closed)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "published_on": {
+      "type": "date",
+      "v": "2026-10-09"
+     }
+    },
+    "calendars": {
+     "closed": {
+      "weekend": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ]
+     }
+    }
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.quote_as_result",
+   "expr": "quote(checkout_quote)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "quotes": {
+     "checkout_quote": {}
+    }
+   },
+   "expect": {
+    "error": "expr_type"
+   }
+  },
+  {
+   "id": "type.missing_quote_as_result_is_unobserved",
+   "expr": "quote(checkout_quote)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "limit.length",
+   "expr": "1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_limit"
+   }
+  },
+  {
+   "id": "limit.length_at_the_bound",
+   "expr": "1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               ",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 1
+    }
+   }
+  },
+  {
+   "id": "limit.tokens",
+   "expr": "1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_limit"
+   }
+  },
+  {
+   "id": "limit.tokens_at_the_bound",
+   "expr": "1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 128
+    }
+   }
+  },
+  {
+   "id": "limit.nesting",
+   "expr": "(((((((((((((((((1)))))))))))))))))",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_limit"
+   }
+  },
+  {
+   "id": "limit.nesting_in_calls",
+   "expr": "count(count(count(count(count(count(count(count(count(count(count(count(count(count(count(count(count([])))))))))))))))))",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_limit"
+   }
+  },
+  {
+   "id": "limit.name",
+   "expr": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_limit"
+   }
+  },
+  {
+   "id": "limit.name_at_the_bound",
+   "expr": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "logic": "unobserved"
+    }
+   }
+  },
+  {
+   "id": "limit.string",
+   "expr": "'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_limit"
+   }
+  },
+  {
+   "id": "limit.string_at_the_bound",
+   "expr": "'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "value": {
+     "type": "string",
+     "logic": "yes",
+     "v": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+   }
+  },
+  {
+   "id": "limit.list_literal",
+   "expr": "[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_limit"
+   }
+  },
+  {
+   "id": "limit.duration_digits",
+   "expr": "1000000s",
+   "input": {
+    "now": "2026-09-29T12:00:00Z"
+   },
+   "expect": {
+    "error": "expr_limit"
+   }
+  },
+  {
+   "id": "limit.business_days",
+   "expr": "published_on + business_days(1001, court)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "published_on": {
+      "type": "date",
+      "v": "2026-10-09"
+     }
+    },
+    "calendars": {
+     "court": {
+      "holidays": [
+       "2026-10-12"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "error": "expr_limit"
+   }
+  },
+  {
+   "id": "limit.list_value",
+   "expr": "count(tags)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "tags": {
+      "type": "list",
+      "v": [
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "error": "expr_limit"
+   }
+  },
+  {
+   "id": "limit.list_value_at_the_bound",
+   "expr": "count(tags)",
+   "input": {
+    "now": "2026-09-29T12:00:00Z",
+    "fields": {
+     "tags": {
+      "type": "list",
+      "v": [
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x",
+       "x"
+      ]
+     }
+    }
+   },
+   "expect": {
+    "value": {
+     "type": "number",
+     "logic": "yes",
+     "v": 1000
+    }
+   }
+  }
+ ]
+}

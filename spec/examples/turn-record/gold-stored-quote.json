@@ -1,0 +1,213 @@
+{
+  "spec": "turn-record.v0",
+  "turn_id": "0192f5b1-7c2e-7a10-8e21-4c3d2b1a0f01",
+  "conversation_id": "c-8812",
+  "agent": {
+    "name": "closing",
+    "role": "specialist",
+    "parent_turn_id": "0192f5b1-7a00-7a10-8e21-4c3d2b1a0e77"
+  },
+  "kind": "message",
+  "started_at": "2026-09-29T14:02:11.120Z",
+  "ended_at": "2026-09-29T14:02:19.320Z",
+  "fidelity": "gold",
+  "completeness": "complete",
+  "content_mode": "stored",
+  "build": {
+    "pins": {
+      "prompts": {
+        "core": "v16",
+        "rules": "v8"
+      },
+      "corpus_digest": "sha256:d5e4ce66468167f7bc993f495a3db17c5f788c88977d9c2a4419bdb97ea00ab4",
+      "model": "provider/model-2026-08",
+      "assembler": "3.2.0",
+      "tool_schemas": {
+        "quote": "sha256:6213299056e8c500b806edd0bd8c58bda33c540fc9a4d05f5091e2623b9c2bd6"
+      },
+      "niadra": {
+        "compiler": "compiler-1.15",
+        "pack_hash": "pk_7f3a91c2"
+      }
+    },
+    "sdk": "niadra-python/0.7.0",
+    "adapter": "openai_agents/1"
+  },
+  "reads": [
+    {
+      "surface": "pack",
+      "etag": "\"t0-7f3a91c2\""
+    },
+    {
+      "surface": "state",
+      "version": "sv_20260929_1402"
+    },
+    {
+      "surface": "constraints",
+      "version": "cv_8f2c01"
+    }
+  ],
+  "calls": [
+    {
+      "call_id": "k1",
+      "kind": "tool",
+      "name": "quote",
+      "attempt": 1,
+      "synthetic": false,
+      "cache_hit": false,
+      "status": "ok",
+      "latency_ms": 740,
+      "args_hash": "sha256:1ff9f48a17f90cb23bf5e73aa1b53ee3272e959432731a98afae1f88a5b91222",
+      "args": "b:1",
+      "result_model": "b:2",
+      "result_ui": "b:3",
+      "observations": [
+        {
+          "ref": "health_quote:operator:q-77",
+          "fields": {
+            "price_full": 511.06,
+            "network": "regional"
+          },
+          "provenance": {
+            "source": "live",
+            "source_observed_at": "2026-09-29T14:02:12.010Z",
+            "scope": "context"
+          }
+        }
+      ],
+      "applied": {
+        "constraints": "cv_8f2c01",
+        "hard_sent": [
+          "h1"
+        ],
+        "results_checked": 3,
+        "violations": 0,
+        "unverifiable": 0
+      },
+      "cost_units": {
+        "paid_call": 1
+      }
+    },
+    {
+      "call_id": "m1",
+      "kind": "model",
+      "name": "provider/model-2026-08",
+      "status": "ok",
+      "latency_ms": 1900,
+      "tokens": {
+        "in": 2953,
+        "cached": 118000,
+        "out": 138
+      }
+    }
+  ],
+  "interactions": [
+    {
+      "kind": "presented",
+      "exposure_id": "ex_01",
+      "list_id": "plans",
+      "page": 1,
+      "offset": 0,
+      "items": [
+        {
+          "pos": 1,
+          "ref": "health_quote:operator:q-77",
+          "shown": {
+            "price_full": 511.06
+          }
+        }
+      ],
+      "visible_k": 1
+    }
+  ],
+  "claims": [
+    {
+      "category": "price",
+      "class": "money",
+      "nature": "computed",
+      "role": "price_full",
+      "span": [
+        41,
+        50
+      ],
+      "value": 511.06,
+      "evidence": {
+        "call_id": "k1",
+        "field": "price_full"
+      },
+      "verdict": "matched",
+      "action": "none"
+    }
+  ],
+  "coordination": [
+    {
+      "decision_id": "0192f5b1-7c2f-7000-8000-0000000000c1",
+      "decision": "allow"
+    }
+  ],
+  "effects": [],
+  "output": {
+    "event_keys": [
+      "wa:msg:3EB0C1F2"
+    ],
+    "ui": "b:4"
+  },
+  "cost": {
+    "usd": 0.036
+  },
+  "latency_ms": 8200,
+  "flags": [],
+  "blobs": {
+    "b:1": {
+      "sha256": "sha256:1ff9f48a17f90cb23bf5e73aa1b53ee3272e959432731a98afae1f88a5b91222",
+      "size": 60,
+      "content": {
+        "plan": "family",
+        "ages": [
+          34,
+          36,
+          5
+        ],
+        "postal_code": "01310-100"
+      }
+    },
+    "b:2": {
+      "sha256": "sha256:1963f8bb1f95398999992fb88390db063ed4e0b5eea7f2fa732a52ed95019b65",
+      "size": 92,
+      "content": {
+        "plans": [
+          {
+            "id": "q-77",
+            "name": "Essential Family",
+            "price_full": 511.06,
+            "network": "regional"
+          }
+        ]
+      }
+    },
+    "b:3": {
+      "sha256": "sha256:e0b066b45862767cbe7dafc447be8d0c34c2b74e95992481a1b81ec028ea8f24",
+      "size": 93,
+      "content": {
+        "cards": [
+          {
+            "id": "q-77",
+            "title": "Essential Family",
+            "price": "R$ 511,06",
+            "network": "regional"
+          }
+        ]
+      }
+    },
+    "b:4": {
+      "sha256": "sha256:819b4c6dec2d741a697eac533a3e255a4b933e3a1b2999ba661afc4432048973",
+      "size": 97,
+      "content": {
+        "message": "O plano Essential Family sai por R$ 511,06 por mês para os três.",
+        "cards": [
+          "q-77"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "spec": "turn-record.v0",
+  "turn_id": "otel-4bf92f3577b34da6a3ce929d0e0e4736",
+  "conversation_id": "c-9001",
+  "agent": {
+    "name": "support"
+  },
+  "started_at": "2026-09-29T10:00:00Z",
+  "ended_at": "2026-09-29T10:00:03.500Z",
+  "fidelity": "bronze",
+  "completeness": "unknown",
+  "content_mode": "hash_only",
+  "build": {
+    "pins": {
+      "model": "provider/model-2026-08"
+    },
+    "sdk": null,
+    "adapter": null
+  },
+  "calls": [
+    {
+      "call_id": "00f067aa0ba902b7",
+      "kind": "tool",
+      "name": "order_status",
+      "status": "ok",
+      "latency_ms": 420,
+      "truncated": true
+    },
+    {
+      "call_id": "53995c3f42cd8ad8",
+      "kind": "model",
+      "status": "ok",
+      "latency_ms": 2600,
+      "tokens": {
+        "in": 1800,
+        "out": 96
+      }
+    }
+  ],
+  "latency_ms": 3500,
+  "flags": [
+    "truncated"
+  ]
+}

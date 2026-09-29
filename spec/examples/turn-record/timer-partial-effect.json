@@ -1,0 +1,35 @@
+{
+  "spec": "turn-record.v0",
+  "turn_id": "0192f5e2-3300-7d33-8c21-7b8c9d0e1f04",
+  "task_id": "follow-up-c-8812",
+  "agent": {
+    "name": "follow_up",
+    "parent_turn_id": "0192f5b1-7c2e-7a10-8e21-4c3d2b1a0f01"
+  },
+  "kind": "timer",
+  "started_at": "2026-09-30T09:00:00Z",
+  "ended_at": "2026-09-30T09:00:02Z",
+  "fidelity": "gold",
+  "completeness": "partial",
+  "content_mode": "stored",
+  "coordination": [
+    {
+      "decision_id": "0192f5e2-3301-7000-8000-0000000000d2",
+      "decision": "allow"
+    }
+  ],
+  "effects": [
+    {
+      "key": "farewell:c-8812",
+      "state": "unknown_outcome"
+    }
+  ],
+  "output": {
+    "event_keys": [
+      "wa:msg:3EB0C9A1"
+    ]
+  },
+  "flags": [
+    "incomplete"
+  ]
+}

@@ -35,6 +35,7 @@ from niadra._cache import ContextCache, cache_key
 from niadra._queue import SyncFlusher, is_retryable
 from niadra._transport import SyncTransport
 from niadra._voice import TurnRead, VoiceLine, VoiceLines, compose, words_of
+from niadra.api import Api
 from niadra.conversation import Conversation, Task
 from niadra.errors import APITimeoutError
 from niadra.models.admin import IngestStatus, KeyIdentity
@@ -120,6 +121,8 @@ class Niadra:
         self._transport = SyncTransport(self._core.base_url, self._core.api_key, http_client)
         self.admin = Admin(self._core, self._transport)
         """Governance calls for a key with the `admin` scope: memory, fact history, corrections, erasure."""
+        self.api = Api(self._core, self._transport)
+        """The routes of turn records, typed state, signals and coordination, one method each. They raise."""
         self._flusher = SyncFlusher(self._core.buffer, self._send_batch, self._core.queue_options)
         self._refresher: ThreadPoolExecutor | None = None
         self._prefetcher: ThreadPoolExecutor | None = None

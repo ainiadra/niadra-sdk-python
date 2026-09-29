@@ -1,0 +1,76 @@
+{
+  "spec": "turn-record.v0",
+  "turn_id": "0192f5d0-0a00-7c22-8b10-6a7b8c9d0e03",
+  "conversation_id": "web-5521",
+  "agent": {
+    "name": "shopping_assistant"
+  },
+  "kind": "action",
+  "started_at": "2026-09-29T19:45:03Z",
+  "ended_at": "2026-09-29T19:45:04.210Z",
+  "content_mode": "hash_only",
+  "build": {
+    "pins": {
+      "prompts": {
+        "assistant": "v9"
+      },
+      "model": "provider/model-mini-2026-07"
+    },
+    "sdk": "@niadra/sdk/0.7.0"
+  },
+  "calls": [
+    {
+      "call_id": "s1",
+      "kind": "tool",
+      "name": "search_products",
+      "status": "ok",
+      "latency_ms": 180,
+      "args_hash": "sha256:fce27870906122d0f2795b08acf9924a43fd014d67c134790d02a2f833c2e3c4",
+      "args": "b:1",
+      "result_ui": "b:2",
+      "applied": {
+        "constraints": "cv_41aa07",
+        "hard_sent": [
+          "h1"
+        ],
+        "results_checked": 12,
+        "violations": 0,
+        "unverifiable": 2,
+        "relaxed": "declared"
+      }
+    }
+  ],
+  "interactions": [
+    {
+      "kind": "presented",
+      "exposure_id": "ex_77",
+      "list_id": "search-dresses",
+      "page": 2,
+      "offset": 12,
+      "parent_list_id": "search-dresses",
+      "items": [
+        {
+          "pos": 13,
+          "ref": "item_variant:store:991",
+          "shown": {
+            "price_sale": 289.9
+          }
+        }
+      ]
+    }
+  ],
+  "output": {
+    "event_keys": [
+      "web:ui:5521:0007"
+    ]
+  },
+  "latency_ms": 1210,
+  "blobs": {
+    "b:1": {
+      "sha256": "sha256:da914a681b6706d9acee5d2e7133810d28b1722e6186c0fb8e71d693cb7d2779"
+    },
+    "b:2": {
+      "sha256": "sha256:b00c8fbcfeec7a53bbeb568022a39463bf2b31239d8bde1a5d6e3038cb7add48"
+    }
+  }
+}

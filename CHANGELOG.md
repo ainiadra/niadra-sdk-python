@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+The routes of turn records, typed state, subject signals and coordination, typed, before the calls
+built on them.
+
+### Added
+
+- `niadra.api` and `AsyncNiadra.api`: one method per route of turn records, replay and scenarios, typed
+  state and the agent's working state, subject signals and measurement, and coordination, named as the
+  server names the operation. Unlike the rest of the SDK they raise; the server answers 501 until it
+  builds a route, and the SDK raises `NotAvailableError` for it.
+- `niadra.models.turns`, `state`, `signals` and `coordination`: the models of those routes, generated
+  from the server's OpenAPI document by `scripts/sync_spec.py`. `signals` and `coordination` are drafts
+  until the server fixes their models.
+- `niadra.turns.digest`: the digest of a turn record's value, SHA-256 over its canonical JSON (RFC 8785),
+  as every producer computes it.
+- The conformance vectors of the open specifications, run by `tests/test_vectors.py`, and the design of
+  the turn capture (`docs/design/turn-capture.md`).
+
 ## [0.6.1] - 2026-09-28
 
 A turn another agent should read reaches the memory as soon as it is said.
