@@ -244,3 +244,37 @@ async def test_an_agent_used_as_a_tool_is_a_sub_turn(
     records = {r["agent"]["name"]: r for r in (s.record for s in mock_app.cell.turns.turns.values())}
     assert set(records) == {"support", "pricing"}
     assert records["pricing"]["agent"]["parent_turn_id"] == records["support"]["turn_id"]
+
+
+async def test_in_a_replay_a_tool_answers_from_the_record_and_never_runs(
+    chat: Any, on_mock_async: AsyncNiadra, mock_app: MockApp
+) -> None:
+    import json
+
+    from niadra.replay.playback import Playback, _Recorded
+    from niadra.turns import TurnFrame
+    from niadra.turns.capture import snapshot
+    from niadra.turns.digest import digest
+
+    ran: list[str] = []
+
+    def reserve(sku: str) -> dict[str, Any]:
+        """Holds one unit of an item."""
+        ran.append(sku)
+        return {"sku": sku, "held": True}
+
+    memory = NiadraADK(chat, turns=True)
+    memory.tools.append(reserve)
+    recorded = _Recorded(
+        digest(json.loads(snapshot({"sku": "PX-4471"})))[0], {"sku": "PX-4471", "held": False}
+    )
+    frame = TurnFrame(None, agent="support", conversation_id="adk-1")
+    frame.playback = Playback({"reserve": [recorded]})
+    model = FakeGemini(
+        model="fake", replies=[call("reserve", {"sku": "PX-4471"}), text("Could not hold it.")]
+    )
+    with frame:
+        await run(turned(memory, model), "Hold one PX for me.")
+    assert ran == []
+    await on_mock_async.flush()
+    assert mock_app.cell.turns.turns == {}

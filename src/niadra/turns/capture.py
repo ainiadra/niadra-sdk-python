@@ -39,6 +39,7 @@ from pydantic_core import to_json
 from niadra._ids import new_key
 
 if TYPE_CHECKING:
+    from niadra.models.signals import ConstraintsBlock
     from niadra.replay.playback import Playback, Played
     from niadra.turns.recorder import TurnRecorder
 
@@ -157,6 +158,8 @@ class CallCapture:
         self._token: Token[CallCapture | None] | None = None
         self.played: Played | None = None
         """In a replay: how the call answers (`niadra.replay`)."""
+        self.measure: Callable[[Any], dict[str, Any] | None] | None = None
+        """What the call's result honored of the constraints block, when the tool has a binding."""
 
     def result(
         self,
@@ -172,6 +175,12 @@ class CallCapture:
         if self._done:
             return
         extra: dict[str, Any] = {"result_model": self.frame._blob(value)}
+        if self.measure is not None:
+            try:
+                extra["applied"] = self.measure(value)
+            except Exception:
+                logger.debug("niadra: the constraints a call honored could not be measured", exc_info=True)
+                self.frame.incomplete()
         if ui is not None:
             extra["result_ui"] = self.frame._blob(ui)
         if observations:
@@ -277,19 +286,24 @@ class TurnFrame:
         self._guarded: set[str] = set()
         """Outputs the claim guard already checked: the sender does not count them again."""
         self.claims: list[dict[str, Any]] = []
+        self.interactions: list[dict[str, Any]] = []
         self.coordination: list[dict[str, str]] = []
         self.effects: dict[str, str] = {}
         self.event_keys: list[str] = []
         self.flags: set[str] = set()
         self.completeness: Literal["complete", "partial", "incomplete"] = "complete"
         self.handoff_id: str | None = None
-        self.playback: Playback | None = None
-        """Set in a replay: recorded answers for the tools, and where what the turn says goes."""
+        self.constraints: ConstraintsBlock | None = None
+        """The constraints block the turn read last: what its tools' calls are measured against."""
+        self.playback: Playback | None = parent.playback if parent is not None else None
+        """Set in a replay: recorded answers for the tools, and where what the turn says goes. A sub-turn of a
+        replayed turn (a framework's run inside it) is replayed with it, and never sent."""
         self.mode: Literal["stored", "pointer", "hash_only"] | None = None
         """The content mode this turn must leave in, when the server refused the recorder's."""
         self.closed = False
         self._lock: threading.Lock = threading.Lock()
         self._counters = {"b": 0, "k": 0, "m": 0}
+        self._adoptable: list[CallCapture] = []
         self._token: Token[TurnFrame | None] | None = None
 
     # Capture
@@ -304,6 +318,7 @@ class TurnFrame:
         synthetic: bool = False,
         cache_hit: bool = False,
         effect_key: str | None = None,
+        adoptable: bool = False,
     ) -> CallCapture:
         """Opens a tool call, copying its arguments now. `call_id` is the provider's id when there is one;
         otherwise the frame names it `k1`, `k2`, ... Use the result as a context manager, or call its
@@ -325,7 +340,29 @@ class TurnFrame:
             entry["args"] = self._blob(args)
         if synthetic:
             self.flag("synthetic")
-        return self._add(entry)
+        call = self._add(entry)
+        if adoptable:
+            with self._lock:
+                self._adoptable.append(call)
+        return call
+
+    def adopt(self, name: str, args: Any) -> CallCapture | None:
+        """The open call of `name` an adapter recorded from its framework's callbacks, taken over by the
+        `@niadra.tool` wrapper running inside it, so the call is recorded once, with the wrapper's
+        arguments."""
+        with self._lock:
+            call = next((c for c in self._adoptable if not c.done and c.entry.get("name") == name), None)
+            if call is None:
+                return None
+            self._adoptable.remove(call)
+            before = call.entry.pop("args", None)
+            if before is not None:
+                self.blobs.pop(before, None)
+        key = self._blob(args)
+        if key is not None:
+            with self._lock:
+                call.entry["args"] = key
+        return call
 
     def model_call(
         self,
@@ -369,9 +406,13 @@ class TurnFrame:
         etag: str | None = None,
         version: str | None = None,
         receipt_id: str | None = None,
+        value: Any = None,
     ) -> None:
-        """A read the turn made from Niadra, by its version: the pack by ETag, a block by its version."""
-        entry = {"surface": surface, "etag": etag, "version": version, "receipt_id": receipt_id}
+        """A read the turn made from Niadra, by its version: the pack by ETag, a block by its version.
+        `value` is what the read served, kept as a blob of the record so a replay and the tool counterfactual
+        have it."""
+        blob = self._blob(value) if value is not None else None
+        entry = {"surface": surface, "etag": etag, "version": version, "receipt_id": receipt_id, "blob": blob}
         with self._lock:
             if not self.closed:
                 self.reads.append({k: v for k, v in entry.items() if v is not None})
@@ -407,6 +448,15 @@ class TurnFrame:
                 self.event_keys.append(event_key)
             if self._recorder is not None and text not in self._guarded:
                 self.said.append(Said(text, context, immutable, agent or self.agent))
+
+    def interact(self, item: Mapping[str, Any] | BaseModel) -> None:
+        """What the person was shown or did in the turn, as the interaction spec writes it: a `presented` list
+        (with its `exposure_id` and positions), a `seen`, an `engaged` item of it, a preference. A replay and
+        the tool counterfactual read where the person engaged from here."""
+        entry = json.loads(snapshot(item))  # a copy, now, as JSON
+        with self._lock:
+            if not self.closed:
+                self.interactions.append(entry)
 
     def coordinate(self, decision_id: str, decision: str) -> None:
         """A coordination decision the turn acted on."""
@@ -458,7 +508,7 @@ class TurnFrame:
             for entry in self.calls:
                 if "status" not in entry:  # a call the turn left open never returned in it
                     entry["status"] = "cancelled"
-        if self._recorder is not None:
+        if self._recorder is not None and self.playback is None:
             self._recorder.submit(self)
 
     def __enter__(self) -> TurnFrame:

@@ -35,6 +35,7 @@ MAX_READS = 20
 MAX_CLAIMS = 500
 MAX_EVENT_KEYS = 50
 MAX_DECISIONS = 50
+MAX_INTERACTIONS = 200
 BLOB_FIELDS = ("args", "result_model", "result_ui")
 
 
@@ -119,6 +120,7 @@ def build(
         "reads": frame.reads[:MAX_READS],
         "calls": calls,
         "claims": (found or [])[:MAX_CLAIMS],
+        "interactions": frame.interactions[:MAX_INTERACTIONS],
         "coordination": frame.coordination[:MAX_DECISIONS],
         "effects": [{"key": k, "state": v} for k, v in list(frame.effects.items())[:MAX_DECISIONS]],
         "output": {

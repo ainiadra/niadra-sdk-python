@@ -79,7 +79,12 @@ def test_a_turn_records_its_read_its_tools_and_what_the_agent_said(mock_app: Moc
     assert record["agent"] == {"name": "closing"}
     assert record["content_mode"] == "stored"
     assert record["completeness"] == "complete"
-    assert record["reads"] == [{"surface": "pack", "etag": context.etag}]
+    assert [{k: v for k, v in r.items() if k != "blob"} for r in record["reads"]] == [
+        {"surface": "pack", "etag": context.etag}
+    ]
+    assert record["blobs"][record["reads"][0]["blob"]]["content"]["etag"] == context.etag, (
+        "the pack it served"
+    )
     assert record["build"]["pins"]["prompts"] == {"core": "v16"}
     assert record["build"]["pins"]["niadra"]["pack_hash"]
     assert record["build"]["sdk"].startswith("niadra-python/")

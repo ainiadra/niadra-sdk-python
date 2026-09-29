@@ -14,6 +14,11 @@ marks the turn incomplete, and the tool's own result and exceptions pass through
 
 A generator tool is recorded piece by piece, and its result is the list of pieces once it is consumed.
 
+With `binding` (the tool's binding, as `niadra.constraints.binding` reads it), a call in a turn that read the
+constraints block records what it did with the block: the hard constraints its arguments sent, and over the
+objects its result shows, how many were checked, broke one, or lacked the field (the constraints spec, 7). It
+is what the day's conformance counts and what the tool counterfactual starts from. Nothing is changed.
+
 In a replay (`niadra.replay`) the call answers from the record when its arguments match a recorded call of the
 tool; otherwise it runs only when `dry_run=True` says running it again is safe, and answers `None` (a
 divergence) when not.
@@ -25,10 +30,13 @@ import functools
 import inspect
 import logging
 from collections.abc import AsyncIterator, Callable, Iterable, Iterator, Mapping
+from dataclasses import dataclass
 from typing import Any, TypeVar
 
+from niadra.constraints.binding import flag, items, parse
+from niadra.constraints.render import Call, honored, render
 from niadra.models.turns import TurnObservation
-from niadra.turns.capture import CallCapture, current_turn
+from niadra.turns.capture import CallCapture, TurnFrame, current_turn
 
 logger = logging.getLogger("niadra")
 
@@ -43,15 +51,21 @@ def tool(
     ui: Callable[[Any], Any] | None = None,
     exclude: Iterable[str] = (),
     dry_run: bool = False,
+    binding: Mapping[str, Any] | None = None,
 ) -> Callable[[F], F]:
     """Records the decorated tool's calls in the current turn. `name` defaults to the function's name;
     `exclude` names parameters left out of the recorded arguments (a framework's context object);
-    `dry_run=True` says a replay may run it again for real when the record has no answer."""
+    `dry_run=True` says a replay may run it again for real when the record has no answer; `binding` is the
+    tool's binding, to measure the constraints block against its calls."""
 
     def decorate(fn: F) -> F:
         signature = inspect.signature(fn)
         left_out = {"self", "cls", *exclude}
         called = name or fn.__name__
+
+        def mark(wrapper: Any) -> F:
+            wrapper.__niadra_tool__ = Recorded(called, dry_run, provenance, binding)
+            return wrapper  # type: ignore[no-any-return]
 
         def begin(args: tuple[Any, ...], kwargs: dict[str, Any]) -> CallCapture | None:
             frame = current_turn()
@@ -62,7 +76,9 @@ def tool(
                 arguments = {k: v for k, v in bound.items() if k not in left_out}
             except TypeError:
                 arguments = {"args": list(args), **kwargs}
-            call = frame.tool_call(called, arguments)
+            call = frame.adopt(called, arguments) or frame.tool_call(called, arguments)
+            if binding is not None and frame.constraints is not None:
+                call.measure = _measure(frame, binding, arguments)
             if frame.playback is not None:
                 call.played = frame.playback.answer(called, arguments, dry_run=dry_run)
             return call
@@ -107,7 +123,7 @@ def tool(
                     raise
                 end(call, pieces)
 
-            return agen  # type: ignore[return-value]
+            return mark(agen)
 
         if inspect.isgeneratorfunction(fn):
 
@@ -134,7 +150,7 @@ def tool(
                     raise
                 end(call, pieces)
 
-            return gen  # type: ignore[return-value]
+            return mark(gen)
 
         if inspect.iscoroutinefunction(fn):
 
@@ -151,7 +167,7 @@ def tool(
                     end(call, result)
                     return result
 
-            return run_async  # type: ignore[return-value]
+            return mark(run_async)
 
         @functools.wraps(fn)
         def run(*args: Any, **kwargs: Any) -> Any:
@@ -166,9 +182,53 @@ def tool(
                 end(call, result)
                 return result
 
-        return run  # type: ignore[return-value]
+        return mark(run)
 
     return decorate
+
+
+@dataclass(frozen=True)
+class Recorded:
+    """What `@niadra.tool` knows of the function it wraps, for the runners that call it again."""
+
+    name: str
+    dry_run: bool
+    provenance: Provenance | None
+    binding: Mapping[str, Any] | None
+
+
+def recorded(fn: Any) -> Recorded | None:
+    """The `@niadra.tool` of `fn`, if it is one."""
+    found = getattr(fn, "__niadra_tool__", None)
+    return found if isinstance(found, Recorded) else None
+
+
+def _measure(
+    frame: TurnFrame, raw: Mapping[str, Any], arguments: Mapping[str, Any]
+) -> Callable[[Any], dict[str, Any] | None] | None:
+    """How the call's result honored the block its arguments were rendered against; None when the block does
+    not apply to the call."""
+    block = frame.constraints
+    assert block is not None
+    families = frame._recorder.families() if frame._recorder is not None else {}
+    rendering = render(block, parse(raw, families), Call(arguments))
+    if not rendering.applies:
+        return None
+
+    def measure(result: Any) -> dict[str, Any] | None:
+        seen = honored(block, rendering.hard_sent, items(raw, result))
+        applied: dict[str, Any] = {
+            "constraints": block.version,
+            "hard_sent": list(rendering.hard_sent),
+            "results_checked": seen.results_checked,
+            "violations": seen.violations,
+            "unverifiable": seen.unverifiable,
+        }
+        if flag(raw, result):
+            applied["relaxed"] = "declared"
+        return applied
+
+    return measure
 
 
 def _observations(call: CallCapture, provenance: Provenance | None, result: Any) -> list[dict[str, Any]]:

@@ -20,10 +20,21 @@ are evaluated on the replayed record, which stays here, and the results go to `P
 answers with the statistical verdict: `pass`, `flaky`, `infrastructure_error`, `pin_mismatch` or
 `regression`.
 
-`niadra replay` (`niadra.cli`) runs the same from the command line, for a CI job.
+`niadra replay` (`niadra.cli`) runs the same from the command line, for a CI job. `Counterfactual` runs the
+recorded calls of one tool with and without an element of the constraints block
+(`niadra.replay.counterfactual`).
 """
 
-from niadra.replay.counterfactual import overlap_at_k
+from niadra.replay.counterfactual import AsyncCounterfactual, Counterfactual, CounterfactualRun, overlap_at_k
 from niadra.replay.runner import AsyncReplayer, Replayer, ReplayInput, ReplayRun
 
-__all__ = ["AsyncReplayer", "ReplayInput", "ReplayRun", "Replayer", "overlap_at_k"]
+__all__ = [
+    "AsyncCounterfactual",
+    "AsyncReplayer",
+    "Counterfactual",
+    "CounterfactualRun",
+    "ReplayInput",
+    "ReplayRun",
+    "Replayer",
+    "overlap_at_k",
+]

@@ -302,10 +302,11 @@ class _Session:
         turn, the read and the pack it served are recorded, by ETag."""
         frame = current_turn()
         if frame is not None and context.etag:
-            frame.read("pack", etag=context.etag)
+            frame.read("pack", etag=context.etag, value=context)
             frame.pack(compiler=context.version or None, pack_hash=context.manifest_hash or context.etag)
         if frame is not None and context.constraints is not None:
-            frame.read("constraints", version=context.constraints.version)
+            frame.read("constraints", version=context.constraints.version, value=context.constraints)
+            frame.constraints = context.constraints
         if frame is not None and context.state is not None:
             frame.read("state")
             frame.observe_state(state_values(context.state.objects))

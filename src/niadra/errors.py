@@ -15,6 +15,18 @@ class NiadraError(Exception):
     """Base class of every exception the SDK raises."""
 
 
+class ReplayRefusedError(NiadraError):
+    """A replayed agent called a framework tool the replay cannot answer: it would run live. Wrap the tool's
+    function with `@niadra.tool`, or pass the tools through the adapter's `replayable()`."""
+
+    def __init__(self, tool: str) -> None:
+        super().__init__(
+            f"the tool {tool} would run live in a replay: wrap it with @niadra.tool, "
+            "or pass it through replayable()"
+        )
+        self.tool = tool
+
+
 class ConfigurationError(NiadraError):
     """The client cannot be built as configured: a missing or malformed key, a bad base URL."""
 

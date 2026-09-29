@@ -168,3 +168,64 @@ def test_without_turns_the_handler_records_no_turn(on_mock: Niadra, mock_app: Mo
         model.invoke([HumanMessage("Hello")], config={"callbacks": [NiadraCallbackHandler(conversation)]})
     on_mock.flush()
     assert mock_app.cell.turns.turns == {}
+
+
+def _replaying(tool_name: str, args: dict[str, Any], value: Any) -> Any:
+    from niadra.replay.playback import Playback, _Recorded
+    from niadra.turns import TurnFrame
+    from niadra.turns.capture import snapshot
+    from niadra.turns.digest import digest
+
+    frame = TurnFrame(None, agent="support", conversation_id="chat-1")
+    frame.playback = Playback({tool_name: [_Recorded(digest(json.loads(snapshot(args)))[0], value)]})
+    return frame
+
+
+def test_in_a_replay_a_replayable_tool_answers_from_the_record_and_another_is_refused(
+    on_mock: Niadra,
+) -> None:
+    from langchain_core.tools import tool as lc_tool
+
+    from niadra.errors import ReplayRefusedError
+    from niadra.integrations.langchain import replayable
+
+    ran: list[str] = []
+
+    @lc_tool
+    def stock(sku: str) -> str:
+        """Units of an item in stock."""
+        ran.append(sku)
+        return f"{sku}: 0"
+
+    (safe,) = replayable([stock])
+    conversation = on_mock.conversation("chat-1", subject=MARINA)
+    handler = NiadraCallbackHandler(conversation, turns=True)
+    with _replaying("stock", {"sku": "PX-4471"}, "PX-4471: 3"):
+        assert safe.invoke({"sku": "PX-4471"}, config={"callbacks": [handler]}) == "PX-4471: 3"
+        with pytest.raises(ReplayRefusedError):
+            stock.invoke({"sku": "PX-4471"}, config={"callbacks": [handler]})
+    assert ran == []
+    assert safe.invoke({"sku": "PX-1"}, config={"callbacks": [handler]}) == "PX-1: 0", (
+        "outside a replay it runs"
+    )
+
+
+def test_a_wrapped_tool_is_recorded_once(on_mock: Niadra, mock_app: MockApp) -> None:
+    from langchain_core.tools import tool as lc_tool
+
+    from niadra.integrations.langchain import replayable
+
+    @lc_tool
+    def stock(sku: str) -> str:
+        """Units of an item in stock."""
+        return f"{sku}: 3"
+
+    (safe,) = replayable([stock])
+    with on_mock.conversation("chat-1", subject=MARINA) as conversation:
+        handler = NiadraCallbackHandler(conversation, turns=True)
+        with conversation.turn():
+            safe.invoke({"sku": "PX-4471"}, config={"callbacks": [handler]})
+    on_mock.flush()
+    (record,) = [s.record for s in mock_app.cell.turns.turns.values()]
+    (call,) = [c for c in record["calls"] if c["kind"] == "tool"]
+    assert record["blobs"][call["args"]]["content"] == {"sku": "PX-4471"}

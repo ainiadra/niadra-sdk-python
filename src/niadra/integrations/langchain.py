@@ -22,7 +22,11 @@ with niadra.conversation(thread_id, subject=phone(caller)) as conversation:
 - **Turn records.** With `turns=True`, each top-level run (a chain, an agent, or a chat model called
   alone) is a turn (`niadra.turns`), opened when it starts and closed when it ends, with its tool calls
   (arguments, result, failure) and its model calls (tokens). A tool decorated with `@niadra.tool`
-  inside the run also sees the turn. Recorded only while the space records turns.
+  inside the run also sees the turn, and takes over the call so it is recorded once. Recorded only
+  while the space records turns.
+- **Replay.** A replayed turn answers tools from the record, and a LangChain tool the replay cannot
+  answer would run live: pass your tools through `replayable()` (it wraps each tool's function with
+  `@niadra.tool`), and the handler refuses, with `ReplayRefusedError`, any other tool a replay calls.
 - **Tools.** `history_tools()` are `StructuredTool`s with the kit's names, descriptions and JSON
   Schemas, bound to the customer; `agent_memory=` adds the agent memory tools.
 - **Agent memory.** `agent_memory=True` (or `{"write": True, "max_tokens": 300, "tags": [...]}`) puts
@@ -46,6 +50,7 @@ try:
 except ImportError as exc:  # pragma: no cover - depends on the environment
     raise ImportError("LangChain is not installed: pip install 'niadra[langchain]'") from exc
 
+from niadra.errors import ReplayRefusedError
 from niadra.integrations._common import (
     AgentMemoryLike,
     AgentMemoryOption,
@@ -66,15 +71,41 @@ from niadra.integrations._common import (
     tool_specs,
     warn,
 )
+from niadra.turns.capture import current_turn
+from niadra.turns.tool import recorded, tool
 
 __all__ = [
+    "REPLAYABLE",
     "NiadraCallbackHandler",
     "awith_context",
     "context_runnable",
     "history_tools",
     "inject",
+    "replayable",
     "with_context",
 ]
+
+REPLAYABLE = "niadra_replayable"
+"""The tool metadata key `replayable()` sets: a replay answers the tool from the record."""
+
+
+def replayable(tools: Sequence[Any], *, dry_run: Sequence[str] = ()) -> list[Any]:
+    """The tools, each with its function wrapped with `@niadra.tool` under the tool's name (unless it already
+    is), so a replay answers them from the record; `dry_run` names the ones a replay may run again for real.
+    A tool without a function of its own (`func` or `coroutine`) is refused: wrap what it calls instead."""
+    out = []
+    for item in tools:
+        fn, coroutine = getattr(item, "func", None), getattr(item, "coroutine", None)
+        if fn is None and coroutine is None:
+            raise TypeError(f"{item.name} has no function to wrap: decorate what it calls with @niadra.tool")
+        wrap = tool(item.name, dry_run=item.name in dry_run)
+        update: dict[str, Any] = {"metadata": {**(item.metadata or {}), REPLAYABLE: True}}
+        if fn is not None:
+            update["func"] = fn if recorded(fn) is not None else wrap(fn)
+        if coroutine is not None:
+            update["coroutine"] = coroutine if recorded(coroutine) is not None else wrap(coroutine)
+        out.append(item.model_copy(update=update))
+    return out
 
 
 def history_tools(conversation: AnySession, agent_memory: AgentMemoryLike = None) -> list[Any]:
@@ -216,13 +247,18 @@ class NiadraCallbackHandler(BaseCallbackHandler):  # type: ignore[misc]
     """Records the conversation from LangChain's callbacks: customer messages and model answers, and with
     `turns=True` the turn records of each top-level run."""
 
-    raise_error = False
     run_inline = True
 
     def __init__(self, conversation: AnySession, *, turns: bool = False) -> None:
         super().__init__()
         self.conversation = conversation
         self.turns = TurnHooks(conversation, adapter_version("langchain", "langchain-core"), enabled=turns)
+
+    @property
+    def raise_error(self) -> bool:  # type: ignore[override]
+        """True while a replay runs: a tool the replay cannot answer stops the run instead of running live."""
+        frame = current_turn()
+        return frame is not None and frame.playback is not None
 
     def on_chain_start(
         self, serialized: Any, inputs: Any, *, run_id: Any, parent_run_id: Any = None, **kwargs: Any
@@ -246,6 +282,8 @@ class NiadraCallbackHandler(BaseCallbackHandler):  # type: ignore[misc]
         **kwargs: Any,
     ) -> None:
         name = (serialized or {}).get("name") or kwargs.get("name") or "tool"
+        if self.raise_error and not (kwargs.get("metadata") or {}).get(REPLAYABLE):
+            raise ReplayRefusedError(str(name))
         self.turns.tool_start(str(run_id), str(name), inputs if inputs is not None else input_str)
 
     def on_tool_end(self, output: Any, *, run_id: Any, **kwargs: Any) -> None:

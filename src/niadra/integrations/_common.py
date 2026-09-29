@@ -20,7 +20,7 @@ import logging
 import re
 from collections.abc import Awaitable, Callable, Coroutine, Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 from niadra.conversation import AsyncConversation, AsyncTask, Conversation, Task
 from niadra.handles import phone
@@ -31,8 +31,12 @@ from niadra.tools import _UNAVAILABLE as UNAVAILABLE
 from niadra.tools import BUILTIN_DEFINITIONS, AsyncToolKit, ToolKit
 from niadra.turns.capture import CallCapture, TurnFrame, TurnKind, current_turn
 from niadra.turns.capture import _turn as _current_turn
+from niadra.turns.tool import recorded
 from niadra.usage import provider_of
 from niadra.vocabulary import Verification
+
+if TYPE_CHECKING:
+    from niadra.replay.playback import Played
 
 logger = logging.getLogger("niadra")
 
@@ -513,10 +517,21 @@ class TurnHooks:
         if frame is None:
             return
         try:
-            self._calls[call_key] = frame.tool_call(name, args, call_id=call_key or None)
+            self._calls[call_key] = frame.tool_call(name, args, call_id=call_key or None, adoptable=True)
         except Exception as exc:
             warn("record the tool call", exc)
             frame.incomplete()
+
+    def replayed(
+        self, name: str, args: Any, fn: Any = None, *, frame_key: str | None = None
+    ) -> Played | None:
+        """In a replay, how a framework tool the adapter stands in for answers: the recorded result of a call
+        with the same arguments, or empty (a divergence), never the live tool. None outside a replay, and for
+        a function wrapped with `@niadra.tool`, which answers itself."""
+        frame = self.frame(frame_key) if self.enabled else current_turn()
+        if frame is None or frame.playback is None or (fn is not None and recorded(fn) is not None):
+            return None
+        return frame.playback.answer(name, args, dry_run=False)
 
     def tool_end(self, call_key: str, result: Any = None, error: BaseException | None = None) -> None:
         call = self._calls.pop(call_key, None)

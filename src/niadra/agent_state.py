@@ -16,8 +16,8 @@ applies to it at once and leaves again later with the same `if_version`: the ans
 compare-and-swap that then conflicts is never merged in silence: it lands in `conflicts` and is logged. Over
 the cap a write is not stored and the previous state stays (`reason: over_cap`), never an error.
 
-In a replayed turn the state never leaves: it starts empty and the agent's writes stay in the replay, with
-the same rules.
+In a replayed turn the state never leaves: it starts from what the recorded turn read (each read keeps the
+state it served in the record) and the agent's writes stay in the replay, with the same rules.
 """
 
 from __future__ import annotations
@@ -136,7 +136,7 @@ class AgentStates:
                 held = _Held(dict(state.body), state.version, state.updated_at)
                 self._held[key] = held
             served = WorkingState(copy.deepcopy(held.body), held.version, held.updated_at)
-        _read(served.version)
+        _read(scope, agent, served)
         return served
 
     def unread(self, scope: Mapping[str, str], agent: str) -> WorkingState:
@@ -148,7 +148,7 @@ class AgentStates:
                 if held is not None
                 else WorkingState({}, 0, degraded=True)
             )
-        _read(served.version)
+        _read(scope, agent, served)
         return served
 
     def written(self, write: AgentStateWrite, data: Any) -> StateWrite:
@@ -241,10 +241,12 @@ def _played_put(played: Any, write: AgentStateWrite) -> StateWrite:
     return StateWrite(True, version + 1)
 
 
-def _read(version: int) -> None:
+def _read(scope: Mapping[str, str], agent: str, served: WorkingState) -> None:
+    """The read, in the turn: its version, and the state it served, so a replay starts from it."""
     frame = current_turn()
     if frame is not None:
-        frame.read("agent_state", version=str(version))
+        value = {"scope": dict(scope), "agent": agent, "version": served.version, "body": served.body}
+        frame.read("agent_state", version=str(served.version), value=value)
 
 
 class _Handle:

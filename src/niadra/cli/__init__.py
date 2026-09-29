@@ -4,16 +4,19 @@
     niadra replay --agent company.agent:build_agent --build company.agent:BUILD --scenario sc_1 --runs 5
     niadra types derive --dsn postgresql://reader@replica/erp --table public.orders --out order.json
     niadra contract test --contract claim-contract.json --examples tests/claims/examples.json
+    niadra counterfactual --tools company.tools:TOOLS --tool search_products --element hard --scenario sc_1
 
 The commands that talk to Niadra read the key from `NIADRA_API_KEY` (and `NIADRA_BASE_URL`, when set).
 `module:name` names a Python object: for `--resolvers`, a `Resolvers` or a function that registers the
 resolvers on the one it gets; for `--agent`, a function that makes a fresh agent; for `--build`, the build the
-run runs (`Niadra.build()`, or a mapping of its pins).
+run runs (`Niadra.build()`, or a mapping of its pins); for `--tools`, a mapping of tool names to the company's
+functions, and for `--bindings`, one of tool names to their bindings.
 
 `niadra replay` exits with 0 when the verdict is `pass` or `flaky`, 1 for `regression`, and 2 for
-`pin_mismatch` or `infrastructure_error`. `niadra types derive --check` and `niadra contract test` exit with
-0 when everything holds, 1 when it does not (drift, a phrase that triggers) and 2 when they could not run: see
-`niadra.cli.types` and `niadra.cli.contract`.
+`pin_mismatch` or `infrastructure_error`. `niadra types derive --check` and `niadra contract test` exit with 0
+when everything holds, 1 when it does not (drift, a phrase that triggers) and 2 when they could not run: see
+`niadra.cli.types` and `niadra.cli.contract`. `niadra counterfactual` prints the report Niadra answered and
+exits with 0, or 2 when it could not run.
 """
 
 from __future__ import annotations
@@ -50,6 +53,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--mode", default="hermetic_turn", choices=["hermetic_turn", "hermetic_conversation", "era_memory"]
     )
     replay.add_argument("--vary", action="append", default=[], help="a pin the run changes on purpose")
+    counterfactual = commands.add_parser(
+        "counterfactual", help="a tool's recorded calls with and without an element"
+    )
+    counterfactual.add_argument("--tools", required=True, help="module:name of the tools, by name")
+    counterfactual.add_argument("--tool", required=True, help="the tool to run")
+    counterfactual.add_argument(
+        "--element", required=True, choices=["constraints", "hard", "size", "exclude"]
+    )
+    counterfactual.add_argument(
+        "--turn", action="append", default=[], help="a recorded turn id; repeat for more"
+    )
+    counterfactual.add_argument("--scenario", action="append", default=[], help="a scenario's turns")
+    counterfactual.add_argument("--bindings", help="module:name of the tools' bindings, by name")
+    counterfactual.add_argument(
+        "--safe", action="append", default=[], help="a tool that may run again as it is"
+    )
+    counterfactual.add_argument("--k", type=int, default=10)
+    counterfactual.add_argument("--label", help="a name for the run, such as the commit")
     types.add(commands)
     contract.add(commands)
     args = parser.parse_args(argv)
@@ -67,6 +88,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return contract.run(args, client)
         if args.command == "resolver-worker":
             return _worker(client(), args)
+        if args.command == "counterfactual":
+            return _counterfactual(client(), args)
         return _replay(client(), args)
     finally:
         for niadra in clients:
@@ -98,6 +121,31 @@ def _replay(niadra: Niadra, args: argparse.Namespace) -> int:
     )
     print(json.dumps({"run_id": run.run_id, "verdict": run.verdict, "scenarios": run.scenarios}, indent=2))
     return EXIT.get(run.verdict or "", 2)
+
+
+def _counterfactual(niadra: Niadra, args: argparse.Namespace) -> int:
+    from niadra.errors import NiadraError
+    from niadra.replay import Counterfactual
+
+    if not args.turn and not args.scenario:
+        print("niadra: --turn or --scenario is needed", file=sys.stderr)
+        return 2
+    bindings = _load(args.bindings) if args.bindings else None
+    runner = Counterfactual(niadra, _load(args.tools), bindings=bindings, safe=args.safe)
+    try:
+        run = runner.run(
+            args.turn,
+            tool=args.tool,
+            element=args.element,
+            scenario_ids=args.scenario,
+            k=args.k,
+            label=args.label,
+        )
+    except NiadraError as error:
+        print(f"niadra: {error}", file=sys.stderr)
+        return 2
+    print(json.dumps({**run.report, "untouched": run.untouched, "unread": run.unread}, indent=2))
+    return 0
 
 
 def _load(target: str) -> Any:
