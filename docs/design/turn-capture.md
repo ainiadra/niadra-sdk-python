@@ -1,8 +1,8 @@
 # Turn capture
 
-Status: design. What exists today is the digest (`niadra.turns.digest`), the route models
-(`niadra.models.turns`) and the route methods (`niadra.api`). This note fixes how the SDK captures a turn
-record in the agent's process, before the code is written.
+Status: sections 1, 2 and the decorator of section 4 are built (`niadra.turns`); sections 3 and the
+framework hooks of section 4 are being built. Where the code settled a detail differently from the first
+draft of this note, the note now says what the code does, and why.
 
 A turn runs from its input (a message, an interface action, an event, a timer firing) to the last thing
 it emits to the customer or to a document. Its record says what the agent read, called, showed, claimed
@@ -33,17 +33,22 @@ agent's code.
     `call_id` as its `parent_call_id`.
   - `attempt`, `synthetic` and `cache_hit` come from the hook that saw the call.
 - **Copy at the moment:**
-  - Arguments and results become JSON data the instant they are seen (`pydantic_core.to_jsonable_python`).
-    That conversion is the deep copy: a later mutation by the agent cannot change the record.
-  - The same step computes the digest: SHA-256 over the canonical JSON (`niadra.turns.digest`). `hashlib`
-    hashes the median 25 KB result in well under a millisecond.
+  - Arguments and results become JSON bytes the instant they are seen (`pydantic_core.to_json`, with
+    unknown objects written as their `str()`). Those bytes are the deep copy: a later mutation by the agent
+    cannot change the record. It costs 0.05 ms for a 25 KB result and 0.3 ms for 150 KB.
+  - The digest (SHA-256 over the canonical JSON, `niadra.turns.digest`) is computed later, on the sender,
+    from those bytes. Canonical JSON is written in Python, and costs 0.5 ms for 25 KB and 3.3 ms for
+    150 KB: too much for the agent's path, nothing for the sender's.
   - When a framework hands the model one version of a result and the interface another, both are kept
     (`result_model`, `result_ui`).
   - A streamed or generator result is kept piece by piece, and materialized when the turn closes.
 - **Closing:** on exit the frame gets `ended_at`, `latency_ms` and its completeness. It goes to the turn
   queue as one record plus its blobs, and nothing else happens on the agent's path.
-- **Budget:** p95 at most 2 ms per tool call and 5 ms per turn, held by a local benchmark on the median
-  and the p95 payload sizes (25 KB and 150 KB).
+- **Budget:** p95 at most 2 ms per tool call and 5 ms per turn, held by `tests/test_turn_budget.py` on the
+  median and the p95 payload sizes (25 KB and 150 KB). Measured: 0.05 ms and 0.26 ms per call, 0.1 ms for a
+  turn with two 25 KB calls.
+- **Claims:** what the agent says inside a turn is kept, and the claim check runs on the sender, since in
+  count mode it changes nothing the agent sends.
 
 ## 2. The bounded turn queue
 
@@ -55,7 +60,9 @@ agent's code.
 - **When it is full**, in this order:
   1. The queue drops the blobs of turns that carry no flag, oldest first. A flag is an error, a guard
      that acted, a handoff, a failed assertion, a synthetic turn or negative feedback.
-     - The frame stays, and each dropped blob keeps its `sha256` and `size` (it becomes hash only).
+     - The frame stays. A dropped blob whose digest the sender already computed keeps its `sha256` and
+       `size` (it becomes hash only); one without leaves the record with the call fields that named it,
+       since computing its digest there would cost the agent's path.
      - The turn says `completeness: partial`.
   2. Only then does it drop the oldest frames whole.
 
@@ -64,17 +71,22 @@ agent's code.
 - **Never waits.** `put` appends under a lock that no I/O ever holds, and a full queue drops instead of
   blocking.
 - **The sender** is the flusher pattern of `_queue.py`: a thread for `Niadra`, a task for `AsyncNiadra`,
-  one request in flight.
+  one request in flight. The task builds its records (digests, gzip, the claim check, the uploads of
+  `pointer` mode) on a worker thread, so the event loop never computes one.
   - The body is gzip, up to 50 turns and 4 MB.
   - A turn too large on its own is sent with its blobs reduced to hashes, so a 413 `turn_too_large`
     never loops.
   - A 503 with `Retry-After` puts the batch back at the front.
   - A 207 drops the rejected items and counts them.
+- **The mode** is `TurnOptions.content_mode` when set, `pointer` once a store is set, otherwise the one
+  the space's recording names in the profile, otherwise `stored`. A turn refused with
+  `content_mode_refused` goes again with digests only, which every source accepts, and so do the next ones.
 - **Content modes:**
   - `stored` sends each blob's content in the record.
   - `pointer`: the sender first writes each blob to the company's bucket, over the S3 protocol and with
     the company's credentials, then sends only the pointer and the digest. The upload runs on the
-    sender, never on the agent's path.
+    sender, never on the agent's path. A record whose blobs cannot all be written leaves as `hash_only`,
+    `partial`.
   - `hash_only` sends only digests.
 - **At exit:** the queue is flushed with a deadline, as the event queue is.
 

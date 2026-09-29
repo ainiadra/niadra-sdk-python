@@ -10,6 +10,7 @@ never echo request values.
 
 from __future__ import annotations
 
+import gzip
 import json
 import uuid
 from collections.abc import Awaitable, Callable, Iterable, MutableMapping
@@ -42,7 +43,9 @@ from niadra.models.events import (
     MediaUploadRequest,
 )
 from niadra.models.tokens import SubjectTokenRequest
+from niadra.models.turns import PromoteRequest
 from niadra.tools import definitions
+from niadra.turns.sender import MAX_TURNS
 from niadra.vocabulary import Verification
 from niadra_mock.agent_memory import MOCK_SOURCE, PersonalDataError
 from niadra_mock.cell import ItemNotFoundError, MockCell, UploadRejectedError
@@ -151,6 +154,8 @@ class MockApp:
         try:
             if path == "/v1/media/uploads" and method == "POST":
                 return self._reserve_upload(body, f"{scheme}://{headers.get('host', 'localhost')}")
+            if path == "/v1/turns" or path.startswith("/v1/turns/"):
+                return self._turns(method, path, headers, body)
             if path.startswith(_AGENT_MEMORY):
                 return self._agent_memory(method, path[len(_AGENT_MEMORY) :], parse_qs(query), headers, body)
             if method == "GET" and path == "/v1/history/tools":
@@ -314,6 +319,29 @@ class MockApp:
         except UploadRejectedError as exc:
             return _problem(403, str(exc))
         return Response(200, b"")
+
+    def _turns(self, method: str, path: str, headers: Headers, body: bytes) -> Response:
+        if "turns" not in self.cell.features:
+            return _problem(404)
+        if method == "POST" and path == "/v1/turns":
+            if headers.get("content-encoding") == "gzip":
+                body = gzip.decompress(body)
+            data = json.loads(body or b"null")
+            items = data.get("turns") if isinstance(data, dict) else None
+            if not isinstance(items, list) or not 1 <= len(items) <= MAX_TURNS:
+                return _problem(422, f"turns: between 1 and {MAX_TURNS} turn records")
+            result = self.cell.turns.record(items)
+            return _json(207 if result.errors else 200, result.model_dump(mode="json"))
+        if method == "POST" and path == "/v1/turns/promote":
+            return _model(self.cell.turns.promote(PromoteRequest.model_validate_json(body)))
+        if method == "GET" and path.count("/") == 3:
+            view = self.cell.turns.read(unquote(path.rsplit("/", 1)[1]))
+            return (
+                _problem(404)
+                if view is None
+                else _json(200, view.model_dump(mode="json", by_alias=True, exclude_none=True))
+            )
+        return _problem(405)
 
     def _batch(self, body: bytes) -> Response:
         data = json.loads(body or b"null")

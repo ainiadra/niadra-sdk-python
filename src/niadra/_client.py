@@ -5,13 +5,13 @@ import logging
 import threading
 import time
 import weakref
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor
 from concurrent.futures import wait as wait_for
 from contextlib import suppress
 from datetime import datetime
 from types import TracebackType
-from typing import Any, Literal
+from typing import Any, Literal, TypeVar
 
 import httpx
 from pydantic import BaseModel
@@ -59,9 +59,15 @@ from niadra.models.events import (
 from niadra.models.objects import ObjectTimeline
 from niadra.models.results import Context, MediaUpload, SearchResult, TimelinePage
 from niadra.models.tokens import SubjectToken
-from niadra.options import CacheOptions, QueueOptions, Timeouts, VoiceOptions
+from niadra.models.turns import TurnPins
+from niadra.options import CacheOptions, QueueOptions, Timeouts, TurnOptions, VoiceOptions
 from niadra.tools import ToolKit, definitions
+from niadra.turns.recorder import TurnRecorder
+from niadra.turns.sender import SyncTurnSender
+from niadra.turns.tool import Provenance, tool
 from niadra.vocabulary import AssertionMethod, Speaker, SubjectKind, Verification
+
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 class Niadra:
@@ -106,6 +112,7 @@ class Niadra:
         queue: QueueOptions | None = None,
         http_client: httpx.Client | None = None,
         voice: VoiceOptions | None = None,
+        turns: TurnOptions | None = None,
     ) -> None:
         self._core = ClientCore(
             api_key,
@@ -123,6 +130,15 @@ class Niadra:
         """Governance calls for a key with the `admin` scope: memory, fact history, corrections, erasure."""
         self.api = Api(self._core, self._transport)
         """The routes of turn records, typed state, signals and coordination, one method each. They raise."""
+        self.turns = TurnRecorder(turns or TurnOptions(), enabled=self._core.enabled)
+        """Turn records: `conversation.turn()` opens one, and a background sender posts the closed ones."""
+        self.turns.sender = SyncTurnSender(
+            self.turns,
+            self.turns.queue,
+            self.turns.interval,
+            self._transport.request,
+            self._core.timeouts.write,
+        )
         self._flusher = SyncFlusher(self._core.buffer, self._send_batch, self._core.queue_options)
         self._refresher: ThreadPoolExecutor | None = None
         self._prefetcher: ThreadPoolExecutor | None = None
@@ -134,6 +150,40 @@ class Niadra:
         self._closed = False
         if self._core.enabled:
             atexit.register(_flush_at_exit, weakref.ref(self))
+
+    @staticmethod
+    def build(
+        *,
+        prompts: Mapping[str, str] | None = None,
+        corpus_digest: str | None = None,
+        model: str | None = None,
+        assembler: str | None = None,
+        tool_schemas: Mapping[str, str] | None = None,
+    ) -> TurnPins:
+        """The build a turn runs on, for `conversation.turn(build=...)`: each prompt's version, the digest of
+        the files the agent consults (`sha256:<hex>`, computed by you, never the files), the exact model,
+        your context assembler's version and each tool schema's digest. A replay needs the ones the space's
+        recording requires; the pack's hash and compiler are filled in by the SDK."""
+        return TurnPins(
+            prompts=dict(prompts or {}),
+            corpus_digest=corpus_digest,
+            model=model,
+            assembler=assembler,
+            tool_schemas=dict(tool_schemas or {}),
+        )
+
+    @staticmethod
+    def tool(
+        name: str | None = None,
+        *,
+        provenance: Provenance | None = None,
+        ui: Callable[[Any], Any] | None = None,
+        exclude: Iterable[str] = (),
+    ) -> Callable[[F], F]:
+        """A decorator that records each call of a tool of yours in the turn it runs in: arguments,
+        result, latency and failure, and with `provenance` the objects the result showed. Outside a turn
+        the tool runs untouched. See `niadra.turns.tool`."""
+        return tool(name, provenance=provenance, ui=ui, exclude=exclude)
 
     @property
     def enabled(self) -> bool:
@@ -891,8 +941,11 @@ class Niadra:
         """Sends everything queued, from the calling thread. True when nothing is left."""
         if not self._core.enabled:
             return True
+        deadline = None if timeout is None else time.monotonic() + timeout
         try:
-            return self._flusher.flush(timeout)
+            events = self._flusher.flush(timeout)
+            left = None if deadline is None else max(0.0, deadline - time.monotonic())
+            return self._turn_sender().flush(left) and events
         except Exception as exc:
             return self._core.fail("flush", exc, False)
 
@@ -903,7 +956,9 @@ class Niadra:
         self._closed = True
         try:
             if self._core.enabled:
+                deadline = None if timeout is None else time.monotonic() + timeout
                 self._flusher.stop(timeout)
+                self._turn_sender().stop(None if deadline is None else max(0.0, deadline - time.monotonic()))
             if self._refresher is not None:
                 self._refresher.shutdown(wait=True)  # refreshes are bounded by the context budget
             if self._prefetcher is not None:
@@ -1234,6 +1289,10 @@ class Niadra:
             line.speculating = self._voice_read(
                 line, cache_key(request), request, text, self._core.timeouts.prefetch, speculative=True
             )
+
+    def _turn_sender(self) -> SyncTurnSender:
+        assert isinstance(self.turns.sender, SyncTurnSender)
+        return self.turns.sender
 
     def _send_now(
         self, method: str, item: BaseModel, conversation_id: str | None, task_id: str | None

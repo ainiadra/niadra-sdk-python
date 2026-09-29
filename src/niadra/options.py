@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass(frozen=True)
@@ -94,3 +95,22 @@ class QueueOptions:
     interval: float = 1.0
     turn_interval: float = 0.0
     heartbeat_interval: float = 60.0
+
+
+@dataclass(frozen=True)
+class TurnOptions:
+    """Turn recording (`client.turns`), apart from the event queue.
+
+    `content_mode` fixes where recorded values go (`stored`, `pointer` or `hash_only`). By default it is
+    `pointer` once a store is set (`turns.store()`), otherwise the mode the space's recording names, otherwise
+    `stored`; a source that records less refuses more, and the SDK then sends digests only.
+
+    The queue holds at most `max_bytes` of copied values and frames and `max_turns` turns: when full, it drops
+    the values of unflagged turns first, and only then whole turns. A batch leaves `interval` seconds after
+    its first turn closed, or at once with 50 turns waiting.
+    """
+
+    content_mode: Literal["stored", "pointer", "hash_only"] | None = None
+    max_bytes: int = 64 * 1024 * 1024
+    max_turns: int = 2000
+    interval: float = 1.0

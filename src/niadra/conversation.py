@@ -26,6 +26,9 @@
   counts only; `strict=True` returns the values with no source instead of sending the turn.
   `tool_result()` records what a tool of your own returned, so its values count as sources.
 - Leaving the block emits `conversation.ended` (or `task.ended`), even when the block raised.
+- `turn()` opens a turn record (`niadra.turns`): inside it, the reads, the tools decorated with
+  `@niadra.tool`, the model named in `agent(usage=...)` and what the agent said land in the record,
+  which the client sends in the background.
 
 `mark_injected()` records the moment the pack went into the model's prompt. The agent's later
 turns and actions carry it as `context_stamp`, with the pack's etag, which is how measurement
@@ -62,6 +65,8 @@ from niadra.models.events import (
 )
 from niadra.models.results import Context, render_turn
 from niadra.tools import AsyncToolKit, ToolKit, definitions
+from niadra.turns.capture import TurnFrame, TurnKind, current_turn
+from niadra.turns.recorder import PinsLike, TurnRecorder
 from niadra.vocabulary import Speaker, Verification
 
 if TYPE_CHECKING:
@@ -203,6 +208,8 @@ class _Session:
             event.setdefault("context_stamp", self.context_stamp)
         if usage is not None and (reported := _as_usage(usage)) is not None:
             event["usage"] = reported
+            if (frame := current_turn()) is not None:
+                frame.model_call(reported.model)
         if report is not None:
             event.setdefault("backing", Backing(**report.event_fields()))
         sent = self._turn(Speaker.AI_AGENT, "outbound", text, event)
@@ -228,11 +235,41 @@ class _Session:
             return None
 
     def _observe(self, context: Context) -> None:
-        """What a read gave the agent: the pack, the turn block and the guards back its answers."""
+        """What a read gave the agent: the pack, the turn block and the guards back its answers. Inside a
+        turn, the read and the pack it served are recorded, by ETag."""
+        frame = current_turn()
+        if frame is not None and context.etag:
+            frame.read("pack", etag=context.etag)
+            frame.pack(compiler=context.version or None, pack_hash=context.manifest_hash or context.etag)
         self._sources.add(context.text)
         self._sources.add(render_turn(context))
         # The guards of the last read hold the answers to the turn they were written for.
         self._guards = {g.value_type: g for g in context.guards}
+
+    def turn(
+        self,
+        *,
+        kind: TurnKind = "message",
+        build: PinsLike | None = None,
+        agent: str | None = None,
+        role: str | None = None,
+        turn_id: str | None = None,
+    ) -> TurnFrame:
+        """A turn of this conversation (or task), from its input to the last thing it emits: use it as a
+        context manager. `build` pins what a replay needs (`Niadra.build()`); `agent` defaults to this
+        session's `agent_id`. Opened inside another turn, it is a sub-turn of it. See `niadra.turns`."""
+        return self._recorder().open(
+            kind=kind,
+            build=build,
+            agent=agent or self.agent_id,
+            role=role,
+            conversation_id=self.conversation_id,
+            task_id=self.task_id,
+            turn_id=turn_id,
+        )
+
+    def _recorder(self) -> TurnRecorder:
+        raise NotImplementedError
 
     def mark_injected(self, context: Context | None = None, *, at: datetime | None = None) -> None:
         """Records that `context` (by default the last one this session returned) went into the prompt.
@@ -372,6 +409,8 @@ class _Session:
             )
         except (TypeError, ValueError) as exc:
             return self._fail(f"{speaker.value} turn", exc, False)
+        if speaker is Speaker.AI_AGENT and (frame := current_turn()) is not None:
+            frame.say(text, event_key=item.idempotency_key)
         return self._track(item)
 
     def _end_item(self) -> ItemLike:
@@ -408,6 +447,9 @@ class _SyncSession(_Session):
     def __init__(self, client: Niadra, session_id: str | None, **options: Any) -> None:
         super().__init__(client.track, client._core.fail, session_id, forget=client._forget_scope, **options)
         self._client = client
+
+    def _recorder(self) -> TurnRecorder:
+        return self._client.turns
 
     def begin(self) -> bool:
         """Starts this conversation's first read now, in the background: call it when the call starts
@@ -509,6 +551,9 @@ class _AsyncSession(_Session):
     def __init__(self, client: AsyncNiadra, session_id: str | None, **options: Any) -> None:
         super().__init__(client.track, client._core.fail, session_id, forget=client._forget_scope, **options)
         self._client = client
+
+    def _recorder(self) -> TurnRecorder:
+        return self._client.turns
 
     def begin(self) -> bool:
         """Starts this conversation's first read now, as a task on the running loop: call it when the

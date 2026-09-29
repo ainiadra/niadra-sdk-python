@@ -70,6 +70,10 @@ def _nothing_leaves_after_the_test(monkeypatch: pytest.MonkeyPatch) -> Iterator[
         thread = client._flusher._thread
         if thread is not None:
             thread.join(timeout=10)
+        turns = client._turn_sender()
+        turns.stop(timeout=0)
+        if turns._thread is not None:
+            turns._thread.join(timeout=10)
         if client._refresher is not None:
             client._refresher.shutdown(wait=True)
         if client._prefetcher is not None:

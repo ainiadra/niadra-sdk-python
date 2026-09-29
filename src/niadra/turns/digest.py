@@ -8,9 +8,10 @@ spec fixes it (section 6.2.1) with the vectors in `spec/vectors/turn-record-dige
 from __future__ import annotations
 
 import hashlib
-import json
 import math
+from collections.abc import Callable
 from decimal import Decimal
+from json.encoder import encode_basestring as _string
 from typing import Any
 
 # Integers beyond this lose precision as the IEEE doubles JSON numbers are; they are written as doubles.
@@ -21,7 +22,7 @@ def canonical(value: Any) -> bytes:
     """`value` (JSON data: dicts with string keys, lists, strings, numbers, booleans and None) as the UTF-8
     bytes of its canonical JSON. A value JSON cannot hold (NaN, a non-string key, a datetime) raises."""
     out: list[str] = []
-    _append(value, out)
+    _append(value, out.append)
     return "".join(out).encode("utf-8")
 
 
@@ -31,32 +32,55 @@ def digest(value: Any) -> tuple[str, int]:
     return "sha256:" + hashlib.sha256(data).hexdigest(), len(data)
 
 
-def _append(value: Any, out: list[str]) -> None:
-    if value is None or isinstance(value, bool):
-        out.append(json.dumps(value))
-    elif isinstance(value, str):
-        out.append(json.dumps(value, ensure_ascii=False))
-    elif isinstance(value, int):
-        out.append(str(value) if abs(value) <= _EXACT else _number(float(value)))
-    elif isinstance(value, float):
-        out.append(_number(value))
-    elif isinstance(value, dict):
-        if not all(isinstance(key, str) for key in value):
+def _append(value: Any, write: Callable[[str], None]) -> None:
+    # Exact types first: the SDK hashes results of up to a few hundred kilobytes, often.
+    kind = type(value)
+    if kind is str:
+        write(_string(value))
+    elif kind is dict:
+        keys = list(value)
+        if not all(type(key) is str for key in keys):
             raise TypeError("canonical JSON takes only string keys")
-        out.append("{")
-        for i, key in enumerate(sorted(value, key=lambda k: k.encode("utf-16-be"))):
-            out.append("," if i else "")
-            out.append(json.dumps(key, ensure_ascii=False) + ":")
-            _append(value[key], out)
-        out.append("}")
-    elif isinstance(value, (list, tuple)):
-        out.append("[")
+        # Code point order is UTF-16 order unless a key holds a character past the surrogates.
+        if any(key and max(key) >= "\ud800" for key in keys):
+            keys.sort(key=lambda k: k.encode("utf-16-be"))
+        else:
+            keys.sort()
+        write("{")
+        for i, key in enumerate(keys):
+            write("," + _string(key) + ":" if i else _string(key) + ":")
+            _append(value[key], write)
+        write("}")
+    elif kind is list or kind is tuple:
+        write("[")
         for i, item in enumerate(value):
-            out.append("," if i else "")
-            _append(item, out)
-        out.append("]")
+            if i:
+                write(",")
+            _append(item, write)
+        write("]")
+    elif value is None or kind is bool:
+        write("null" if value is None else "true" if value else "false")
+    elif kind is int:
+        write(str(value) if -_EXACT <= value <= _EXACT else _number(float(value)))
+    elif kind is float:
+        write(_number(value))
+    elif isinstance(value, (str, int, float, dict, list, tuple)):
+        # A subclass (an enum of str, an IntEnum): hashed as the plain value it is.
+        _append(_plain(value), write)
     else:
         raise TypeError(f"canonical JSON has no form for {type(value).__name__}")
+
+
+def _plain(value: Any) -> Any:
+    if isinstance(value, str):
+        return str(value)
+    if isinstance(value, int):
+        return int(value)
+    if isinstance(value, float):
+        return float(value)
+    if isinstance(value, dict):
+        return dict(value)
+    return list(value)
 
 
 def _number(value: float) -> str:
@@ -66,6 +90,13 @@ def _number(value: float) -> str:
         raise ValueError("JSON has no NaN or Infinity")
     if value == 0:
         return "0"
+    if value.is_integer():
+        if abs(value) <= _EXACT:
+            return str(int(value))
+    else:
+        text = repr(value)
+        if "e" not in text:
+            return text  # repr's shortest digits in fixed notation are ECMAScript's
     sign, digits, exponent = Decimal(repr(value)).as_tuple()
     assert isinstance(exponent, int)
     text = "".join(map(str, digits)).rstrip("0")
