@@ -22,6 +22,7 @@ from niadra.models.coordination import (
     ClaimRelease,
     ClaimRequest,
     ContactKeys,
+    CoordinationOverview,
     CoordinationReportPage,
     DeclareRequest,
     DeclareResult,
@@ -541,6 +542,12 @@ class Api(SyncRoutes):
             key=idempotency_key or new_key(),
         )
 
+    def overview(self, *, days: int = 7) -> CoordinationOverview:
+        """`GET /v1/coordination/overview`. Ownership that holds now, effects, conflicts, budgets and contacts
+        of the last `days`, in counts.
+        """
+        return self._call(CoordinationOverview, "GET", "/v1/coordination/overview", params={"days": days})
+
     def reports(self, *, cursor: str | None = None, limit: int = 50) -> CoordinationReportPage:
         """`GET /v1/coordination/reports`."""
         return self._call(
@@ -1035,6 +1042,14 @@ class AsyncApi(AsyncRoutes):
             f"/v1/coordination/effects/{segment(effect_id)}/settle",
             body=body,
             key=idempotency_key or new_key(),
+        )
+
+    async def overview(self, *, days: int = 7) -> CoordinationOverview:
+        """`GET /v1/coordination/overview`. Ownership that holds now, effects, conflicts, budgets and contacts
+        of the last `days`, in counts.
+        """
+        return await self._call(
+            CoordinationOverview, "GET", "/v1/coordination/overview", params={"days": days}
         )
 
     async def reports(self, *, cursor: str | None = None, limit: int = 50) -> CoordinationReportPage:

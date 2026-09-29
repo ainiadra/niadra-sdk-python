@@ -114,6 +114,179 @@
       "title": "BlockSubject",
       "type": "object"
     },
+    "BudgetBlock": {
+      "additionalProperties": false,
+      "description": "The context budget of one read: what the pack costs, what this agent already spent in the conversation and the case, and what can go without loss. It is shown, never enforced: the agent's loop decides.",
+      "properties": {
+        "pack": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BudgetPack"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Absent when the read served no pack."
+        },
+        "conversation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BudgetUse"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This agent's turns in the conversation; absent without one."
+        },
+        "case": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BudgetUse"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This agent's turns in the case (`task_id`)."
+        },
+        "other_agents_turns": {
+          "default": 0,
+          "description": "Turns other agents recorded in the same conversation.",
+          "title": "Other Agents Turns",
+          "type": "integer"
+        },
+        "cut": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BudgetCut"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Absent until the measurement found a unit."
+        },
+        "counted": {
+          "description": "False when the counters could not be read: the numbers above are then missing, not zero.",
+          "title": "Counted",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "counted"
+      ],
+      "title": "BudgetBlock",
+      "type": "object"
+    },
+    "BudgetCut": {
+      "additionalProperties": false,
+      "description": "What the measurement of context use says this agent leaves unused, by unit of items: delivered in enough measured conversations and never used.",
+      "properties": {
+        "units": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Units",
+          "type": "array"
+        },
+        "applied": {
+          "description": "The pack already leaves them out.",
+          "title": "Applied",
+          "type": "boolean"
+        },
+        "window_days": {
+          "title": "Window Days",
+          "type": "integer"
+        },
+        "min_deliveries": {
+          "title": "Min Deliveries",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "units",
+        "applied",
+        "window_days",
+        "min_deliveries"
+      ],
+      "title": "BudgetCut",
+      "type": "object"
+    },
+    "BudgetPack": {
+      "additionalProperties": false,
+      "description": "What the pack of this read costs, in estimated tokens, whole and per section.",
+      "properties": {
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        },
+        "sections": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Sections",
+          "type": "object"
+        }
+      },
+      "required": [
+        "total",
+        "sections"
+      ],
+      "title": "BudgetPack",
+      "type": "object"
+    },
+    "BudgetUse": {
+      "additionalProperties": false,
+      "description": "What this agent's recorded turns added up to, in one conversation or one case.",
+      "properties": {
+        "turns": {
+          "title": "Turns",
+          "type": "integer"
+        },
+        "model_calls": {
+          "description": "Each one reads the prompt's prefix again.",
+          "title": "Model Calls",
+          "type": "integer"
+        },
+        "tool_calls": {
+          "title": "Tool Calls",
+          "type": "integer"
+        },
+        "tokens_in": {
+          "title": "Tokens In",
+          "type": "integer"
+        },
+        "tokens_cached": {
+          "title": "Tokens Cached",
+          "type": "integer"
+        },
+        "tokens_out": {
+          "title": "Tokens Out",
+          "type": "integer"
+        },
+        "cost_usd": {
+          "title": "Cost Usd",
+          "type": "number"
+        }
+      },
+      "required": [
+        "turns",
+        "model_calls",
+        "tool_calls",
+        "tokens_in",
+        "tokens_cached",
+        "tokens_out",
+        "cost_usd"
+      ],
+      "title": "BudgetUse",
+      "type": "object"
+    },
     "CacheDirectives": {
       "additionalProperties": false,
       "properties": {
@@ -1723,6 +1896,22 @@
           ],
           "default": null,
           "title": "Absent"
+        },
+        "inputs": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For a reading that includes its inputs: the derived object's inputs, by the name its type gives them, as `type:namespace:id`.",
+          "title": "Inputs"
         }
       },
       "required": [
@@ -2623,6 +2812,18 @@
       ],
       "default": null,
       "description": "With `include: [\"coordination\"]`: who holds the subject, the purposes it may not be contacted for, the contacts each purpose with a budget has left and the commitments that hold. Advice for the turn: only a check decides."
+    },
+    "budget": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BudgetBlock"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "With `include: [\"budget\"]`: what the pack costs per section, what this agent already spent in the conversation and the case, and what the measurement says can go; shown, never enforced."
     }
   },
   "required": [

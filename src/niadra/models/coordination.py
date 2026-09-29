@@ -254,6 +254,33 @@ class CommitmentWithdrawn(Model):
     subject: Handle | None = None
 
 
+class ConflictCounts(ResponseModel):
+    """What coordination settled between parties in the window."""
+
+    commitments_superseded: int = Field(description="Commitments another of the subject's held first.")
+    handoffs_expired: int = Field(description="Handoffs whose outcome did not come back in time.")
+    ownership_overlaps: int = Field(
+        description="Subjects and objects two holders claimed at the same time: the more restrictive held."
+    )
+    tokens_reused: int = Field(description="Contact tokens declared used more than once.")
+
+
+class ContactBudgetUse(ResponseModel):
+    at_limit: int = Field(description="Of them, the ones with no contact left in the window.")
+    limit: int
+    per_hours: int
+    purpose: ShortStr
+    spent: int
+    subjects: int = Field(description="Subjects with a contact still in the budget's window.")
+
+
+class ContactCount(ResponseModel):
+    contacts: int
+    direction: Literal["inbound", "outbound"]
+    purpose: ShortStr
+    state: Literal["reserved", "made", "expired"]
+
+
 class ContactKey(ResponseModel):
     """An Ed25519 public key as a JWK (RFC 8037). A `retiring` key still verifies and signs nothing new."""
 
@@ -291,6 +318,40 @@ class ContactMade(Model):
     kind: Literal["contact.made"]
     object: ObjectRef | None = None
     subject: Handle | None = None
+
+
+class EffectCount(ResponseModel):
+    effects: int
+    kind: ShortStr
+    state: Literal["reserved", "done", "failed", "unknown_outcome"]
+
+
+class OwnershipCount(ResponseModel):
+    claims: int = Field(description="Claims that hold now.")
+    holder_kind: Literal["agent", "human", "queue", "system"]
+    holders: int = Field(description="Distinct holders among them.")
+    kind: Literal["owner", "case", "task_lock"]
+    level: ShortStr
+    via: Literal["declaration", "mapping", "worker"]
+
+
+class CoordinationOverview(ResponseModel):
+    """What coordination holds now and decided in the window, in counts: no subject, handle or message is in
+    it.
+    """
+
+    awaiting_decision: int = Field(
+        description=(
+            "Effects whose outcome nobody knows, at any age: never sent again by themselves, they wait "
+            "for a system event or a person."
+        )
+    )
+    budgets: list[ContactBudgetUse] = Field(default_factory=list)
+    conflicts: ConflictCounts
+    contacts: list[ContactCount] = Field(default_factory=list)
+    effects: list[EffectCount] = Field(default_factory=list)
+    ownership: list[OwnershipCount] = Field(default_factory=list)
+    since: datetime
 
 
 class CoordinationReport(ResponseModel):

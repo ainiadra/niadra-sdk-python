@@ -13,10 +13,11 @@ uv run python scripts/sync_spec.py --server ../niadra-back --spec ../niadra-spec
 (JSON Schema 2020-12), and `examples/context-pack-v1-turn-as-data.json` its example of the answer to
 a turn, with the turn's slots, as data. `tests/test_spec.py` keeps the SDK's `ContextPack`,
 `PackSection`, `PackStamp`, `PackSlot` and `PackGuard` equal to the schema, field by field, and reads
-the example. When the specification changes, copy the files again and run the tests.
+the example. `--spec` refreshes both schema copies.
 
-`context-pack.v2.json` is the version that adds the blocks a read asks for by `include` (the constraints
-block and the state view); `tests/test_spec.py` keeps `ContextResponse` equal to its fields.
+`context-pack.v2.json` is the version that adds the blocks a read asks for by `include` (constraints,
+state, coordination and budget); `tests/test_spec.py` keeps `ContextResponse` and each block's model equal
+to its fields.
 
 ## The routes of turn records, typed state, signals and coordination
 
