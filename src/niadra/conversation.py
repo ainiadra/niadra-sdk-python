@@ -66,6 +66,7 @@ from niadra.models.events import (
 from niadra.models.results import Context, render_turn
 from niadra.tools import AsyncToolKit, ToolKit, definitions
 from niadra.turns.capture import TurnFrame, TurnKind, current_turn
+from niadra.turns.claims import ClaimCheck
 from niadra.turns.recorder import PinsLike, TurnRecorder
 from niadra.vocabulary import Speaker, Verification
 
@@ -241,6 +242,10 @@ class _Session:
         if frame is not None and context.etag:
             frame.read("pack", etag=context.etag)
             frame.pack(compiler=context.version or None, pack_hash=context.manifest_hash or context.etag)
+        if frame is not None and context.constraints is not None:
+            frame.read("constraints", version=context.constraints.version)
+        if frame is not None and context.state is not None:
+            frame.read("state")
         self._sources.add(context.text)
         self._sources.add(render_turn(context))
         # The guards of the last read hold the answers to the turn they were written for.
@@ -447,6 +452,8 @@ class _SyncSession(_Session):
     def __init__(self, client: Niadra, session_id: str | None, **options: Any) -> None:
         super().__init__(client.track, client._core.fail, session_id, forget=client._forget_scope, **options)
         self._client = client
+        self.claims = ClaimCheck(client._profile.contract)
+        """The claim contract's check on demand: `claims.check(text)` classifies and counts, never changes."""
 
     def _recorder(self) -> TurnRecorder:
         return self._client.turns
@@ -551,6 +558,8 @@ class _AsyncSession(_Session):
     def __init__(self, client: AsyncNiadra, session_id: str | None, **options: Any) -> None:
         super().__init__(client.track, client._core.fail, session_id, forget=client._forget_scope, **options)
         self._client = client
+        self.claims = ClaimCheck(client._profile.contract)
+        """The claim contract's check on demand: `claims.check(text)` classifies and counts, never changes."""
 
     def _recorder(self) -> TurnRecorder:
         return self._client.turns

@@ -18,6 +18,8 @@ from niadra.models.context import (
     SlotWhy,
 )
 from niadra.models.results import Context
+from niadra.models.signals import ConstraintsBlock
+from niadra.models.state import StateView
 
 SPEC = Path(__file__).resolve().parents[1] / "spec"
 SCHEMA = json.loads((SPEC / "context-pack.v1.json").read_text())
@@ -78,3 +80,16 @@ def test_the_specifications_example_reads_without_loss() -> None:
     assert example["delta"] is None
     assert block.index("<live_turns") < block.index(example["slots"])
     assert block.endswith(example["slots"]), "the slots close the block when there is no delta"
+
+
+V2 = json.loads((SPEC / "context-pack.v2.json").read_text())
+
+
+def test_the_answer_has_the_blocks_of_the_context_pack_v2() -> None:
+    assert V2["$id"] == "https://specs.niadra.com/schemas/context-pack.v2.json"
+    assert set(V2["properties"]) == set(ContextResponse.model_fields)
+    for name, model in (("ConstraintsBlock", ConstraintsBlock), ("StateView", StateView)):
+        if name in V2["$defs"]:
+            assert set(V2["$defs"][name]["properties"]) == {
+                field.alias or key for key, field in model.model_fields.items()
+            }, name

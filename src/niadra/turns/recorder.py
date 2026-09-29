@@ -46,8 +46,10 @@ class TurnRecorder:
         self.blob_store: BlobStore | None = None
         self.claims: Callable[[TurnFrame], list[dict[str, Any]]] | None = None
         """The claim check the sender runs on a turn's outputs, when a claim contract applies."""
-        self.recording_mode: Callable[[], ContentMode | None] = lambda: None
+        self.recording_mode: Callable[[], str | None] = lambda: None
         """The mode the space's recording names, when the client knows it (the SDK profile)."""
+        self.features: Callable[[], frozenset[str] | None] = lambda: None
+        """The features the space turned on, when the client knows them (the SDK profile)."""
         self._enabled = enabled
         self._off_until = 0.0
         self._refused = False
@@ -116,11 +118,6 @@ class TurnRecorder:
         except Exception:
             logger.warning("niadra: a closed turn could not be queued", exc_info=True)
 
-    @property
-    def checks_claims(self) -> bool:
-        """Whether outputs are kept for the claim check."""
-        return self.claims is not None
-
     # The company's side
 
     def store(
@@ -143,14 +140,21 @@ class TurnRecorder:
             return self.options.content_mode
         if self.blob_store is not None:
             return "pointer"
-        return self.recording_mode() or "stored"
+        mode = self.recording_mode()
+        if mode == "pointer":
+            return "pointer"
+        return "hash_only" if mode == "hash_only" else "stored"
 
     def mode_of(self, frame: TurnFrame) -> ContentMode:
         return frame.mode or self.content_mode
 
     @property
     def recording(self) -> bool:
-        return self._enabled and time.monotonic() >= self._off_until
+        """Whether closed turns are kept: the client has a key, and the space records turns as far as the
+        SDK knows (the profile lists `turns`, or it has not been read yet)."""
+        features = self.features()
+        on = features is None or "turns" in features
+        return self._enabled and on and time.monotonic() >= self._off_until
 
     @property
     def pending(self) -> int:
@@ -174,11 +178,13 @@ class TurnRecorder:
             self.rejected_turns += count
         logger.warning("niadra: %d turn records were refused (%s)", count, ", ".join(sorted(codes)))
 
-    def not_recorded(self, count: int) -> None:
-        """The space does not record turns: this batch is dropped, and recording stops for a while."""
+    def not_recorded(self, count: int, *, off: bool) -> None:
+        """The space does not record turns: these are dropped, and with `off` (the route answered 404)
+        recording stops for a while."""
         with self._lock:
             self.not_kept += count
-            self._off_until = time.monotonic() + OFF_FOR
+            if off:
+                self._off_until = time.monotonic() + OFF_FOR
         self._warn_once("off", "niadra: this space does not record turns; turn recording is off for now")
 
     def mode_refused(self) -> None:

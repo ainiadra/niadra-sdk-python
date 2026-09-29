@@ -1,0 +1,2329 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://specs.niadra.com/schemas/context-pack.v2.json",
+  "title": "Niadra Context Pack v2",
+  "description": "What an agent should know about one subject now: text for the model and metadata for the program. See spec/context-pack.md.",
+  "$defs": {
+    "AttributeEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^z[0-9]{1,4}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "pattern": "^[a-z][a-z0-9_]{0,63}(?:\\.[a-z0-9_]{1,64}){0,3}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "system": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "System"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "maxLength": 256,
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "source": {
+          "enum": [
+            "stated",
+            "correction",
+            "acquired",
+            "kept",
+            "returned_for_size",
+            "inferred"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "apply": {
+          "enum": [
+            "always",
+            "when_asked"
+          ],
+          "title": "Apply",
+          "type": "string"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "value",
+        "confidence",
+        "source",
+        "apply"
+      ],
+      "title": "AttributeEntry",
+      "type": "object"
+    },
+    "BlockSubject": {
+      "additionalProperties": false,
+      "properties": {
+        "for": {
+          "default": "self",
+          "pattern": "^(?:self|gift|beneficiary:[A-Za-z0-9_-]{1,64})$",
+          "title": "For",
+          "type": "string"
+        }
+      },
+      "title": "BlockSubject",
+      "type": "object"
+    },
+    "CacheDirectives": {
+      "additionalProperties": false,
+      "properties": {
+        "breakpoints": {
+          "description": "Character offsets where a cache breakpoint may be placed.",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Breakpoints",
+          "type": "array"
+        },
+        "ttl_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ttl Seconds"
+        },
+        "floor_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Floor Tokens"
+        },
+        "cacheable": {
+          "title": "Cacheable",
+          "type": "boolean"
+        },
+        "salt": {
+          "description": "Stable cache salt for self-hosted engines.",
+          "title": "Salt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "breakpoints",
+        "cacheable",
+        "salt"
+      ],
+      "title": "CacheDirectives",
+      "type": "object"
+    },
+    "CompanyRule": {
+      "additionalProperties": false,
+      "description": "A rule of the company delivered in the block, with where it lives and its rank in the order the company declared: the block never ranks two origins by itself.",
+      "properties": {
+        "id": {
+          "pattern": "^r[0-9]{1,4}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "origin": {
+          "description": "`code`, `db:<table>`, `prompt:<version>`, `policy:<version>`...",
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Origin",
+          "type": "string"
+        },
+        "rank": {
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Rank",
+          "type": "integer"
+        },
+        "attr": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{0,39}\\.[a-z][a-z0-9_]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attr"
+        },
+        "op": {
+          "anyOf": [
+            {
+              "enum": [
+                "in",
+                "not_in",
+                "eq",
+                "ne",
+                "lt",
+                "lte",
+                "gt",
+                "gte",
+                "between"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Op"
+        },
+        "values": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "maxLength": 256,
+                "type": "string"
+              }
+            ]
+          },
+          "maxItems": 50,
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "origin",
+        "rank"
+      ],
+      "title": "CompanyRule",
+      "type": "object"
+    },
+    "Conflict": {
+      "additionalProperties": false,
+      "description": "Two entries that cannot both hold, and the one that won: the current utterance over what was stated before, and a stated entry over an inferred one. Between two company rules, it is also a data issue.",
+      "properties": {
+        "ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 10,
+          "minItems": 2,
+          "title": "Ids",
+          "type": "array"
+        },
+        "kept": {
+          "title": "Kept",
+          "type": "string"
+        },
+        "by": {
+          "enum": [
+            "current_utterance",
+            "precedence",
+            "rule_rank"
+          ],
+          "title": "By",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ids",
+        "kept",
+        "by"
+      ],
+      "title": "Conflict",
+      "type": "object"
+    },
+    "ConstraintOrigin": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "stated",
+            "tool_args",
+            "correction"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "event_key": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Event Key"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Id"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "ConstraintOrigin",
+      "type": "object"
+    },
+    "ConstraintsBlock": {
+      "additionalProperties": false,
+      "description": "What one subject wants, refuses and is, for the tools of this turn (`constraints.v0`).",
+      "properties": {
+        "version": {
+          "description": "A digest of the block, which the turn record cites.",
+          "pattern": "^cv_[0-9a-f]{8,64}$",
+          "title": "Version",
+          "type": "string"
+        },
+        "subject": {
+          "$ref": "#/$defs/BlockSubject"
+        },
+        "hard": {
+          "items": {
+            "$ref": "#/$defs/HardConstraint"
+          },
+          "maxItems": 100,
+          "title": "Hard",
+          "type": "array"
+        },
+        "soft": {
+          "items": {
+            "$ref": "#/$defs/SoftConstraint"
+          },
+          "maxItems": 100,
+          "title": "Soft",
+          "type": "array"
+        },
+        "attributes": {
+          "items": {
+            "$ref": "#/$defs/AttributeEntry"
+          },
+          "maxItems": 50,
+          "title": "Attributes",
+          "type": "array"
+        },
+        "exclude": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}:[^:\\s]{1,256}:\\S{1,512}$",
+            "type": "string"
+          },
+          "maxItems": 200,
+          "title": "Exclude",
+          "type": "array"
+        },
+        "already_presented": {
+          "items": {
+            "$ref": "#/$defs/Shown"
+          },
+          "maxItems": 200,
+          "title": "Already Presented",
+          "type": "array"
+        },
+        "relaxation_order": {
+          "description": "What gives way first when a search finds nothing: `soft`, ids.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Relaxation Order",
+          "type": "array"
+        },
+        "precedence": {
+          "items": {
+            "enum": [
+              "current_utterance",
+              "stated_persistent",
+              "inferred"
+            ],
+            "type": "string"
+          },
+          "title": "Precedence",
+          "type": "array"
+        },
+        "rules": {
+          "items": {
+            "$ref": "#/$defs/CompanyRule"
+          },
+          "maxItems": 50,
+          "title": "Rules",
+          "type": "array"
+        },
+        "conflicts": {
+          "items": {
+            "$ref": "#/$defs/Conflict"
+          },
+          "maxItems": 50,
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "ask": {
+          "description": "Questions the agent should ask, as `for_whom`, before assuming.",
+          "items": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Ask",
+          "type": "array"
+        },
+        "rendered": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rendered"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "title": "ConstraintsBlock",
+      "type": "object"
+    },
+    "ContentMarker": {
+      "additionalProperties": false,
+      "description": "A content field whose text Niadra does not hold (`pointer`, `hash_only`), or holds under scan.",
+      "properties": {
+        "mode": {
+          "enum": [
+            "full",
+            "pointer",
+            "hash_only"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "pointer": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Where the SDK reads the text inside the company's boundary.",
+          "title": "Pointer"
+        },
+        "scan": {
+          "enum": [
+            "pending",
+            "clean",
+            "flagged"
+          ],
+          "title": "Scan",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode",
+        "scan"
+      ],
+      "title": "ContentMarker",
+      "type": "object"
+    },
+    "ContextPack": {
+      "additionalProperties": false,
+      "description": "The pack as data (`format: \"json\"`): the same bytes as `text`, split by section in layer order.",
+      "properties": {
+        "spec": {
+          "const": "context-pack.v1",
+          "default": "context-pack.v1",
+          "description": "The shape's version. `context-pack.v1` adds `slots` to `v0` and changes nothing else.",
+          "title": "Spec",
+          "type": "string"
+        },
+        "view": {
+          "title": "View",
+          "type": "string"
+        },
+        "verification": {
+          "$ref": "#/$defs/Verification",
+          "description": "The effective level."
+        },
+        "withheld": {
+          "title": "Withheld",
+          "type": "integer"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "As Of"
+        },
+        "preamble": {
+          "description": "The tenant block: the line that says the content is data, not instructions, and the usage rules.",
+          "title": "Preamble",
+          "type": "string"
+        },
+        "sections": {
+          "items": {
+            "$ref": "#/$defs/PackSection"
+          },
+          "title": "Sections",
+          "type": "array"
+        },
+        "variables": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Variables",
+          "type": "object"
+        },
+        "stamp": {
+          "$ref": "#/$defs/PackStamp"
+        },
+        "slots": {
+          "description": "The lines of `slots`, typed. Not part of the pinned sections.",
+          "items": {
+            "$ref": "#/$defs/PackSlot"
+          },
+          "title": "Slots",
+          "type": "array"
+        }
+      },
+      "required": [
+        "view",
+        "verification",
+        "withheld",
+        "preamble",
+        "sections",
+        "stamp"
+      ],
+      "title": "ContextPack",
+      "type": "object"
+    },
+    "DeliveryPath": {
+      "description": "Which read tier answered a `context()` call.",
+      "enum": [
+        "t0",
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "holdout",
+        "not_modified"
+      ],
+      "title": "DeliveryPath",
+      "type": "string"
+    },
+    "EventKind": {
+      "enum": [
+        "message",
+        "system_event",
+        "action"
+      ],
+      "title": "EventKind",
+      "type": "string"
+    },
+    "FieldState": {
+      "additionalProperties": false,
+      "description": "One field as a read serves it: the value with its logical value, stamps, source and observer, and the freshness computed now against the type's current rule.",
+      "properties": {
+        "v": {
+          "default": null,
+          "title": "V"
+        },
+        "logic": {
+          "enum": [
+            "yes",
+            "no",
+            "unobserved",
+            "known_defect"
+          ],
+          "title": "Logic",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "fresh",
+            "stale",
+            "expired"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "age_s": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Seconds since `observed_at`.",
+          "title": "Age S"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "When the source observed the value.",
+          "title": "Observed At"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src"
+        },
+        "observer": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observer"
+        },
+        "valid_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Valid At"
+        },
+        "known_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "When Niadra first knew it; never moves.",
+          "title": "Known At"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        },
+        "claim_safe": {
+          "title": "Claim Safe",
+          "type": "boolean"
+        },
+        "completeness": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Completeness"
+        },
+        "masked": {
+          "default": false,
+          "description": "The reader's access masks the value: `v` is absent.",
+          "title": "Masked",
+          "type": "boolean"
+        },
+        "was": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PreviousValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "content": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContentMarker"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "logic",
+        "status",
+        "claim_safe"
+      ],
+      "title": "FieldState",
+      "type": "object"
+    },
+    "HardConstraint": {
+      "additionalProperties": false,
+      "description": "Only what the person said: an inference is never hard.",
+      "properties": {
+        "id": {
+          "pattern": "^h[0-9]{1,4}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "attr": {
+          "pattern": "^[a-z][a-z0-9_]{0,39}\\.[a-z][a-z0-9_]{0,63}$",
+          "title": "Attr",
+          "type": "string"
+        },
+        "op": {
+          "enum": [
+            "in",
+            "not_in",
+            "eq",
+            "ne",
+            "lt",
+            "lte",
+            "gt",
+            "gte",
+            "between"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "maxLength": 256,
+                "type": "string"
+              }
+            ]
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "title": "Values",
+          "type": "array"
+        },
+        "source": {
+          "enum": [
+            "stated",
+            "tool_args",
+            "correction"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "scope": {
+          "enum": [
+            "turn",
+            "session",
+            "persistent"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category"
+        },
+        "relax": {
+          "default": "never",
+          "enum": [
+            "never",
+            "ask"
+          ],
+          "title": "Relax",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/ConstraintOrigin"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        }
+      },
+      "required": [
+        "id",
+        "attr",
+        "op",
+        "values",
+        "source",
+        "scope",
+        "origin"
+      ],
+      "title": "HardConstraint",
+      "type": "object"
+    },
+    "LiveTurn": {
+      "additionalProperties": false,
+      "description": "A recent turn from another conversation, not yet absorbed by the pack (B3). It passes the same policy as the pack's items: the level the conversation proved and the reader's purposes decide.",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "channel": {
+          "title": "Channel",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "speaker": {
+          "title": "Speaker",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at",
+        "channel",
+        "kind",
+        "speaker",
+        "text",
+        "source_id"
+      ],
+      "title": "LiveTurn",
+      "type": "object"
+    },
+    "ObjectRead": {
+      "additionalProperties": false,
+      "description": "One object as a state read serves it: fields with four logical values and their stamps, computed values, lifecycle, timers and readings, and what may not be claimed with data this old. A read never refuses; a `decide` read of a type that asks for it carries `refusal` beside the values, for the company's tool.",
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/StateRef"
+        },
+        "type_version": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Type Version"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "As Of"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "State"
+        },
+        "latches": {
+          "additionalProperties": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "title": "Latches",
+          "type": "object"
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OutcomeState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "derived_status": {
+          "anyOf": [
+            {
+              "enum": [
+                "current",
+                "expired_by_input"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Derived Status"
+        },
+        "expired_by": {
+          "description": "The inputs whose change expired it.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Expired By",
+          "type": "array"
+        },
+        "fields": {
+          "additionalProperties": {
+            "$ref": "#/$defs/FieldState"
+          },
+          "title": "Fields",
+          "type": "object"
+        },
+        "values": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ValueState"
+          },
+          "title": "Values",
+          "type": "object"
+        },
+        "timers": {
+          "items": {
+            "$ref": "#/$defs/TimerState"
+          },
+          "title": "Timers",
+          "type": "array"
+        },
+        "readings": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ReadingResult"
+          },
+          "title": "Readings",
+          "type": "object"
+        },
+        "prohibitions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Prohibitions",
+          "type": "array"
+        },
+        "declared_gaps": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Declared Gaps",
+          "type": "array"
+        },
+        "withheld": {
+          "additionalProperties": {
+            "enum": [
+              "access",
+              "licence",
+              "scan"
+            ],
+            "type": "string"
+          },
+          "description": "Fields left out for this reader, and why.",
+          "title": "Withheld",
+          "type": "object"
+        },
+        "blocked": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "description": "What the fields whose value is not known block, as the type declares it (`unobserved_blocks`): each activity (`model_read`, `derive`, `claim`, or a task of the company such as `decide:close`) with the fields that block it. Nothing else is blocked.",
+          "propertyNames": {
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "title": "Blocked",
+          "type": "object"
+        },
+        "refetch": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Refetch"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "refusal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Refusal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "ref"
+      ],
+      "title": "ObjectRead",
+      "type": "object"
+    },
+    "OutcomeState": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "description": "A canonical state of the type, or `expired_without_outcome`.",
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "State",
+          "type": "string"
+        },
+        "final": {
+          "title": "Final",
+          "type": "boolean"
+        },
+        "at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "At"
+        }
+      },
+      "required": [
+        "state",
+        "final"
+      ],
+      "title": "OutcomeState",
+      "type": "object"
+    },
+    "PackGuard": {
+      "additionalProperties": false,
+      "description": "What one guard line states: the value memory holds for a kind the turn asked about, by the precedence of who stated it, so the agent's answer can be checked against it at once.",
+      "properties": {
+        "id": {
+          "description": "The value's short id, as the guard line's `PackSlot.id`.",
+          "title": "Id",
+          "type": "string"
+        },
+        "value_type": {
+          "description": "`protocol`, `ticket`, `order`, `record`, `receipt`, `postal_code`, `amount`, `date` or `code`.",
+          "title": "Value Type",
+          "type": "string"
+        },
+        "value": {
+          "description": "The value as the line writes it.",
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "value_type",
+        "value"
+      ],
+      "title": "PackGuard",
+      "type": "object"
+    },
+    "PackSection": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Stable across languages; read this, never `label`.",
+          "enum": [
+            "account",
+            "customer",
+            "facts",
+            "stable_patterns",
+            "meta",
+            "history",
+            "summary",
+            "episodes",
+            "volatile_patterns",
+            "actions",
+            "objects",
+            "pending"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "label": {
+          "description": "The line's label in the space's language, as the text shows it.",
+          "title": "Label",
+          "type": "string"
+        },
+        "layer": {
+          "enum": [
+            "account",
+            "stable",
+            "volatile"
+          ],
+          "title": "Layer",
+          "type": "string"
+        },
+        "lines": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Lines",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "label",
+        "layer",
+        "lines"
+      ],
+      "title": "PackSection",
+      "type": "object"
+    },
+    "PackSlot": {
+      "additionalProperties": false,
+      "description": "One line of the per-turn slots: an item the customer's last turn selected, a guard (a value the agent must not state otherwise), or a line derived from memory (`count`, `no_record`, `withheld`).",
+      "properties": {
+        "section": {
+          "description": "The pack section the item comes from (`episodes`, `objects`...), `guard` for a guard line, or `derived`.",
+          "title": "Section",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The short id of the item the line states: the last eight hex digits of its public id. An agent's turn names a guard it went against by it. Absent for a derived line.",
+          "title": "Id"
+        },
+        "derived": {
+          "anyOf": [
+            {
+              "enum": [
+                "count",
+                "no_record",
+                "withheld"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Derived"
+        },
+        "channels": {
+          "description": "The channels that ranked the item: `exact`, `lexical`, `temporal`, `values`, `semantic`, `linked`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Channels",
+          "type": "array"
+        },
+        "text": {
+          "description": "The line as `slots` prints it.",
+          "title": "Text",
+          "type": "string"
+        },
+        "why": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SlotWhy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "With `explain`: why this line was chosen."
+        }
+      },
+      "required": [
+        "section",
+        "text"
+      ],
+      "title": "PackSlot",
+      "type": "object"
+    },
+    "PackStamp": {
+      "additionalProperties": false,
+      "description": "What an agent's turn should carry to say which pack its prompt held (spec 8.5).",
+      "properties": {
+        "etag": {
+          "title": "Etag",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "As Of"
+        },
+        "manifest_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manifest Hash"
+        }
+      },
+      "required": [
+        "etag",
+        "version"
+      ],
+      "title": "PackStamp",
+      "type": "object"
+    },
+    "PreviousValue": {
+      "additionalProperties": false,
+      "description": "A field's value before its latest change, kept for the fields that declare `track_changes`.",
+      "properties": {
+        "v": {
+          "default": null,
+          "title": "V"
+        },
+        "logic": {
+          "enum": [
+            "yes",
+            "no",
+            "unobserved",
+            "known_defect"
+          ],
+          "title": "Logic",
+          "type": "string"
+        }
+      },
+      "required": [
+        "logic"
+      ],
+      "title": "PreviousValue",
+      "type": "object"
+    },
+    "ReadingResult": {
+      "additionalProperties": false,
+      "description": "A named reading's value, as niadra-expr computes it: the logical value, and the kind and value when known (dates as `YYYY-MM-DD`, times in UTC, durations in milliseconds).",
+      "properties": {
+        "logic": {
+          "enum": [
+            "yes",
+            "no",
+            "unobserved",
+            "known_defect"
+          ],
+          "title": "Logic",
+          "type": "string"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "enum": [
+                "bool",
+                "number",
+                "string",
+                "duration",
+                "date",
+                "datetime",
+                "list"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Type"
+        },
+        "v": {
+          "default": null,
+          "title": "V"
+        },
+        "absent": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Absent"
+        }
+      },
+      "required": [
+        "logic"
+      ],
+      "title": "ReadingResult",
+      "type": "object"
+    },
+    "Refetch": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "priority": {
+          "enum": [
+            "high",
+            "normal",
+            "low"
+          ],
+          "title": "Priority",
+          "type": "string"
+        },
+        "admitted": {
+          "title": "Admitted",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason",
+        "priority",
+        "admitted"
+      ],
+      "title": "Refetch",
+      "type": "object"
+    },
+    "Refusal": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "action": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "title": "Refusal",
+      "type": "object"
+    },
+    "Rendered": {
+      "additionalProperties": false,
+      "description": "The block for one tool, through its bindings (`constraints.v0`, rendering).",
+      "properties": {
+        "tool": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Tool",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "advisory",
+            "apply"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "args": {
+          "additionalProperties": true,
+          "description": "Argument values that carry hard constraints and attributes.",
+          "title": "Args",
+          "type": "object"
+        },
+        "residual": {
+          "description": "Ids no argument of the tool can express.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Residual",
+          "type": "array"
+        },
+        "post_filter": {
+          "description": "Residual ids the SDK filters from the results of an overfetch.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Post Filter",
+          "type": "array"
+        }
+      },
+      "required": [
+        "tool",
+        "mode",
+        "args"
+      ],
+      "title": "Rendered",
+      "type": "object"
+    },
+    "Shown": {
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "pattern": "^[a-z][a-z0-9_]{0,39}:[^:\\s]{1,256}:\\S{1,512}$",
+          "title": "Ref",
+          "type": "string"
+        },
+        "times": {
+          "minimum": 1,
+          "title": "Times",
+          "type": "integer"
+        },
+        "last_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last At"
+        }
+      },
+      "required": [
+        "ref",
+        "times"
+      ],
+      "title": "Shown",
+      "type": "object"
+    },
+    "SlotChannelRank": {
+      "additionalProperties": false,
+      "description": "One retrieval channel's part in a slot's fused score (weighted reciprocal rank fusion).",
+      "properties": {
+        "channel": {
+          "description": "`exact`, `values`, `lexical`, `temporal`, `semantic` or `linked`.",
+          "title": "Channel",
+          "type": "string"
+        },
+        "position": {
+          "description": "1-based, in that channel's own ranking for the turn.",
+          "title": "Position",
+          "type": "integer"
+        },
+        "weight": {
+          "description": "The channel's weight in this fusion.",
+          "title": "Weight",
+          "type": "number"
+        },
+        "contribution": {
+          "description": "`weight / (60 + position)`: what the channel added to `score`.",
+          "title": "Contribution",
+          "type": "number"
+        }
+      },
+      "required": [
+        "channel",
+        "position",
+        "weight",
+        "contribution"
+      ],
+      "title": "SlotChannelRank",
+      "type": "object"
+    },
+    "SlotWhy": {
+      "additionalProperties": false,
+      "description": "Why a line took a slot (`explain`). Ids, positions and numbers; never a line or a value.",
+      "properties": {
+        "item_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The item, as manifests and context-use name it; absent for a derived line.",
+          "title": "Item Id"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The fused score: the sum of the channels' contributions.",
+          "title": "Score"
+        },
+        "channels": {
+          "description": "Each channel that ranked the item, in fusion order.",
+          "items": {
+            "$ref": "#/$defs/SlotChannelRank"
+          },
+          "title": "Channels",
+          "type": "array"
+        },
+        "weights_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The space's learned fusion weights used; absent for the defaults.",
+          "title": "Weights Version"
+        },
+        "excerpt": {
+          "default": false,
+          "description": "The line was cut to the sentences that answer the turn.",
+          "title": "Excerpt",
+          "type": "boolean"
+        },
+        "rule": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For a derived line: `guard_<value type>` (a guard line), `count_topic_complaints`, `count_topic` (the conversations about the matter asked), `count_complaints`, `count_conversations` (by the category of the best match), `no_record` or `withheld_may_hold`.",
+          "title": "Rule"
+        },
+        "basis": {
+          "additionalProperties": true,
+          "description": "For a derived line, what the rule counted or missed: `basis` (the conversation that chose the category, or the value a guard states), `category`, `counted`, `window_days`; for a count by the matter asked, `units` (what the question says, in words and phrases) and `matched` (how many of them a conversation answers to be counted); `asked_types`, `identifiers` (how many numbers the turn named, never which), `withheld`; for a guard, `value_type` and `origin` (who stated the value).",
+          "title": "Basis",
+          "type": "object"
+        }
+      },
+      "title": "SlotWhy",
+      "type": "object"
+    },
+    "SoftConstraint": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^s[0-9]{1,4}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "attr": {
+          "pattern": "^[a-z][a-z0-9_]{0,39}\\.[a-z][a-z0-9_]{0,63}$",
+          "title": "Attr",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "maxLength": 256,
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        },
+        "polarity": {
+          "default": "prefer",
+          "enum": [
+            "prefer",
+            "avoid"
+          ],
+          "title": "Polarity",
+          "type": "string"
+        },
+        "weight": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Weight",
+          "type": "number"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "source": {
+          "enum": [
+            "inferred",
+            "stated"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category"
+        }
+      },
+      "required": [
+        "id",
+        "attr",
+        "value",
+        "weight",
+        "confidence",
+        "source"
+      ],
+      "title": "SoftConstraint",
+      "type": "object"
+    },
+    "SourceCoverage": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "status": {
+          "description": "`ok` or `silent` when the source stopped sending.",
+          "title": "Status",
+          "type": "string"
+        },
+        "last_event_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Event At"
+        }
+      },
+      "required": [
+        "source_id",
+        "status"
+      ],
+      "title": "SourceCoverage",
+      "type": "object"
+    },
+    "StateRef": {
+      "additionalProperties": false,
+      "description": "An object of the type registry: a subject's or a shared one, whose key may name a variant.",
+      "properties": {
+        "type": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Type",
+          "type": "string"
+        },
+        "namespace": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Namespace",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "variant": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Variant"
+        }
+      },
+      "required": [
+        "type",
+        "namespace",
+        "id"
+      ],
+      "title": "StateRef",
+      "type": "object"
+    },
+    "StateView": {
+      "additionalProperties": false,
+      "description": "The state of one subject: their objects of the declared types, each as a `display` read serves it.",
+      "properties": {
+        "objects": {
+          "items": {
+            "$ref": "#/$defs/ObjectRead"
+          },
+          "title": "Objects",
+          "type": "array"
+        },
+        "interests": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Interests",
+          "type": "array"
+        },
+        "changes_since_seen": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Changes Since Seen",
+          "type": "array"
+        },
+        "degraded": {
+          "default": false,
+          "title": "Degraded",
+          "type": "boolean"
+        }
+      },
+      "title": "StateView",
+      "type": "object"
+    },
+    "TimerState": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "due_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Computed now from the rule and the values.",
+          "title": "Due At"
+        },
+        "state": {
+          "enum": [
+            "armed",
+            "fired",
+            "cancelled"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "fired_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fired At"
+        }
+      },
+      "required": [
+        "name",
+        "state"
+      ],
+      "title": "TimerState",
+      "type": "object"
+    },
+    "ValueState": {
+      "additionalProperties": false,
+      "description": "A value the company computed, kept as a versioned fact with the rule that produced it.",
+      "properties": {
+        "v": {
+          "default": null,
+          "title": "V"
+        },
+        "logic": {
+          "enum": [
+            "yes",
+            "no",
+            "unobserved",
+            "known_defect"
+          ],
+          "title": "Logic",
+          "type": "string"
+        },
+        "absent_as": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The name of the absence, when absent.",
+          "title": "Absent As"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "rule": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Rule",
+          "type": "string"
+        },
+        "computed_at": {
+          "format": "date-time",
+          "title": "Computed At",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "fresh",
+            "stale",
+            "expired"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "supersedes_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Supersedes Version"
+        },
+        "declared_gaps": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Declared Gaps",
+          "type": "array"
+        },
+        "gap_effect": {
+          "default": "unknown",
+          "enum": [
+            "errs_early",
+            "errs_late",
+            "unknown"
+          ],
+          "title": "Gap Effect",
+          "type": "string"
+        },
+        "claim_safe": {
+          "title": "Claim Safe",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "logic",
+        "version",
+        "rule",
+        "computed_at",
+        "status",
+        "claim_safe"
+      ],
+      "title": "ValueState",
+      "type": "object"
+    },
+    "Verification": {
+      "description": "Session verification levels. `no_customer` sits outside the V0-V4 scale.",
+      "enum": [
+        "V0",
+        "V1",
+        "V2",
+        "V3",
+        "V4",
+        "no_customer"
+      ],
+      "title": "Verification",
+      "type": "string"
+    },
+    "VerificationResult": {
+      "additionalProperties": false,
+      "properties": {
+        "requested": {
+          "$ref": "#/$defs/Verification"
+        },
+        "effective": {
+          "$ref": "#/$defs/Verification"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Why effective is lower: `source_ceiling`, `not_proven`, or `unconfirmed_link` (the read went through an identifier joined to the profile by a claim nobody confirmed yet, so it stays at V1 until the company's systems, a login or a person confirm the link).",
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "requested",
+        "effective"
+      ],
+      "title": "VerificationResult",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "not_modified": {
+      "default": false,
+      "title": "Not Modified",
+      "type": "boolean"
+    },
+    "text": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Text"
+    },
+    "variables": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Variables",
+      "type": "object"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    },
+    "etag": {
+      "title": "Etag",
+      "type": "string"
+    },
+    "manifest_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Manifest Hash"
+    },
+    "as_of": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "As Of"
+    },
+    "lag_seconds": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lag Seconds"
+    },
+    "coverage": {
+      "items": {
+        "$ref": "#/$defs/SourceCoverage"
+      },
+      "title": "Coverage",
+      "type": "array"
+    },
+    "verification": {
+      "$ref": "#/$defs/VerificationResult"
+    },
+    "withheld": {
+      "default": 0,
+      "description": "Items and `live` turns the policy left out for this reader and level.",
+      "title": "Withheld",
+      "type": "integer"
+    },
+    "live": {
+      "description": "Recent turns of the customer's other conversations not yet in the compiled context, oldest first: at most the newest 50, from the newest 100 turns of each of the customer's handles.",
+      "items": {
+        "$ref": "#/$defs/LiveTurn"
+      },
+      "title": "Live",
+      "type": "array"
+    },
+    "live_complete": {
+      "default": true,
+      "description": "False when the hot layer was unavailable, a turn could not be read, or a handle had more recent turns than were read.",
+      "title": "Live Complete",
+      "type": "boolean"
+    },
+    "delta": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "With `delta`: what memory learned since this agent's last read, for the end of the prompt. The turn block after `text` is `live`, then `slots`, then `delta`.",
+      "title": "Delta"
+    },
+    "slots": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "With `query`: what the customer's last turn selected from memory for this turn. It goes in the turn block after `text`, in this order: the `live` turns, then `slots`, then `delta`. Never part of `text`, which stays the same bytes for the whole conversation.",
+      "title": "Slots"
+    },
+    "guards": {
+      "description": "What the guard lines among `slots` state, typed. An SDK checks the agent's answer against them and names a guard the answer went against on the agent's turn (`backing.guard_violations`).",
+      "items": {
+        "$ref": "#/$defs/PackGuard"
+      },
+      "title": "Guards",
+      "type": "array"
+    },
+    "cache": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CacheDirectives"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "timing": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Timing",
+      "type": "object"
+    },
+    "path": {
+      "$ref": "#/$defs/DeliveryPath"
+    },
+    "degraded": {
+      "default": false,
+      "title": "Degraded",
+      "type": "boolean"
+    },
+    "pack": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContextPack"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "With `format: \"json\"`; absent when `text` is absent."
+    },
+    "constraints": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ConstraintsBlock"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "With `include: [\"constraints\"]`: what the subject wants, refuses and is, for the tools of this turn (`constraints.v0`)."
+    },
+    "state": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StateView"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "With `include: [\"state\"]`: the subject's objects of the declared types, each as a `display` read serves it (`object-state.v1`): values with their logical value, stamps, source and freshness computed now, and what may not be claimed with them."
+    }
+  },
+  "required": [
+    "version",
+    "etag",
+    "verification",
+    "path"
+  ],
+  "type": "object"
+}

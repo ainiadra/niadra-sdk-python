@@ -15,6 +15,9 @@ a turn, with the turn's slots, as data. `tests/test_spec.py` keeps the SDK's `Co
 `PackSection`, `PackStamp`, `PackSlot` and `PackGuard` equal to the schema, field by field, and reads
 the example. When the specification changes, copy the files again and run the tests.
 
+`context-pack.v2.json` is the version that adds the blocks a read asks for by `include` (the constraints
+block and the state view); `tests/test_spec.py` keeps `ContextResponse` equal to its fields.
+
 ## The routes of turn records, typed state, signals and coordination
 
 `openapi/cell.json` is the part of the server's OpenAPI document with these routes and every schema they

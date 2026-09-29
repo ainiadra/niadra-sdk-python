@@ -131,7 +131,7 @@ class _Sender:
             self._accepted(batch, answer)
             return True
         if isinstance(error, NotFoundError):
-            self._recorder.not_recorded(len(batch.frames))
+            self._recorder.not_recorded(len(batch.frames), off=True)
             return True
         if isinstance(error, NiadraError) and is_retryable(error):
             self._queue.requeue(batch.frames)
@@ -200,10 +200,12 @@ class SyncTurnSender(_Sender):
         interval: float,
         send: Callable[[Request], Any],
         timeout: float,
+        refresh: Callable[[], object] | None = None,
     ) -> None:
         super().__init__(recorder, queue, interval)
         self._send = send
         self._timeout = timeout
+        self._refresh = refresh
         self._wake = threading.Condition()
         self._stopping = False
         self._thread: threading.Thread | None = None
@@ -263,6 +265,11 @@ class SyncTurnSender(_Sender):
         frames = self._queue.take(MAX_TURNS)
         if not frames:
             return True
+        if self._refresh is not None:
+            self._refresh()
+        if not self._recorder.recording:
+            self._recorder.not_recorded(len(frames), off=False)
+            return True
         try:
             prepared = self.prepare(frames)
         except Exception:
@@ -291,10 +298,12 @@ class AsyncTurnSender(_Sender):
         interval: float,
         send: Callable[[Request], Awaitable[Any]],
         timeout: float,
+        refresh: Callable[[], Awaitable[object]] | None = None,
     ) -> None:
         super().__init__(recorder, queue, interval)
         self._send = send
         self._timeout = timeout
+        self._refresh = refresh
         self._task: asyncio.Task[None] | None = None
         self._wake: asyncio.Event | None = None
         self._stopping = False
@@ -372,6 +381,11 @@ class AsyncTurnSender(_Sender):
     async def _send_next(self) -> bool:
         frames = self._queue.take(MAX_TURNS)
         if not frames:
+            return True
+        if self._refresh is not None:
+            await self._refresh()
+        if not self._recorder.recording:
+            self._recorder.not_recorded(len(frames), off=False)
             return True
         try:
             prepared = await asyncio.to_thread(self.prepare, frames)

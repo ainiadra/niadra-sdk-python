@@ -220,11 +220,16 @@ class Api(SyncRoutes):
         return self._call(ObjectSnapshotResponse, "POST", "/v1/objects/snapshot", body=body)
 
     def sdk_profile(self) -> SdkProfile:
-        """`GET /v1/sdk/profile`."""
+        """`GET /v1/sdk/profile`. What the SDK keeps in its local cache, from the configuration alone: no
+        database, no receipt.
+        """
         return self._call(SdkProfile, "GET", "/v1/sdk/profile")
 
     def state_read(self, body: StateReadRequest) -> StateReadResponse:
-        """`POST /v1/state/read`."""
+        """`POST /v1/state/read`. Objects by reference, each for the read's purpose: values with their logical
+        value, stamps, source and freshness computed now, what may not be claimed, and the refusal a
+        `decide` read of a type asks for.
+        """
         return self._call(StateReadResponse, "POST", "/v1/state/read", body=body)
 
     def refresh_requests(self, *, limit: int = 50) -> RefreshRequestPage:
@@ -244,7 +249,9 @@ class Api(SyncRoutes):
         return self._call(TypeFingerprintResponse, "POST", "/v1/types/fingerprint", body=body)
 
     def constraints(self, body: ConstraintsRequest) -> ConstraintsBlock:
-        """`POST /v1/constraints`."""
+        """`POST /v1/constraints`. The constraints block of one subject, the one `include: ["constraints"]`
+        adds to a context read; `for` asks for a beneficiary's.
+        """
         return self._call(ConstraintsBlock, "POST", "/v1/constraints", body=body)
 
     def create_legal_hold(self, body: LegalHoldCreate, *, idempotency_key: str | None = None) -> LegalHold:
@@ -375,9 +382,9 @@ class Api(SyncRoutes):
             DeclareResult, "POST", "/v1/coordination/declare", body=body, key=idempotency_key or new_key()
         )
 
-    def reserve_effect(self, body: EffectReserve, *, idempotency_key: str | None = None) -> Effect:
+    def reserve_effect(self, body: EffectReserve, *, idempotency_key: str | None = None) -> Effect | None:
         """`POST /v1/coordination/effects`."""
-        return self._call(
+        return self._call_optional(
             Effect, "POST", "/v1/coordination/effects", body=body, key=idempotency_key or new_key()
         )
 
@@ -563,11 +570,16 @@ class AsyncApi(AsyncRoutes):
         return await self._call(ObjectSnapshotResponse, "POST", "/v1/objects/snapshot", body=body)
 
     async def sdk_profile(self) -> SdkProfile:
-        """`GET /v1/sdk/profile`."""
+        """`GET /v1/sdk/profile`. What the SDK keeps in its local cache, from the configuration alone: no
+        database, no receipt.
+        """
         return await self._call(SdkProfile, "GET", "/v1/sdk/profile")
 
     async def state_read(self, body: StateReadRequest) -> StateReadResponse:
-        """`POST /v1/state/read`."""
+        """`POST /v1/state/read`. Objects by reference, each for the read's purpose: values with their logical
+        value, stamps, source and freshness computed now, what may not be claimed, and the refusal a
+        `decide` read of a type asks for.
+        """
         return await self._call(StateReadResponse, "POST", "/v1/state/read", body=body)
 
     async def refresh_requests(self, *, limit: int = 50) -> RefreshRequestPage:
@@ -589,7 +601,9 @@ class AsyncApi(AsyncRoutes):
         return await self._call(TypeFingerprintResponse, "POST", "/v1/types/fingerprint", body=body)
 
     async def constraints(self, body: ConstraintsRequest) -> ConstraintsBlock:
-        """`POST /v1/constraints`."""
+        """`POST /v1/constraints`. The constraints block of one subject, the one `include: ["constraints"]`
+        adds to a context read; `for` asks for a beneficiary's.
+        """
         return await self._call(ConstraintsBlock, "POST", "/v1/constraints", body=body)
 
     async def create_legal_hold(
@@ -724,9 +738,11 @@ class AsyncApi(AsyncRoutes):
             DeclareResult, "POST", "/v1/coordination/declare", body=body, key=idempotency_key or new_key()
         )
 
-    async def reserve_effect(self, body: EffectReserve, *, idempotency_key: str | None = None) -> Effect:
+    async def reserve_effect(
+        self, body: EffectReserve, *, idempotency_key: str | None = None
+    ) -> Effect | None:
         """`POST /v1/coordination/effects`."""
-        return await self._call(
+        return await self._call_optional(
             Effect, "POST", "/v1/coordination/effects", body=body, key=idempotency_key or new_key()
         )
 

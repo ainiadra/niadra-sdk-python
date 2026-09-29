@@ -1,7 +1,8 @@
 # Turn capture
 
-Status: sections 1, 2 and the decorator of section 4 are built (`niadra.turns`); sections 3 and the
-framework hooks of section 4 are being built. Where the code settled a detail differently from the first
+Status: sections 1 and 2, the decorator of section 4, and in section 3 the profile, the blocks of a read,
+the claim contract in count mode and the suppression list's copy are built; the framework hooks of section 4
+are being built. Where the code settled a detail differently from the first
 draft of this note, the note now says what the code does, and why.
 
 A turn runs from its input (a message, an interface action, an event, a timer firing) to the last thing
@@ -118,6 +119,26 @@ When Niadra does not answer:
 - only the purposes the company set to fail closed wait: they get `defer`;
 - the outage never turns into "not observed": a cached field keeps its value and logic with its real
   age.
+
+As built:
+
+- `client.profile()` (`niadra._profile`) reads `GET /v1/sdk/profile` on first need, and again once
+  `valid_for_s` has passed; the turn sender reads it before it builds a batch, so the agent's path rarely
+  waits for it. A failure keeps the last profile; a 404 counts every feature as off for 10 minutes. The
+  profile decides whether turns are kept, the content mode when the space names one, and the claim
+  contract (`use_claim_contract()` puts the company's own copy first, for CI).
+- `context(include=[...])` reads the constraints block and the state view in the same round trip. They are
+  cached with the pack, so a read that fails serves the last good ones with `degraded: true`. A block the
+  space does not serve (404, 501) is dropped from the read, which goes on whole, and not asked for again
+  for 10 minutes.
+- The claim contract runs in count mode: what the agent says in a turn is checked on the sender against
+  the values its tools returned (a field named like a role is a value of that role), and each claim goes to
+  the record with its verdict and the act `none` (it stands) or `count`. `conversation.claims.check()` runs
+  the same check on demand and returns the records. Nothing ever changes the output.
+- `may_contact(handle, purpose, channel=)` (`niadra.coordination.suppression`) reads the list by cursor on
+  first need, then in the background once a minute. The last copy applies however old it is; with no copy
+  and Niadra out of reach, `transactional` and `service` go and every other purpose waits; a space without
+  a list suppresses nothing.
 
 The route methods of `niadra.api` raise. Each call built on them picks its failure direction, and holds
 its own time budget.

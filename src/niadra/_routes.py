@@ -67,6 +67,20 @@ class SyncRoutes:
         request = _request(self._core, method, path, body, params, key)
         return model.model_validate(self._transport.request(request))
 
+    def _call_optional(
+        self,
+        model: type[M],
+        method: str,
+        path: str,
+        *,
+        body: BaseModel | None = None,
+        params: dict[str, Any] | None = None,
+        key: str | None = None,
+    ) -> M | None:
+        """A route whose success may come without a body, which means None."""
+        answer = self._transport.request(_request(self._core, method, path, body, params, key))
+        return None if answer is None else model.model_validate(answer)
+
     def _send(self, method: str, path: str, *, body: BaseModel | None = None, key: str | None = None) -> None:
         self._transport.request(_request(self._core, method, path, body, None, key))
 
@@ -88,6 +102,20 @@ class AsyncRoutes:
     ) -> M:
         request = _request(self._core, method, path, body, params, key)
         return model.model_validate(await self._transport.request(request))
+
+    async def _call_optional(
+        self,
+        model: type[M],
+        method: str,
+        path: str,
+        *,
+        body: BaseModel | None = None,
+        params: dict[str, Any] | None = None,
+        key: str | None = None,
+    ) -> M | None:
+        """A route whose success may come without a body, which means None."""
+        answer = await self._transport.request(_request(self._core, method, path, body, params, key))
+        return None if answer is None else model.model_validate(answer)
 
     async def _send(
         self, method: str, path: str, *, body: BaseModel | None = None, key: str | None = None

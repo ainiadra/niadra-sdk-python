@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import datetime
@@ -22,16 +23,19 @@ from niadra._base import (
     StampLike,
     TargetLike,
     VerificationLike,
+    as_handle,
     error_code,
     logger,
 )
 from niadra._cache import ContextCache, cache_key
+from niadra._profile import ProfileCache
 from niadra._queue import AsyncFlusher, is_retryable
 from niadra._transport import AsyncTransport
 from niadra._voice import TurnRead, VoiceLine, VoiceLines, compose, words_of
 from niadra.api import AsyncApi
 from niadra.conversation import AsyncConversation, AsyncTask
-from niadra.errors import APITimeoutError
+from niadra.coordination.suppression import FAIL_OPEN, MAX_PAGES, SuppressionCopy
+from niadra.errors import APITimeoutError, NotFoundError
 from niadra.models.admin import IngestStatus, KeyIdentity
 from niadra.models.agent_memory import (
     AgentMemory,
@@ -52,10 +56,13 @@ from niadra.models.events import (
 )
 from niadra.models.objects import ObjectTimeline
 from niadra.models.results import Context, MediaUpload, SearchResult, TimelinePage
+from niadra.models.state import ClaimContractSummary, SdkProfile
 from niadra.models.tokens import SubjectToken
 from niadra.models.turns import TurnPins
 from niadra.options import CacheOptions, QueueOptions, Timeouts, TurnOptions, VoiceOptions
 from niadra.tools import AsyncToolKit, definitions
+from niadra.turns.capture import TurnFrame
+from niadra.turns.claims import check_turn
 from niadra.turns.recorder import TurnRecorder
 from niadra.turns.sender import AsyncTurnSender
 from niadra.turns.tool import Provenance, tool
@@ -106,12 +113,19 @@ class AsyncNiadra:
         """The routes of turn records, typed state, signals and coordination, one method each. They raise."""
         self.turns = TurnRecorder(turns or TurnOptions(), enabled=self._core.enabled)
         """Turn records: `conversation.turn()` opens one, and a background sender posts the closed ones."""
+        self._profile = ProfileCache()
+        self._suppressions = SuppressionCopy()
+        self._suppressions_task: asyncio.Task[None] | None = None
+        self.turns.features = lambda: self._profile.features
+        self.turns.recording_mode = self._profile.recording_mode
+        self.turns.claims = self._claims_of
         self.turns.sender = AsyncTurnSender(
             self.turns,
             self.turns.queue,
             self.turns.interval,
             self._transport.request,
             self._core.timeouts.write,
+            refresh=self._refresh_profile,
         )
         self._flusher = AsyncFlusher(self._core.buffer, self._send_batch, self._core.queue_options)
         self._refreshes: set[asyncio.Task[None]] = set()
@@ -154,6 +168,75 @@ class AsyncNiadra:
         the tool runs untouched. See `niadra.turns.tool`."""
         return tool(name, provenance=provenance, ui=ui, exclude=exclude)
 
+    async def profile(self, *, timeout: float | None = None) -> SdkProfile | None:
+        """The SDK profile of this key's space: the features it turned on, the claim contract and the
+        summarized type registry, from the local cache, read again once `valid_for_s` has passed. When
+        Niadra does not answer, the last profile read stays in use; None when there is none yet, or the
+        space serves none (then the SDK asks again in 10 minutes). Never raises unless `strict`."""
+        if self._core.enabled and self._profile.due():
+            budget = timeout if timeout is not None else self._core.timeouts.navigation
+            try:
+                self._profile.absorb(await self._transport.request(self._profile.request(budget)))
+            except Exception as exc:
+                self._profile.failed(exc)
+                if not isinstance(exc, NotFoundError):
+                    self._core.fail("profile", exc, None)
+        return self._profile.profile
+
+    def use_claim_contract(self, contract: ClaimContractSummary | Mapping[str, Any] | None) -> None:
+        """Checks outputs against this claim contract instead of the one the profile serves (a company's
+        own copy, in CI or a local run); None goes back to the profile's."""
+        self._profile.claim_contract = (
+            None if contract is None else ClaimContractSummary.model_validate(contract)
+        )
+
+    def _claims_of(self, frame: TurnFrame) -> list[dict[str, Any]]:
+        contract = self._profile.contract()
+        return check_turn(frame, contract) if contract is not None else []
+
+    async def _refresh_profile(self) -> None:
+        with contextlib.suppress(Exception):
+            await self.profile()
+
+    async def may_contact(
+        self,
+        handle: HandleLike,
+        purpose: str,
+        *,
+        channel: str | None = None,
+        fail_open: bool | None = None,
+    ) -> bool:
+        """Whether an outbound contact of `purpose` to `handle` may go, by the local copy of the space's
+        suppression list: the opt-out holds with Niadra down. See `Niadra.may_contact`."""
+        try:
+            target = as_handle(handle).model_dump(mode="json")
+        except (TypeError, ValueError) as exc:
+            return self._core.fail(
+                "may_contact", exc, fail_open if fail_open is not None else purpose in FAIL_OPEN
+            )
+        if self._core.enabled and self._suppressions.due():
+            if self._suppressions.held:
+                if self._suppressions_task is None or self._suppressions_task.done():
+                    self._suppressions_task = self._spawn(self._read_suppressions(self._core.timeouts.write))
+            else:
+                await self._read_suppressions(self._core.timeouts.navigation)
+        return self._suppressions.may_contact(target, purpose, channel=channel, fail_open=fail_open)
+
+    async def _read_suppressions(self, budget: float) -> None:
+        copy, deadline = self._suppressions, time.monotonic() + budget
+        try:
+            for _ in range(MAX_PAGES):
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    return
+                if copy.needs_salt():
+                    copy.take_salt(await self._transport.request(copy.salt_request(left)))
+                    continue
+                if not copy.apply(await self._transport.request(copy.page_request(left))):
+                    return
+        except Exception as exc:
+            copy.failed(exc)
+
     @property
     def enabled(self) -> bool:
         """False when the client has no usable key and every call is a no-op."""
@@ -186,6 +269,7 @@ class AsyncNiadra:
         format: Literal["text", "json"] = "text",
         turn: str | None = None,
         explain: bool = False,
+        include: Sequence[str] | None = None,
     ) -> Context:
         """The context pack for a subject or a business object. See `Niadra.context`."""
         requested = Verification.V0
@@ -204,6 +288,7 @@ class AsyncNiadra:
                 target,
                 format,
                 explain,
+                include,
             )
         except (TypeError, ValueError) as exc:
             return self._core.fail(
@@ -869,7 +954,14 @@ class AsyncNiadra:
 
     async def _fetch_context(self, request: ContextRequest, budget: float, known_etag: str | None) -> Context:
         started = time.monotonic()
-        data = await self._transport.request(self._core.context_http(request, budget, known_etag))
+        try:
+            data = await self._transport.request(self._core.context_http(request, budget, known_etag))
+        except Exception as exc:
+            plain = self._core.refused_blocks(request, exc)
+            left = budget - (time.monotonic() - started)
+            if plain is None or left <= 0:
+                raise
+            data = await self._transport.request(self._core.context_http(plain, left, known_etag))
         return self._core.parse_context(data, started)
 
     async def _pinned_context(

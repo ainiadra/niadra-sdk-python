@@ -49,6 +49,7 @@ from niadra.turns.sender import MAX_TURNS
 from niadra.vocabulary import Verification
 from niadra_mock.agent_memory import MOCK_SOURCE, PersonalDataError
 from niadra_mock.cell import ItemNotFoundError, MockCell, UploadRejectedError
+from niadra_mock.features import FeatureOffError, NotBuiltError
 
 _BATCH_ITEM: TypeAdapter[Any] = TypeAdapter(BatchItem)
 _OBJECTS = "/v1/objects/"
@@ -156,6 +157,12 @@ class MockApp:
                 return self._reserve_upload(body, f"{scheme}://{headers.get('host', 'localhost')}")
             if path == "/v1/turns" or path.startswith("/v1/turns/"):
                 return self._turns(method, path, headers, body)
+            if method == "GET" and path == "/v1/sdk/profile":
+                return _model(self.cell.agent_features.profile())
+            if method == "GET" and path == "/v1/suppressions":
+                return _model(self.cell.agent_features.suppression_page())
+            if method == "GET" and path == "/v1/suppressions/salt":
+                return _model(self.cell.agent_features.suppression_salt())
             if path.startswith(_AGENT_MEMORY):
                 return self._agent_memory(method, path[len(_AGENT_MEMORY) :], parse_qs(query), headers, body)
             if method == "GET" and path == "/v1/history/tools":
@@ -163,8 +170,10 @@ class MockApp:
             return self._route(method, path, parse_qs(query), body)
         except ValidationError as exc:
             return _problem(422, _fields(exc))
-        except ItemNotFoundError:
+        except (ItemNotFoundError, FeatureOffError):
             return _problem(404)
+        except NotBuiltError:
+            return _problem(501)
         except ValueError:
             return _problem(400, "malformed request")
 
@@ -364,7 +373,12 @@ class MockApp:
         return _json(207 if errors else 200, response.model_dump(mode="json"))
 
     def _context(self, body: bytes) -> Response:
-        return _model(self.cell.context(ContextRequest.model_validate_json(body)))
+        request = ContextRequest.model_validate_json(body)
+        blocks = self.cell.agent_features.blocks_for(list(request.include or ()), request.subject)
+        response = self.cell.context(request)
+        if response.path != "holdout":
+            response = response.model_copy(update=blocks)
+        return _model(response)
 
     def _prefetch(self, body: bytes) -> Response:
         self.cell.prefetch(PrefetchRequest.model_validate_json(body))

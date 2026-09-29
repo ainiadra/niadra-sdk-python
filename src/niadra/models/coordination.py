@@ -18,6 +18,39 @@ from niadra.vocabulary import Verification
 TypeName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}$")]
 
 
+class ReleaseDetail(Model):
+    """The claim a case closes, with the epoch it got when it was accepted."""
+
+    claim_id: UUID
+    epoch: int = Field(ge=0)
+
+
+class CaseClosed(Model):
+    agent: ShortStr
+    detail: ReleaseDetail
+    kind: Literal["case.closed"]
+    object: ObjectRef | None = None
+    subject: Handle | None = None
+
+
+class LeaseDetail(Model):
+    """An owner lease or a case, held by the declaring agent. `level` defaults to the space's least
+    restrictive level.
+    """
+
+    intents: list[TypeName] = Field(default_factory=list, max_length=20)
+    lease_s: int = Field(ge=1, le=86400)
+    level: TypeName | None = None
+
+
+class CaseOpened(Model):
+    agent: ShortStr
+    detail: LeaseDetail
+    kind: Literal["case.opened"]
+    object: ObjectRef | None = None
+    subject: Handle | None = None
+
+
 class ChannelState(ResponseModel):
     free_form_until: datetime | None = None
     quiet_until: datetime | None = None
@@ -149,9 +182,9 @@ class ClaimRelease(Model):
 
 
 class ClaimRequest(Model):
-    """A declared claim. `level` defaults to the space's least restrictive level for an owner lease and to
-    `case` for a case; a declaration is refused (409 `lease_held`) while another holder's claim is at least
-    as restrictive.
+    """A declared claim, held by `holder`. `level` defaults to the space's least restrictive level; a
+    declaration is refused (409 `lease_held`) while another holder's claim is at least as restrictive, and
+    the same holder renews its own. `lease_s` is capped by the space's longest declared lease.
     """
 
     holder: ShortStr
@@ -162,6 +195,33 @@ class ClaimRequest(Model):
     object: ObjectRef | None = None
     subject: Handle | None = None
     task: TypeName | None = None
+
+
+class CommitmentMadeDetail(Model):
+    commitment_id: IdStr
+    terms: dict[str, Any] = Field(default_factory=dict)
+    type: TypeName
+    valid_until: datetime | None = None
+
+
+class CommitmentMade(Model):
+    agent: ShortStr
+    detail: CommitmentMadeDetail
+    kind: Literal["commitment.made"]
+    object: ObjectRef | None = None
+    subject: Handle | None = None
+
+
+class CommitmentWithdrawnDetail(Model):
+    commitment_id: IdStr
+
+
+class CommitmentWithdrawn(Model):
+    agent: ShortStr
+    detail: CommitmentWithdrawnDetail
+    kind: Literal["commitment.withdrawn"]
+    object: ObjectRef | None = None
+    subject: Handle | None = None
 
 
 class ContactKey(ResponseModel):
@@ -182,29 +242,131 @@ class ContactKeys(ResponseModel):
     keys: list[ContactKey]
 
 
+class ContactMadeDetail(Model):
+    """`jti` is the contact token's; `unchecked` says the contact left without a decision, because the purpose
+    fails open and none came in time.
+    """
+
+    channel: TypeName
+    decision_id: UUID | None = None
+    gateway_id: TypeName | None = None
+    jti: UUID | None = None
+    purpose: TypeName
+    unchecked: bool = False
+
+
+class ContactMade(Model):
+    agent: ShortStr
+    detail: ContactMadeDetail
+    kind: Literal["contact.made"]
+    object: ObjectRef | None = None
+    subject: Handle | None = None
+
+
 class CoordinationReportPage(ResponseModel):
     items: list[dict[str, Any]]
     next_cursor: str | None = None
 
 
-class DeclareRequest(Model):
-    """What happened, after the fact. `detail` holds the fields of each kind (the coordination spec, 5)."""
+class EffectDetail(Model):
+    """How the attempt the caller holds ended."""
 
+    attempt: int = Field(ge=1)
+    effect_key: IdStr
+    state: Literal["done", "failed", "unknown_outcome"]
+
+
+class EffectDeclared(Model):
     agent: ShortStr
-    detail: dict[str, Any] = Field(default_factory=dict)
-    kind: Literal[
-        "case.opened",
-        "case.closed",
-        "lease",
-        "task_lock",
-        "contact.made",
-        "effect",
-        "commitment.made",
-        "commitment.withdrawn",
-        "handoff",
-    ]
+    detail: EffectDetail
+    kind: Literal["effect"]
     object: ObjectRef | None = None
     subject: Handle | None = None
+
+
+class HandoffDetail(Model):
+    handoff_id: IdStr
+    outcome: TypeName | None = None
+    status: Literal["created", "accepted", "closed"]
+
+
+class HandoffDeclared(Model):
+    agent: ShortStr
+    detail: HandoffDetail
+    kind: Literal["handoff"]
+    object: ObjectRef | None = None
+    subject: Handle | None = None
+
+
+class LeaseDeclared(Model):
+    agent: ShortStr
+    detail: LeaseDetail
+    kind: Literal["lease"]
+    object: ObjectRef | None = None
+    subject: Handle | None = None
+
+
+class SuppressionAddedDetail(Model):
+    """The subject may not be contacted for `purpose`, on `channel` or on every channel. `until` defaults to
+    the reason's own interval, or to no end.
+    """
+
+    channel: TypeName | None = None
+    purpose: TypeName
+    reason: TypeName
+    until: datetime | None = None
+
+
+class SuppressionAdded(Model):
+    agent: ShortStr
+    detail: SuppressionAddedDetail
+    kind: Literal["suppression.added"]
+    object: ObjectRef | None = None
+    subject: Handle | None = None
+
+
+class SuppressionLiftedDetail(Model):
+    """Lifts what the same source suppressed for `purpose` and `channel`."""
+
+    channel: TypeName | None = None
+    purpose: TypeName
+
+
+class SuppressionLifted(Model):
+    agent: ShortStr
+    detail: SuppressionLiftedDetail
+    kind: Literal["suppression.lifted"]
+    object: ObjectRef | None = None
+    subject: Handle | None = None
+
+
+class TaskLockDetail(Model):
+    lease_s: int = Field(ge=1, le=86400)
+    task: TypeName
+
+
+class TaskLockDeclared(Model):
+    agent: ShortStr
+    detail: TaskLockDetail
+    kind: Literal["task_lock"]
+    object: ObjectRef | None = None
+    subject: Handle | None = None
+
+
+DeclareRequest = Annotated[
+    CaseOpened
+    | CaseClosed
+    | LeaseDeclared
+    | TaskLockDeclared
+    | ContactMade
+    | EffectDeclared
+    | CommitmentMade
+    | CommitmentWithdrawn
+    | HandoffDeclared
+    | SuppressionAdded
+    | SuppressionLifted,
+    Field(discriminator="kind"),
+]
 
 
 class DeclareResult(ResponseModel):
