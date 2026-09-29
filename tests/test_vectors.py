@@ -44,6 +44,7 @@ from niadra.coordination.token import ContactTokenError, verify_contact_token
 from niadra.exposure import ExposureTokenError, exposure_token, parse_exposure_token
 from niadra.models.signals import ConstraintsBlock
 from niadra.models.state import ClaimContractSummary
+from niadra.replay.counterfactual import overlap_at_k
 from niadra.state.expr import (
     Calendar,
     Environment,
@@ -396,6 +397,10 @@ def _contact_token(case: dict[str, Any]) -> None:
     assert got == case["expect"]
 
 
+def _counterfactual_overlap(case: dict[str, Any]) -> None:
+    assert overlap_at_k(case["a"], case["b"], case["k"]) == pytest.approx(case["expect"]["overlap"], abs=1e-6)
+
+
 def _regression_stats(case: dict[str, Any]) -> None:
     # The statistic is the recorder's; the emulator computes it the same way, and its routes serve it.
     for execution in case["executions"]:
@@ -509,6 +514,11 @@ EXPECTED: dict[str, Expected] = {
         | frozenset({"destination", "channel", "now", "seen_jti", "expect"}),
         frozenset({"token", "claims"}),
         _contact_token,
+    ),
+    "counterfactual-overlap.v0": Expected(
+        frozenset({"id", "description", "a", "b", "k", "expect"}),
+        frozenset({"overlap"}),
+        _counterfactual_overlap,
     ),
     "regression-stats.v0": Expected(
         frozenset({"id", "description", "executions", "baseline", "expect"}),

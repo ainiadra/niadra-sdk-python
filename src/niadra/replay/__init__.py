@@ -23,6 +23,7 @@ answers with the statistical verdict: `pass`, `flaky`, `infrastructure_error`, `
 `niadra replay` (`niadra.cli`) runs the same from the command line, for a CI job.
 """
 
+from niadra.replay.counterfactual import overlap_at_k
 from niadra.replay.runner import AsyncReplayer, Replayer, ReplayInput, ReplayRun
 
-__all__ = ["AsyncReplayer", "ReplayInput", "ReplayRun", "Replayer"]
+__all__ = ["AsyncReplayer", "ReplayInput", "ReplayRun", "Replayer", "overlap_at_k"]

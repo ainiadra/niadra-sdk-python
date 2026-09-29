@@ -1,0 +1,369 @@
+{
+  "vectors": "counterfactual-overlap",
+  "version": "v0",
+  "spec": "spec/counterfactual.md",
+  "cases": [
+    {
+      "id": "counterfactual.overlap.same_list_overlaps_one",
+      "description": "Two equal lists of ten.",
+      "a": [
+        "item_variant:store:a1",
+        "item_variant:store:a2",
+        "item_variant:store:a3",
+        "item_variant:store:a4",
+        "item_variant:store:a5",
+        "item_variant:store:a6",
+        "item_variant:store:a7",
+        "item_variant:store:a8",
+        "item_variant:store:a9",
+        "item_variant:store:a10"
+      ],
+      "b": [
+        "item_variant:store:a1",
+        "item_variant:store:a2",
+        "item_variant:store:a3",
+        "item_variant:store:a4",
+        "item_variant:store:a5",
+        "item_variant:store:a6",
+        "item_variant:store:a7",
+        "item_variant:store:a8",
+        "item_variant:store:a9",
+        "item_variant:store:a10"
+      ],
+      "k": 10,
+      "expect": {
+        "overlap": 1.0
+      }
+    },
+    {
+      "id": "counterfactual.overlap.reversed",
+      "description": "The same five items in reverse order.",
+      "a": [
+        "item_variant:store:a1",
+        "item_variant:store:a2",
+        "item_variant:store:a3",
+        "item_variant:store:a4",
+        "item_variant:store:a5"
+      ],
+      "b": [
+        "item_variant:store:a5",
+        "item_variant:store:a4",
+        "item_variant:store:a3",
+        "item_variant:store:a2",
+        "item_variant:store:a1"
+      ],
+      "k": 5,
+      "expect": {
+        "overlap": 0.297283
+      }
+    },
+    {
+      "id": "counterfactual.overlap.disjoint",
+      "description": "No item in common.",
+      "a": [
+        "item_variant:store:a1",
+        "item_variant:store:a2",
+        "item_variant:store:a3"
+      ],
+      "b": [
+        "item_variant:store:b1",
+        "item_variant:store:b2",
+        "item_variant:store:b3"
+      ],
+      "k": 3,
+      "expect": {
+        "overlap": 0.0
+      }
+    },
+    {
+      "id": "counterfactual.overlap.both_empty",
+      "description": "Both calls returned nothing: the same answer.",
+      "a": [],
+      "b": [],
+      "k": 10,
+      "expect": {
+        "overlap": 1.0
+      }
+    },
+    {
+      "id": "counterfactual.overlap.one_empty",
+      "description": "One call returned nothing.",
+      "a": [
+        "item_variant:store:a1"
+      ],
+      "b": [],
+      "k": 3,
+      "expect": {
+        "overlap": 0.0
+      }
+    },
+    {
+      "id": "counterfactual.overlap.first_two_swapped",
+      "description": "The first two positions swapped.",
+      "a": [
+        "item_variant:store:a1",
+        "item_variant:store:a2",
+        "item_variant:store:a3",
+        "item_variant:store:a4",
+        "item_variant:store:a5",
+        "item_variant:store:a6",
+        "item_variant:store:a7",
+        "item_variant:store:a8",
+        "item_variant:store:a9",
+        "item_variant:store:a10"
+      ],
+      "b": [
+        "item_variant:store:a2",
+        "item_variant:store:a1",
+        "item_variant:store:a3",
+        "item_variant:store:a4",
+        "item_variant:store:a5",
+        "item_variant:store:a6",
+        "item_variant:store:a7",
+        "item_variant:store:a8",
+        "item_variant:store:a9",
+        "item_variant:store:a10"
+      ],
+      "k": 10,
+      "expect": {
+        "overlap": 0.779908
+      }
+    },
+    {
+      "id": "counterfactual.overlap.equal_and_shorter_than_k",
+      "description": "Two equal lists shorter than k.",
+      "a": [
+        "item_variant:store:a1",
+        "item_variant:store:a2"
+      ],
+      "b": [
+        "item_variant:store:a1",
+        "item_variant:store:a2"
+      ],
+      "k": 10,
+      "expect": {
+        "overlap": 1.0
+      }
+    },
+    {
+      "id": "counterfactual.overlap.one_list_longer",
+      "description": "The same first two, then three more on one side.",
+      "a": [
+        "item_variant:store:a1",
+        "item_variant:store:a2"
+      ],
+      "b": [
+        "item_variant:store:a1",
+        "item_variant:store:a2",
+        "item_variant:store:a3",
+        "item_variant:store:a4",
+        "item_variant:store:a5"
+      ],
+      "k": 10,
+      "expect": {
+        "overlap": 0.791716
+      }
+    },
+    {
+      "id": "counterfactual.overlap.change_past_k_ignored",
+      "description": "The lists differ only after position k.",
+      "a": [
+        "item_variant:store:a1",
+        "item_variant:store:a2",
+        "item_variant:store:a3",
+        "item_variant:store:a4",
+        "item_variant:store:a5",
+        "item_variant:store:a6",
+        "item_variant:store:a7",
+        "item_variant:store:a8",
+        "item_variant:store:a9",
+        "item_variant:store:a10",
+        "item_variant:store:a11",
+        "item_variant:store:a12"
+      ],
+      "b": [
+        "item_variant:store:a1",
+        "item_variant:store:a2",
+        "item_variant:store:a3",
+        "item_variant:store:a4",
+        "item_variant:store:a5",
+        "item_variant:store:a6",
+        "item_variant:store:a7",
+        "item_variant:store:a8",
+        "item_variant:store:a9",
+        "item_variant:store:a10",
+        "item_variant:store:z1",
+        "item_variant:store:z2"
+      ],
+      "k": 10,
+      "expect": {
+        "overlap": 1.0
+      }
+    },
+    {
+      "id": "counterfactual.overlap.repeat_counts_once",
+      "description": "An item repeated in one list counts once, where it first appears.",
+      "a": [
+        "item_variant:store:a1",
+        "item_variant:store:a1",
+        "item_variant:store:a2"
+      ],
+      "b": [
+        "item_variant:store:a1",
+        "item_variant:store:a2"
+      ],
+      "k": 10,
+      "expect": {
+        "overlap": 1.0
+      }
+    },
+    {
+      "id": "counterfactual.overlap.k_one_same_first",
+      "description": "Only the first position, the same.",
+      "a": [
+        "item_variant:store:a1",
+        "item_variant:store:a2",
+        "item_variant:store:a3"
+      ],
+      "b": [
+        "item_variant:store:a1",
+        "item_variant:store:b1",
+        "item_variant:store:b2"
+      ],
+      "k": 1,
+      "expect": {
+        "overlap": 1.0
+      }
+    },
+    {
+      "id": "counterfactual.overlap.k_one_other_first",
+      "description": "Only the first position, different.",
+      "a": [
+        "item_variant:store:a1",
+        "item_variant:store:a2",
+        "item_variant:store:a3"
+      ],
+      "b": [
+        "item_variant:store:b1",
+        "item_variant:store:b2",
+        "item_variant:store:b3"
+      ],
+      "k": 1,
+      "expect": {
+        "overlap": 0.0
+      }
+    },
+    {
+      "id": "counterfactual.overlap.last_visible_differs",
+      "description": "Only the last of ten visible positions differs.",
+      "a": [
+        "item_variant:store:a1",
+        "item_variant:store:a2",
+        "item_variant:store:a3",
+        "item_variant:store:a4",
+        "item_variant:store:a5",
+        "item_variant:store:a6",
+        "item_variant:store:a7",
+        "item_variant:store:a8",
+        "item_variant:store:a9",
+        "item_variant:store:a10"
+      ],
+      "b": [
+        "item_variant:store:a1",
+        "item_variant:store:a2",
+        "item_variant:store:a3",
+        "item_variant:store:a4",
+        "item_variant:store:a5",
+        "item_variant:store:a6",
+        "item_variant:store:a7",
+        "item_variant:store:a8",
+        "item_variant:store:a9",
+        "item_variant:store:z1"
+      ],
+      "k": 10,
+      "expect": {
+        "overlap": 0.993638
+      }
+    },
+    {
+      "id": "counterfactual.overlap.first_differs",
+      "description": "Only the first position differs.",
+      "a": [
+        "item_variant:store:a1",
+        "item_variant:store:a2",
+        "item_variant:store:a3",
+        "item_variant:store:a4",
+        "item_variant:store:a5",
+        "item_variant:store:a6",
+        "item_variant:store:a7",
+        "item_variant:store:a8",
+        "item_variant:store:a9",
+        "item_variant:store:a10"
+      ],
+      "b": [
+        "item_variant:store:z1",
+        "item_variant:store:a2",
+        "item_variant:store:a3",
+        "item_variant:store:a4",
+        "item_variant:store:a5",
+        "item_variant:store:a6",
+        "item_variant:store:a7",
+        "item_variant:store:a8",
+        "item_variant:store:a9",
+        "item_variant:store:a10"
+      ],
+      "k": 10,
+      "expect": {
+        "overlap": 0.58712
+      }
+    },
+    {
+      "id": "counterfactual.overlap.two_inserted_on_top",
+      "description": "The variant puts two new items first and pushes the rest down.",
+      "a": [
+        "item_variant:store:a1",
+        "item_variant:store:a2",
+        "item_variant:store:a3",
+        "item_variant:store:a4",
+        "item_variant:store:a5",
+        "item_variant:store:a6",
+        "item_variant:store:a7",
+        "item_variant:store:a8",
+        "item_variant:store:a9",
+        "item_variant:store:a10"
+      ],
+      "b": [
+        "item_variant:store:z1",
+        "item_variant:store:z2",
+        "item_variant:store:a1",
+        "item_variant:store:a2",
+        "item_variant:store:a3",
+        "item_variant:store:a4",
+        "item_variant:store:a5",
+        "item_variant:store:a6",
+        "item_variant:store:a7",
+        "item_variant:store:a8"
+      ],
+      "k": 10,
+      "expect": {
+        "overlap": 0.394331
+      }
+    },
+    {
+      "id": "counterfactual.overlap.ids_with_colons",
+      "description": "References whose ids hold colons compare whole.",
+      "a": [
+        "legal_case:court:0001:2026",
+        "legal_case:court:0002:2026"
+      ],
+      "b": [
+        "legal_case:court:0002:2026",
+        "legal_case:court:0001:2026"
+      ],
+      "k": 2,
+      "expect": {
+        "overlap": 0.386853
+      }
+    }
+  ]
+}
