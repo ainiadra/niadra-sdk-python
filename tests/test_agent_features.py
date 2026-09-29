@@ -116,6 +116,52 @@ def test_a_read_with_constraints_records_the_block_it_served(store: MockApp, nia
     assert record["blobs"][read["blob"]]["content"]["version"] == "cv_0123456789abcdef", "the block it served"
 
 
+def test_a_claim_stands_on_what_the_blocks_placed_in_the_turn(store: MockApp, niadra: Niadra) -> None:
+    store.cell.features.update({"state", "claims"})
+    product = {"type": "product", "namespace": "store", "id": "PX-4471"}
+    price = {"v": 189.9, "logic": "yes", "status": "fresh", "claim_safe": True, "role": "price_sale"}
+    store.cell.agent_features.show(
+        CUSTOMER,
+        {
+            "interests": [
+                {
+                    "ref": product,
+                    "reason": "presented",
+                    "at": "2026-09-29T10:00:00Z",
+                    "object": {"ref": product, "fields": {"price_sale": price}},
+                }
+            ],
+            "changes_since_seen": [{"ref": product, "field": "price_sale", "seen": 199.9, "now": 189.9}],
+            "text": "- product:store:PX-4471: price_sale 189.90 (was 199.90 when seen)",
+        },
+    )
+    store.cell.agent_features.constrain(
+        CUSTOMER,
+        {
+            "version": "cv_0123456789abcdef",
+            "hard": [
+                {
+                    "id": "h1",
+                    "attr": "cart.total",
+                    "op": "lte",
+                    "values": [500],
+                    "source": "stated",
+                    "scope": "session",
+                    "origin": {"kind": "stated"},
+                }
+            ],
+        },
+    )
+    text = "O PX está por R$ 189,90; o valor de R$ 199,90 era o anterior. Seu limite é R$ 500,00."
+    with niadra.conversation("c-5", subject=CUSTOMER) as conversation, conversation.turn():
+        conversation.context(include=["state", "constraints"])
+        claims = conversation.claims.check(text)
+    assert [(c.value.amount if c.value else None, c.verdict) for c in claims] == [
+        ("189.9", "matched"),
+        ("500", "matched"),
+    ]
+
+
 def test_a_block_changes_while_the_pinned_pack_does_not(store: MockApp) -> None:
     store.cell.features.add("state")
     store.cell.agent_features.show(CUSTOMER, {"objects": [], "text": "Pedido 881: separado."})

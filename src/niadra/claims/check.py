@@ -2,15 +2,15 @@
 output, their nature, the verdict against what the turn holds, and the action the contract takes for the
 output's context.
 
-Detection: numbers of the category's classes (in a sentence with one of its terms, when it lists terms),
-each occurrence of a term (when it lists terms and no classes), statute and precedent citations, and the
-sentences of named document sections. Nature, for a number: `quoted` inside quotation marks; `computed` when
-the turn holds a value of the same role, or the same value; `model` otherwise. Verdicts that stand
-(`matched`, `quoted_found`, `anchored`) take no action; `not_checked` is counted; every other one takes the
-category's action for the context, and `unsupported` the action its natures give to what the model said.
-A rewrite happens only when it is unequivocal (a stale copy of one field whose fresh value differs), and is
-a warning otherwise. Nothing is ever rewritten in an immutable output, and a block there sends the whole
-output to a person, untouched.
+Detection: numbers of the category's classes (in a sentence with one of its terms, when it lists terms)
+that the output asserts (a hedged number, `niadra.claims.hedges`, is no claim), each occurrence of a term
+(when it lists terms and no classes), statute and precedent citations, and the sentences of named document
+sections. Nature, for a number: `quoted` inside quotation marks; `computed` when the turn holds a value of the
+same role, or the same value; `model` otherwise. Verdicts that stand (`matched`, `quoted_found`, `anchored`)
+take no action; `not_checked` is counted; every other one takes the category's action for the context, and
+`unsupported` the action its natures give to what the model said. A rewrite happens only when it is
+unequivocal (a stale copy of one field whose fresh value differs), and is a warning otherwise. Nothing is ever
+rewritten in an immutable output, and a block there sends the whole output to a person, untouched.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from decimal import Decimal
 from typing import Protocol
 
 from niadra.claims.anchor import score
+from niadra.claims.hedges import hedged
 from niadra.claims.numbers import Mention, mentions
 from niadra.claims.roles import Role, roles_of
 from niadra.claims.text import as_words, fold, phrase_at, quotations, sentence_of, sentences, words
@@ -382,6 +383,8 @@ def check(categories: Sequence[CategorySpec], output: Output, turn: Turn) -> lis
     """Every claim of `output` that a category detects, in the contract's order and then the text's."""
     findings: list[Finding] = []
     folded = fold(output.text)
+    said = [m for m in mentions(output.text, output.lang) if m.cls != "label"]
+    unasserted = hedged(output.text, said)
     for category in categories:
         if category.agents and output.agent not in category.agents:
             continue
@@ -393,7 +396,7 @@ def check(categories: Sequence[CategorySpec], output: Output, turn: Turn) -> lis
             for cls in {m.cls for m in numbers}:
                 same = [m for m in numbers if m.cls == cls]
                 roles.update(zip(same, roles_of(output.text, same, detect.roles), strict=True))
-            findings += [_number(category, output, turn, m, roles[m]) for m in numbers]
+            findings += [_number(category, output, turn, m, roles[m]) for m in numbers if m not in unasserted]
         elif detect.terms:
             for start, end in _term_hits(output.text, detect.terms):
                 findings.append(_plain(category, output, turn, start, end))

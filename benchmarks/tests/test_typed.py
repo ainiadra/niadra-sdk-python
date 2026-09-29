@@ -329,7 +329,7 @@ def test_the_guard_runs_on_the_sdk_that_places_the_blocks() -> None:
         "cases = typed.load(typed_ab.TYPED_DIR)\n"
         "case = next(c for c in cases if c.category == 'price_freshness' and c.language == 'pt')\n"
         "print(json.dumps([typed_ab.sdk_places_blocks(),\n"
-        "    typed_ab.guard_answer(case, 'Sim, o total continua R$ 412,70 com frete.', None)]))\n"
+        "    typed_ab.guard_answer(case, 'Sim, o total continua R$ 412,70 com frete.', None, None)]))\n"
     )
     env = {**os.environ, "PYTHONPATH": str(SDK_SOURCE)}
     out = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, env=env, check=True)

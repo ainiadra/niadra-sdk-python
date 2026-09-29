@@ -12,7 +12,7 @@ What it reports, per side and category (`typed.json`, `typed.md`):
 - tokens per turn (`o200k_base`) of the memory block, the tokens the blocks add, and the tokens the same
   data would take as a tool's JSON result, which an agent without the blocks would fetch in a round trip;
 - the claim guard's verdicts and acts on every answer (the SDK's `guard_text` with the sector's example
-  contract; the side with the state block gives the guard the fields it read, as a turn does), and how often
+  contract; the side with the blocks gives the guard the values they placed, as a turn does), and how often
   it acted on an answer the judge graded correct;
 - reads at V0 whose block held the case's sensitive value;
 - the coordination check for the effect cases (a second attempt must be refused);
@@ -197,15 +197,15 @@ def contract_for(case: TypedCase) -> dict[str, Any]:
     return {**document, "languages": languages, "negative_corpus_version": corpus.get("version")}
 
 
-def guard_answer(case: TypedCase, answer: str, state: Any | None) -> dict[str, Any]:
-    """The SDK's claim guard on the answer, as a mutable chat output; the fields a state read served are the
-    turn's evidence, as `context()` records them inside a turn."""
+def guard_answer(case: TypedCase, answer: str, state: Any | None, constraints: Any | None) -> dict[str, Any]:
+    """The SDK's claim guard on the answer, as a mutable chat output; the values the read's blocks placed in
+    the turn block are the turn's evidence, as `context()` records them inside a turn."""
     models, capture = _sdk("niadra.models.state"), _sdk("niadra.turns.capture")
     claims_module, guard = _sdk("niadra.turns.claims"), _sdk("niadra.turns.guard")
     contract = models.ClaimContractSummary.model_validate(contract_for(case))
     frame = capture.TurnFrame(None, agent=case.probe.agent)
-    if state is not None:
-        frame.observe_state(claims_module.state_values(state.objects))
+    if state is not None or constraints is not None:
+        frame.observe_state(claims_module.block_values(state, constraints))
     guarded = guard.guard_text(contract, frame, answer, context="chat")
     claims = [
         {"category": c.category, "verdict": str(c.verdict), "action": str(c.action)} for c in guarded.claims
@@ -695,7 +695,7 @@ async def probe(cell: Cell, subject: Subject, grader: Grader, count: Callable[[s
         section = niadra_section(context.turn_block)
         answer = await grader.answer(case, question, memory)
         judge, reason = await grader.grade(question, expect, rule, answer)
-        state = context.state if include else None
+        state, constraints = (context.state, context.constraints) if include else (None, None)
         tool_json = ""
         if include:
             parts = [
@@ -728,7 +728,7 @@ async def probe(cell: Cell, subject: Subject, grader: Grader, count: Callable[[s
             "judge": judge,
             "judge_reason": reason,
             "exact": passes(answer, expect),
-            "guard": guard_answer(case, answer, state)
+            "guard": guard_answer(case, answer, state, constraints)
             if answer
             else {"claims": [], "changed": False, "text": None},
             "sensitive_in_block": contains(memory, case.sensitive),
