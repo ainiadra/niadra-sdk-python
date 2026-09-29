@@ -151,7 +151,7 @@ def _details(declared: Mapping[str, Any], live: Mapping[str, Any]) -> list[str]:
     key_before = (declared.get("key") or {}).get("natural") or []
     key_after = (live.get("key") or {}).get("natural") or []
     if key_before != key_after:
-        lines.append(f"key: {key_before} to {key_after}")
+        lines.append(f"key: [{', '.join(key_before)}] to [{', '.join(key_after)}]")
     return lines
 
 
