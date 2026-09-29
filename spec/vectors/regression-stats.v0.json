@@ -1,0 +1,2306 @@
+{
+  "vectors": "regression-stats",
+  "version": "v0",
+  "spec": "spec/replay.md",
+  "cases": [
+    {
+      "id": "stats.recording.all_pass",
+      "description": "Five executions pass against the recording.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "pass",
+        "completed": 5,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": false,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 5,
+            "failed": 0,
+            "not_checked": 0,
+            "baseline_passed": 5,
+            "baseline_failed": 0,
+            "drop": 0.0,
+            "p_value": 1.0,
+            "regression": false,
+            "flaky": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.recording.all_fail_is_regression",
+      "description": "Five failures against the recording: p = 1/252.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "regression",
+        "completed": 5,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": false,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 0,
+            "failed": 5,
+            "not_checked": 0,
+            "baseline_passed": 5,
+            "baseline_failed": 0,
+            "drop": 1.0,
+            "p_value": 0.003968,
+            "regression": true,
+            "flaky": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.recording.four_of_five_fail_is_regression",
+      "description": "Four failures in five: p = 6/252.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "regression",
+        "completed": 5,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": true,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 1,
+            "failed": 4,
+            "not_checked": 0,
+            "baseline_passed": 5,
+            "baseline_failed": 0,
+            "drop": 0.8,
+            "p_value": 0.02381,
+            "regression": true,
+            "flaky": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.recording.two_of_five_fail_is_flaky",
+      "description": "Two failures in five are not significant: p = 56/252, flaky, paraphrase needed.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "flaky",
+        "completed": 5,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": true,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 3,
+            "failed": 2,
+            "not_checked": 0,
+            "baseline_passed": 5,
+            "baseline_failed": 0,
+            "drop": 0.4,
+            "p_value": 0.222222,
+            "regression": false,
+            "flaky": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.recording.one_fail_is_flaky",
+      "description": "One failure is never a regression.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "flaky",
+        "completed": 5,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": true,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 4,
+            "failed": 1,
+            "not_checked": 0,
+            "baseline_passed": 5,
+            "baseline_failed": 0,
+            "drop": 0.2,
+            "p_value": 0.5,
+            "regression": false,
+            "flaky": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.recording.two_runs_both_fail_is_flaky",
+      "description": "Two executions that both fail are not enough: p = 1/6.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "flaky",
+        "completed": 2,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": false,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 0,
+            "failed": 2,
+            "not_checked": 0,
+            "baseline_passed": 2,
+            "baseline_failed": 0,
+            "drop": 1.0,
+            "p_value": 0.166667,
+            "regression": false,
+            "flaky": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.infrastructure.counted_apart",
+      "description": "Infrastructure errors never fail an assertion and are counted apart.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "infrastructure_error",
+          "paraphrase": false,
+          "outcomes": {}
+        },
+        {
+          "status": "infrastructure_error",
+          "paraphrase": false,
+          "outcomes": {}
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "pass",
+        "completed": 3,
+        "infrastructure_errors": 2,
+        "pin_mismatches": 0,
+        "needs_paraphrase": false,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 3,
+            "failed": 0,
+            "not_checked": 0,
+            "baseline_passed": 3,
+            "baseline_failed": 0,
+            "drop": 0.0,
+            "p_value": 1.0,
+            "regression": false,
+            "flaky": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.infrastructure.nothing_completed",
+      "description": "No completed execution is an infrastructure error.",
+      "executions": [
+        {
+          "status": "infrastructure_error",
+          "paraphrase": false,
+          "outcomes": {}
+        },
+        {
+          "status": "infrastructure_error",
+          "paraphrase": false,
+          "outcomes": {}
+        },
+        {
+          "status": "infrastructure_error",
+          "paraphrase": false,
+          "outcomes": {}
+        },
+        {
+          "status": "infrastructure_error",
+          "paraphrase": false,
+          "outcomes": {}
+        },
+        {
+          "status": "infrastructure_error",
+          "paraphrase": false,
+          "outcomes": {}
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "infrastructure_error",
+        "completed": 0,
+        "infrastructure_errors": 5,
+        "pin_mismatches": 0,
+        "needs_paraphrase": false,
+        "assertions": []
+      }
+    },
+    {
+      "id": "stats.infrastructure.failures_are_not_errors",
+      "description": "Three failures and two infrastructure errors: the errors do not count as failures.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "infrastructure_error",
+          "paraphrase": false,
+          "outcomes": {}
+        },
+        {
+          "status": "infrastructure_error",
+          "paraphrase": false,
+          "outcomes": {}
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "flaky",
+        "completed": 3,
+        "infrastructure_errors": 2,
+        "pin_mismatches": 0,
+        "needs_paraphrase": false,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 0,
+            "failed": 3,
+            "not_checked": 0,
+            "baseline_passed": 3,
+            "baseline_failed": 0,
+            "drop": 1.0,
+            "p_value": 0.05,
+            "regression": false,
+            "flaky": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.pins.one_mismatch_invalidates",
+      "description": "One pin mismatch makes the scenario pin_mismatch, whatever the rest.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "pin_mismatch",
+          "paraphrase": false,
+          "outcomes": {}
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "pin_mismatch",
+        "completed": 4,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 1,
+        "needs_paraphrase": false,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 4,
+            "failed": 0,
+            "not_checked": 0,
+            "baseline_passed": 4,
+            "baseline_failed": 0,
+            "drop": 0.0,
+            "p_value": 1.0,
+            "regression": false,
+            "flaky": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.pins.mismatch_over_regression",
+      "description": "A pin mismatch outranks a regression in the same scenario.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "pin_mismatch",
+          "paraphrase": false,
+          "outcomes": {}
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "pin_mismatch",
+        "completed": 4,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 1,
+        "needs_paraphrase": false,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 0,
+            "failed": 4,
+            "not_checked": 0,
+            "baseline_passed": 4,
+            "baseline_failed": 0,
+            "drop": 1.0,
+            "p_value": 0.014286,
+            "regression": true,
+            "flaky": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.not_checked.left_out",
+      "description": "not_checked outcomes are neither passes nor failures.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "not_checked"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "not_checked"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "not_checked"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "not_checked"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "not_checked"
+          }
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "pass",
+        "completed": 5,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": false,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 0,
+            "failed": 0,
+            "not_checked": 5,
+            "baseline_passed": 0,
+            "baseline_failed": 0,
+            "drop": 0.0,
+            "p_value": 1.0,
+            "regression": false,
+            "flaky": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.not_checked.mixed",
+      "description": "Two not_checked and three failures: three failures in three checks.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "not_checked"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "not_checked"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "flaky",
+        "completed": 5,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": false,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 0,
+            "failed": 3,
+            "not_checked": 2,
+            "baseline_passed": 3,
+            "baseline_failed": 0,
+            "drop": 1.0,
+            "p_value": 0.05,
+            "regression": false,
+            "flaky": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.baseline.also_failing_is_not_regression",
+      "description": "A run that fails as often as its baseline did is flaky, not a regression.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        }
+      ],
+      "baseline": {
+        "a": [
+          0,
+          5
+        ]
+      },
+      "expect": {
+        "verdict": "flaky",
+        "completed": 5,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": false,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 0,
+            "failed": 5,
+            "not_checked": 0,
+            "baseline_passed": 0,
+            "baseline_failed": 5,
+            "drop": 0.0,
+            "p_value": 1.0,
+            "regression": false,
+            "flaky": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.baseline.flaky_baseline_not_significant",
+      "description": "Against a baseline of 3 in 5, five failures give p = 21/252.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        }
+      ],
+      "baseline": {
+        "a": [
+          3,
+          2
+        ]
+      },
+      "expect": {
+        "verdict": "flaky",
+        "completed": 5,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": false,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 0,
+            "failed": 5,
+            "not_checked": 0,
+            "baseline_passed": 3,
+            "baseline_failed": 2,
+            "drop": 0.6,
+            "p_value": 0.083333,
+            "regression": false,
+            "flaky": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.baseline.larger_baseline",
+      "description": "Against 10 passes in 10, three failures in five: p = 66/3003.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        }
+      ],
+      "baseline": {
+        "a": [
+          10,
+          0
+        ]
+      },
+      "expect": {
+        "verdict": "regression",
+        "completed": 5,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": true,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 2,
+            "failed": 3,
+            "not_checked": 0,
+            "baseline_passed": 10,
+            "baseline_failed": 0,
+            "drop": 0.6,
+            "p_value": 0.021978,
+            "regression": true,
+            "flaky": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.baseline.small_drop_is_flaky",
+      "description": "A significant but small drop (below 0.2) is flaky.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        }
+      ],
+      "baseline": {
+        "a": [
+          50,
+          0
+        ]
+      },
+      "expect": {
+        "verdict": "flaky",
+        "completed": 50,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": true,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 42,
+            "failed": 8,
+            "not_checked": 0,
+            "baseline_passed": 50,
+            "baseline_failed": 0,
+            "drop": 0.16,
+            "p_value": 0.002885,
+            "regression": false,
+            "flaky": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.baseline.large_drop_is_regression",
+      "description": "The same run size with a drop of 0.3 is a regression.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        }
+      ],
+      "baseline": {
+        "a": [
+          50,
+          0
+        ]
+      },
+      "expect": {
+        "verdict": "regression",
+        "completed": 50,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": true,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 35,
+            "failed": 15,
+            "not_checked": 0,
+            "baseline_passed": 50,
+            "baseline_failed": 0,
+            "drop": 0.3,
+            "p_value": 9e-06,
+            "regression": true,
+            "flaky": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.baseline.new_assertion_uses_recording",
+      "description": "An assertion the baseline run lacks is compared with the recording.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass",
+            "b": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass",
+            "b": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass",
+            "b": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass",
+            "b": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass",
+            "b": "fail"
+          }
+        }
+      ],
+      "baseline": {
+        "a": [
+          5,
+          0
+        ]
+      },
+      "expect": {
+        "verdict": "regression",
+        "completed": 5,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": false,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 5,
+            "failed": 0,
+            "not_checked": 0,
+            "baseline_passed": 5,
+            "baseline_failed": 0,
+            "drop": 0.0,
+            "p_value": 1.0,
+            "regression": false,
+            "flaky": false
+          },
+          {
+            "id": "b",
+            "passed": 0,
+            "failed": 5,
+            "not_checked": 0,
+            "baseline_passed": 5,
+            "baseline_failed": 0,
+            "drop": 1.0,
+            "p_value": 0.003968,
+            "regression": true,
+            "flaky": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.baseline.improvement_is_pass",
+      "description": "A run better than its baseline passes.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        }
+      ],
+      "baseline": {
+        "a": [
+          1,
+          4
+        ]
+      },
+      "expect": {
+        "verdict": "pass",
+        "completed": 5,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": false,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 5,
+            "failed": 0,
+            "not_checked": 0,
+            "baseline_passed": 1,
+            "baseline_failed": 4,
+            "drop": -0.8,
+            "p_value": 1.0,
+            "regression": false,
+            "flaky": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.assertions.one_regression_decides",
+      "description": "One regressed assertion among passing ones makes the scenario a regression.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass",
+            "b": "fail",
+            "c": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass",
+            "b": "fail",
+            "c": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass",
+            "b": "fail",
+            "c": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass",
+            "b": "fail",
+            "c": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass",
+            "b": "fail",
+            "c": "fail"
+          }
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "regression",
+        "completed": 5,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": true,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 5,
+            "failed": 0,
+            "not_checked": 0,
+            "baseline_passed": 5,
+            "baseline_failed": 0,
+            "drop": 0.0,
+            "p_value": 1.0,
+            "regression": false,
+            "flaky": false
+          },
+          {
+            "id": "b",
+            "passed": 0,
+            "failed": 5,
+            "not_checked": 0,
+            "baseline_passed": 5,
+            "baseline_failed": 0,
+            "drop": 1.0,
+            "p_value": 0.003968,
+            "regression": true,
+            "flaky": false
+          },
+          {
+            "id": "c",
+            "passed": 4,
+            "failed": 1,
+            "not_checked": 0,
+            "baseline_passed": 5,
+            "baseline_failed": 0,
+            "drop": 0.2,
+            "p_value": 0.5,
+            "regression": false,
+            "flaky": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.assertions.flaky_does_not_block",
+      "description": "A flaky assertion beside passing ones makes the scenario flaky.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass",
+            "b": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass",
+            "b": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass",
+            "b": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass",
+            "b": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass",
+            "b": "pass"
+          }
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "flaky",
+        "completed": 5,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": true,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 5,
+            "failed": 0,
+            "not_checked": 0,
+            "baseline_passed": 5,
+            "baseline_failed": 0,
+            "drop": 0.0,
+            "p_value": 1.0,
+            "regression": false,
+            "flaky": false
+          },
+          {
+            "id": "b",
+            "passed": 4,
+            "failed": 1,
+            "not_checked": 0,
+            "baseline_passed": 5,
+            "baseline_failed": 0,
+            "drop": 0.2,
+            "p_value": 0.5,
+            "regression": false,
+            "flaky": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.paraphrase.counted_together",
+      "description": "Paraphrased executions count with the others.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": true,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": true,
+          "outcomes": {
+            "a": "fail"
+          }
+        }
+      ],
+      "baseline": null,
+      "expect": {
+        "verdict": "flaky",
+        "completed": 5,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": true,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 3,
+            "failed": 2,
+            "not_checked": 0,
+            "baseline_passed": 5,
+            "baseline_failed": 0,
+            "drop": 0.4,
+            "p_value": 0.222222,
+            "regression": false,
+            "flaky": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "stats.large.eighteen_of_twenty",
+      "description": "Two failures in twenty against 20 of 20: p = 380/1560, flaky.",
+      "executions": [
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "pass"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        },
+        {
+          "status": "completed",
+          "paraphrase": false,
+          "outcomes": {
+            "a": "fail"
+          }
+        }
+      ],
+      "baseline": {
+        "a": [
+          20,
+          0
+        ]
+      },
+      "expect": {
+        "verdict": "flaky",
+        "completed": 20,
+        "infrastructure_errors": 0,
+        "pin_mismatches": 0,
+        "needs_paraphrase": true,
+        "assertions": [
+          {
+            "id": "a",
+            "passed": 18,
+            "failed": 2,
+            "not_checked": 0,
+            "baseline_passed": 20,
+            "baseline_failed": 0,
+            "drop": 0.1,
+            "p_value": 0.24359,
+            "regression": false,
+            "flaky": true
+          }
+        ]
+      }
+    }
+  ]
+}

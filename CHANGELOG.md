@@ -38,6 +38,22 @@ built on them.
   returned, and each claim goes to the turn record with its verdict; `conversation.claims.check()` runs the
   check on demand. Count mode never changes an output.
 - `niadra-mock` serves the SDK profile, the constraints and state blocks, and the suppression list.
+- The claim guard that acts: `conversation.claims.guard(stream)` holds what could start a claim until its
+  sentence ends (150 ms at most, 300 ms a message) and lets it go as the contract's actions say: a blocked
+  sentence gives way to the category's caveat, a stale copy of one field becomes its fresh value only when
+  that is unequivocal, a warning marks the claim. `claims.guard_text()` does the same on a whole output. An
+  immutable output never changes: a block sends it to a person. The turn record carries the act taken.
+- Coordination: `conversation.check()` asks before acting and, when Niadra does not answer within 200 ms,
+  decides by the purpose's direction (a customer's message and service go, marketing, retention,
+  collection and an effect with a key wait, the local opt-out always holds); `conversation.declare` sends
+  what happened in the background until Niadra takes it; `conversation.claim()` holds a lease or a task lock.
+- `niadra.contact_gateway()` and `niadra.coordination.verify_contact_token()`: the contact token's offline
+  check at your gateway, with the space's public keys kept (`pip install 'niadra[gateway]'`).
+- The agent's working state: `conversation.agent_state.get()` and `put()`, compare-and-swap or merge by key,
+  reading its own writes, kept and sent again while Niadra is down.
+- `niadra.resolvers` and `verify_claim()`: a value not safe to claim is read again by your resolver, inside
+  your boundary and within 300 ms, and the fresh value decides; `niadra.content` puts back the text a
+  pointer-mode space keeps in your storage.
 - Turn records from the framework adapters, with `turns=True`: Google ADK (agent and tool callbacks; a
   sub-agent or an `AgentTool` is a sub-turn), OpenAI Agents (`RunHooks`; a handoff opens a sub-turn) and
   LangGraph (`before_agent`, `after_agent` and `wrap_tool_call` of the middleware) record each run's tool

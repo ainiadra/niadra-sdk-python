@@ -112,6 +112,19 @@ class Blob:
     """Where the company's store keeps it, once written (`pointer` mode)."""
 
 
+@dataclass(frozen=True, slots=True)
+class StateValue:
+    """A field of an object a read served the turn: the claim check's evidence, with whether it may back a
+    claim now (`claim_safe`) and the gaps its object declares."""
+
+    ref: str
+    field: str
+    value: Any
+    claim_safe: bool
+    role: str | None = None
+    declared_gaps: tuple[str, ...] = ()
+
+
 @dataclass(slots=True)
 class Said:
     """An output of the turn, kept for the claim check that runs on the sender."""
@@ -256,7 +269,13 @@ class TurnFrame:
         self.blobs: dict[str, Blob] = {}
         self.reads: list[dict[str, Any]] = []
         self.said: list[Said] = []
+        self.state: list[StateValue] = []
+        """Fields of objects the turn read from state, for the claim check: a value with its freshness."""
+        self._guarded: set[str] = set()
+        """Outputs the claim guard already checked: the sender does not count them again."""
         self.claims: list[dict[str, Any]] = []
+        self.coordination: list[dict[str, str]] = []
+        self.effects: dict[str, str] = {}
         self.event_keys: list[str] = []
         self.flags: set[str] = set()
         self.completeness: Literal["complete", "partial", "incomplete"] = "complete"
@@ -352,6 +371,12 @@ class TurnFrame:
             if not self.closed:
                 self.reads.append({k: v for k, v in entry.items() if v is not None})
 
+    def observe_state(self, values: Iterable[StateValue]) -> None:
+        """Fields of objects a read served the turn, kept for the claim check."""
+        with self._lock:
+            if not self.closed:
+                self.state.extend(values)
+
     def pack(self, *, compiler: str | None, pack_hash: str | None) -> None:
         """The pack this turn read: its compiler's version and hash become the turn's `niadra` pins."""
         pins = {k: v for k, v in (("compiler", compiler), ("pack_hash", pack_hash)) if v}
@@ -375,8 +400,25 @@ class TurnFrame:
                 return
             if event_key is not None:
                 self.event_keys.append(event_key)
-            if self._recorder is not None:
+            if self._recorder is not None and text not in self._guarded:
                 self.said.append(Said(text, context, immutable, agent or self.agent))
+
+    def coordinate(self, decision_id: str, decision: str) -> None:
+        """A coordination decision the turn acted on."""
+        with self._lock:
+            if not self.closed:
+                self.coordination.append({"decision_id": decision_id, "decision": decision})
+
+    def effect(self, key: str, state: str) -> None:
+        """What the turn saw of an effect: its last state by key."""
+        with self._lock:
+            if not self.closed:
+                self.effects[key] = state
+
+    def guarded(self, text: str) -> None:
+        """The claim guard checked `text` and recorded its claims: saying it later adds none."""
+        with self._lock:
+            self._guarded.add(text)
 
     def flag(self, name: Flag) -> None:
         """Marks the turn: a flagged turn keeps its values longest in the queue and goes to the kept tier."""

@@ -2648,6 +2648,7 @@
         "type": "object"
       },
       "DeclareRequest": {
+        "description": "What happened, after the fact: one kind of declaration, with the fields of its kind in `detail` (the\ncoordination spec, 5).",
         "discriminator": {
           "mapping": {
             "case.closed": "#/components/schemas/CaseClosed",
@@ -2699,7 +2700,7 @@
             "$ref": "#/components/schemas/SuppressionLifted"
           }
         ],
-        "title": "Body"
+        "title": "DeclareRequest"
       },
       "DeclareResult": {
         "additionalProperties": false,
@@ -9213,18 +9214,11 @@
           {
             "in": "query",
             "name": "space",
-            "required": false,
+            "required": true,
             "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Space"
+              "format": "uuid",
+              "title": "Space",
+              "type": "string"
             }
           }
         ],
@@ -9238,6 +9232,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such space, or it has no coordination."
           },
           "422": {
             "content": {

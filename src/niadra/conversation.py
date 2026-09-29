@@ -48,9 +48,13 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, Union, overlo
 
 from niadra._base import HandleLike, ItemLike, ObjectLike, TargetLike, VerificationLike, as_handle, as_object
 from niadra._ids import new_key
+from niadra.agent_state import AgentStateHandle, AsyncAgentStateHandle
 from niadra.backing import BackingReport, Sources, UnbackedValue, check
+from niadra.coordination.client import CHECK_BUDGET, Checked, Claimed, Coordinator, check_request, claimed
+from niadra.coordination.session import Declarations
 from niadra.models.agent_memory import AgentMemory, AgentNoteKind, RememberResult
 from niadra.models.context import PackGuard
+from niadra.models.coordination import CheckRequest, CheckResult, ClaimRequest
 from niadra.models.events import (
     Backing,
     BatchResponse,
@@ -64,9 +68,11 @@ from niadra.models.events import (
     VerifyMethod,
 )
 from niadra.models.results import Context, render_turn
+from niadra.models.state import StateRef
+from niadra.resolvers import ClaimVerdict
 from niadra.tools import AsyncToolKit, ToolKit, definitions
 from niadra.turns.capture import TurnFrame, TurnKind, current_turn
-from niadra.turns.claims import ClaimCheck
+from niadra.turns.claims import ClaimCheck, state_values
 from niadra.turns.recorder import PinsLike, TurnRecorder
 from niadra.vocabulary import Speaker, Verification
 
@@ -154,6 +160,61 @@ class _Session:
         self._forget = forget
         self._ended = False
         self._token: Token[AnySession | None] | None = None
+        self._checked = Checked()
+
+    def _declarations(self, coordinator: Coordinator) -> Declarations:
+        return Declarations(
+            coordinator, self._checked, agent=self.agent_id, subject=self.subject, object=self.object
+        )
+
+    def _check_request(
+        self,
+        intent: str,
+        purpose: str,
+        direction: Literal["inbound", "outbound"],
+        channel: str | None,
+        effect_key: str | None,
+        effect_kind: str | None,
+        object: ObjectLike | None,
+        task: str | None,
+        gateway_id: str | None,
+        destination_hash: str | None,
+    ) -> CheckRequest:
+        return check_request(
+            agent=self.agent_id or "agent",
+            intent=intent,
+            purpose=purpose,
+            direction=direction,
+            subject=self.subject,
+            channel=channel or self.channel,
+            effect_key=effect_key,
+            effect_kind=effect_kind,
+            object=as_object(object) if object is not None else self.object,
+            task=task,
+            gateway_id=gateway_id,
+            destination_hash=destination_hash,
+        )
+
+    def _claim_request(
+        self,
+        object: ObjectLike | None,
+        task: str | None,
+        kind: Literal["owner", "case", "task_lock"] | None,
+        lease_s: int,
+        level: str | None,
+        intents: Sequence[str],
+    ) -> ClaimRequest:
+        target = as_object(object) if object is not None else None
+        return ClaimRequest(
+            holder=self.agent_id or "agent",
+            kind=kind or ("task_lock" if task is not None else "owner"),
+            lease_s=lease_s,
+            level=level,
+            intents=list(intents),
+            object=target,
+            subject=None if target is not None else self.subject,
+            task=task,
+        )
 
     @property
     def conversation_id(self) -> str | None:
@@ -246,6 +307,7 @@ class _Session:
             frame.read("constraints", version=context.constraints.version)
         if frame is not None and context.state is not None:
             frame.read("state")
+            frame.observe_state(state_values(context.state.objects))
         self._sources.add(context.text)
         self._sources.add(render_turn(context))
         # The guards of the last read hold the answers to the turn they were written for.
@@ -452,8 +514,93 @@ class _SyncSession(_Session):
     def __init__(self, client: Niadra, session_id: str | None, **options: Any) -> None:
         super().__init__(client.track, client._core.fail, session_id, forget=client._forget_scope, **options)
         self._client = client
-        self.claims = ClaimCheck(client._profile.contract)
-        """The claim contract's check on demand: `claims.check(text)` classifies and counts, never changes."""
+        self.claims = ClaimCheck(client._contract)
+        """The claim contract: `claims.check(text)` classifies and counts, `claims.guard(stream)` and
+        `claims.guard_text(text)` act as its actions say."""
+        self.declare = self._declarations(client._coordination)
+        """What the agent declares after it acts, sent in the background: `declare.effect(key, "done")`,
+        `declare.contact_made(decision, ...)`, or `declare(kind, **detail)`."""
+        self.agent_state = AgentStateHandle(
+            client._transport.request,
+            client._agent_states,
+            {"kind": self._kind, "id": self.id},
+            self.agent_id,
+            self.subject,
+            client._core.timeouts.navigation,
+            client._core.fail,
+        )
+        """This session's working state for its agent: `get()` and `put()` (`niadra.agent_state`)."""
+
+    def check(
+        self,
+        intent: str,
+        *,
+        purpose: str,
+        direction: Literal["inbound", "outbound"] = "outbound",
+        channel: str | None = None,
+        effect_key: str | None = None,
+        effect_kind: str | None = None,
+        object: ObjectLike | None = None,
+        task: str | None = None,
+        gateway_id: str | None = None,
+        destination_hash: str | None = None,
+        fail_open: bool | None = None,
+        timeout: float | None = None,
+    ) -> CheckResult:
+        """Asks before acting: the coordination decision for `intent` of `purpose` about this session's
+        subject (`niadra.coordination.client`). With `effect_key`, an `allow` whose `effect.state` is `none`
+        reserved the effect: act, then `declare.effect(key, ...)`. Within `timeout` (200 ms) or the purpose's
+        direction decides; never raises."""
+        request = self._check_request(
+            intent,
+            purpose,
+            direction,
+            channel,
+            effect_key,
+            effect_kind,
+            object,
+            task,
+            gateway_id,
+            destination_hash,
+        )
+        coordinator = self._client._coordination
+        if not self._client.enabled:
+            return coordinator.failed(request, self._checked, fail_open)
+        try:
+            data = self._client._transport.request(coordinator.check_http(request, timeout or CHECK_BUDGET))
+        except Exception as error:
+            return coordinator.failed(request, self._checked, fail_open, error)
+        return coordinator.decided(data, request, self._checked)
+
+    def verify_claim(
+        self, ref: StateRef | Mapping[str, Any] | str, field: str, value: Any, *, budget: float | None = None
+    ) -> ClaimVerdict:
+        """Whether `value` may be claimed for `field` of `ref` now, about this session's subject. See
+        `Niadra.verify_claim`."""
+        return self._client.verify_claim(ref, field, value, subject=self.subject, budget=budget)
+
+    def claim(
+        self,
+        *,
+        object: ObjectLike | None = None,
+        task: str | None = None,
+        kind: Literal["owner", "case", "task_lock"] | None = None,
+        lease_s: int = 600,
+        level: str | None = None,
+        intents: Sequence[str] = (),
+        timeout: float | None = None,
+    ) -> Claimed:
+        """Claims this session's subject, or with `object` and `task` a task lock on a business object, for
+        `lease_s` seconds. `held` when it is this agent's; otherwise `error` says why (`lease_held`,
+        `task_locked`, or that Niadra did not answer). Never raises."""
+        try:
+            request = self._claim_request(object, task, kind, lease_s, level, intents)
+            data = self._client._transport.request(
+                Coordinator.claim_http(request, timeout or self._client._core.timeouts.navigation)
+            )
+        except Exception as error:
+            return claimed(error=error)
+        return claimed(data)
 
     def _recorder(self) -> TurnRecorder:
         return self._client.turns
@@ -558,8 +705,89 @@ class _AsyncSession(_Session):
     def __init__(self, client: AsyncNiadra, session_id: str | None, **options: Any) -> None:
         super().__init__(client.track, client._core.fail, session_id, forget=client._forget_scope, **options)
         self._client = client
-        self.claims = ClaimCheck(client._profile.contract)
-        """The claim contract's check on demand: `claims.check(text)` classifies and counts, never changes."""
+        self.claims = ClaimCheck(client._profile.contract, refresh=client._refresh_profile)
+        """The claim contract: `claims.check(text)` classifies and counts, `claims.guard(stream)` and
+        `claims.guard_text(text)` act as its actions say. The profile that carries it is read when the session
+        is entered, in the background, and before an async stream is guarded."""
+        self.declare = self._declarations(client._coordination)
+        """What the agent declares after it acts, sent in the background. See `Conversation.declare`."""
+        self.agent_state = AsyncAgentStateHandle(
+            client._transport.request,
+            client._agent_states,
+            {"kind": self._kind, "id": self.id},
+            self.agent_id,
+            self.subject,
+            client._core.timeouts.navigation,
+            client._core.fail,
+        )
+        """This session's working state for its agent: `await get()` and `await put()`."""
+
+    async def check(
+        self,
+        intent: str,
+        *,
+        purpose: str,
+        direction: Literal["inbound", "outbound"] = "outbound",
+        channel: str | None = None,
+        effect_key: str | None = None,
+        effect_kind: str | None = None,
+        object: ObjectLike | None = None,
+        task: str | None = None,
+        gateway_id: str | None = None,
+        destination_hash: str | None = None,
+        fail_open: bool | None = None,
+        timeout: float | None = None,
+    ) -> CheckResult:
+        """Asks before acting. See `Conversation.check`."""
+        request = self._check_request(
+            intent,
+            purpose,
+            direction,
+            channel,
+            effect_key,
+            effect_kind,
+            object,
+            task,
+            gateway_id,
+            destination_hash,
+        )
+        coordinator = self._client._coordination
+        if not self._client.enabled:
+            return coordinator.failed(request, self._checked, fail_open)
+        try:
+            data = await self._client._transport.request(
+                coordinator.check_http(request, timeout or CHECK_BUDGET)
+            )
+        except Exception as error:
+            return coordinator.failed(request, self._checked, fail_open, error)
+        return coordinator.decided(data, request, self._checked)
+
+    async def verify_claim(
+        self, ref: StateRef | Mapping[str, Any] | str, field: str, value: Any, *, budget: float | None = None
+    ) -> ClaimVerdict:
+        """Whether `value` may be claimed for `field` of `ref` now. See `Niadra.verify_claim`."""
+        return await self._client.verify_claim(ref, field, value, subject=self.subject, budget=budget)
+
+    async def claim(
+        self,
+        *,
+        object: ObjectLike | None = None,
+        task: str | None = None,
+        kind: Literal["owner", "case", "task_lock"] | None = None,
+        lease_s: int = 600,
+        level: str | None = None,
+        intents: Sequence[str] = (),
+        timeout: float | None = None,
+    ) -> Claimed:
+        """Claims the subject, or a task lock on a business object. See `Conversation.claim`."""
+        try:
+            request = self._claim_request(object, task, kind, lease_s, level, intents)
+            data = await self._client._transport.request(
+                Coordinator.claim_http(request, timeout or self._client._core.timeouts.navigation)
+            )
+        except Exception as error:
+            return claimed(error=error)
+        return claimed(data)
 
     def _recorder(self) -> TurnRecorder:
         return self._client.turns
@@ -637,6 +865,10 @@ class _AsyncSession(_Session):
     async def __aenter__(self) -> _AsyncSession:
         self._enter()
         return self
+
+    def _enter(self) -> None:
+        super()._enter()
+        self.claims.warm()
 
     async def __aexit__(
         self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: TracebackType | None

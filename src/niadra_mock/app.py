@@ -34,6 +34,7 @@ from niadra.models.context import (
     SearchRequest,
     TimelineRequest,
 )
+from niadra.models.coordination import CheckBatchRequest, CheckRequest, ClaimRequest
 from niadra.models.events import (
     MAX_BATCH_ITEMS,
     BatchItem,
@@ -42,6 +43,7 @@ from niadra.models.events import (
     ItemError,
     MediaUploadRequest,
 )
+from niadra.models.state import AgentStateWrite
 from niadra.models.tokens import SubjectTokenRequest
 from niadra.models.turns import PromoteRequest
 from niadra.tools import definitions
@@ -49,7 +51,10 @@ from niadra.turns.sender import MAX_TURNS
 from niadra.vocabulary import Verification
 from niadra_mock.agent_memory import MOCK_SOURCE, PersonalDataError
 from niadra_mock.cell import ItemNotFoundError, MockCell, UploadRejectedError
+from niadra_mock.coordinate import CoordinationError
 from niadra_mock.features import FeatureOffError, NotBuiltError
+from niadra_mock.replay import ReplayError
+from niadra_mock.state import StateError
 
 _BATCH_ITEM: TypeAdapter[Any] = TypeAdapter(BatchItem)
 _OBJECTS = "/v1/objects/"
@@ -74,6 +79,8 @@ _REASONS = {
     404: "Not Found",
     405: "Method Not Allowed",
     409: "Conflict",
+    410: "Gone",
+    412: "Precondition Failed",
     421: "Misdirected Request",
     422: "Unprocessable Entity",
     429: "Too Many Requests",
@@ -126,6 +133,12 @@ def _problem(
     )
 
 
+def _coded(status: int, code: str, extra: dict[str, Any]) -> Response:
+    """A problem with a catalog code and the members the spec adds to it (`pins`, `reasons`)."""
+    response = _problem(status, code=code)
+    return Response(status, json.dumps({**json.loads(response.body), **extra}).encode(), response.headers)
+
+
 def _fields(error: ValidationError) -> str:
     # Field paths and error types only: echoing values could leak personal data.
     return "; ".join(".".join(map(str, e["loc"])) + ": " + e["type"] for e in error.errors())[:1000]
@@ -145,13 +158,18 @@ class MockApp:
         if path.startswith(_UPLOADS):
             # Storage, not the API: the signed URL is the credential, and a source key is refused.
             return self._receive_upload(method, path[len(_UPLOADS) :], headers, body)
-        denied = self._authenticate(headers)
+        public = method == "GET" and path == "/.well-known/niadra-contact-keys.json"
+        denied = None if public else self._authenticate(headers)
         if denied is not None:
             return denied
         failure = self.cell.take_failure(path)
         if failure is not None:
             extra = {"retry-after": str(failure.retry_after)} if failure.retry_after is not None else {}
             return _problem(failure.status, "injected by niadra-mock", extra)
+        if public:
+            if "coordination" not in self.cell.features:
+                return _problem(404)
+            return _json(200, self.cell.coordination.keys(parse_qs(query).get("space", [None])[0]))
         try:
             if path == "/v1/media/uploads" and method == "POST":
                 return self._reserve_upload(body, f"{scheme}://{headers.get('host', 'localhost')}")
@@ -163,6 +181,9 @@ class MockApp:
                 return _model(self.cell.agent_features.suppression_page())
             if method == "GET" and path == "/v1/suppressions/salt":
                 return _model(self.cell.agent_features.suppression_salt())
+            answer = self._agent_features(method, path, parse_qs(query), body)
+            if answer is not None:
+                return answer
             if path.startswith(_AGENT_MEMORY):
                 return self._agent_memory(method, path[len(_AGENT_MEMORY) :], parse_qs(query), headers, body)
             if method == "GET" and path == "/v1/history/tools":
@@ -170,12 +191,83 @@ class MockApp:
             return self._route(method, path, parse_qs(query), body)
         except ValidationError as exc:
             return _problem(422, _fields(exc))
+        except (CoordinationError, StateError, ReplayError) as exc:
+            return _coded(exc.status, exc.code, getattr(exc, "extra", {}))
         except (ItemNotFoundError, FeatureOffError):
             return _problem(404)
         except NotBuiltError:
             return _problem(501)
         except ValueError:
             return _problem(400, "malformed request")
+
+    def _agent_features(
+        self, method: str, path: str, query: dict[str, list[str]], body: bytes
+    ) -> Response | None:
+        """Coordination, working state, verify and refresh, and replay, each behind its feature."""
+        cell = self.cell
+        route = (method, path)
+        if path.startswith("/v1/coordination/"):
+            cell.agent_features.need("coordination")
+            if route == ("POST", "/v1/coordination/check"):
+                return _json(200, self._check(CheckRequest.model_validate_json(body)))
+            if route == ("POST", "/v1/coordination/check/batch"):
+                checks = CheckBatchRequest.model_validate_json(body).checks
+                return _json(200, {"results": [self._check(c) for c in checks]})
+            if route == ("POST", "/v1/coordination/declare"):
+                return _json(200, cell.coordination.declare(json.loads(body)))
+            if route == ("POST", "/v1/coordination/claims"):
+                return _json(201, cell.coordination.claim(ClaimRequest.model_validate_json(body)))
+            if method == "POST" and path.endswith("/release"):
+                return _json(200, cell.coordination.release(unquote(path.split("/")[4])))
+            return _problem(404)
+        if path.startswith("/v1/agent-state"):
+            cell.agent_features.need("agent_state")
+            if route == ("PUT", "/v1/agent-state"):
+                write = AgentStateWrite.model_validate_json(body)
+                return _json(
+                    200, cell.state.write_agent_state(write.model_dump(mode="json", exclude_none=True))
+                )
+            if route == ("POST", "/v1/agent-state/read"):
+                return _json(200, cell.state.read_agent_state(json.loads(body)))
+            return _problem(404)
+        if route in (
+            ("POST", "/v1/state/verify"),
+            ("GET", "/v1/state/refresh-requests"),
+            ("POST", "/v1/objects/push"),
+        ):
+            cell.agent_features.need("state")
+            if route == ("POST", "/v1/state/verify"):
+                return _json(200, cell.state.verify(json.loads(body)))
+            if route == ("POST", "/v1/objects/push"):
+                return _json(200, cell.state.push(json.loads(body)))
+            return _json(200, cell.state.lease_refreshes(int(query.get("limit", ["50"])[0])))
+        if path.startswith(("/v1/scenarios", "/v1/replay/", "/v1/scenario-runs")):
+            cell.agent_features.need("turns")
+            return self._replay(method, path, query, body)
+        return None
+
+    def _check(self, request: CheckRequest) -> dict[str, Any]:
+        suppressed = request.subject is not None and self.cell.agent_features.suppressed(
+            request.subject, request.purpose, request.channel
+        )
+        return self.cell.coordination.check(request, suppressed)
+
+    def _replay(self, method: str, path: str, query: dict[str, list[str]], body: bytes) -> Response:
+        replay = self.cell.replay
+        if (method, path) == ("POST", "/v1/scenarios"):
+            return _json(201, replay.create(json.loads(body)))
+        if (method, path) == ("GET", "/v1/scenarios"):
+            ids = [i for raw in query.get("ids", []) for i in raw.split(",") if i]
+            return _json(200, replay.listed(ids or None))
+        if method == "GET" and path.startswith("/v1/scenarios/"):
+            return _json(200, replay.get(unquote(path.rsplit("/", 1)[1])))
+        if (method, path) == ("POST", "/v1/replay/cases"):
+            return _json(200, replay.case(json.loads(body)))
+        if (method, path) == ("POST", "/v1/scenario-runs"):
+            return _json(201, replay.run(json.loads(body)))
+        if method == "GET" and path.startswith("/v1/scenario-runs/"):
+            return _json(200, replay.read_run(unquote(path.rsplit("/", 1)[1])))
+        return _problem(404)
 
     def _authenticate(self, headers: Headers) -> Response | None:
         scheme, _, token = headers.get("authorization", "").partition(" ")

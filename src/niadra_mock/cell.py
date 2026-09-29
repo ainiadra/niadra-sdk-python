@@ -81,7 +81,10 @@ from niadra.models.objects import ObjectTimeline
 from niadra.models.tokens import SubjectToken, SubjectTokenRequest
 from niadra.vocabulary import DeliveryPath, EventKind, Speaker, Verification, Visibility
 from niadra_mock.agent_memory import AgentMemoryStore
+from niadra_mock.coordinate import CoordinationStore
 from niadra_mock.features import FeatureStore
+from niadra_mock.replay import ReplayStore
+from niadra_mock.state import StateStore
 from niadra_mock.turns import TurnStore
 from niadra_mock.when import read_when
 
@@ -250,9 +253,16 @@ class MockCell:
     """The turn records this space kept (`POST /v1/turns`)."""
     agent_features: FeatureStore = field(init=False)
     """The SDK profile, the blocks of `include` and the suppression list, behind `features`."""
+    coordination: CoordinationStore = field(default_factory=CoordinationStore)
+    """Checks, declarations, claims and the contact keys, behind `coordination`."""
+    state: StateStore = field(default_factory=StateStore)
+    """The agents' working state, and objects for verify, refresh requests and pushes."""
+    replay: ReplayStore = field(init=False)
+    """Scenarios, replay cases and runs with their verdict, behind `turns`."""
 
     def __post_init__(self) -> None:
         self.agent_features = FeatureStore(self.features)
+        self.replay = ReplayStore(self.turns, self.history_before)
         # The notes check against every id this cell has seen as a handle: none may land in a note.
         self.agent_memory = AgentMemoryStore(
             clock=self.clock, known_values=lambda: [k[2] for k in self._parent]
@@ -278,6 +288,26 @@ class MockCell:
             self.agent_memory.notes.clear()
             self.agent_memory.proposals.clear()
             self.turns.turns.clear()
+            self.coordination = CoordinationStore()
+            self.state = StateStore()
+            self.replay = ReplayStore(self.turns, self.history_before)
+
+    def history_before(self, conversation_id: str, moment: datetime) -> list[dict[str, Any]]:
+        """The conversation's messages before `moment`, as a replay case carries them."""
+        roles = {"customer": "customer", "ai_agent": "agent", "human_agent": "human"}
+        with self._lock:
+            events = [
+                e
+                for e in self.events
+                if e.item.conversation_id == conversation_id
+                and e.item.kind is EventKind.MESSAGE
+                and e.item.occurred_at <= moment
+                and e.item.speaker.role.value in roles
+            ]
+        return [
+            {"role": roles[e.item.speaker.role.value], "text": e.text, "at": e.item.occurred_at.isoformat()}
+            for e in events
+        ]
 
     def enable_agent_memory(self, *, writes: str = "agent") -> None:
         """Turns the agent memory on, as the approved `agent_memory.enabled` setting of a space does.
