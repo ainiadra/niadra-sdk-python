@@ -47,7 +47,7 @@ def _reference(value: Any) -> str:
     return "{" + ",".join(json.dumps(k, ensure_ascii=False) + ":" + _reference(value[k]) for k in keys) + "}"
 
 
-_text = st.text(st.characters(exclude_categories=("Cs",)), max_size=12)
+_text = st.text(st.characters(exclude_categories=["Cs"]), max_size=12)
 _scalars = (
     st.none()
     | st.booleans()

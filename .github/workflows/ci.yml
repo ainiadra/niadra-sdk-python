@@ -36,7 +36,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: uv sync --frozen
       - run: uv run ruff check . && uv run ruff format --check .
-      - run: uv run mypy src
+      - run: uv run mypy src tests
       - run: uv run pytest -q
       - name: The examples, the Langflow components and the Dify plugin compile
         run: uv run python -m compileall -q examples integrations-extras

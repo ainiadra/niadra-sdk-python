@@ -32,6 +32,5 @@ answers 501.
 
 `vectors/<name>.<version>.json` are the conformance vectors of the specifications, which the server and
 both SDKs run alike, and `examples/claim-contract/` the claim contract examples with their negative
-corpus. `tests/test_vectors.py` lists every file the SDK runs. A file not published yet is skipped as
-pending vectors; a published one the SDK cannot run yet is an expected failure; an unexpected file or an
+corpus. `tests/test_vectors.py` lists every file the SDK runs. A missing file, an unexpected file or an
 unknown case field fails.

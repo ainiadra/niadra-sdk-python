@@ -80,7 +80,7 @@ from niadra.models.events import (
 from niadra.models.objects import ObjectTimeline
 from niadra.models.tokens import SubjectToken, SubjectTokenRequest
 from niadra.vocabulary import DeliveryPath, EventKind, Speaker, Verification, Visibility
-from niadra_mock.agent_memory import AgentMemoryStore
+from niadra_mock.agent_memory import AgentMemoryStore, words
 from niadra_mock.coordinate import CoordinationStore
 from niadra_mock.features import FeatureStore
 from niadra_mock.measure import MeasureStore
@@ -115,7 +115,6 @@ _LABELS = {
 }
 _NUMBER = re.compile(r"\d[\d.-]{2,}\d|\d{3,}")
 PACK_LINES = {"voice": 3, "brief": 3, "chat": 8, "full": 30}
-_WORD = re.compile(r"\w{2,}", re.UNICODE)
 
 
 class ItemNotFoundError(Exception):
@@ -132,10 +131,6 @@ def _object_key(ref: ObjectRef) -> str:
 
 def _digest(value: str, size: int = 16) -> str:
     return hashlib.sha256(value.encode()).hexdigest()[:size]
-
-
-def _words(text: str) -> set[str]:
-    return {w.lower() for w in _WORD.findall(text)}
 
 
 def _render_slots(slots: list[PackSlot]) -> str | None:
@@ -618,8 +613,8 @@ class MockCell:
         carries the rule that wrote it and the basis behind it.
         """
         visible = [e for e in events if not self._expired(e) and self._visible(e, level)]
-        terms = {w for w in _words(turn) if len(w) >= 4 or any(c.isdigit() for c in w)}
-        scored = [(len(terms & _words(e.line())), e.seq, e) for e in visible if e.line() not in pin.text]
+        terms = {w for w in words(turn) if len(w) >= 4 or any(c.isdigit() for c in w)}
+        scored = [(len(terms & words(e.line())), e.seq, e) for e in visible if e.line() not in pin.text]
         picked = sorted((s for s in scored if s[0]), key=lambda s: (-s[0], -s[1]))[:MAX_SLOTS]
         numbers = dict.fromkeys(_NUMBER.findall(turn))
         slots: list[PackSlot] = []
@@ -745,8 +740,8 @@ class MockCell:
             root = self._find(_key(request.subject))
             items, withheld = self._catalog(root, verification.effective, bool(request.filters.show_expired))
             since, until, ignored = self._window(request.filters)
-            query = _words(request.query)
-            scored = [(len(query & _words(item.text)), item) for item in self._filter(items, request.filters)]
+            query = words(request.query)
+            scored = [(len(query & words(item.text)), item) for item in self._filter(items, request.filters)]
             matches = [item for score, item in sorted(scored, key=lambda s: -s[0]) if score > 0]
             chosen: list[HistoryItem] = []
             used = 0
