@@ -28,6 +28,13 @@ built on them.
   the category detection, the verdicts and actions, and the 0.90 text anchor, over the categories of the
   contract the SDK profile serves (`ClaimContractSummary`). It passes the `claim-parser`, `claim-detect`
   and `claim-anchor` vectors, and no phrase of the example contracts' negative corpus triggers it.
+- `niadra.coordination.destination`: a handle's canonical destination (`phone:+<E.164>` with the
+  Brazilian ninth digit, `email:<address>`) and its key per reader, `base64url(HMAC-SHA256(salt, ...))`,
+  as the suppression list and the contact token compute them.
+- `niadra.exposure`: the exposure token a card carries, `nx1.<id>.<position>.<verifier>`, built and read
+  with the refusals of its spec.
+- `niadra.constraints.render`: the constraints block rendered for one tool call through the tool's
+  binding, in advisory or apply mode, and the count of what the call's results honored.
 
 ## [0.6.1] - 2026-09-28
 

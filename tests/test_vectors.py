@@ -38,6 +38,10 @@ from niadra.claims import (
     score,
 )
 from niadra.claims.anchor import distance
+from niadra.constraints.render import Binding, BindingArg, Call, honored, render
+from niadra.coordination.destination import DestinationError, canonical_destination, suppression_key
+from niadra.exposure import ExposureTokenError, exposure_token, parse_exposure_token
+from niadra.models.signals import ConstraintsBlock
 from niadra.models.state import ClaimContractSummary
 from niadra.state.expr import (
     Calendar,
@@ -351,6 +355,81 @@ def _claim_anchor(case: dict[str, Any]) -> None:
     assert (got >= 0.90) == expect["holds"]
 
 
+def _suppression_key(case: dict[str, Any]) -> None:
+    try:
+        text = canonical_destination(case["type"], case["value"])
+        got = {"canonical": text, "key": suppression_key(case["salt"], text)}
+    except DestinationError as refused:
+        got = {"error": refused.code}
+    assert got == case["expect"]
+
+
+def _exposure_token(case: dict[str, Any]) -> None:
+    if case["op"] == "build":
+        assert set(case) == {"id", "op", "description", "exposure_id", "position", "expect"}
+        token = exposure_token(case["exposure_id"], case["position"])
+        assert {"token": token} == case["expect"]
+        assert len(token) == 32 + len(str(case["position"]))
+        return
+    assert case["op"] == "parse"
+    assert set(case) == {"id", "op", "description", "token", "expect"}
+    try:
+        exposure_id, position = parse_exposure_token(case["token"])
+        got: dict[str, Any] = {"exposure_id": exposure_id, "position": position}
+    except ExposureTokenError as refused:
+        got = {"error": refused.code}
+    assert got == case["expect"]
+
+
+def _binding(raw: dict[str, Any], families: dict[str, str]) -> Binding:
+    assert set(raw) <= {"tool", "args", "overfetch"}
+    args = []
+    for arg in raw["args"]:
+        assert set(arg) <= {"attr", "param", "transform", "negation", "ops"}
+        negation = arg.get("negation")
+        args.append(
+            BindingArg(
+                arg["attr"],
+                arg["param"],
+                arg.get("transform"),
+                negation["param"] if negation else None,
+                tuple(arg.get("ops", ())),
+                families.get(arg["attr"]),
+            )
+        )
+    return Binding(raw["tool"], tuple(args), raw.get("overfetch", False))
+
+
+def _constraint_render(case: dict[str, Any]) -> None:
+    block = ConstraintsBlock.model_validate(case["block"])
+    raw_call = case["call"]
+    assert set(raw_call) <= {"args", "for", "category", "asked"}
+    call = Call(
+        raw_call["args"], raw_call["for"], raw_call.get("category"), frozenset(raw_call.get("asked", ()))
+    )
+    got = render(block, _binding(case["binding"], case["families"]), call, case["mode"])
+    rendered: dict[str, Any] = {
+        "applies": got.applies,
+        "args": dict(got.args),
+        "suggested": dict(got.suggested),
+        "injected": list(got.injected),
+        "hard_sent": list(got.hard_sent),
+        "residual": list(got.residual),
+        "post_filter": list(got.post_filter),
+        "conflicts": [{"id": i, "param": p} for i, p in got.conflicts],
+    }
+    if "results" in case:
+        seen = honored(block, got.hard_sent, case["results"])
+        rendered["honored"] = {
+            "results_checked": seen.results_checked,
+            "violations": seen.violations,
+            "unverifiable": seen.unverifiable,
+        }
+    assert rendered == case["expect"]
+    inferred = {a.id for a in block.attributes if a.source not in ("stated", "correction")}
+    assert not inferred & set(got.injected), "an inferred attribute is never injected, whatever the mode"
+
+
 def _pending(case_fields: str, expect_fields: str, what: str) -> Expected:
     """A published file whose runner the SDK does not have yet."""
     return Expected(frozenset(case_fields.split()), frozenset(expect_fields.split()), None, pending=what)
@@ -374,23 +453,28 @@ EXPECTED: dict[str, Expected] = {
         frozenset({"normalized_quote_length", "distance", "holds"}),
         _claim_anchor,
     ),
-    "constraint-render.v0": _pending(
-        "id block binding families call mode results expect",
-        "applies args suggested injected hard_sent residual post_filter conflicts honored",
-        "the constraints block's rendering per tool binding",
+    "constraint-render.v0": Expected(
+        frozenset({"id", "block", "binding", "families", "call", "mode", "results", "expect"}),
+        frozenset(
+            {"applies", "args", "suggested", "injected", "hard_sent", "residual", "post_filter", "conflicts"}
+            | {"honored"}
+        ),
+        _constraint_render,
     ),
-    "exposure-token.v0": _pending(
-        "id op description exposure_id position token expect",
-        "token exposure_id position",
-        "the exposure token",
+    "exposure-token.v0": Expected(
+        frozenset({"id", "op", "description", "exposure_id", "position", "token", "expect"}),
+        frozenset({"token", "exposure_id", "position"}),
+        _exposure_token,
     ),
     "contact-token.v0": _pending(
         "id op description seed claims keys gateway token destination channel now seen_jti expect",
         "token claims",
         "the contact token's issue and offline check",
     ),
-    "suppression-key.v0": _pending(
-        "id description salt type value expect", "canonical key", "the suppression list's per-source key"
+    "suppression-key.v0": Expected(
+        frozenset({"id", "description", "salt", "type", "value", "expect"}),
+        frozenset({"canonical", "key"}),
+        _suppression_key,
     ),
 }
 NEGATIVE_CORPUS = ("retail", "legal", "health-plan-sales")
