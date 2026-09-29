@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import time
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime
 from types import TracebackType
 from typing import Any, Literal, TypeVar
@@ -83,7 +83,7 @@ from niadra.turns.capture import TurnFrame
 from niadra.turns.claims import check_turn
 from niadra.turns.recorder import TurnRecorder
 from niadra.turns.sender import AsyncTurnSender
-from niadra.turns.tool import Provenance, tool
+from niadra.turns.tool import BoundTool
 from niadra.vocabulary import AssertionMethod, Speaker, SubjectKind, Verification
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -145,6 +145,7 @@ class AsyncNiadra:
         self.turns.recording_mode = self._profile.recording_mode
         self.turns.required_pins = self._profile.required_pins
         self.turns.families = self._profile.families
+        self.turns.field_access = self._profile.field_access
         self.turns.claims = self._claims_of
         self.internal_text = InternalText()
         """Fingerprints of the company's own prompt, by version:
@@ -186,20 +187,12 @@ class AsyncNiadra:
             tool_schemas=dict(tool_schemas or {}),
         )
 
-    @staticmethod
-    def tool(
-        name: str | None = None,
-        *,
-        provenance: Provenance | None = None,
-        ui: Callable[[Any], Any] | None = None,
-        exclude: Iterable[str] = (),
-        dry_run: bool = False,
-    ) -> Callable[[F], F]:
-        """A decorator that records each call of a tool of yours in the turn it runs in: arguments,
-        result, latency and failure, and with `provenance` the objects the result showed. Outside a turn
-        the tool runs untouched. `dry_run=True` lets a replay run it for real when the record has no answer.
-        See `niadra.turns.tool`."""
-        return tool(name, provenance=provenance, ui=ui, exclude=exclude, dry_run=dry_run)
+    tool = BoundTool()
+    """A decorator that records each call of a tool of yours in the turn it runs in: arguments, result,
+    latency and failure, and with `provenance` the objects the result showed. Outside a turn the tool runs
+    untouched. `dry_run=True` lets a replay run it for real when the record has no answer; `binding` measures
+    the constraints block against its calls; `mask_output=True` keeps the fields this key may not read from
+    the model, by this client's SDK profile. See `niadra.turns.tool`."""
 
     async def profile(self, *, timeout: float | None = None) -> SdkProfile | None:
         """The SDK profile of this key's space: the features it turned on, the claim contract and the
