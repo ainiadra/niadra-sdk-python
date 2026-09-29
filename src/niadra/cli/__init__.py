@@ -36,7 +36,8 @@ from niadra.resolvers import Resolvers
 EXIT = {"pass": 0, "flaky": 0, "regression": 1}
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def parser() -> argparse.ArgumentParser:
+    """The command line's arguments, every command's."""
     parser = argparse.ArgumentParser(prog="niadra", description="Niadra's command line.")
     commands = parser.add_subparsers(dest="command", required=True)
     worker = commands.add_parser("resolver-worker", help="serve the space's refresh requests")
@@ -73,7 +74,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     counterfactual.add_argument("--label", help="a name for the run, such as the commit")
     types.add(commands)
     contract.add(commands)
-    args = parser.parse_args(argv)
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parser().parse_args(argv)
     clients: list[Niadra] = []
 
     def client() -> Niadra:

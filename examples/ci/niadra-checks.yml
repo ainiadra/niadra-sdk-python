@@ -1,0 +1,32 @@
+# The company's CI, with Niadra's checks (GitHub Actions). Copy it to .github/workflows/.
+#
+# - `niadra types derive --check` reads the catalog of the table each declared type mirrors and fails the
+#   job when it drifted from the declaration: a new value in a CHECK, a column added, removed or retyped.
+#   Only the fingerprint and the counts of what changed reach Niadra, which opens a data issue.
+# - `niadra contract test` runs the space's claim contract against the company's negative corpus and
+#   example turns: it fails when a phrase that is no claim is caught, or an example is judged otherwise.
+#
+# Exit codes: 0 passes, 1 fails the check (drift, or the contract disagrees), 2 could not check.
+# Secrets: NIADRA_API_KEY (a source key with the `state:push` and `context` scopes) and NIADRA_DERIVE_DSN
+# (a read-only connection to a replica: the check reads the catalog, never a row).
+name: niadra
+on:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * *"
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    env:
+      NIADRA_API_KEY: ${{ secrets.NIADRA_API_KEY }}
+      NIADRA_DERIVE_DSN: ${{ secrets.NIADRA_DERIVE_DSN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install 'niadra[postgres]'
+      - name: the order type mirrors public.orders
+        run: niadra types derive --check --table public.orders --type order
+      - name: the claim contract against our corpus and examples
+        run: niadra contract test --corpus niadra/negative-corpus.json --examples niadra/example-turns.json
