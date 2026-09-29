@@ -846,8 +846,17 @@ LOCAL_E2E_PORT=20300 LOCAL_E2E_DIR=$TMPDIR/niadra-local-e2e-bench \
 # The SDK must be this repository's source: the pinned release does not place the blocks in the turn block.
 PYTHONPATH=../src uv run bench typed --api http://127.0.0.1:20309 --control http://127.0.0.1:20300 \
     --cell-dir $TMPDIR/niadra-local-e2e-bench --cell-pg "host=127.0.0.1 port=20310 user=postgres" \
-    --v2-sample 20 [--limit 5]
+    --repetitions 3 --v2-sample 20 --verify-level health_plan_sales=V3 \
+    --baseline results/typed/2026-09-29-28409a [--limit 5]
 ```
+
+Each probe proves its identity before it reads, in the probe's own conversation, at V1 unless
+`--verify-level <sector>=<level>` names another. A read hands its blocks the pack's verification gate: while
+the pack holds an item back for a higher level, the state block leaves out what changed since seen and the
+constraints block says nothing of the subject. The starter policy files a health plan conversation under
+`health` (V3), so the health plan sales cases read empty blocks at V1; `--verify-level
+health_plan_sales=V3` measures what the blocks do once that level is proved, and a run without it measures
+what a V1 agent gets.
 
 It turns on the agent features and declares the typed set's types in the sandbox space with the bootstrap's
 admin account (the space keeps its language and time zone, as for dataset v2), seeds every case with a new
@@ -857,7 +866,10 @@ and then asks every question twice for the same customer: `without` (a plain rea
 per side and category (`results/typed/<date>-<id>/typed.json` and `typed.md`, every answer and memory block in
 `cases.jsonl`):
 
-- the judge's and the exact check's accuracy, and the cases that changed verdict;
+- the judge's and the exact check's accuracy, each with its 95% Wilson interval, and the cases that changed
+  verdict; with `--baseline <results folder>`, each share's delta against that run in percentage points, with
+  Newcombe's 95% interval of the difference (the repetitions of a case are not independent draws, so both
+  intervals are narrower than new cases would give);
 - tokens per turn of the memory block, what the blocks add, and what the same data weighs as a tool's JSON
   result (what an agent without the blocks would fetch, in a round trip that sends the prompt again);
 - with `--v2-sample N`, N cases of dataset v2 read with no block in both views, against today's medians (voice
@@ -866,7 +878,8 @@ per side and category (`results/typed/<date>-<id>/typed.json` and `typed.md`, ev
   sector's example contract from `spec/examples/claim-contract/`, the case's language first; on the `with` side
   the fields the state read served are the turn's evidence, as `context()` records them in a turn), and how
   often it acted on an answer the judge graded correct;
-- reads at V0 (no proof) on both sides whose block held the case's sensitive value;
+- reads at V0 (no proof) on both sides whose block held the case's sensitive value, and the answered reads:
+  served at the level proved, with an item withheld, with the sensitive value;
 - for the effect cases, whether the coordination check refuses a second attempt;
 - the agent's and the judge's spend (OpenRouter's `usage`) and, with `--cell-pg`, the cell's own model spend
   over the run (`cell-cost.json`: its spend ledger before and after, and its extraction runs).
@@ -896,6 +909,47 @@ repetitions, 84 answers per side) read, per side:
   verified and tells the agent to ask for it, while the state block shows the new price; the constraint lines (`health_plan.copay: não`) name an
   attribute the pack's summary of the offers does not carry, so the agent rarely ties them to an option.
 - **Cost:** US$ 0.031 for the agent and the judge (672 calls) and US$ 0.020 for the cell's models (its ledger).
+
+The rerun after the privacy, constraint text and SDK fixes (`results/typed/2026-09-29-c474e5`, 29/09/2026:
+niadra-back 6c038e1 on a local cell of `local-e2e.sh`, the SDK source at b198e14, three repetitions, 126
+answers per side, health plan sales proved at V3, the rest at V1; its `typed.md` has every table and the delta
+against the first run) read, per side, judge on every case with the 95% interval:
+
+| Category | without | with | with, against the first run (points) |
+|---|---|---|---|
+| price freshness | 50.0% [29, 71] | 61.1% [39, 80] | -22.2 [-47.7, +11.5] |
+| quote expiry | 0.0% [0, 18] | 100.0% [82, 100] | +8.3 [-10.5, +35.4] |
+| revised deadline | 50.0% [29, 71] | 83.3% [61, 94] | -8.3 [-31.9, +20.8] |
+| not checked | 100.0% [82, 100] | 94.4% [74, 99] | +11.1 [-12.4, +39.6] |
+| changes since seen | 0.0% [0, 18] | 100.0% [82, 100] | +91.7 [+59.4, +98.5] |
+| hard constraint | 0.0% [0, 18] | 5.6% [1, 26] | -19.4 [-48.0, +6.4] |
+| effect once | 50.0% [29, 71] | 38.9% [20, 61] | -19.4 [-48.5, +15.2] |
+| all | 35.7% [28, 44] | 69.0% [61, 76] | +5.9 [-6.8, +18.9] |
+
+- **Valid cases** (84 of 126): 25.0% without, 61.9% with. The exact check: 38.9% and 66.7% on every case.
+- **Only one category moved beyond its interval:** changes since seen, from the cache fix of the SDK (the first
+  run read the first turn's stale blocks) and the V3 proof. The rest overlap the first run.
+- **At V1** (`results/typed/2026-09-29-650d77`, the two health plan sales categories, three repetitions):
+  changes since seen 0 of 18 with the blocks, since every read held the conversation back (all 18 blocks
+  empty); hard constraint 2 of 18, 6 blocks empty.
+- **Hard constraint stays low at V3:** the constraint line now reads `exigido: sem coparticipação`, but the voice
+  pack cuts the conversation's summary before the offers ("Essencial com coparticipação por R$ 480 ou
+  Pleno..."), so the agent has the filter and not the options it filters.
+- **Tokens:** the blocks add a median of 43.5 tokens to a voice turn and 51 to a chat turn (p95 57 and 158);
+  the same data as a tool's JSON is 683 and 781. With no block, the 20 cases of dataset v2 read voice 96 and
+  chat 94; a second 20-case sample on the same cell read 91 and 90.5, and 60 cases
+  (`results/typed/2026-09-29-e18b8c`) read 83 and 83. Samples of the same code move more than 5%, so this
+  check cannot decide the criterion; no sample grew past today's figures by more than one 20-case voice read.
+- **Claim guard:** a revised deadline the state block served is now `matched` (10 claims). It acted on 41
+  answers without the blocks (9 of them right) and on 55 with them (46 right). Of those 46: 18 give the new
+  price of changes since seen, which the guard does not take as evidence (only the objects of the state read
+  are), so it blocks it as `unsupported`; 27 are hedged answers ("I can't confirm the $24.90 still applies")
+  whose earlier price it reads as a claim (`no_evidence` or `stale`, warned); 1 names an offer's price from
+  the conversation.
+- **Privacy:** no read at V0 held a case's sensitive value, and no answered read at the level proved did
+  either (the first run had 42 of 84 at V1).
+- **Noise:** 4 of the 18 pairs whose two sides read identical bytes (the effect cases) changed verdict.
+- **Cost:** US$ 0.046 for the agent and the judge (1008 calls) and US$ 0.025 for the cell's models.
 
 ## Ranking gate
 
