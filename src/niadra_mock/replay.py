@@ -178,7 +178,7 @@ class ReplayStore:
         pins = pin_differences(record["build"]["pins"], running, self.required_pins, vary)
         if pins:
             raise ReplayError(422, "pin_mismatch", pins=pins)
-        started = datetime.fromisoformat(record["started_at"])
+        started = datetime.fromisoformat(record["started_at"].replace("Z", "+00:00"))  # 3.10 reads no "Z"
         history = self.history(record.get("conversation_id") or "", started)[-50:]
         entry = next((h for h in reversed(history) if h["role"] == "customer"), None)
         assertions = [
