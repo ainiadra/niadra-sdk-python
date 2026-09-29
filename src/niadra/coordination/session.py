@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 from niadra.coordination.client import Checked, Coordinator, EffectState, effect_detail, report_effect
 from niadra.models.coordination import CheckResult
+from niadra.replay.playback import replaying
 
 if TYPE_CHECKING:
     from niadra.models.common import Handle, ObjectRef
@@ -39,6 +40,9 @@ class Declarations:
         self._object = object
 
     def __call__(self, kind: str, /, **detail: Any) -> str:
+        if (played := replaying()) is not None:
+            played.declared(kind, detail)
+            return ""
         return self._coordinator.declare(
             kind, detail, agent=self._agent, subject=self._subject, object=self._object
         )

@@ -72,6 +72,7 @@ from niadra.models.state import ClaimContractSummary, SdkProfile, StateRef
 from niadra.models.tokens import SubjectToken
 from niadra.models.turns import TurnPins
 from niadra.options import CacheOptions, QueueOptions, Timeouts, TurnOptions, VoiceOptions
+from niadra.replay.playback import replaying
 from niadra.resolvers import (
     CLAIM_BUDGET,
     ClaimVerdict,
@@ -217,11 +218,13 @@ class Niadra:
         provenance: Provenance | None = None,
         ui: Callable[[Any], Any] | None = None,
         exclude: Iterable[str] = (),
+        dry_run: bool = False,
     ) -> Callable[[F], F]:
         """A decorator that records each call of a tool of yours in the turn it runs in: arguments,
         result, latency and failure, and with `provenance` the objects the result showed. Outside a turn
-        the tool runs untouched. See `niadra.turns.tool`."""
-        return tool(name, provenance=provenance, ui=ui, exclude=exclude)
+        the tool runs untouched. `dry_run=True` lets a replay run it for real when the record has no answer.
+        See `niadra.turns.tool`."""
+        return tool(name, provenance=provenance, ui=ui, exclude=exclude, dry_run=dry_run)
 
     def profile(self, *, timeout: float | None = None) -> SdkProfile | None:
         """The SDK profile of this key's space: the features it turned on, the claim contract and the
@@ -420,6 +423,8 @@ class Niadra:
         key or an empty one. A 401 or 403 also wipes what the cache held for that key.
         """
         requested = Verification.V0
+        if (played := replaying()) is not None:
+            return played.context or Context.empty(requested=requested, error="replay")
         try:
             requested = Verification(verification)
             request = self._core.context_request(
@@ -639,8 +644,10 @@ class Niadra:
 
         Accepts an `EventItem` or a mapping of its fields; a mapping without `channel` gets
         the client's default. Returns False when the item was dropped: invalid, unserializable,
-        the queue is full, or the client is disabled.
+        the queue is full, or the client is disabled. Inside a replayed turn nothing leaves.
         """
+        if (played := replaying()) is not None:
+            return played.muted(item)
         if not self._core.enabled:
             return False
         try:

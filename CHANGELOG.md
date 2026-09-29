@@ -54,6 +54,14 @@ built on them.
 - `niadra.resolvers` and `verify_claim()`: a value not safe to claim is read again by your resolver, inside
   your boundary and within 300 ms, and the fresh value decides; `niadra.content` puts back the text a
   pointer-mode space keeps in your storage.
+- Replay inside your boundary: `niadra.replay.Replayer` (and `AsyncReplayer`) runs the turns of a scenario N
+  times with the build you pin, answers your tools from the record (`@niadra.tool(dry_run=True)` lets one run
+  for real when the record has no answer), keeps everything the agent sends from leaving, evaluates the
+  assertions and reports the run, and Niadra answers with the statistical verdict.
+- The `niadra` command: `niadra replay` for your CI (exit 1 on a regression) and `niadra resolver-worker`,
+  which serves the space's refresh requests with your resolvers and pushes what they read.
+- LangChain: `NiadraCallbackHandler(conversation, turns=True)` records each top-level run as a turn, with
+  its tool and model calls.
 - Turn records from the framework adapters, with `turns=True`: Google ADK (agent and tool callbacks; a
   sub-agent or an `AgentTool` is a sub-turn), OpenAI Agents (`RunHooks`; a handoff opens a sub-turn) and
   LangGraph (`before_agent`, `after_agent` and `wrap_tool_call` of the middleware) record each run's tool

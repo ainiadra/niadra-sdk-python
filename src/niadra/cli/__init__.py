@@ -1,0 +1,90 @@
+"""The `niadra` command, for the company's own infrastructure and CI.
+
+    niadra resolver-worker --resolvers company.pricing:resolvers
+    niadra replay --agent company.agent:build_agent --build company.agent:BUILD --scenario sc_1 --runs 5
+
+Both read the key from `NIADRA_API_KEY` (and `NIADRA_BASE_URL`, when set). `module:name` names a Python
+object: for `--resolvers`, a `Resolvers` or a function that registers the resolvers on the one it gets; for
+`--agent`, a function that makes a fresh agent; for `--build`, the build the run runs (`Niadra.build()`, or
+a mapping of its pins).
+
+`niadra replay` exits with 0 when the verdict is `pass` or `flaky`, 1 for `regression`, and 2 for
+`pin_mismatch` or `infrastructure_error`.
+"""
+
+from __future__ import annotations
+
+import argparse
+import contextlib
+import importlib
+import json
+import sys
+from collections.abc import Sequence
+from typing import Any
+
+from niadra._client import Niadra
+from niadra.resolvers import Resolvers
+
+EXIT = {"pass": 0, "flaky": 0, "regression": 1}
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="niadra", description="Niadra's command line.")
+    commands = parser.add_subparsers(dest="command", required=True)
+    worker = commands.add_parser("resolver-worker", help="serve the space's refresh requests")
+    worker.add_argument("--resolvers", required=True, help="module:name of the resolvers")
+    worker.add_argument("--once", action="store_true", help="serve what waits now, then stop")
+    worker.add_argument("--limit", type=int, default=50, help="requests leased at a time")
+    worker.add_argument("--poll", type=float, default=2.0, help="seconds between polls when none wait")
+    replay = commands.add_parser("replay", help="run scenarios again and print the verdict")
+    replay.add_argument("--agent", required=True, help="module:name of the function that makes an agent")
+    replay.add_argument("--build", required=True, help="module:name of the build the run runs")
+    replay.add_argument("--scenario", action="append", required=True, help="a scenario id; repeat for more")
+    replay.add_argument("--runs", type=int, default=5)
+    replay.add_argument(
+        "--mode", default="hermetic_turn", choices=["hermetic_turn", "hermetic_conversation", "era_memory"]
+    )
+    replay.add_argument("--vary", action="append", default=[], help="a pin the run changes on purpose")
+    args = parser.parse_args(argv)
+    niadra = Niadra()
+    try:
+        if args.command == "resolver-worker":
+            return _worker(niadra, args)
+        return _replay(niadra, args)
+    finally:
+        niadra.close()
+
+
+def _worker(niadra: Niadra, args: argparse.Namespace) -> int:
+    from niadra.cli.worker import ResolverWorker
+
+    found = _load(args.resolvers)
+    if isinstance(found, Resolvers):
+        niadra.resolvers = found
+    else:
+        found(niadra.resolvers)
+    worker = ResolverWorker(niadra, limit=args.limit, poll=args.poll)
+    if args.once:
+        print(f"pushed {worker.run_once()} objects")
+        return 0
+    with contextlib.suppress(KeyboardInterrupt):
+        worker.run()
+    return 0
+
+
+def _replay(niadra: Niadra, args: argparse.Namespace) -> int:
+    from niadra.replay import Replayer
+
+    run = Replayer(niadra, _load(args.agent), build=_load(args.build)).run(
+        args.scenario, runs=args.runs, mode=args.mode, vary=args.vary
+    )
+    print(json.dumps({"run_id": run.run_id, "verdict": run.verdict, "scenarios": run.scenarios}, indent=2))
+    return EXIT.get(run.verdict or "", 2)
+
+
+def _load(target: str) -> Any:
+    module, _, name = target.partition(":")
+    if not module or not name:
+        raise SystemExit(f"{target!r}: expected module:name")
+    sys.path.insert(0, ".")
+    return getattr(importlib.import_module(module), name)

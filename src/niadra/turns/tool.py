@@ -13,6 +13,10 @@ untouched and nothing is recorded. The recording never fails the tool: a provena
 marks the turn incomplete, and the tool's own result and exceptions pass through unchanged.
 
 A generator tool is recorded piece by piece, and its result is the list of pieces once it is consumed.
+
+In a replay (`niadra.replay`) the call answers from the record when its arguments match a recorded call of the
+tool; otherwise it runs only when `dry_run=True` says running it again is safe, and answers `None` (a
+divergence) when not.
 """
 
 from __future__ import annotations
@@ -38,9 +42,11 @@ def tool(
     provenance: Provenance | None = None,
     ui: Callable[[Any], Any] | None = None,
     exclude: Iterable[str] = (),
+    dry_run: bool = False,
 ) -> Callable[[F], F]:
     """Records the decorated tool's calls in the current turn. `name` defaults to the function's name;
-    `exclude` names parameters left out of the recorded arguments (a framework's context object)."""
+    `exclude` names parameters left out of the recorded arguments (a framework's context object);
+    `dry_run=True` says a replay may run it again for real when the record has no answer."""
 
     def decorate(fn: F) -> F:
         signature = inspect.signature(fn)
@@ -56,7 +62,10 @@ def tool(
                 arguments = {k: v for k, v in bound.items() if k not in left_out}
             except TypeError:
                 arguments = {"args": list(args), **kwargs}
-            return frame.tool_call(called, arguments)
+            call = frame.tool_call(called, arguments)
+            if frame.playback is not None:
+                call.played = frame.playback.answer(called, arguments, dry_run=dry_run)
+            return call
 
         def end(call: CallCapture, result: Any) -> None:
             observations = _observations(call, provenance, result)
@@ -78,6 +87,11 @@ def tool(
                 call = begin(args, kwargs)
                 if call is None:
                     async for item in fn(*args, **kwargs):
+                        yield item
+                    return
+                if call.played is not None and not call.played.live:
+                    end(call, call.played.value)
+                    for item in call.played.value or ():
                         yield item
                     return
                 pieces: list[Any] = []
@@ -103,6 +117,10 @@ def tool(
                 if call is None:
                     yield from fn(*args, **kwargs)
                     return
+                if call.played is not None and not call.played.live:
+                    end(call, call.played.value)
+                    yield from call.played.value or ()
+                    return
                 pieces: list[Any] = []
                 try:
                     for item in fn(*args, **kwargs):
@@ -126,6 +144,9 @@ def tool(
                 if call is None:
                     return await fn(*args, **kwargs)
                 with call:
+                    if call.played is not None and not call.played.live:
+                        end(call, call.played.value)
+                        return call.played.value
                     result = await fn(*args, **kwargs)
                     end(call, result)
                     return result
@@ -138,6 +159,9 @@ def tool(
             if call is None:
                 return fn(*args, **kwargs)
             with call:
+                if call.played is not None and not call.played.live:
+                    end(call, call.played.value)
+                    return call.played.value
                 result = fn(*args, **kwargs)
                 end(call, result)
                 return result

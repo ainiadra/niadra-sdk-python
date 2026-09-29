@@ -69,6 +69,7 @@ from niadra.models.events import (
 )
 from niadra.models.results import Context, render_turn
 from niadra.models.state import StateRef
+from niadra.replay.playback import replaying
 from niadra.resolvers import ClaimVerdict
 from niadra.tools import AsyncToolKit, ToolKit, definitions
 from niadra.turns.capture import TurnFrame, TurnKind, current_turn
@@ -478,6 +479,8 @@ class _Session:
             return self._fail(f"{speaker.value} turn", exc, False)
         if speaker is Speaker.AI_AGENT and (frame := current_turn()) is not None:
             frame.say(text, event_key=item.idempotency_key)
+            if frame.playback is not None:
+                frame.playback.say(frame, text)
         return self._track(item)
 
     def _end_item(self) -> ItemLike:
@@ -564,6 +567,8 @@ class _SyncSession(_Session):
             destination_hash,
         )
         coordinator = self._client._coordination
+        if (played := replaying()) is not None:
+            return played.checked(request)
         if not self._client.enabled:
             return coordinator.failed(request, self._checked, fail_open)
         try:
@@ -752,6 +757,8 @@ class _AsyncSession(_Session):
             destination_hash,
         )
         coordinator = self._client._coordination
+        if (played := replaying()) is not None:
+            return played.checked(request)
         if not self._client.enabled:
             return coordinator.failed(request, self._checked, fail_open)
         try:
