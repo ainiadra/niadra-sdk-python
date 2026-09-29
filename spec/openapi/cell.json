@@ -170,6 +170,17 @@
           },
           "scope": {
             "$ref": "#/components/schemas/AgentStateScope"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Handle"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The customer the state is about, when its scope does not name them: erasing the customer and their data package find the state by it."
           }
         },
         "required": [
@@ -9247,6 +9258,7 @@
     },
     "/v1/agent-state": {
       "put": {
+        "description": "A write by the agent's code: over the cap it answers `stored: false`, never an error.",
         "operationId": "write_agent_state_v1_agent_state_put",
         "requestBody": {
           "content": {
@@ -9291,6 +9303,7 @@
     },
     "/v1/agent-state/read": {
       "post": {
+        "description": "The working state of one scope and agent: version 0 and an empty body when it was never written.",
         "operationId": "read_agent_state_v1_agent_state_read_post",
         "requestBody": {
           "content": {
