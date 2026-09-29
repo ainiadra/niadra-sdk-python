@@ -33,7 +33,7 @@ BLOCK_FEATURES = {"constraints": "signals", "state": "state"}
 # The members of a type the profile serves, as the server summarizes the registry for the SDK.
 SUMMARY = (
     *("type", "version", "ownership", "nature", "key", "inputs", "fields", "values", "sources", "union"),
-    *("states", "purposes", "readings", "agent_state"),
+    *("states", "purposes", "readings", "agent_state", "mirror_of", "field_access"),
 )
 PROFILE_TTL_S = 300
 

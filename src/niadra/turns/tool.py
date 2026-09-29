@@ -37,6 +37,7 @@ from niadra.constraints.binding import flag, items, parse
 from niadra.constraints.render import Call, honored, render
 from niadra.models.turns import TurnObservation
 from niadra.turns.capture import CallCapture, TurnFrame, current_turn
+from niadra.turns.mask import Access, OnUnknown, protect
 
 logger = logging.getLogger("niadra")
 
@@ -52,11 +53,16 @@ def tool(
     exclude: Iterable[str] = (),
     dry_run: bool = False,
     binding: Mapping[str, Any] | None = None,
+    mask_output: bool = False,
+    on_unknown: OnUnknown = "pass",
+    access: Access | None = None,
 ) -> Callable[[F], F]:
     """Records the decorated tool's calls in the current turn. `name` defaults to the function's name;
     `exclude` names parameters left out of the recorded arguments (a framework's context object);
     `dry_run=True` says a replay may run it again for real when the record has no answer; `binding` is the
-    tool's binding, to measure the constraints block against its calls."""
+    tool's binding, to measure the constraints block against its calls. `mask_output=True` keeps the fields
+    the key may not read from the model (`niadra.turns.mask`), with `on_unknown` for when no profile was ever
+    read; `access` gives the fields each type hides, by default the SDK profile of the turn's client."""
 
     def decorate(fn: F) -> F:
         signature = inspect.signature(fn)
@@ -83,7 +89,19 @@ def tool(
                 call.played = frame.playback.answer(called, arguments, dry_run=dry_run)
             return call
 
-        def end(call: CallCapture, result: Any) -> None:
+        def shield(result: Any) -> Any:
+            """The result as the model may get it."""
+            if not mask_output:
+                return result
+            frame = current_turn()
+            source = access or (
+                frame._recorder.field_access if frame is not None and frame._recorder else None
+            )
+            return protect(
+                result, source() if source is not None else None, _types(provenance, result), on_unknown
+            )
+
+        def end(call: CallCapture, result: Any, shown_to_model: Any = _SAME) -> None:
             observations = _observations(call, provenance, result)
             shown = None
             if ui is not None:
@@ -92,7 +110,8 @@ def tool(
                 except Exception:
                     logger.warning("niadra: the ui form of %s's result failed", called, exc_info=True)
                     call.frame.incomplete()
-            call.result(result, ui=shown, observations=observations)
+            model = result if shown_to_model is _SAME else shown_to_model
+            call.result(model, ui=shown, observations=observations)
 
         # A generator runs in its consumer's context between pieces: it is recorded, never made the call in
         # progress, or the consumer's own calls would name it as their parent.
@@ -103,7 +122,7 @@ def tool(
                 call = begin(args, kwargs)
                 if call is None:
                     async for item in fn(*args, **kwargs):
-                        yield item
+                        yield shield(item)
                     return
                 if call.played is not None and not call.played.live:
                     end(call, call.played.value)
@@ -113,8 +132,8 @@ def tool(
                 pieces: list[Any] = []
                 try:
                     async for item in fn(*args, **kwargs):
-                        pieces.append(item)
-                        yield item
+                        pieces.append(shield(item))
+                        yield pieces[-1]
                 except GeneratorExit:
                     end(call, pieces)
                     raise
@@ -131,7 +150,8 @@ def tool(
             def gen(*args: Any, **kwargs: Any) -> Iterator[Any]:
                 call = begin(args, kwargs)
                 if call is None:
-                    yield from fn(*args, **kwargs)
+                    for item in fn(*args, **kwargs):
+                        yield shield(item)
                     return
                 if call.played is not None and not call.played.live:
                     end(call, call.played.value)
@@ -140,8 +160,8 @@ def tool(
                 pieces: list[Any] = []
                 try:
                     for item in fn(*args, **kwargs):
-                        pieces.append(item)
-                        yield item
+                        pieces.append(shield(item))
+                        yield pieces[-1]
                 except GeneratorExit:
                     end(call, pieces)
                     raise
@@ -158,14 +178,15 @@ def tool(
             async def run_async(*args: Any, **kwargs: Any) -> Any:
                 call = begin(args, kwargs)
                 if call is None:
-                    return await fn(*args, **kwargs)
+                    return shield(await fn(*args, **kwargs))
                 with call:
                     if call.played is not None and not call.played.live:
                         end(call, call.played.value)
                         return call.played.value
                     result = await fn(*args, **kwargs)
-                    end(call, result)
-                    return result
+                    shown = shield(result)
+                    end(call, result, shown)
+                    return shown
 
             return mark(run_async)
 
@@ -173,18 +194,29 @@ def tool(
         def run(*args: Any, **kwargs: Any) -> Any:
             call = begin(args, kwargs)
             if call is None:
-                return fn(*args, **kwargs)
+                return shield(fn(*args, **kwargs))
             with call:
                 if call.played is not None and not call.played.live:
                     end(call, call.played.value)
                     return call.played.value
                 result = fn(*args, **kwargs)
-                end(call, result)
-                return result
+                shown = shield(result)
+                end(call, result, shown)
+                return shown
 
         return mark(run)
 
     return decorate
+
+
+class BoundTool:
+    """`Niadra.tool`: `tool()` itself on the class, and on a client the same with that client's SDK profile as
+    the fields a masked output hides (`mask_output=True`)."""
+
+    def __get__(self, client: Any, owner: type | None = None) -> Callable[..., Callable[[F], F]]:
+        if client is None:
+            return tool
+        return functools.partial(tool, access=client._profile.field_access)
 
 
 @dataclass(frozen=True)
@@ -229,6 +261,21 @@ def _measure(
         return applied
 
     return measure
+
+
+_SAME: Any = object()
+
+
+def _types(provenance: Provenance | None, result: Any) -> list[str] | None:
+    """The types of the objects the result showed; None (every type) without a provenance that answers."""
+    if provenance is None:
+        return None
+    try:
+        found = provenance(result)
+        items_ = [found] if isinstance(found, Mapping) else list(found or ())
+        return [str(o["ref"]).split(":", 1)[0] for o in items_]
+    except Exception:
+        return None
 
 
 def _observations(call: CallCapture, provenance: Provenance | None, result: Any) -> list[dict[str, Any]]:

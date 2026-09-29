@@ -77,6 +77,14 @@ class ProfileCache:
         with self._lock:
             return self.profile.claim_contract if self.profile is not None else None
 
+    def field_access(self) -> dict[str, dict[str, str]] | None:
+        """The fields each type hides from this key (`mask` or `deny`), by type; None while no profile was
+        ever read. When Niadra does not answer, the last profile read keeps applying."""
+        with self._lock:
+            if self.profile is None:
+                return None
+            return {t["type"]: dict(t.get("field_access") or {}) for t in self.profile.types}
+
     def families(self) -> dict[str, str]:
         """Each field's attribute family (`item_variant.size_label` to `size`), from the type registry."""
         with self._lock:
