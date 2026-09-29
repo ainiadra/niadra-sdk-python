@@ -99,6 +99,28 @@ class AnchorEvidence(ResponseModel):
     min_match: float = Field(default=0.9, ge=0.9, le=1.0)
 
 
+class Negation(ResponseModel):
+    param: Annotated[str, StringConstraints(pattern=r"^[A-Za-z_][A-Za-z0-9_.-]{0,63}$")] = Field(
+        description="The argument that takes the values the field must not have."
+    )
+
+
+class BoundArg(ResponseModel):
+    """One argument of the tool and the field it carries. `in` and `eq` render to `param`, `not_in` and `ne`
+    to the negation's, and a comparison or `between` only when `ops` lists it.
+    """
+
+    attr: Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}\.[a-z][a-z0-9_]{0,63}$")] = Field(
+        description="The field, as `type.field`."
+    )
+    negation: Negation | None = None
+    ops: list[Literal["in", "not_in", "eq", "ne", "lt", "lte", "gt", "gte", "between"]] = Field(
+        default_factory=list, max_length=9
+    )
+    param: Annotated[str, StringConstraints(pattern=r"^[A-Za-z_][A-Za-z0-9_.-]{0,63}$")]
+    transform: Literal["lower", "upper"] | None = Field(default=None, description="The case text is sent in.")
+
+
 class StateRef(Model):
     """An object of the type registry: a subject's or a shared one, whose key may name a variant."""
 
@@ -534,6 +556,50 @@ class RefreshRequestPage(ResponseModel):
     items: list[RefreshRequest]
 
 
+class ResultObjects(ResponseModel):
+    """Where a result carries objects of a type, and which key of each item holds which field."""
+
+    fields: dict[
+        Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,63}$")],
+        Annotated[str, StringConstraints(pattern=r"^[A-Za-z_][A-Za-z0-9_-]{0,63}$")],
+    ] = Field(default_factory=dict, max_length=100)
+    id: Annotated[str, StringConstraints(pattern=r"^[A-Za-z_][A-Za-z0-9_-]{0,63}$")] = Field(
+        default="id", description="The key of the item that holds the object's id."
+    )
+    namespace: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")]
+    path: Annotated[
+        str, StringConstraints(max_length=256, pattern=r"^\$?(\.?[A-Za-z_][A-Za-z0-9_-]*(\[\*\])?)*$")
+    ] = "$"
+    type: TypeName
+
+
+class ToolCapabilities(ResponseModel):
+    dry_run_param: Annotated[str, StringConstraints(pattern=r"^[A-Za-z_][A-Za-z0-9_.-]{0,63}$")] | None = (
+        Field(
+            default=None, description="The argument that makes a call change nothing, for a counterfactual."
+        )
+    )
+    mask_output: bool = Field(
+        default=False, description="The SDK masks the fields the key may not read in the tool's output."
+    )
+    overfetch: bool = Field(
+        default=False, description="The tool returns more than asked: the SDK filters the residual from it."
+    )
+    relax_flag: (
+        Annotated[
+            str, StringConstraints(max_length=256, pattern=r"^\$?(\.?[A-Za-z_][A-Za-z0-9_-]*(\[\*\])?)*$")
+        ]
+        | None
+    ) = Field(default=None, description="Where the result says the tool relaxed what it was asked.")
+
+
+class ToolBinding(ResponseModel):
+    args: list[BoundArg] = Field(default_factory=list, max_length=50)
+    capabilities: ToolCapabilities = Field(default_factory=ToolCapabilities)
+    results: list[ResultObjects] = Field(default_factory=list, max_length=10)
+    tool: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_][A-Za-z0-9_.:/-]{0,63}$")]
+
+
 class TurnRecordingSummary(ResponseModel):
     """How the calling source records turns, for the SDK's capture: where the values may live, and the pins a
     turn needs to be replayable.
@@ -557,7 +623,9 @@ class SdkProfile(ResponseModel):
     recording: TurnRecordingSummary | None = Field(
         default=None, description="How this source records turns, once the space records them."
     )
-    tool_bindings: list[dict[str, Any]] = Field(default_factory=list)
+    tool_bindings: list[ToolBinding] = Field(
+        default_factory=list, description="The bindings of the tools this source's agents call."
+    )
     types: list[dict[str, Any]] = Field(default_factory=list)
     valid_for_s: int
 

@@ -331,7 +331,8 @@ class Api(SyncRoutes):
 
     def constraints(self, body: ConstraintsRequest) -> ConstraintsBlock:
         """`POST /v1/constraints`. The constraints block of one subject, the one `include: ["constraints"]`
-        adds to a context read; `for` asks for a beneficiary's.
+        adds to a context read; `for` asks for a beneficiary's. With `tool`, it comes rendered through the
+        tool's binding for this source, in advisory mode; 422 when the space binds no such tool for it.
         """
         return self._call(ConstraintsBlock, "POST", "/v1/constraints", body=body)
 
@@ -823,7 +824,8 @@ class AsyncApi(AsyncRoutes):
 
     async def constraints(self, body: ConstraintsRequest) -> ConstraintsBlock:
         """`POST /v1/constraints`. The constraints block of one subject, the one `include: ["constraints"]`
-        adds to a context read; `for` asks for a beneficiary's.
+        adds to a context read; `for` asks for a beneficiary's. With `tool`, it comes rendered through the
+        tool's binding for this source, in advisory mode; 422 when the space binds no such tool for it.
         """
         return await self._call(ConstraintsBlock, "POST", "/v1/constraints", body=body)
 

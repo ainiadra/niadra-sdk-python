@@ -1,8 +1,9 @@
 """The SDK profile in the client's warm cache: `GET /v1/sdk/profile`.
 
-The profile says which agent features the space turned on, and carries what the SDK checks locally: the
-claim contract and the summarized type registry. It is read on first need, off the agent's path when it can
-be (the turn sender reads it before it builds records), and again once `valid_for_s` has passed.
+The profile says which agent features the space turned on, and carries what the SDK checks locally: the claim
+contract, the summarized type registry and the bindings of this source's tools. It is read on first need, off
+the agent's path when it can be (the turn sender reads it before it builds records), and again once
+`valid_for_s` has passed.
 
 - A server that answers 404 has no profile for this key (an older cell, or a space with every feature
   off): the features count as off for 10 minutes, then the SDK asks again, as it does for prefetch.
@@ -30,6 +31,7 @@ class ProfileCache:
         self._clock = clock
         self._lock = threading.Lock()
         self.profile: SdkProfile | None = None
+        self._bindings: dict[str, dict[str, Any]] = {}
         self._fetched_at: float | None = None
         self._off_until = 0.0
         self.claim_contract: ClaimContractSummary | None = None
@@ -51,15 +53,16 @@ class ProfileCache:
 
     def absorb(self, data: Any) -> SdkProfile:
         profile = SdkProfile.model_validate(data)
+        bindings = {b.tool: b.model_dump(mode="json") for b in profile.tool_bindings}
         with self._lock:
-            self.profile, self._fetched_at = profile, self._clock()
+            self.profile, self._fetched_at, self._bindings = profile, self._clock(), bindings
         return profile
 
     def failed(self, error: BaseException) -> None:
         """A 404 turns the features off for a while; any other failure keeps the last profile."""
         if isinstance(error, NotFoundError):
             with self._lock:
-                self.profile, self._fetched_at = None, None
+                self.profile, self._fetched_at, self._bindings = None, None, {}
                 self._off_until = self._clock() + OFF_FOR
 
     @property
@@ -84,6 +87,12 @@ class ProfileCache:
             if self.profile is None:
                 return None
             return {t["type"]: dict(t.get("field_access") or {}) for t in self.profile.types}
+
+    def tool_binding(self, tool: str) -> dict[str, Any] | None:
+        """The binding the space serves this source for `tool`, as `niadra.constraints.binding` reads it; None
+        when it binds no such tool or no profile was ever read. The last profile read keeps applying."""
+        with self._lock:
+            return self._bindings.get(tool)
 
     def families(self) -> dict[str, str]:
         """Each field's attribute family (`item_variant.size_label` to `size`), from the type registry."""
