@@ -503,6 +503,14 @@ class ObjectPush(Model):
     )
     provenance: Provenance
     ref: StateRef
+    request_id: IdStr | None = Field(
+        default=None,
+        description=(
+            "The refresh request this item answers, from the resolver worker's lease: the request is "
+            "settled, and a `watch_revalidation` is decided on these values even when they are not "
+            "newer than the ones held."
+        ),
+    )
     version: int = Field(
         ge=0,
         le=9007199254740991,
@@ -541,6 +549,20 @@ class ObjectSnapshotResponse(ResponseModel):
 
     import_id: IdStr
     objects: int = Field(description="The lines taken in.")
+
+
+class RefreshRelease(Model):
+    """A leased request the resolver worker cannot answer: the object is not at the source, or fetching it
+    failed. The request leaves at once and its paid call counts; a `watch_revalidation` falls back to the
+    type's `unconfirmed_watch`.
+    """
+
+    outcome: Literal["not_found", "failed"]
+
+
+class RefreshReleased(ResponseModel):
+    reason: ShortStr
+    request_id: IdStr
 
 
 class RefreshRequest(ResponseModel):

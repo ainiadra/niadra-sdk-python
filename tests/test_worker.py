@@ -13,7 +13,7 @@ from niadra import cli as command
 from niadra.cli.worker import ResolverWorker
 from niadra.models.state import StateRef
 from niadra.options import TurnOptions
-from niadra.resolvers import Resolvers
+from niadra.resolvers import NOT_FOUND, Resolvers
 from niadra.turns import tool
 from niadra_mock import MOCK_KEY, MockApp
 
@@ -64,15 +64,60 @@ def test_the_worker_reads_what_niadra_asks_for_and_pushes_it(app: MockApp) -> No
     client.close()
 
 
-def test_a_resolver_that_fails_leaves_the_request_to_its_lease(app: MockApp) -> None:
+def test_a_resolver_that_fails_gives_the_request_back_at_once(app: MockApp) -> None:
     def broken(ref: StateRef, fields: Sequence[str] | None) -> dict[str, Any]:
         raise RuntimeError("down")
 
-    app.cell.state.request_refresh(QUOTE)
+    request_id = app.cell.state.request_refresh(QUOTE)
     client = _client(app)
     client.resolvers.register("health_quote", broken)
     worker = ResolverWorker(client)
-    assert worker.run_once() == 0 and worker.skipped == 1
+    assert worker.run_once() == 0 and worker.released == 1
+    assert app.cell.state.released == [{"request_id": request_id, "outcome": "failed"}]
+    assert not app.cell.state.refreshes
+    client.close()
+
+
+def test_a_watch_is_revalidated_first_and_its_answer_names_the_request(app: MockApp) -> None:
+    app.cell.state.request_refresh("health_quote:op:q-1", reason="claim_pending")
+    watch = app.cell.state.request_refresh(QUOTE, reason="watch_revalidation")
+    client = _client(app)
+    seen: list[str] = []
+
+    def requote(ref: StateRef, fields: Sequence[str] | None) -> dict[str, Any]:
+        seen.append(ref.id)
+        return {"price_full": 499.9}
+
+    client.resolvers.register("health_quote", requote)
+    assert ResolverWorker(client).run_once() == 2
+    assert seen == ["q-77", "q-1"], "the watch goes before the claim"
+    assert app.cell.state.pushes[0]["request_id"] == watch
+    assert all("request_id" in p for p in app.cell.state.pushes)
+    client.close()
+
+
+def test_an_object_gone_from_its_source_is_released_as_not_found(app: MockApp) -> None:
+    request_id = app.cell.state.request_refresh(QUOTE, reason="watch_revalidation")
+    client = _client(app)
+    client.resolvers.register("health_quote", lambda ref, fields: NOT_FOUND)
+    worker = ResolverWorker(client)
+    assert worker.run_once() == 0 and worker.released == 1
+    assert app.cell.state.released == [{"request_id": request_id, "outcome": "not_found"}]
+    assert client.resolvers.available("health_quote"), "a missing object is no failure of the source"
+    client.close()
+
+
+def test_an_open_circuit_leaves_the_request_to_its_lease(app: MockApp) -> None:
+    def broken(ref: StateRef, fields: Sequence[str] | None) -> dict[str, Any]:
+        raise RuntimeError("down")
+
+    client = _client(app)
+    client.resolvers.register("health_quote", broken)
+    for _ in range(5):
+        client.resolvers.fetch(StateRef(type="health_quote", namespace="op", id="x"), None, 1.0)
+    app.cell.state.request_refresh(QUOTE)
+    worker = ResolverWorker(client)
+    assert worker.run_once() == 0 and (worker.skipped, worker.released) == (1, 0)
     assert len(app.cell.state.refreshes) == 1
     client.close()
 

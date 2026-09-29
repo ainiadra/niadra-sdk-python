@@ -232,6 +232,10 @@ class MockApp:
             if route == ("POST", "/v1/agent-state/read"):
                 return _json(200, cell.state.read_agent_state(json.loads(body)))
             return _problem(404)
+        if method == "POST" and path.startswith("/v1/state/refresh-requests/") and path.endswith("/release"):
+            cell.agent_features.need("state")
+            request_id = unquote(path.split("/")[-2])
+            return _json(200, cell.state.release(request_id, json.loads(body)))
         if route in (
             ("POST", "/v1/state/verify"),
             ("GET", "/v1/state/refresh-requests"),

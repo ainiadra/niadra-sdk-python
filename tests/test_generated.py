@@ -66,7 +66,7 @@ def test_the_generated_files_are_what_the_cut_document_gives() -> None:
 def test_every_operation_of_the_document_is_a_method_of_both_clients() -> None:
     sync = _sync_spec()
     names = {op.name for op in sync.operations(json.loads(sync.CUT.read_text()))}
-    assert len(names) == 67
+    assert len(names) == 68
     client = Niadra(KEY)
     assert all(callable(getattr(client.api, name)) for name in names)
     assert all(callable(getattr(AsyncNiadra(KEY).api, name)) for name in names)
