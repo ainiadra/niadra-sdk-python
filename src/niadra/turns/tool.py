@@ -14,8 +14,9 @@ marks the turn incomplete, and the tool's own result and exceptions pass through
 
 A generator tool is recorded piece by piece, and its result is the list of pieces once it is consumed.
 
-With `binding` (the tool's binding, as `niadra.constraints.binding` reads it), a call in a turn that read the
-constraints block records what it did with the block: the hard constraints its arguments sent, and over the
+With a binding (the tool's binding, as `niadra.constraints.binding` reads it: `binding=`, else the one the SDK
+profile serves for the tool's name), a call in a turn that read the constraints block records what it did with
+the block: the hard constraints its arguments sent, and over the
 objects its result shows, how many were checked, broke one, or lacked the field (the constraints spec, 7). It
 is what the day's conformance counts and what the tool counterfactual starts from. Nothing is changed.
 
@@ -53,16 +54,19 @@ def tool(
     exclude: Iterable[str] = (),
     dry_run: bool = False,
     binding: Mapping[str, Any] | None = None,
-    mask_output: bool = False,
+    mask_output: bool | None = None,
     on_unknown: OnUnknown = "pass",
     access: Access | None = None,
+    served: Callable[[str], Mapping[str, Any] | None] | None = None,
 ) -> Callable[[F], F]:
     """Records the decorated tool's calls in the current turn. `name` defaults to the function's name;
     `exclude` names parameters left out of the recorded arguments (a framework's context object);
     `dry_run=True` says a replay may run it again for real when the record has no answer; `binding` is the
-    tool's binding, to measure the constraints block against its calls. `mask_output=True` keeps the fields
-    the key may not read from the model (`niadra.turns.mask`), with `on_unknown` for when no profile was ever
-    read; `access` gives the fields each type hides, by default the SDK profile of the turn's client."""
+    tool's binding, to measure the constraints block against its calls, and wins over the one the SDK profile
+    serves. `mask_output=True` keeps the fields the key may not read from the model (`niadra.turns.mask`),
+    with `on_unknown` for when no profile was ever read; left unset, the served binding's
+    `capabilities.mask_output` decides. `access` gives the fields each type hides and `served` the bindings by
+    tool name, both by default from the SDK profile of the turn's client."""
 
     def decorate(fn: F) -> F:
         signature = inspect.signature(fn)
@@ -83,17 +87,18 @@ def tool(
             except TypeError:
                 arguments = {"args": list(args), **kwargs}
             call = frame.adopt(called, arguments) or frame.tool_call(called, arguments)
-            if binding is not None and frame.constraints is not None:
-                call.measure = _measure(frame, binding, arguments)
+            raw = _binding(frame, called, binding, served)
+            if raw is not None and frame.constraints is not None:
+                call.measure = _measure(frame, raw, arguments)
             if frame.playback is not None:
                 call.played = frame.playback.answer(called, arguments, dry_run=dry_run)
             return call
 
         def shield(result: Any) -> Any:
             """The result as the model may get it."""
-            if not mask_output:
-                return result
             frame = current_turn()
+            if not _masks(frame, called, binding, served, mask_output):
+                return result
             source = access or (
                 frame._recorder.field_access if frame is not None and frame._recorder else None
             )
@@ -211,12 +216,14 @@ def tool(
 
 class BoundTool:
     """`Niadra.tool`: `tool()` itself on the class, and on a client the same with that client's SDK profile as
-    the fields a masked output hides (`mask_output=True`)."""
+    the fields a masked output hides and the bindings it serves."""
 
     def __get__(self, client: Any, owner: type | None = None) -> Callable[..., Callable[[F], F]]:
         if client is None:
             return tool
-        return functools.partial(tool, access=client._profile.field_access)
+        return functools.partial(
+            tool, access=client._profile.field_access, served=client._profile.tool_binding
+        )
 
 
 @dataclass(frozen=True)
@@ -233,6 +240,34 @@ def recorded(fn: Any) -> Recorded | None:
     """The `@niadra.tool` of `fn`, if it is one."""
     found = getattr(fn, "__niadra_tool__", None)
     return found if isinstance(found, Recorded) else None
+
+
+def _binding(
+    frame: TurnFrame | None,
+    tool: str,
+    given: Mapping[str, Any] | None,
+    served: Callable[[str], Mapping[str, Any] | None] | None,
+) -> Mapping[str, Any] | None:
+    """The tool's binding: the one the code gives, else the one the SDK profile serves for its name."""
+    if given is not None:
+        return given
+    if served is not None:
+        return served(tool)
+    return frame._recorder.bindings(tool) if frame is not None and frame._recorder is not None else None
+
+
+def _masks(
+    frame: TurnFrame | None,
+    tool: str,
+    given: Mapping[str, Any] | None,
+    served: Callable[[str], Mapping[str, Any] | None] | None,
+    mask_output: bool | None,
+) -> bool:
+    """Whether the tool's output is masked: `mask_output` when the code says it, else the binding's."""
+    if mask_output is not None:
+        return mask_output
+    raw = _binding(frame, tool, given, served)
+    return bool(((raw or {}).get("capabilities") or {}).get("mask_output"))
 
 
 def _measure(

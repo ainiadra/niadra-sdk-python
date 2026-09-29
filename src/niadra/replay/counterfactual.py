@@ -237,7 +237,8 @@ class _Runner:
     def _served(self, tool: str) -> Mapping[str, Any] | None:
         profile = self._profile()
         bindings = profile.tool_bindings if profile is not None else []
-        return next((b for b in bindings if b.get("tool") == tool), None)
+        found = next((b for b in bindings if b.tool == tool), None)
+        return found.model_dump(mode="json") if found is not None else None
 
     def _families(self) -> dict[str, str]:
         profile = self._profile()

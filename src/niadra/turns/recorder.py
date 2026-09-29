@@ -54,6 +54,8 @@ class TurnRecorder:
         """The features the space turned on, when the client knows them (the SDK profile)."""
         self.field_access: Callable[[], Mapping[str, Mapping[str, str]] | None] = lambda: None
         """The fields each type hides from this key, for a tool's masked output (the SDK profile)."""
+        self.bindings: Callable[[str], Mapping[str, Any] | None] = lambda _tool: None
+        """The binding the space serves for a tool, when the client knows it (the SDK profile)."""
         self.families: Callable[[], Mapping[str, str]] = dict
         """Each field's attribute family, from the type registry, for the tools' bindings (the SDK
         profile)."""

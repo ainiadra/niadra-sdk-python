@@ -172,6 +172,7 @@ class Niadra:
         self.turns.recording_mode = self._profile.recording_mode
         self.turns.required_pins = self._profile.required_pins
         self.turns.families = self._profile.families
+        self.turns.bindings = self._profile.tool_binding
         self.turns.field_access = self._profile.field_access
         self.turns.claims = self._claims_of
         self.internal_text = InternalText()
@@ -222,15 +223,17 @@ class Niadra:
     tool = BoundTool()
     """A decorator that records each call of a tool of yours in the turn it runs in: arguments, result,
     latency and failure, and with `provenance` the objects the result showed. Outside a turn the tool runs
-    untouched. `dry_run=True` lets a replay run it for real when the record has no answer; `binding` measures
-    the constraints block against its calls; `mask_output=True` keeps the fields this key may not read from
-    the model, by this client's SDK profile. See `niadra.turns.tool`."""
+    untouched. `dry_run=True` lets a replay run it for real when the record has no answer; the tool's binding
+    (`binding=`, else the one the SDK profile serves for its name) measures the constraints block against its
+    calls; `mask_output=True` keeps the fields this key may not read from the model, by this client's SDK
+    profile, and left unset the served binding decides. See `niadra.turns.tool`."""
 
     def profile(self, *, timeout: float | None = None) -> SdkProfile | None:
-        """The SDK profile of this key's space: the features it turned on, the claim contract and the
-        summarized type registry, from the local cache, read again once `valid_for_s` has passed. When
-        Niadra does not answer, the last profile read stays in use; None when there is none yet, or the
-        space serves none (then the SDK asks again in 10 minutes). Never raises unless `strict`."""
+        """The SDK profile of this key's space: the features it turned on, the claim contract, the
+        summarized type registry and this source's tool bindings, from the local cache, read again once
+        `valid_for_s` has passed. When Niadra does not answer, the last profile read stays in use; None when
+        there is none yet, or the space serves none (then the SDK asks again in 10 minutes). Never raises
+        unless `strict`."""
         if self._core.enabled and self._profile.due():
             budget = timeout if timeout is not None else self._core.timeouts.navigation
             try:

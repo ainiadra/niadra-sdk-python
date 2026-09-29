@@ -1101,6 +1101,74 @@
         "title": "BlockSubject",
         "type": "object"
       },
+      "BoundArg": {
+        "additionalProperties": false,
+        "description": "One argument of the tool and the field it carries. `in` and `eq` render to `param`, `not_in` and `ne`\nto the negation's, and a comparison or `between` only when `ops` lists it.",
+        "properties": {
+          "attr": {
+            "description": "The field, as `type.field`.",
+            "pattern": "^[a-z][a-z0-9_]{0,39}\\.[a-z][a-z0-9_]{0,63}$",
+            "title": "Attr",
+            "type": "string"
+          },
+          "negation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Negation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ops": {
+            "items": {
+              "enum": [
+                "in",
+                "not_in",
+                "eq",
+                "ne",
+                "lt",
+                "lte",
+                "gt",
+                "gte",
+                "between"
+              ],
+              "type": "string"
+            },
+            "maxItems": 9,
+            "title": "Ops",
+            "type": "array"
+          },
+          "param": {
+            "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,63}$",
+            "title": "Param",
+            "type": "string"
+          },
+          "transform": {
+            "anyOf": [
+              {
+                "enum": [
+                  "lower",
+                  "upper"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The case text is sent in.",
+            "title": "Transform"
+          }
+        },
+        "required": [
+          "attr",
+          "param"
+        ],
+        "title": "BoundArg",
+        "type": "object"
+      },
       "CaseClosed": {
         "additionalProperties": false,
         "properties": {
@@ -6382,6 +6450,22 @@
         "title": "Natures",
         "type": "object"
       },
+      "Negation": {
+        "additionalProperties": false,
+        "properties": {
+          "param": {
+            "description": "The argument that takes the values the field must not have.",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,63}$",
+            "title": "Param",
+            "type": "string"
+          }
+        },
+        "required": [
+          "param"
+        ],
+        "title": "Negation",
+        "type": "object"
+      },
       "Notification": {
         "additionalProperties": false,
         "description": "A webhook's body, for the company that pulls instead of receiving it: the same fields, ids and\npointers only. An event aimed at one endpoint, or about a memory item only some sources may read,\nreaches its webhooks only.",
@@ -8911,6 +8995,53 @@
         "title": "ReplayResult",
         "type": "object"
       },
+      "ResultObjects": {
+        "additionalProperties": false,
+        "description": "Where a result carries objects of a type, and which key of each item holds which field.",
+        "properties": {
+          "fields": {
+            "maxProperties": 100,
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,63}$": {
+                "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,63}$",
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "id": {
+            "default": "id",
+            "description": "The key of the item that holds the object's id.",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,63}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "namespace": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$",
+            "title": "Namespace",
+            "type": "string"
+          },
+          "path": {
+            "default": "$",
+            "maxLength": 256,
+            "pattern": "^\\$?(\\.?[A-Za-z_][A-Za-z0-9_-]*(\\[\\*\\])?)*$",
+            "title": "Path",
+            "type": "string"
+          },
+          "type": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "namespace"
+        ],
+        "title": "ResultObjects",
+        "type": "object"
+      },
       "ReviewRequest": {
         "additionalProperties": false,
         "properties": {
@@ -9625,9 +9756,9 @@
             "description": "How this source records turns, once the space records them."
           },
           "tool_bindings": {
+            "description": "The bindings of the tools this source's agents call.",
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/ToolBinding"
             },
             "title": "Tool Bindings",
             "type": "array"
@@ -10536,6 +10667,86 @@
           "state"
         ],
         "title": "TimerState",
+        "type": "object"
+      },
+      "ToolBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "args": {
+            "items": {
+              "$ref": "#/components/schemas/BoundArg"
+            },
+            "maxItems": 50,
+            "title": "Args",
+            "type": "array"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/ToolCapabilities"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ResultObjects"
+            },
+            "maxItems": 10,
+            "title": "Results",
+            "type": "array"
+          },
+          "tool": {
+            "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.:/-]{0,63}$",
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool"
+        ],
+        "title": "ToolBinding",
+        "type": "object"
+      },
+      "ToolCapabilities": {
+        "additionalProperties": false,
+        "properties": {
+          "dry_run_param": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,63}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The argument that makes a call change nothing, for a counterfactual.",
+            "title": "Dry Run Param"
+          },
+          "mask_output": {
+            "default": false,
+            "description": "The SDK masks the fields the key may not read in the tool's output.",
+            "title": "Mask Output",
+            "type": "boolean"
+          },
+          "overfetch": {
+            "default": false,
+            "description": "The tool returns more than asked: the SDK filters the residual from it.",
+            "title": "Overfetch",
+            "type": "boolean"
+          },
+          "relax_flag": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "pattern": "^\\$?(\\.?[A-Za-z_][A-Za-z0-9_-]*(\\[\\*\\])?)*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where the result says the tool relaxed what it was asked.",
+            "title": "Relax Flag"
+          }
+        },
+        "title": "ToolCapabilities",
         "type": "object"
       },
       "TurnAgent": {
@@ -12840,7 +13051,7 @@
     },
     "/v1/constraints": {
       "post": {
-        "description": "The constraints block of one subject, the one `include: [\"constraints\"]` adds to a context read;\n`for` asks for a beneficiary's.",
+        "description": "The constraints block of one subject, the one `include: [\"constraints\"]` adds to a context read;\n`for` asks for a beneficiary's. With `tool`, it comes rendered through the tool's binding for this\nsource, in advisory mode; 422 when the space binds no such tool for it.",
         "operationId": "constraints_v1_constraints_post",
         "requestBody": {
           "content": {
