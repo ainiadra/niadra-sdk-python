@@ -104,7 +104,7 @@
   "interactions": [
     {
       "kind": "presented",
-      "exposure_id": "ex_01",
+      "exposure_id": "0192f5a0-7c3e-7a10-9d2b-5e61a4c0e001",
       "list_id": "plans",
       "page": 1,
       "offset": 0,
@@ -117,7 +117,8 @@
           }
         }
       ],
-      "visible_k": 1
+      "visible_k": 1,
+      "delivered_at": "2026-09-29T14:02:19.320Z"
     }
   ],
   "claims": [
@@ -130,7 +131,10 @@
         41,
         50
       ],
-      "value": 511.06,
+      "value": {
+        "amount": "511.06",
+        "unit": "BRL"
+      },
       "evidence": {
         "call_id": "k1",
         "field": "price_full"

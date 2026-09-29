@@ -160,21 +160,25 @@ class Api(SyncRoutes):
         return self._call(Scenario, "PATCH", f"/v1/scenarios/{segment(scenario_id)}", body=body)
 
     def record_turns(self, body: TurnsRequest) -> TurnsResponse:
-        """`POST /v1/turns`."""
+        """`POST /v1/turns`. Up to 50 turn records, the body in zstd, gzip or plain JSON. The same turn sent
+        twice is one turn.
+        """
         return self._call(TurnsResponse, "POST", "/v1/turns", body=body)
 
     def promote_turns(self, body: PromoteRequest, *, idempotency_key: str | None = None) -> PromoteResponse:
-        """`POST /v1/turns/promote`."""
+        """`POST /v1/turns/promote`. Promoting is idempotent by itself: a turn promoted again counts as
+        `already_kept`.
+        """
         return self._call(
             PromoteResponse, "POST", "/v1/turns/promote", body=body, key=idempotency_key or new_key()
         )
 
     def search_turns(self, body: TurnSearchRequest) -> TurnSearchResponse:
-        """`POST /v1/turns/search`."""
+        """`POST /v1/turns/search`. The kept tier, newest first, by conversation, agent, time and flags."""
         return self._call(TurnSearchResponse, "POST", "/v1/turns/search", body=body)
 
     def read_turn(self, turn_id: str) -> TurnView:
-        """`GET /v1/turns/{turn_id}`."""
+        """`GET /v1/turns/{turn_id}`. One turn from either tier, by its id: 404 once its tier let it go."""
         return self._call(TurnView, "GET", f"/v1/turns/{segment(turn_id)}")
 
     def notifications(self, *, cursor: str | None = None, limit: int = 100) -> NotificationPage:
@@ -497,23 +501,27 @@ class AsyncApi(AsyncRoutes):
         return await self._call(Scenario, "PATCH", f"/v1/scenarios/{segment(scenario_id)}", body=body)
 
     async def record_turns(self, body: TurnsRequest) -> TurnsResponse:
-        """`POST /v1/turns`."""
+        """`POST /v1/turns`. Up to 50 turn records, the body in zstd, gzip or plain JSON. The same turn sent
+        twice is one turn.
+        """
         return await self._call(TurnsResponse, "POST", "/v1/turns", body=body)
 
     async def promote_turns(
         self, body: PromoteRequest, *, idempotency_key: str | None = None
     ) -> PromoteResponse:
-        """`POST /v1/turns/promote`."""
+        """`POST /v1/turns/promote`. Promoting is idempotent by itself: a turn promoted again counts as
+        `already_kept`.
+        """
         return await self._call(
             PromoteResponse, "POST", "/v1/turns/promote", body=body, key=idempotency_key or new_key()
         )
 
     async def search_turns(self, body: TurnSearchRequest) -> TurnSearchResponse:
-        """`POST /v1/turns/search`."""
+        """`POST /v1/turns/search`. The kept tier, newest first, by conversation, agent, time and flags."""
         return await self._call(TurnSearchResponse, "POST", "/v1/turns/search", body=body)
 
     async def read_turn(self, turn_id: str) -> TurnView:
-        """`GET /v1/turns/{turn_id}`."""
+        """`GET /v1/turns/{turn_id}`. One turn from either tier, by its id: 404 once its tier let it go."""
         return await self._call(TurnView, "GET", f"/v1/turns/{segment(turn_id)}")
 
     async def notifications(self, *, cursor: str | None = None, limit: int = 100) -> NotificationPage:

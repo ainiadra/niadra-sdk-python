@@ -43,7 +43,7 @@
   "interactions": [
     {
       "kind": "presented",
-      "exposure_id": "ex_77",
+      "exposure_id": "0192f5a0-7c3e-7a10-9d2b-5e61a4c0e077",
       "list_id": "search-dresses",
       "page": 2,
       "offset": 12,
@@ -56,7 +56,8 @@
             "price_sale": 289.9
           }
         }
-      ]
+      ],
+      "delivered_at": "2026-09-29T19:45:04.210Z"
     }
   ],
   "output": {

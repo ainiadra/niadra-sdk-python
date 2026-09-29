@@ -149,3 +149,58 @@ def test_path_and_query_parameters(respx_mock: respx.MockRouter) -> None:
 def test_a_client_without_a_key_raises_instead_of_sending() -> None:
     with pytest.raises(ConfigurationError):
         Niadra(api_key="").api.sdk_profile()
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "One entry of the turn record (front A5).",
+        "The features of the agent core wave.",
+        "Built in phase 2.",
+        "As study 23 says.",
+    ],
+)
+def test_a_server_description_naming_internal_planning_stops_the_generator(text: str) -> None:
+    with pytest.raises(ValueError, match="internal planning"):
+        _sync_spec().public(text, "Schema.field")
+
+
+def test_a_body_the_server_declares_inline_is_published_as_its_named_schema() -> None:
+    sync = _sync_spec()
+    body = {"$id": "u", "title": "ThingRequest", "type": "object", "properties": {"n": {"type": "string"}}}
+    document = {
+        "openapi": "3.1.0",
+        "info": {"title": "t", "version": "1"},
+        "paths": {
+            "/v1/things": {
+                "post": {
+                    "tags": ["turns"],
+                    "operationId": "record_things_v1_things_post",
+                    "requestBody": {"content": {"application/json": {"schema": body}}},
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+        "components": {"schemas": {}},
+    }
+    cut = sync.cut(document)
+    schema = cut["paths"]["/v1/things"]["post"]["requestBody"]["content"]["application/json"]["schema"]
+    assert schema == {"$ref": "#/components/schemas/ThingRequest"}
+    assert cut["components"]["schemas"]["ThingRequest"] == {k: v for k, v in body.items() if k != "$id"}
+
+
+def test_a_field_that_would_hide_a_type_of_its_class_stops_the_generator() -> None:
+    sync = _sync_spec()
+    schemas = {
+        "Stamp": {
+            "type": "object",
+            "properties": {
+                "date": {"type": "string", "format": "date"},
+                "since": {"type": "string", "format": "date"},
+            },
+        }
+    }
+    with pytest.raises(ValueError, match="hides a type"):
+        sync.ModelWriter(schemas, {"Stamp": "niadra.models.turns"}, set(), "niadra.models.turns").definition(
+            "Stamp"
+        )
