@@ -131,8 +131,8 @@ built on them.
   a correct answer that gave the new price. `niadra.turns.claims.block_values(state, constraints)` replaces
   `state_values(objects)`. A value that is not claim-safe still backs nothing, nor does the value seen before.
 - A hedged number is no claim (the claim contract spec, 5.4): "I can't confirm the $24.90 still applies",
-  "R$ 612,00 era o valor anterior" or "the $1,240.00 price has changed" state no price, and the guard no
-  longer warns on them. `niadra.claims.hedged` finds them; a false claim in a light hedge ("Acho que o total
+  "R$ 612,00 era o valor anterior", "the $1,240.00 price has changed" or "$689.00, not $612.00" state no
+  such price, and the guard no longer warns on them. `niadra.claims.hedged` finds them; a false claim in a light hedge ("Acho que o total
   é R$ 500,00") is still a claim.
 
 ## [0.6.1] - 2026-09-28

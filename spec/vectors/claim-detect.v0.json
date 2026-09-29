@@ -1447,6 +1447,86 @@
       }
     },
     {
+      "id": "health.hedge.negation",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "O plano sai por R$ 689,00, não R$ 612,00.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_full",
+            "value": {
+              "amount": "689"
+            },
+            "call_id": null,
+            "ref": "health_plan:operadora:essencial-200",
+            "name": "monthly_price"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 689,00",
+            "class": "money",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "amount": "689",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "health.hedge.asserted_after_no",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Não, o plano sai por R$ 380,00.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {},
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              21,
+              30
+            ],
+            "text": "R$ 380,00",
+            "class": "money",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "380",
+              "unit": "BRL"
+            },
+            "verdict": "unsupported",
+            "action": "block"
+          }
+        ]
+      }
+    },
+    {
       "id": "retail.price.list_and_sale",
       "contract": "examples/claim-contract/retail.json",
       "output": {
@@ -2058,6 +2138,52 @@
             },
             "verdict": "unsupported",
             "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.hedge.en_negation",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "It is now $60, not $80.",
+        "lang": "en",
+        "context": "chat",
+        "immutable": false
+      },
+      "turn": {
+        "values": [
+          {
+            "class": "money",
+            "role": "price_sale",
+            "value": {
+              "amount": "60"
+            },
+            "call_id": "k3",
+            "name": "price_sale"
+          }
+        ]
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              10,
+              13
+            ],
+            "text": "$60",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_sale",
+            "value": {
+              "amount": "60"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "value": 0
+            }
           }
         ]
       }
