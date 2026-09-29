@@ -77,6 +77,17 @@ class ProfileCache:
         with self._lock:
             return self.profile.claim_contract if self.profile is not None else None
 
+    def families(self) -> dict[str, str]:
+        """Each field's attribute family (`item_variant.size_label` to `size`), from the type registry."""
+        with self._lock:
+            types = self.profile.types if self.profile is not None else []
+        return {
+            f"{t['type']}.{name}": spec["attribute"]["family"]
+            for t in types
+            for name, spec in (t.get("fields") or {}).items()
+            if (spec.get("attribute") or {}).get("family")
+        }
+
     def recording_mode(self) -> str | None:
         """The content mode the space's recording names for this source, when the profile says it."""
         with self._lock:

@@ -111,7 +111,9 @@ def test_a_read_with_constraints_records_the_block_it_served(store: MockApp, nia
     assert context.constraints is not None and context.constraints.version == "cv_0123456789abcdef"
     assert niadra.flush(5)
     (record,) = _records(store)
-    assert {"surface": "constraints", "version": "cv_0123456789abcdef"} in record["reads"]
+    read = next(r for r in record["reads"] if r["surface"] == "constraints")
+    assert read["version"] == "cv_0123456789abcdef"
+    assert record["blobs"][read["blob"]]["content"]["version"] == "cv_0123456789abcdef", "the block it served"
 
 
 def test_a_block_the_space_does_not_serve_leaves_the_read_whole(store: MockApp, niadra: Niadra) -> None:

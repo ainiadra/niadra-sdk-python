@@ -51,7 +51,8 @@ class Playback:
     """Effect keys the agent declared done, and how many times."""
     handoff: bool = False
     states: dict[tuple[str, str, str], tuple[dict[str, Any], int]] = field(default_factory=dict)
-    """The agent's working state as this execution wrote it: body and version, by scope and agent."""
+    """The agent's working state in this execution, body and version by scope and agent: what the recorded
+    turn read first, then what the execution wrote."""
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def muted(self, item: Any) -> bool:
@@ -145,7 +146,23 @@ def playback(
             context = Context.model_validate(value(pack["blob"]))
         except ValueError:
             context = None
-    return Playback(calls, mode, context)
+    return Playback(calls, mode, context, states=_states(record, value))
+
+
+def _states(record: Mapping[str, Any], value: Callable[[str | None], Any]) -> dict[tuple[str, str, str], Any]:
+    """The working state each scope and agent held when the recorded turn first read it: where a replay
+    starts."""
+    states: dict[tuple[str, str, str], Any] = {}
+    for read in record.get("reads") or []:
+        if read.get("surface") != "agent_state" or not read.get("blob"):
+            continue
+        held = value(read["blob"])
+        if not isinstance(held, Mapping):
+            continue
+        scope = held.get("scope") or {}
+        key = (str(scope.get("kind")), str(scope.get("id")), str(held.get("agent")))
+        states.setdefault(key, (dict(held.get("body") or {}), int(held.get("version") or 0)))
+    return states
 
 
 def _materialized(blob: Mapping[str, Any], read: Callable[[str], bytes] | None) -> Any:

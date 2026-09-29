@@ -83,6 +83,7 @@ from niadra.vocabulary import DeliveryPath, EventKind, Speaker, Verification, Vi
 from niadra_mock.agent_memory import AgentMemoryStore
 from niadra_mock.coordinate import CoordinationStore
 from niadra_mock.features import FeatureStore
+from niadra_mock.measure import MeasureStore
 from niadra_mock.replay import ReplayStore
 from niadra_mock.state import StateStore
 from niadra_mock.turns import TurnStore
@@ -259,10 +260,13 @@ class MockCell:
     """The agents' working state, and objects for verify, refresh requests and pushes."""
     replay: ReplayStore = field(init=False)
     """Scenarios, replay cases and runs with their verdict, behind `turns`."""
+    measure: MeasureStore = field(init=False)
+    """The tool counterfactual's reports, behind `measurement`."""
 
     def __post_init__(self) -> None:
         self.agent_features = FeatureStore(self.features)
         self.replay = ReplayStore(self.turns, self.history_before)
+        self.measure = MeasureStore(self.clock)
         # The notes check against every id this cell has seen as a handle: none may land in a note.
         self.agent_memory = AgentMemoryStore(
             clock=self.clock, known_values=lambda: [k[2] for k in self._parent]
@@ -291,6 +295,7 @@ class MockCell:
             self.coordination = CoordinationStore()
             self.state = StateStore()
             self.replay = ReplayStore(self.turns, self.history_before)
+            self.measure = MeasureStore(self.clock)
 
     def history_before(self, conversation_id: str, moment: datetime) -> list[dict[str, Any]]:
         """The conversation's messages before `moment`, as a replay case carries them."""

@@ -243,6 +243,14 @@ class MockApp:
             if route == ("POST", "/v1/objects/push"):
                 return _json(200, cell.state.push(json.loads(body)))
             return _json(200, cell.state.lease_refreshes(int(query.get("limit", ["50"])[0])))
+        if path.startswith("/v1/measure/counterfactual-runs"):
+            cell.agent_features.need("measurement")
+            if route == ("POST", "/v1/measure/counterfactual-runs"):
+                return _json(201, cell.measure.counterfactual(json.loads(body)))
+            if route == ("GET", "/v1/measure/counterfactual-runs"):
+                return _json(200, cell.measure.listed())
+            found = cell.measure.read(unquote(path.rsplit("/", 1)[1])) if method == "GET" else None
+            return _json(200, found) if found is not None else _problem(404)
         if path.startswith(("/v1/scenarios", "/v1/replay/", "/v1/scenario-runs")):
             cell.agent_features.need("turns")
             return self._replay(method, path, query, body)

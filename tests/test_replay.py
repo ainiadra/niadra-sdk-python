@@ -202,3 +202,41 @@ async def test_the_async_runner_awaits_an_async_agent(app: MockApp, niadra: Niad
     assert run.verdict == "pass" and calls == []
     await client.close(timeout=1)
     await http.aclose()
+
+
+def test_a_replay_starts_from_the_working_state_the_turn_read(app: MockApp, niadra: Niadra) -> None:
+    app.cell.features.add("agent_state")
+    build = niadra.build(prompts={"core": "v16"}, model="model-a")
+    with niadra.conversation("c-7", subject=CUSTOMER, agent_id="sales") as conversation:
+        conversation.agent_state.put({"offer": {"status": "shown"}, "cart": ["sku-1"]})
+        conversation.customer("Pode fechar?")
+        with conversation.turn(build=build) as frame:
+            state = conversation.agent_state.get()
+            conversation.agent_state.put({"offer": {"status": "accepted"}}, if_version=state.version)
+            conversation.agent("Fechado.")
+    assert niadra.flush(5)
+    scenario = app.cell.replay.create({"name": "close", "turn_ids": [frame.turn_id], "assertions": []})
+    seen: list[Any] = []
+
+    def factory() -> Any:
+        def agent(given: ReplayInput) -> str:
+            with niadra.conversation("c-7", subject=CUSTOMER, agent_id="sales") as replayed:
+                read = replayed.agent_state.get()
+                seen.append((read.body, read.version))
+                seen.append(
+                    replayed.agent_state.put({"offer": {"status": "accepted"}}, if_version=read.version)
+                )
+            return "Fechado."
+
+        return agent
+
+    Replayer(niadra, factory, build=build).run([scenario["scenario_id"]], runs=2)
+    assert seen[0] == ({"offer": {"status": "shown"}, "cart": ["sku-1"]}, 1), "the state the turn read"
+    assert seen[1].stored, "and the write the turn made applies to it, in the replay only"
+    assert seen[2] == seen[0], "each execution starts again from the record"
+    assert (
+        app.cell.state.read_agent_state({"scope": {"kind": "conversation", "id": "c-7"}, "agent": "sales"})[
+            "version"
+        ]
+        == 2
+    ), "nothing the replay wrote reached Niadra"

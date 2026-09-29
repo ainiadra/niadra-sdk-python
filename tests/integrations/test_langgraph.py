@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import warnings
 from typing import Any
 
@@ -165,3 +166,36 @@ async def test_without_turns_the_middleware_records_no_turn(
     await agent.ainvoke(say("Hello"))
     await on_mock_async.flush()
     assert mock_app.cell.turns.turns == {}
+
+
+async def test_in_a_replay_a_tool_answers_from_the_record_and_never_runs(
+    chat: Any, on_mock_async: AsyncNiadra, mock_app: MockApp
+) -> None:
+    from langchain_core.tools import tool
+
+    from niadra.replay.playback import Playback, _Recorded
+    from niadra.turns import TurnFrame
+    from niadra.turns.capture import snapshot
+    from niadra.turns.digest import digest
+
+    ran: list[str] = []
+
+    @tool
+    def stock(sku: str) -> str:
+        """Units of an item in stock."""
+        ran.append(sku)
+        return f"{sku}: 0"
+
+    recorded = _Recorded(digest(json.loads(snapshot({"sku": "PX-4471"})))[0], "PX-4471: 3")
+    frame = TurnFrame(None, agent="support", conversation_id="graph-1")
+    frame.playback = Playback({"stock": [recorded]})
+    model = FakeChat(replies=[tool_call("stock", {"sku": "PX-4471"}, "call-9"), answer("3 in stock.")])
+    agent = create_agent(
+        model, tools=[stock], middleware=[NiadraMiddleware(chat, turns=True, history_tools=False)]
+    )
+    with frame:
+        result = await agent.ainvoke(say("Is the PX in stock?"))
+    assert ran == []
+    assert [m.content for m in result["messages"] if m.type == "tool"] == ["PX-4471: 3"]
+    await on_mock_async.flush()
+    assert mock_app.cell.turns.turns == {}, "a replayed run sends nothing"

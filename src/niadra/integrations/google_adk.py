@@ -132,14 +132,20 @@ class NiadraADK:
         """ADK's `after_agent_callback`: closes the agent's turn, after its last answer."""
         self.turns.close(_run_key(callback_context))
 
-    async def before_tool(self, tool: Any, args: dict[str, Any], tool_context: Any) -> None:
-        """ADK's `before_tool_callback`: the call starts, with its arguments copied now."""
-        self.turns.tool_start(
-            str(getattr(tool_context, "function_call_id", "") or ""),
-            str(getattr(tool, "name", "") or "tool"),
-            args,
-            frame_key=_run_key(tool_context),
+    async def before_tool(self, tool: Any, args: dict[str, Any], tool_context: Any) -> dict[str, Any] | None:
+        """ADK's `before_tool_callback`: the call starts, with its arguments copied now. In a replay, a tool
+        not wrapped with `@niadra.tool` answers from the record and never runs."""
+        key = str(getattr(tool_context, "function_call_id", "") or "")
+        name = str(getattr(tool, "name", "") or "tool")
+        self.turns.tool_start(key, name, args, frame_key=_run_key(tool_context))
+        played = self.turns.replayed(
+            name, args, getattr(tool, "func", None), frame_key=_run_key(tool_context)
         )
+        if played is None:
+            return None
+        answer = played.value if played.recorded and isinstance(played.value, dict) else {}
+        self.turns.tool_end(key, answer)
+        return answer
 
     async def after_tool(
         self, tool: Any, args: dict[str, Any], tool_context: Any, tool_response: Any

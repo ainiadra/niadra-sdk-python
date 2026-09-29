@@ -52,6 +52,9 @@ class TurnRecorder:
         """The pins a turn needs to be replayable, when the client knows them (the SDK profile)."""
         self.features: Callable[[], frozenset[str] | None] = lambda: None
         """The features the space turned on, when the client knows them (the SDK profile)."""
+        self.families: Callable[[], Mapping[str, str]] = dict
+        """Each field's attribute family, from the type registry, for the tools' bindings (the SDK
+        profile)."""
         self._enabled = enabled
         self._off_until = 0.0
         self._refused = False

@@ -144,6 +144,7 @@ class AsyncNiadra:
         self.turns.features = lambda: self._profile.features
         self.turns.recording_mode = self._profile.recording_mode
         self.turns.required_pins = self._profile.required_pins
+        self.turns.families = self._profile.families
         self.turns.claims = self._claims_of
         self.internal_text = InternalText()
         """Fingerprints of the company's own prompt, by version:

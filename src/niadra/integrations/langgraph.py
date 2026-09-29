@@ -36,12 +36,13 @@ Record the turns there with `NiadraCallbackHandler` from `niadra.integrations.la
 
 from __future__ import annotations
 
+import json
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 try:
     from langchain.agents.middleware import AgentMiddleware
-    from langchain_core.messages import AIMessage, SystemMessage
+    from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
     from langchain_core.runnables import RunnableLambda
 except ImportError as exc:  # pragma: no cover - depends on the environment
     raise ImportError("LangGraph and LangChain are not installed: pip install 'niadra[langgraph]'") from exc
@@ -114,6 +115,9 @@ class NiadraMiddleware(AgentMiddleware):  # type: ignore[misc]
 
     def wrap_tool_call(self, request: Any, handler: Callable[[Any], Any]) -> Any:
         key = self._tool_start(request)
+        answer = self._replayed(request, key)
+        if answer is not None:
+            return answer
         try:
             with self.turns.current(RUN):
                 result = handler(request)
@@ -125,6 +129,9 @@ class NiadraMiddleware(AgentMiddleware):  # type: ignore[misc]
 
     async def awrap_tool_call(self, request: Any, handler: Callable[[Any], Awaitable[Any]]) -> Any:
         key = self._tool_start(request)
+        answer = self._replayed(request, key)
+        if answer is not None:
+            return answer
         try:
             with self.turns.current(RUN):
                 result = await handler(request)
@@ -133,6 +140,19 @@ class NiadraMiddleware(AgentMiddleware):  # type: ignore[misc]
             raise
         self.turns.tool_end(key, _tool_result(result))
         return result
+
+    def _replayed(self, request: Any, key: str) -> Any:
+        """In a replay, a tool not wrapped with `@niadra.tool` answers from the record and never runs."""
+        call = getattr(request, "tool_call", None) or {}
+        tool = getattr(request, "tool", None)
+        fn = getattr(tool, "func", None) or getattr(tool, "coroutine", None)
+        played = self.turns.replayed(str(call.get("name") or "tool"), call.get("args"), fn, frame_key=RUN)
+        if played is None:
+            return None
+        value = played.value if played.recorded else ""
+        content = value if isinstance(value, str) else json.dumps(value, default=str)
+        self.turns.tool_end(key, content)
+        return ToolMessage(content=content, tool_call_id=str(call.get("id") or ""), name=call.get("name"))
 
     def _tool_start(self, request: Any) -> str:
         call = getattr(request, "tool_call", None) or {}
