@@ -6,6 +6,10 @@ import typing
 from pathlib import Path
 
 from niadra.models.context import (
+    BudgetBlock,
+    BudgetCut,
+    BudgetPack,
+    BudgetUse,
     ContextPack,
     ContextResponse,
     CoordinationBlock,
@@ -93,8 +97,11 @@ def test_the_answer_has_the_blocks_of_the_context_pack_v2() -> None:
         ("ConstraintsBlock", ConstraintsBlock),
         ("StateView", StateView),
         ("CoordinationBlock", CoordinationBlock),
+        ("BudgetBlock", BudgetBlock),
+        ("BudgetPack", BudgetPack),
+        ("BudgetUse", BudgetUse),
+        ("BudgetCut", BudgetCut),
     ):
-        if name in V2["$defs"]:
-            assert set(V2["$defs"][name]["properties"]) == {
-                field.alias or key for key, field in model.model_fields.items()
-            }, name
+        assert set(V2["$defs"][name]["properties"]) == {
+            field.alias or key for key, field in model.model_fields.items()
+        }, name

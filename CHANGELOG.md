@@ -85,6 +85,19 @@ built on them.
   with the refusals of its spec.
 - `niadra.constraints.render`: the constraints block rendered for one tool call through the tool's
   binding, in advisory or apply mode, and the count of what the call's results honored.
+- `ContextResponse.budget` (`BudgetBlock`, with `BudgetPack`, `BudgetUse` and `BudgetCut`): with
+  `include=["budget"]`, what the pack costs per section, what this agent already spent in the conversation
+  and the case, and the units the measurement says it leaves unused. Shown, never enforced.
+- `niadra.api.overview()`: the coordination overview in counts (`GET /v1/coordination/overview`).
+- `scripts/sync_spec.py --spec` also copies the Context Pack schemas (`spec/context-pack.v1.json` and
+  `v2`), and `tests/test_spec.py` holds every include block to the v2 schema.
+
+### Deprecated
+
+- `niadra.vocabulary.VERIFY_METHODS`: use `typing.get_args(niadra.models.events.VerifyMethod)`. Reading it
+  warns (`DeprecationWarning`); it goes in 0.8.0.
+- `niadra.models.context.HISTORY_ITEM_KINDS`: use `typing.get_args(niadra.models.context.HistoryItemKind)`.
+  Reading it warns (`DeprecationWarning`); it goes in 0.8.0.
 
 ## [0.6.1] - 2026-09-28
 

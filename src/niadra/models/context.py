@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import warnings
 from datetime import datetime
-from typing import Annotated, Any, Literal, get_args
+from typing import TYPE_CHECKING, Annotated, Any, Literal, get_args
 
 from pydantic import Field, StringConstraints, model_validator
 
@@ -19,7 +20,6 @@ View = Annotated[str, StringConstraints(pattern=VIEW_PATTERN)]
 
 # What navigation returns. A system event is never an item: it changes its object, so search `object`.
 HistoryItemKind = Literal["episode", "fact", "open_item", "action", "object", "trait"]
-HISTORY_ITEM_KINDS: tuple[str, ...] = get_args(HistoryItemKind)
 
 # Blocks a read may add in the same round trip (Context Pack v2, section 10); each needs its feature on.
 Include = Literal["state", "constraints", "coordination", "budget"]
@@ -253,6 +253,54 @@ class CoordinationBlock(ResponseModel):
     commitments_active: list[CommitmentRef] = Field(default_factory=list)
 
 
+class BudgetUse(ResponseModel):
+    """What this agent's recorded turns added up to, in one conversation or one case."""
+
+    turns: int
+    model_calls: int = Field(description="Each one reads the prompt's prefix again.")
+    tool_calls: int
+    tokens_in: int
+    tokens_cached: int
+    tokens_out: int
+    cost_usd: float
+
+
+class BudgetPack(ResponseModel):
+    """What the pack of this read costs, in estimated tokens, whole and per section."""
+
+    total: int
+    sections: dict[str, int]
+
+
+class BudgetCut(ResponseModel):
+    """What the measurement of context use says this agent leaves unused, by unit of items: delivered in
+    enough measured conversations and never used."""
+
+    units: list[str]
+    applied: bool = Field(description="The pack already leaves them out.")
+    window_days: int
+    min_deliveries: int
+
+
+class BudgetBlock(ResponseModel):
+    """The context budget of one read, beside the pack by `include`: what the pack costs, what this agent
+    already spent in the conversation and the case, and what can go without loss. Shown, never enforced: the
+    agent's loop decides."""
+
+    pack: BudgetPack | None = Field(default=None, description="Absent when the read served no pack.")
+    conversation: BudgetUse | None = Field(
+        default=None, description="This agent's turns in the conversation; absent without one."
+    )
+    case: BudgetUse | None = Field(default=None, description="This agent's turns in the case (`task_id`).")
+    other_agents_turns: int = Field(
+        default=0, description="Turns other agents recorded in the same conversation."
+    )
+    cut: BudgetCut | None = Field(default=None, description="Absent until the measurement found a unit.")
+    counted: bool = Field(
+        description="False when the counters could not be read: the numbers above are then missing, not zero."
+    )
+
+
 class ContextResponse(ResponseModel):
     not_modified: bool = False
     text: str | None = None
@@ -298,6 +346,12 @@ class ContextResponse(ResponseModel):
         description='With `include: ["coordination"]`: who holds the subject, the purposes it may not be '
         "contacted for, the contacts each purpose with a budget has left and the commitments that hold. "
         "Advice for the turn: only a check decides.",
+    )
+    budget: BudgetBlock | None = Field(
+        default=None,
+        description='With `include: ["budget"]`: what the pack costs per section, what this agent already '
+        "spent in the conversation and the case, and what the measurement says can go; shown, never "
+        "enforced.",
     )
 
 
@@ -477,3 +531,20 @@ class ToolDefinition(ResponseModel):
 
     type: Literal["function"] = "function"
     function: dict[str, Any]
+
+
+if TYPE_CHECKING:
+    HISTORY_ITEM_KINDS: tuple[str, ...]
+    """Deprecated since 0.7.0: use `typing.get_args(HistoryItemKind)`."""
+else:
+
+    def __getattr__(name: str) -> Any:
+        if name == "HISTORY_ITEM_KINDS":
+            warnings.warn(
+                "niadra.models.context.HISTORY_ITEM_KINDS is deprecated and will be removed in 0.8.0: use "
+                "typing.get_args(niadra.models.context.HistoryItemKind)",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return get_args(HistoryItemKind)
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
