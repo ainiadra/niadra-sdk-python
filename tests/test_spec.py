@@ -8,6 +8,7 @@ from pathlib import Path
 from niadra.models.context import (
     ContextPack,
     ContextResponse,
+    CoordinationBlock,
     PackGuard,
     PackSection,
     PackSectionName,
@@ -88,7 +89,11 @@ V2 = json.loads((SPEC / "context-pack.v2.json").read_text())
 def test_the_answer_has_the_blocks_of_the_context_pack_v2() -> None:
     assert V2["$id"] == "https://specs.niadra.com/schemas/context-pack.v2.json"
     assert set(V2["properties"]) == set(ContextResponse.model_fields)
-    for name, model in (("ConstraintsBlock", ConstraintsBlock), ("StateView", StateView)):
+    for name, model in (
+        ("ConstraintsBlock", ConstraintsBlock),
+        ("StateView", StateView),
+        ("CoordinationBlock", CoordinationBlock),
+    ):
         if name in V2["$defs"]:
             assert set(V2["$defs"][name]["properties"]) == {
                 field.alias or key for key, field in model.model_fields.items()

@@ -167,6 +167,103 @@
       "title": "CacheDirectives",
       "type": "object"
     },
+    "ChangeSinceSeen": {
+      "additionalProperties": false,
+      "description": "A field of an interest whose value is not the one the subject was shown.",
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/StateRef"
+        },
+        "field": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Field",
+          "type": "string"
+        },
+        "seen": {
+          "default": null,
+          "title": "Seen"
+        },
+        "now": {
+          "default": null,
+          "title": "Now"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "When the source observed the value now held.",
+          "title": "Observed At"
+        }
+      },
+      "required": [
+        "ref",
+        "field"
+      ],
+      "title": "ChangeSinceSeen",
+      "type": "object"
+    },
+    "ClaimKind": {
+      "enum": [
+        "owner",
+        "case",
+        "task_lock"
+      ],
+      "title": "ClaimKind",
+      "type": "string"
+    },
+    "ClaimVia": {
+      "description": "The three ways in: a declaration through the API, an observation mapped from a webhook, an observation the company's worker read and sent.",
+      "enum": [
+        "declaration",
+        "mapping",
+        "worker"
+      ],
+      "title": "ClaimVia",
+      "type": "string"
+    },
+    "CommitmentRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "pattern": "^[a-z][a-z0-9_]{0,39}$",
+          "title": "Type",
+          "type": "string"
+        },
+        "valid_until": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Valid Until"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ],
+      "title": "CommitmentRef",
+      "type": "object"
+    },
     "CompanyRule": {
       "additionalProperties": false,
       "description": "A rule of the company delivered in the block, with where it lives and its rank in the order the company declared: the block never ranks two origins by itself.",
@@ -456,6 +553,33 @@
       "title": "ConstraintsBlock",
       "type": "object"
     },
+    "ContactBudget": {
+      "additionalProperties": false,
+      "properties": {
+        "remaining": {
+          "title": "Remaining",
+          "type": "integer"
+        },
+        "next_allowed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Allowed At"
+        }
+      },
+      "required": [
+        "remaining"
+      ],
+      "title": "ContactBudget",
+      "type": "object"
+    },
     "ContentMarker": {
       "additionalProperties": false,
       "description": "A content field whose text Niadra does not hold (`pointer`, `hash_only`), or holds under scan.",
@@ -590,6 +714,47 @@
         "stamp"
       ],
       "title": "ContextPack",
+      "type": "object"
+    },
+    "CoordinationBlock": {
+      "additionalProperties": false,
+      "description": "What coordination knows of the subject, read beside the pack by `include`: advice for the turn, never a decision, which only a check takes. `contact_budget` has the purposes with a budget.",
+      "properties": {
+        "owner": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Owner"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "suppressions": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "type": "string"
+          },
+          "title": "Suppressions",
+          "type": "array"
+        },
+        "contact_budget": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ContactBudget"
+          },
+          "title": "Contact Budget",
+          "type": "object"
+        },
+        "commitments_active": {
+          "items": {
+            "$ref": "#/$defs/CommitmentRef"
+          },
+          "title": "Commitments Active",
+          "type": "array"
+        }
+      },
+      "title": "CoordinationBlock",
       "type": "object"
     },
     "DeliveryPath": {
@@ -915,6 +1080,46 @@
       "title": "HardConstraint",
       "type": "object"
     },
+    "InterestState": {
+      "additionalProperties": false,
+      "description": "A shared object the subject showed interest in, as it stands now.",
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/StateRef"
+        },
+        "reason": {
+          "description": "`presented`, `engaged`, `feedback` or `watch`.",
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "object": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectRead"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The object as a `display` read serves it; absent once it left the working set."
+        }
+      },
+      "required": [
+        "ref",
+        "reason",
+        "at"
+      ],
+      "title": "InterestState",
+      "type": "object"
+    },
     "LiveTurn": {
       "additionalProperties": false,
       "description": "A recent turn from another conversation, not yet absorbed by the pack (B3). It passes the same policy as the pack's items: the level the conversation proved and the reader's purposes decide.",
@@ -1045,6 +1250,14 @@
           },
           "title": "Expired By",
           "type": "array"
+        },
+        "axes": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Each time axis of the type whose value is known: a date as `YYYY-MM-DD`, an instant in UTC. The platform keeps `known_at` (when the producer first knew of the object) and the time its content last changed.",
+          "title": "Axes",
+          "type": "object"
         },
         "fields": {
           "additionalProperties": {
@@ -1178,6 +1391,61 @@
         "final"
       ],
       "title": "OutcomeState",
+      "type": "object"
+    },
+    "Owner": {
+      "additionalProperties": false,
+      "description": "Who holds the subject or the object now: the most restrictive valid claim, where it came from and until when. `epoch` fences a release.",
+      "properties": {
+        "holder": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Holder",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ClaimKind"
+        },
+        "level": {
+          "pattern": "^[a-z][a-z0-9_]{0,39}$",
+          "title": "Level",
+          "type": "string"
+        },
+        "source": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "via": {
+          "$ref": "#/$defs/ClaimVia"
+        },
+        "since": {
+          "format": "date-time",
+          "title": "Since",
+          "type": "string"
+        },
+        "valid_until": {
+          "format": "date-time",
+          "title": "Valid Until",
+          "type": "string"
+        },
+        "epoch": {
+          "title": "Epoch",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "holder",
+        "kind",
+        "level",
+        "source",
+        "via",
+        "since",
+        "valid_until",
+        "epoch"
+      ],
+      "title": "Owner",
       "type": "object"
     },
     "PackGuard": {
@@ -1887,7 +2155,7 @@
     },
     "StateView": {
       "additionalProperties": false,
-      "description": "The state of one subject: their objects of the declared types, each as a `display` read serves it.",
+      "description": "The state of one subject (the `now` view): their objects of the declared types, each as a `display` read serves it; the shared objects they showed interest in, and what changed since they saw them; and the same as short lines for the turn block.",
       "properties": {
         "objects": {
           "items": {
@@ -1898,19 +2166,30 @@
         },
         "interests": {
           "items": {
-            "additionalProperties": true,
-            "type": "object"
+            "$ref": "#/$defs/InterestState"
           },
           "title": "Interests",
           "type": "array"
         },
         "changes_since_seen": {
           "items": {
-            "additionalProperties": true,
-            "type": "object"
+            "$ref": "#/$defs/ChangeSinceSeen"
           },
           "title": "Changes Since Seen",
           "type": "array"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The view as lines for the turn block, after `slots`: never part of the pack's `text`, so the cached prefix keeps its bytes. Absent when there is nothing to say.",
+          "title": "Text"
         },
         "degraded": {
           "default": false,
@@ -1965,6 +2244,21 @@
           ],
           "default": null,
           "title": "Fired At"
+        },
+        "supersedes_firing_id": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The firing this one replaces: a timer that already fired fires again once the value that armed it is revised.",
+          "title": "Supersedes Firing Id"
         }
       },
       "required": [
@@ -2317,6 +2611,18 @@
       ],
       "default": null,
       "description": "With `include: [\"state\"]`: the subject's objects of the declared types, each as a `display` read serves it (`object-state.v1`): values with their logical value, stamps, source and freshness computed now, and what may not be claimed with them."
+    },
+    "coordination": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CoordinationBlock"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "With `include: [\"coordination\"]`: who holds the subject, the purposes it may not be contacted for, the contacts each purpose with a budget has left and the commitments that hold. Advice for the turn: only a check decides."
     }
   },
   "required": [

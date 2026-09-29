@@ -186,6 +186,7 @@ class ClaimRecord(Model):
         "source_exists_claim_unverified",
         "source_missing",
         "not_checked",
+        "internal_text_found",
     ]
 
 

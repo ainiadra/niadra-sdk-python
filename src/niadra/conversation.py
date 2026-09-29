@@ -517,7 +517,7 @@ class _SyncSession(_Session):
     def __init__(self, client: Niadra, session_id: str | None, **options: Any) -> None:
         super().__init__(client.track, client._core.fail, session_id, forget=client._forget_scope, **options)
         self._client = client
-        self.claims = ClaimCheck(client._contract)
+        self.claims = ClaimCheck(client._contract, internal=client.internal_text)
         """The claim contract: `claims.check(text)` classifies and counts, `claims.guard(stream)` and
         `claims.guard_text(text)` act as its actions say."""
         self.declare = self._declarations(client._coordination)
@@ -710,7 +710,9 @@ class _AsyncSession(_Session):
     def __init__(self, client: AsyncNiadra, session_id: str | None, **options: Any) -> None:
         super().__init__(client.track, client._core.fail, session_id, forget=client._forget_scope, **options)
         self._client = client
-        self.claims = ClaimCheck(client._profile.contract, refresh=client._refresh_profile)
+        self.claims = ClaimCheck(
+            client._profile.contract, refresh=client._refresh_profile, internal=client.internal_text
+        )
         """The claim contract: `claims.check(text)` classifies and counts, `claims.guard(stream)` and
         `claims.guard_text(text)` act as its actions say. The profile that carries it is read when the session
         is entered, in the background, and before an async stream is guarded."""

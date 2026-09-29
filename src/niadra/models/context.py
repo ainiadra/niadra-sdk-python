@@ -9,6 +9,7 @@ from pydantic import Field, StringConstraints, model_validator
 
 from niadra.models._base import IdStr, Model, ResponseModel, ShortStr
 from niadra.models.common import Handle, ObjectRef, SourceCoverage
+from niadra.models.coordination import CommitmentRef, ContactBudget, Owner
 from niadra.models.signals import ConstraintsBlock
 from niadra.models.state import StateView
 from niadra.vocabulary import DeliveryPath, EventKind, Verification
@@ -242,6 +243,16 @@ class ContextPack(ResponseModel):
     slots: list[PackSlot] = Field(default_factory=list)
 
 
+class CoordinationBlock(ResponseModel):
+    """What coordination knows of the subject, read beside the pack by `include`: advice for the turn, never a
+    decision, which only a check takes. `contact_budget` has the purposes with a budget."""
+
+    owner: Owner | None = None
+    suppressions: list[str] = Field(default_factory=list)
+    contact_budget: dict[str, ContactBudget] = Field(default_factory=dict)
+    commitments_active: list[CommitmentRef] = Field(default_factory=list)
+
+
 class ContextResponse(ResponseModel):
     not_modified: bool = False
     text: str | None = None
@@ -281,6 +292,12 @@ class ContextResponse(ResponseModel):
         default=None,
         description='With `include: ["state"]`: the subject\'s objects of the declared types, each as a '
         "`display` read serves it.",
+    )
+    coordination: CoordinationBlock | None = Field(
+        default=None,
+        description='With `include: ["coordination"]`: who holds the subject, the purposes it may not be '
+        "contacted for, the contacts each purpose with a budget has left and the commitments that hold. "
+        "Advice for the turn: only a check decides.",
     )
 
 

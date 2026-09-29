@@ -43,6 +43,8 @@ from niadra.models.signals import (
     ConstraintsRequest,
     CounterfactualRun,
     CounterfactualRunCreate,
+    CounterfactualRunPage,
+    ExperimentReport,
     Inference,
     InferenceCorrection,
     InferencePage,
@@ -262,15 +264,24 @@ class Api(SyncRoutes):
         return self._call(StateReadResponse, "POST", "/v1/state/read", body=body)
 
     def refresh_requests(self, *, limit: int = 50) -> RefreshRequestPage:
-        """`GET /v1/state/refresh-requests`."""
+        """`GET /v1/state/refresh-requests`. The company's resolver worker takes what to fetch again: the
+        higher priorities and the older first, each leased to it for 60 seconds; a request it does not
+        answer is offered again, three times at most.
+        """
         return self._call(RefreshRequestPage, "GET", "/v1/state/refresh-requests", params={"limit": limit})
 
     def state_verify(self, body: StateVerifyRequest) -> StateVerifyResponse:
-        """`POST /v1/state/verify`."""
+        """`POST /v1/state/verify`. A verdict per object and field for a claim, without waiting for the
+        source: whether it may be claimed now, whether a value given matches the one held, and what may not
+        be said with data this old.
+        """
         return self._call(StateVerifyResponse, "POST", "/v1/state/verify", body=body)
 
     def state_view(self, body: StateViewRequest) -> StateView:
-        """`POST /v1/state/view`."""
+        """`POST /v1/state/view`. The subject's `now` view for the read's purpose: their objects, the shared
+        objects they showed interest in and what changed since they saw them, and the same as lines for the
+        turn block.
+        """
         return self._call(StateView, "POST", "/v1/state/view", body=body)
 
     def type_fingerprint(self, body: TypeFingerprintRequest) -> TypeFingerprintResponse:
@@ -303,9 +314,32 @@ class Api(SyncRoutes):
             AttributionReport, "GET", "/v1/measure/attribution", params={"since": since, "until": until}
         )
 
+    def counterfactual_runs(self, *, cursor: str | None = None, limit: int = 50) -> CounterfactualRunPage:
+        """`GET /v1/measure/counterfactual-runs`."""
+        return self._call(
+            CounterfactualRunPage,
+            "GET",
+            "/v1/measure/counterfactual-runs",
+            params={"cursor": cursor, "limit": limit},
+        )
+
     def counterfactual_run(self, body: CounterfactualRunCreate) -> CounterfactualRun:
-        """`POST /v1/measure/counterfactual-runs`."""
+        """`POST /v1/measure/counterfactual-runs`. What a runner in the company's CI measured: whether an
+        element changes what a tool returns, against the tool's own noise. Positions and overlaps only (the
+        tool counterfactual spec).
+        """
         return self._call(CounterfactualRun, "POST", "/v1/measure/counterfactual-runs", body=body)
+
+    def counterfactual_run_read(self, run_id: str) -> CounterfactualRun:
+        """`GET /v1/measure/counterfactual-runs/{run_id}`."""
+        return self._call(CounterfactualRun, "GET", f"/v1/measure/counterfactual-runs/{segment(run_id)}")
+
+    def experiments(self) -> ExperimentReport:
+        """`GET /v1/measure/experiments`. Each experiment on an element or an agent, arm by arm against
+        `control`: CUPED-adjusted, with the mixture sequential test, whose p-value and interval hold
+        however often the report is read.
+        """
+        return self._call(ExperimentReport, "GET", "/v1/measure/experiments")
 
     def interleaving(self, *, since: date, until: date) -> InterleavingReport:
         """`GET /v1/measure/interleaving`. Interleaved lists of a tool's two rankings: which one engagement
@@ -324,7 +358,9 @@ class Api(SyncRoutes):
         )
 
     def power(self, body: PowerRequest) -> PowerResult:
-        """`POST /v1/measure/power`."""
+        """`POST /v1/measure/power`. How many days of the space's traffic a relative difference needs, looked
+        at once or every day.
+        """
         return self._call(PowerResult, "POST", "/v1/measure/power", body=body)
 
     def reconcile(self, body: ReconcileRequest) -> ReconcileResult:
@@ -664,17 +700,26 @@ class AsyncApi(AsyncRoutes):
         return await self._call(StateReadResponse, "POST", "/v1/state/read", body=body)
 
     async def refresh_requests(self, *, limit: int = 50) -> RefreshRequestPage:
-        """`GET /v1/state/refresh-requests`."""
+        """`GET /v1/state/refresh-requests`. The company's resolver worker takes what to fetch again: the
+        higher priorities and the older first, each leased to it for 60 seconds; a request it does not
+        answer is offered again, three times at most.
+        """
         return await self._call(
             RefreshRequestPage, "GET", "/v1/state/refresh-requests", params={"limit": limit}
         )
 
     async def state_verify(self, body: StateVerifyRequest) -> StateVerifyResponse:
-        """`POST /v1/state/verify`."""
+        """`POST /v1/state/verify`. A verdict per object and field for a claim, without waiting for the
+        source: whether it may be claimed now, whether a value given matches the one held, and what may not
+        be said with data this old.
+        """
         return await self._call(StateVerifyResponse, "POST", "/v1/state/verify", body=body)
 
     async def state_view(self, body: StateViewRequest) -> StateView:
-        """`POST /v1/state/view`."""
+        """`POST /v1/state/view`. The subject's `now` view for the read's purpose: their objects, the shared
+        objects they showed interest in and what changed since they saw them, and the same as lines for the
+        turn block.
+        """
         return await self._call(StateView, "POST", "/v1/state/view", body=body)
 
     async def type_fingerprint(self, body: TypeFingerprintRequest) -> TypeFingerprintResponse:
@@ -711,9 +756,36 @@ class AsyncApi(AsyncRoutes):
             AttributionReport, "GET", "/v1/measure/attribution", params={"since": since, "until": until}
         )
 
+    async def counterfactual_runs(
+        self, *, cursor: str | None = None, limit: int = 50
+    ) -> CounterfactualRunPage:
+        """`GET /v1/measure/counterfactual-runs`."""
+        return await self._call(
+            CounterfactualRunPage,
+            "GET",
+            "/v1/measure/counterfactual-runs",
+            params={"cursor": cursor, "limit": limit},
+        )
+
     async def counterfactual_run(self, body: CounterfactualRunCreate) -> CounterfactualRun:
-        """`POST /v1/measure/counterfactual-runs`."""
+        """`POST /v1/measure/counterfactual-runs`. What a runner in the company's CI measured: whether an
+        element changes what a tool returns, against the tool's own noise. Positions and overlaps only (the
+        tool counterfactual spec).
+        """
         return await self._call(CounterfactualRun, "POST", "/v1/measure/counterfactual-runs", body=body)
+
+    async def counterfactual_run_read(self, run_id: str) -> CounterfactualRun:
+        """`GET /v1/measure/counterfactual-runs/{run_id}`."""
+        return await self._call(
+            CounterfactualRun, "GET", f"/v1/measure/counterfactual-runs/{segment(run_id)}"
+        )
+
+    async def experiments(self) -> ExperimentReport:
+        """`GET /v1/measure/experiments`. Each experiment on an element or an agent, arm by arm against
+        `control`: CUPED-adjusted, with the mixture sequential test, whose p-value and interval hold
+        however often the report is read.
+        """
+        return await self._call(ExperimentReport, "GET", "/v1/measure/experiments")
 
     async def interleaving(self, *, since: date, until: date) -> InterleavingReport:
         """`GET /v1/measure/interleaving`. Interleaved lists of a tool's two rankings: which one engagement
@@ -732,7 +804,9 @@ class AsyncApi(AsyncRoutes):
         )
 
     async def power(self, body: PowerRequest) -> PowerResult:
-        """`POST /v1/measure/power`."""
+        """`POST /v1/measure/power`. How many days of the space's traffic a relative difference needs, looked
+        at once or every day.
+        """
         return await self._call(PowerResult, "POST", "/v1/measure/power", body=body)
 
     async def reconcile(self, body: ReconcileRequest) -> ReconcileResult:

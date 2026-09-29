@@ -252,6 +252,139 @@
         "title": "AnchorEvidence",
         "type": "object"
       },
+      "ArmComparison": {
+        "additionalProperties": false,
+        "description": "One arm against `control` on one metric, adjusted by CUPED when the history varies, with the mixture\nsequential test: its p-value and interval hold at any look, so the report may be read every day.",
+        "properties": {
+          "arm": {
+            "title": "Arm",
+            "type": "string"
+          },
+          "arm_mean": {
+            "title": "Arm Mean",
+            "type": "number"
+          },
+          "ci_high": {
+            "title": "Ci High",
+            "type": "number"
+          },
+          "ci_low": {
+            "description": "The always-valid interval of `difference` at the test's `alpha`.",
+            "title": "Ci Low",
+            "type": "number"
+          },
+          "control_mean": {
+            "description": "Per person, before the adjustment.",
+            "title": "Control Mean",
+            "type": "number"
+          },
+          "decided": {
+            "description": "`p_value` at or below `alpha`: the difference is real.",
+            "title": "Decided",
+            "type": "boolean"
+          },
+          "difference": {
+            "description": "The arm minus the control, per person, adjusted.",
+            "title": "Difference",
+            "type": "number"
+          },
+          "looks": {
+            "description": "The daily looks kept before this one.",
+            "title": "Looks",
+            "type": "integer"
+          },
+          "metric": {
+            "enum": [
+              "conversion",
+              "value"
+            ],
+            "title": "Metric",
+            "type": "string"
+          },
+          "p_value": {
+            "description": "The running minimum over the daily looks and this one.",
+            "title": "P Value",
+            "type": "number"
+          },
+          "relative": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`difference` over the control's mean.",
+            "title": "Relative"
+          },
+          "variance_reduction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The share of the variance CUPED removed; absent when it did not apply.",
+            "title": "Variance Reduction"
+          }
+        },
+        "required": [
+          "arm",
+          "metric",
+          "control_mean",
+          "arm_mean",
+          "difference",
+          "relative",
+          "ci_low",
+          "ci_high",
+          "variance_reduction",
+          "p_value",
+          "decided",
+          "looks"
+        ],
+        "title": "ArmComparison",
+        "type": "object"
+      },
+      "ArmOutcomes": {
+        "additionalProperties": false,
+        "description": "The people one arm holds and what they did after they were assigned, from the outcome links.",
+        "properties": {
+          "arm": {
+            "title": "Arm",
+            "type": "string"
+          },
+          "converted": {
+            "description": "People with an outcome in a success state.",
+            "title": "Converted",
+            "type": "integer"
+          },
+          "outcomes": {
+            "title": "Outcomes",
+            "type": "integer"
+          },
+          "people": {
+            "title": "People",
+            "type": "integer"
+          },
+          "value_minor": {
+            "description": "Their lines' money, each line once whatever the method.",
+            "title": "Value Minor",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "arm",
+          "people",
+          "converted",
+          "outcomes",
+          "value_minor"
+        ],
+        "title": "ArmOutcomes",
+        "type": "object"
+      },
       "AssertionOutcome": {
         "additionalProperties": false,
         "properties": {
@@ -967,6 +1100,46 @@
           "items"
         ],
         "title": "ChangePage",
+        "type": "object"
+      },
+      "ChangeSinceSeen": {
+        "additionalProperties": false,
+        "description": "A field of an interest whose value is not the one the subject was shown.",
+        "properties": {
+          "field": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Field",
+            "type": "string"
+          },
+          "now": {
+            "title": "Now"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the source observed the value now held.",
+            "title": "Observed At"
+          },
+          "ref": {
+            "$ref": "#/components/schemas/StateRef"
+          },
+          "seen": {
+            "title": "Seen"
+          }
+        },
+        "required": [
+          "ref",
+          "field"
+        ],
+        "title": "ChangeSinceSeen",
         "type": "object"
       },
       "ChannelState": {
@@ -1697,7 +1870,8 @@
               "below_threshold",
               "source_exists_claim_unverified",
               "source_missing",
-              "not_checked"
+              "not_checked",
+              "internal_text_found"
             ],
             "title": "Verdict",
             "type": "string"
@@ -1728,7 +1902,7 @@
       },
       "ClaimRequest": {
         "additionalProperties": false,
-        "description": "A declared claim, held by `holder`. `level` defaults to the space's least restrictive level; a\ndeclaration is refused (409 `lease_held`) while another holder's claim is at least as restrictive, and the\nsame holder renews its own. `lease_s` is capped by the space's longest declared lease.",
+        "description": "A declared claim, held by `holder`. `level` defaults to the space's least restrictive level; a\ndeclaration is refused (409 `lease_held`) while another holder's claim is at least as restrictive, and the\nsame holder renews its own. `lease_s` is capped by the space's longest declared lease. A task lock names\nan object and its `task`, and is refused (409 `task_locked`) while another holder has that task.",
         "properties": {
           "holder": {
             "maxLength": 256,
@@ -1775,6 +1949,32 @@
                 "type": "null"
               }
             ]
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the source saw it; an observation older than the source's last is ignored.",
+            "title": "Observed At"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{0,39}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An observation of this ownership source, read and sent by the company's worker: never refused, replacing what the source said before, and capped by the source's validity.",
+            "title": "Source"
           },
           "subject": {
             "anyOf": [
@@ -1910,6 +2110,78 @@
         "title": "ClaimVia",
         "type": "string"
       },
+      "CommitmentDecided": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Agent",
+            "type": "string"
+          },
+          "detail": {
+            "$ref": "#/components/schemas/CommitmentDecidedDetail"
+          },
+          "kind": {
+            "const": "commitment.decided",
+            "title": "Kind",
+            "type": "string"
+          },
+          "object": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Handle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "agent",
+          "kind",
+          "detail"
+        ],
+        "title": "CommitmentDecided",
+        "type": "object"
+      },
+      "CommitmentDecidedDetail": {
+        "additionalProperties": false,
+        "description": "The person accepted or declined a commitment, maybe in a later conversation.",
+        "properties": {
+          "commitment_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Commitment Id",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "accepted",
+              "declined"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          }
+        },
+        "required": [
+          "commitment_id",
+          "outcome"
+        ],
+        "title": "CommitmentDecidedDetail",
+        "type": "object"
+      },
       "CommitmentMade": {
         "additionalProperties": false,
         "properties": {
@@ -1958,12 +2230,24 @@
       },
       "CommitmentMadeDetail": {
         "additionalProperties": false,
+        "description": "`score` ranks commitments of a `best_wins` type: the higher holds.",
         "properties": {
           "commitment_id": {
             "maxLength": 512,
             "minLength": 1,
             "title": "Commitment Id",
             "type": "string"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
           },
           "terms": {
             "additionalProperties": true,
@@ -2721,13 +3005,67 @@
         "title": "ContentReleaseResult",
         "type": "object"
       },
+      "CoordinationReport": {
+        "additionalProperties": false,
+        "description": "A shadow run: the space's policy applied to its outbound messages already ingested, with nothing\nenforced. `summary` holds the conflicts found and per 1,000 customers a month, without anyone in them.",
+        "properties": {
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "report_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Report Id",
+            "type": "string"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "done",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "additionalProperties": true,
+            "title": "Summary",
+            "type": "object"
+          }
+        },
+        "required": [
+          "report_id",
+          "status",
+          "days",
+          "requested_at"
+        ],
+        "title": "CoordinationReport",
+        "type": "object"
+      },
       "CoordinationReportPage": {
         "additionalProperties": false,
         "properties": {
           "items": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/CoordinationReport"
             },
             "title": "Items",
             "type": "array"
@@ -2750,11 +3088,281 @@
         "title": "CoordinationReportPage",
         "type": "object"
       },
+      "CounterfactualCase": {
+        "additionalProperties": false,
+        "description": "One recorded tool call run live three times at the same moment: twice with the element (the base,\nwhose two lists measure the tool's own noise) and once without it (the variant). Positions and\noverlaps only: never an item, an argument or a result.",
+        "properties": {
+          "base_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Items in the base's first list.",
+            "title": "Base Count"
+          },
+          "call_id": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Call Id",
+            "type": "string"
+          },
+          "dry_run": {
+            "default": false,
+            "description": "The calls ran as the tool's dry run.",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "engaged": {
+            "items": {
+              "$ref": "#/components/schemas/CounterfactualEngaged"
+            },
+            "maxItems": 50,
+            "title": "Engaged",
+            "type": "array"
+          },
+          "k": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The positions compared: the recorded list's `visible_k`, else the run's `k`.",
+            "title": "K"
+          },
+          "noise": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "overlap@k of the base's two lists: the tool's own noise.",
+            "title": "Noise"
+          },
+          "overlap": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "overlap@k of the base's first list and the variant's.",
+            "title": "Overlap"
+          },
+          "status": {
+            "description": "`no_dry_run` for a tool that writes state and has no dry run: it is never called. `tool_error` when a call failed, `infrastructure_error` when the runner could not run the case.",
+            "enum": [
+              "completed",
+              "no_dry_run",
+              "tool_error",
+              "infrastructure_error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "turn_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+            "title": "Turn Id",
+            "type": "string"
+          },
+          "variant_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Items in the variant's list.",
+            "title": "Variant Count"
+          }
+        },
+        "required": [
+          "turn_id",
+          "call_id",
+          "status"
+        ],
+        "title": "CounterfactualCase",
+        "type": "object"
+      },
+      "CounterfactualEngaged": {
+        "additionalProperties": false,
+        "description": "An item the person engaged with in the recorded turn, by its 1-based position in each live list;\nabsent where the list does not hold it.",
+        "properties": {
+          "base": {
+            "anyOf": [
+              {
+                "maximum": 10000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "maximum": 10000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
+          }
+        },
+        "title": "CounterfactualEngaged",
+        "type": "object"
+      },
+      "CounterfactualEngagement": {
+        "additionalProperties": false,
+        "description": "Where the items the person engaged with went without the element, over the completed cases.",
+        "properties": {
+          "gained": {
+            "description": "Within the variant's first `k` and not the base's.",
+            "title": "Gained",
+            "type": "integer"
+          },
+          "items": {
+            "title": "Items",
+            "type": "integer"
+          },
+          "kept": {
+            "description": "Within the first `k` of both lists.",
+            "title": "Kept",
+            "type": "integer"
+          },
+          "lost": {
+            "description": "Within the base's first `k` and not the variant's.",
+            "title": "Lost",
+            "type": "integer"
+          },
+          "mean_shift": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The variant's position minus the base's, averaged over the items both lists hold; positive when they fell.",
+            "title": "Mean Shift"
+          },
+          "shown": {
+            "description": "Within the first `k` of the base's list.",
+            "title": "Shown",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "shown",
+          "kept",
+          "lost",
+          "gained"
+        ],
+        "title": "CounterfactualEngagement",
+        "type": "object"
+      },
       "CounterfactualRun": {
         "additionalProperties": false,
+        "description": "Whether the element changes what the tool returns, beyond the tool's own noise. It never says whether\nthe result got better, nor how the model reacts: `limits` says so, and what else holds the answer\nback.",
         "properties": {
+          "above_noise": {
+            "title": "Above Noise",
+            "type": "integer"
+          },
+          "below_noise": {
+            "description": "Completed cases whose overlap is below their own noise.",
+            "title": "Below Noise",
+            "type": "integer"
+          },
+          "cases": {
+            "title": "Cases",
+            "type": "integer"
+          },
+          "completed": {
+            "title": "Completed",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "effect": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`noise_floor - overlap`: how much of the first positions the element moves beyond noise.",
+            "title": "Effect"
+          },
+          "element": {
+            "enum": [
+              "constraints",
+              "hard",
+              "size",
+              "exclude"
+            ],
+            "title": "Element",
+            "type": "string"
+          },
+          "engaged": {
+            "$ref": "#/components/schemas/CounterfactualEngagement"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
           "limits": {
             "items": {
+              "enum": [
+                "not_quality",
+                "model_reaction_not_measured",
+                "trivial_for_hard",
+                "few_cases",
+                "noisy_tool",
+                "cases_skipped",
+                "dry_run"
+              ],
               "type": "string"
             },
             "title": "Limits",
@@ -2769,9 +3377,10 @@
                 "type": "null"
               }
             ],
+            "description": "Mean overlap@k of the base with itself.",
             "title": "Noise Floor"
           },
-          "overlap_at_k": {
+          "overlap": {
             "anyOf": [
               {
                 "type": "number"
@@ -2780,43 +3389,119 @@
                 "type": "null"
               }
             ],
-            "title": "Overlap At K"
+            "description": "Mean overlap@k of the base and the variant.",
+            "title": "Overlap"
+          },
+          "p_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The two-sided sign test of `below_noise` against `above_noise`: how likely a split this uneven is when the element changes nothing.",
+            "title": "P Value"
           },
           "run_id": {
             "maxLength": 512,
             "minLength": 1,
             "title": "Run Id",
             "type": "string"
+          },
+          "skipped": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "The cases not completed.",
+            "propertyNames": {
+              "enum": [
+                "completed",
+                "no_dry_run",
+                "tool_error",
+                "infrastructure_error"
+              ]
+            },
+            "title": "Skipped",
+            "type": "object"
+          },
+          "ties": {
+            "title": "Ties",
+            "type": "integer"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
           }
         },
         "required": [
-          "run_id"
+          "run_id",
+          "tool",
+          "element",
+          "created_at",
+          "cases",
+          "completed",
+          "overlap",
+          "noise_floor",
+          "effect",
+          "below_noise",
+          "above_noise",
+          "ties",
+          "p_value",
+          "engaged",
+          "limits"
         ],
         "title": "CounterfactualRun",
         "type": "object"
       },
       "CounterfactualRunCreate": {
         "additionalProperties": false,
+        "description": "What a runner measured in the company's CI for one tool and one element (the tool counterfactual\nspec).",
         "properties": {
-          "element": {
-            "maxLength": 256,
-            "minLength": 1,
-            "title": "Element",
-            "type": "string"
-          },
-          "results": {
+          "cases": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/CounterfactualCase"
             },
             "maxItems": 5000,
             "minItems": 1,
-            "title": "Results",
+            "title": "Cases",
             "type": "array"
           },
+          "element": {
+            "enum": [
+              "constraints",
+              "hard",
+              "size",
+              "exclude"
+            ],
+            "title": "Element",
+            "type": "string"
+          },
+          "k": {
+            "default": 10,
+            "description": "The positions compared when a recorded list has no `visible_k`.",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "K",
+            "type": "integer"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A name for the run, such as the commit or the build it ran on.",
+            "title": "Label"
+          },
           "tool": {
-            "maxLength": 256,
-            "minLength": 1,
+            "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,63}$",
             "title": "Tool",
             "type": "string"
           }
@@ -2824,9 +3509,37 @@
         "required": [
           "tool",
           "element",
-          "results"
+          "cases"
         ],
         "title": "CounterfactualRunCreate",
+        "type": "object"
+      },
+      "CounterfactualRunPage": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CounterfactualRun"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CounterfactualRunPage",
         "type": "object"
       },
       "DataIssue": {
@@ -2964,6 +3677,7 @@
           "mapping": {
             "case.closed": "#/components/schemas/CaseClosed",
             "case.opened": "#/components/schemas/CaseOpened",
+            "commitment.decided": "#/components/schemas/CommitmentDecided",
             "commitment.made": "#/components/schemas/CommitmentMade",
             "commitment.withdrawn": "#/components/schemas/CommitmentWithdrawn",
             "contact.made": "#/components/schemas/ContactMade",
@@ -3000,6 +3714,9 @@
           },
           {
             "$ref": "#/components/schemas/CommitmentWithdrawn"
+          },
+          {
+            "$ref": "#/components/schemas/CommitmentDecided"
           },
           {
             "$ref": "#/components/schemas/HandoffDeclared"
@@ -3429,6 +4146,123 @@
         "title": "Engaged",
         "type": "object"
       },
+      "ExperimentReport": {
+        "additionalProperties": false,
+        "description": "Every experiment on an element or an agent, arm by arm, from what people did after they were assigned:\nincremental, as only a holdout says.",
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "experiments": {
+            "items": {
+              "$ref": "#/components/schemas/ExperimentResult"
+            },
+            "title": "Experiments",
+            "type": "array"
+          }
+        },
+        "required": [
+          "as_of",
+          "experiments"
+        ],
+        "title": "ExperimentReport",
+        "type": "object"
+      },
+      "ExperimentResult": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent"
+          },
+          "alpha": {
+            "title": "Alpha",
+            "type": "number"
+          },
+          "arms": {
+            "items": {
+              "$ref": "#/components/schemas/ArmOutcomes"
+            },
+            "title": "Arms",
+            "type": "array"
+          },
+          "comparisons": {
+            "description": "Empty until each arm holds enough people for the normal approximation.",
+            "items": {
+              "$ref": "#/components/schemas/ArmComparison"
+            },
+            "title": "Comparisons",
+            "type": "array"
+          },
+          "cuped_days": {
+            "description": "The days before each person's assignment taken as the covariate.",
+            "title": "Cuped Days",
+            "type": "integer"
+          },
+          "element": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Element"
+          },
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "experiment": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Experiment",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "element",
+              "agent"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "experiment",
+          "kind",
+          "starts_at",
+          "alpha",
+          "cuped_days",
+          "arms",
+          "comparisons"
+        ],
+        "title": "ExperimentResult",
+        "type": "object"
+      },
       "Feature": {
         "description": "The agent features a space turns on: everything is off until the space's `features`\ndocument lists it, and `GET /v1/sdk/profile` announces what is on.",
         "enum": [
@@ -3761,6 +4595,18 @@
             "title": "Created At",
             "type": "string"
           },
+          "expected_by": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected By"
+          },
           "handoff_id": {
             "maxLength": 512,
             "minLength": 1,
@@ -3811,13 +4657,20 @@
       },
       "HandoffContext": {
         "additionalProperties": false,
-        "description": "The compiled `handoff` view, at the receiving side's policy and verification level.",
+        "description": "The compiled `handoff` view, at the receiving side's policy and verification level. `etag` is the\npack's it was compiled from, absent for a subject the memory knows nothing of yet.",
         "properties": {
           "etag": {
-            "maxLength": 256,
-            "minLength": 1,
-            "title": "Etag",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etag"
           },
           "policy_version": {
             "anyOf": [
@@ -3838,15 +4691,29 @@
           }
         },
         "required": [
-          "text",
-          "etag"
+          "text"
         ],
         "title": "HandoffContext",
         "type": "object"
       },
       "HandoffCreate": {
         "additionalProperties": false,
+        "description": "Hands the subject to `target`. The package is compiled at `level`, the verification the receiving\nside has of the subject, so it never carries what that side could not read.",
         "properties": {
+          "agent": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The agent handing off; the calling key's name when absent.",
+            "title": "Agent"
+          },
           "conversation_id": {
             "anyOf": [
               {
@@ -3859,6 +4726,23 @@
               }
             ],
             "title": "Conversation Id"
+          },
+          "expected_by": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the outcome is due; the space's default wait when absent.",
+            "title": "Expected By"
+          },
+          "level": {
+            "$ref": "#/components/schemas/Verification",
+            "default": "V0"
           },
           "reason": {
             "anyOf": [
@@ -4081,6 +4965,17 @@
             "default": "handoff-package.v0",
             "title": "Spec",
             "type": "string"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Handle"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whom the handoff is about."
           },
           "suppressions": {
             "items": {
@@ -4469,6 +5364,45 @@
         "title": "InferencePage",
         "type": "object"
       },
+      "InterestState": {
+        "additionalProperties": false,
+        "description": "A shared object the subject showed interest in, as it stands now.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "object": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The object as a `display` read serves it; absent once it left the working set."
+          },
+          "reason": {
+            "description": "`presented`, `engaged`, `feedback` or `watch`.",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "ref": {
+            "$ref": "#/components/schemas/StateRef"
+          }
+        },
+        "required": [
+          "ref",
+          "reason",
+          "at"
+        ],
+        "title": "InterestState",
+        "type": "object"
+      },
       "InterleavingReport": {
         "additionalProperties": false,
         "description": "Interleaved lists of a tool's two rankings (team draft, seeded by the turn): which ranking the\nperson's engagement credited, impression by impression, by day and over the period.",
@@ -4616,7 +5550,7 @@
       },
       "InternalText": {
         "additionalProperties": false,
-        "description": "Fingerprints of the company's own prompt: hashes of every `n` words, computed by the SDK, never the\nprompt itself. An output that repeats one gives way to `redact`.",
+        "description": "Fingerprints of the company's own prompt: hashes of every `n` words, computed by the SDK, never the\nprompt itself. An output that repeats one gives way to `redact`, recorded as a claim of the category\n`internal_text` with the verdict `internal_text_found`, the action taken and, as evidence, the\n`shingle_hashes_ref` in `document`.",
         "properties": {
           "n": {
             "default": 8,
@@ -5469,6 +6403,18 @@
             "title": "Band",
             "type": "string"
           },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Of an `identity` link: how often that method names the exposure a line's own token names in this space, where both exist. Beside the value, never multiplied by it.",
+            "title": "Confidence"
+          },
           "currency": {
             "anyOf": [
               {
@@ -5831,36 +6777,100 @@
       },
       "PowerRequest": {
         "additionalProperties": false,
+        "description": "How long the space's traffic takes to detect a difference of `effect` (relative: 0.1 is 10%) on\n`metric`. The traffic and the baseline come from the space's history, the named experiment's or the\nbusiest one's of the last 28 days, unless given.",
         "properties": {
           "alpha": {
             "default": 0.05,
-            "exclusiveMaximum": 1.0,
             "exclusiveMinimum": 0.0,
+            "maximum": 0.2,
             "title": "Alpha",
             "type": "number"
           },
-          "effect": {
+          "baseline_mean": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per person: a rate for `conversion`, minor units for `value`.",
+            "title": "Baseline Mean"
+          },
+          "baseline_sd": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per person, for `value`; a rate's follows from its mean.",
+            "title": "Baseline Sd"
+          },
+          "control_fraction": {
+            "default": 0.5,
             "exclusiveMaximum": 1.0,
             "exclusiveMinimum": 0.0,
+            "title": "Control Fraction",
+            "type": "number"
+          },
+          "daily_people": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New people a day entering the test.",
+            "title": "Daily People"
+          },
+          "effect": {
+            "description": "The relative difference to detect: 0.1 is 10%.",
+            "exclusiveMinimum": 0.0,
+            "maximum": 10.0,
             "title": "Effect",
             "type": "number"
           },
+          "experiment": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The experiment whose history to use.",
+            "title": "Experiment"
+          },
           "metric": {
-            "maxLength": 256,
-            "minLength": 1,
+            "default": "conversion",
+            "enum": [
+              "conversion",
+              "value"
+            ],
             "title": "Metric",
             "type": "string"
           },
           "power": {
             "default": 0.8,
             "exclusiveMaximum": 1.0,
-            "exclusiveMinimum": 0.0,
+            "minimum": 0.5,
             "title": "Power",
             "type": "number"
           }
         },
         "required": [
-          "metric",
           "effect"
         ],
         "title": "PowerRequest",
@@ -5869,6 +6879,26 @@
       "PowerResult": {
         "additionalProperties": false,
         "properties": {
+          "baseline_from": {
+            "enum": [
+              "given",
+              "history"
+            ],
+            "title": "Baseline From",
+            "type": "string"
+          },
+          "baseline_mean": {
+            "title": "Baseline Mean",
+            "type": "number"
+          },
+          "baseline_sd": {
+            "title": "Baseline Sd",
+            "type": "number"
+          },
+          "daily_people": {
+            "title": "Daily People",
+            "type": "number"
+          },
           "days": {
             "anyOf": [
               {
@@ -5878,9 +6908,10 @@
                 "type": "null"
               }
             ],
+            "description": "At a fixed horizon, looked at once, at the end.",
             "title": "Days"
           },
-          "sample_size": {
+          "days_sequential": {
             "anyOf": [
               {
                 "type": "integer"
@@ -5889,12 +6920,77 @@
                 "type": "null"
               }
             ],
-            "title": "Sample Size"
+            "title": "Days Sequential"
+          },
+          "effect": {
+            "title": "Effect",
+            "type": "number"
+          },
+          "experiment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The experiment whose history was used.",
+            "title": "Experiment"
+          },
+          "metric": {
+            "enum": [
+              "conversion",
+              "value"
+            ],
+            "title": "Metric",
+            "type": "string"
+          },
+          "people": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Both arms together, at a fixed horizon.",
+            "title": "People"
+          },
+          "people_sequential": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Both arms together, for the daily-looked sequential test to have decided with `power`.",
+            "title": "People Sequential"
+          },
+          "traffic_from": {
+            "enum": [
+              "given",
+              "history"
+            ],
+            "title": "Traffic From",
+            "type": "string"
           }
         },
         "required": [
+          "metric",
+          "effect",
+          "baseline_mean",
+          "baseline_sd",
+          "daily_people",
+          "people",
           "days",
-          "sample_size"
+          "people_sequential",
+          "days_sequential",
+          "traffic_from",
+          "baseline_from"
         ],
         "title": "PowerResult",
         "type": "object"
@@ -8352,12 +9448,11 @@
       },
       "StateView": {
         "additionalProperties": false,
-        "description": "The state of one subject: their objects of the declared types, each as a `display` read serves it.",
+        "description": "The state of one subject (the `now` view): their objects of the declared types, each as a `display`\nread serves it; the shared objects they showed interest in, and what changed since they saw them; and\nthe same as short lines for the turn block.",
         "properties": {
           "changes_since_seen": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/ChangeSinceSeen"
             },
             "title": "Changes Since Seen",
             "type": "array"
@@ -8369,8 +9464,7 @@
           },
           "interests": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/InterestState"
             },
             "title": "Interests",
             "type": "array"
@@ -8381,6 +9475,18 @@
             },
             "title": "Objects",
             "type": "array"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The view as lines for the turn block, after `slots`: never part of the pack's `text`, so the cached prefix keeps its bytes. Absent when there is nothing to say.",
+            "title": "Text"
           }
         },
         "title": "StateView",
@@ -11766,6 +12872,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "The handoff was closed or expired."
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -11828,6 +12937,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "The handoff was closed with another outcome, or expired."
           },
           "422": {
             "content": {
@@ -12009,7 +13121,68 @@
       }
     },
     "/v1/measure/counterfactual-runs": {
+      "get": {
+        "operationId": "counterfactual_runs_v1_measure_counterfactual_runs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CounterfactualRunPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not match the contract."
+          }
+        },
+        "summary": "Counterfactual Runs",
+        "tags": [
+          "signals"
+        ]
+      },
       "post": {
+        "description": "What a runner in the company's CI measured: whether an element changes what a tool returns, against the\ntool's own noise. Positions and overlaps only (the tool counterfactual spec).",
         "operationId": "counterfactual_run_v1_measure_counterfactual_runs_post",
         "requestBody": {
           "content": {
@@ -12044,6 +13217,71 @@
           }
         },
         "summary": "Counterfactual Run",
+        "tags": [
+          "signals"
+        ]
+      }
+    },
+    "/v1/measure/counterfactual-runs/{run_id}": {
+      "get": {
+        "operationId": "counterfactual_run_read_v1_measure_counterfactual_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CounterfactualRun"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not match the contract."
+          }
+        },
+        "summary": "Counterfactual Run Read",
+        "tags": [
+          "signals"
+        ]
+      }
+    },
+    "/v1/measure/experiments": {
+      "get": {
+        "description": "Each experiment on an element or an agent, arm by arm against `control`: CUPED-adjusted, with the\nmixture sequential test, whose p-value and interval hold however often the report is read.",
+        "operationId": "experiments_v1_measure_experiments_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Experiments",
         "tags": [
           "signals"
         ]
@@ -12168,6 +13406,7 @@
     },
     "/v1/measure/power": {
       "post": {
+        "description": "How many days of the space's traffic a relative difference needs, looked at once or every day.",
         "operationId": "power_v1_measure_power_post",
         "requestBody": {
           "content": {
@@ -13386,6 +14625,7 @@
     },
     "/v1/state/refresh-requests": {
       "get": {
+        "description": "The company's resolver worker takes what to fetch again: the higher priorities and the older first,\neach leased to it for 60 seconds; a request it does not answer is offered again, three times at most.",
         "operationId": "refresh_requests_v1_state_refresh_requests_get",
         "parameters": [
           {
@@ -13431,6 +14671,7 @@
     },
     "/v1/state/verify": {
       "post": {
+        "description": "A verdict per object and field for a claim, without waiting for the source: whether it may be claimed\nnow, whether a value given matches the one held, and what may not be said with data this old.",
         "operationId": "state_verify_v1_state_verify_post",
         "requestBody": {
           "content": {
@@ -13472,6 +14713,7 @@
     },
     "/v1/state/view": {
       "post": {
+        "description": "The subject's `now` view for the read's purpose: their objects, the shared objects they showed\ninterest in and what changed since they saw them, and the same as lines for the turn block.",
         "operationId": "state_view_v1_state_view_post",
         "requestBody": {
           "content": {

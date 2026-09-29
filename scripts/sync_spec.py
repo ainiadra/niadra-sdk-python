@@ -373,8 +373,10 @@ def _docstring(text: str, indent: str) -> str:
     width = WIDTH - len(indent) - 3
     paragraphs = [textwrap.wrap(" ".join(p.split()), width) for p in text.split("\n\n") if p.strip()]
     lines = [line for i, p in enumerate(paragraphs) for line in ([""] if i else []) + p]
-    if len(lines) == 1:
+    if len(lines) == 1 and len(indent) + len(lines[0]) + 6 <= WIDTH:
         return f'{indent}"""{lines[0]}"""\n'
+    if len(lines) == 1:  # the closing quotes would cross the line: two lines
+        lines = textwrap.wrap(lines[0], width - 3)
     body = "\n".join(f"{indent}{line}" if line else "" for line in lines[1:])
     return f'{indent}"""{lines[0]}\n{body}\n{indent}"""\n'
 
@@ -481,6 +483,10 @@ class ModelWriter:
         if "default" in prop and prop["default"] not in ([], {}):
             if isinstance(prop["default"], dict):
                 return self._factory(where, inner, prop["default"])
+            ref = _name(inner.get("$ref", ""))
+            if EXISTING.get(ref) == "niadra.vocabulary":
+                # A member of an enumeration the SDK writes by hand, not its bare value.
+                return ("default", f"{self.ref(ref)}({_literal(prop['default'])})")
             return ("default", _literal(prop["default"]))
         # Pydantic writes no default for a `default_factory`: an empty container, or a model's defaults.
         if nullable and "default" not in prop:

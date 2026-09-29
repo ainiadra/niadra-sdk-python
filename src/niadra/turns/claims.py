@@ -30,6 +30,8 @@ from typing import TYPE_CHECKING, Any, overload
 from pydantic import ValidationError
 
 from niadra.claims import STANDING, Finding, Mention, Output, Turn, TurnValue, check, mentions, same_value
+from niadra.claims.internal import InternalText
+from niadra.claims.internal import record as internal_record
 from niadra.claims.numbers import decimal_text
 from niadra.models.state import ClaimContractSummary, ObjectRead
 from niadra.models.turns import ClaimRecord
@@ -44,18 +46,41 @@ MAX_TEXT = 200
 """A string of a result longer than this is prose, not a value: it is not read for numbers."""
 
 
-def check_turn(frame: TurnFrame, contract: ClaimContractSummary) -> list[dict[str, Any]]:
+def check_turn(
+    frame: TurnFrame, contract: ClaimContractSummary, internal: InternalText | None = None
+) -> list[dict[str, Any]]:
     """The claims of everything the turn said, as the record carries them."""
     found: list[dict[str, Any]] = []
     for said in list(frame.said):
-        found += check_said(frame, contract, said)
+        found += check_said(frame, contract, said, internal)
     return found
 
 
-def check_said(frame: TurnFrame | None, contract: ClaimContractSummary, said: Said) -> list[dict[str, Any]]:
-    """The claims of one output in count mode: a claim that stands records `none`, any other `count`."""
+def check_said(
+    frame: TurnFrame | None, contract: ClaimContractSummary, said: Said, internal: InternalText | None = None
+) -> list[dict[str, Any]]:
+    """The claims of one output in count mode: a claim that stands records `none`, any other `count`, and so
+    does a passage of the company's own prompt it repeats."""
     found = findings_of(frame, contract, said)
-    return [r for f in found if (r := record_of(f, "none" if f.verdict in STANDING else "count")) is not None]
+    records = [
+        r for f in found if (r := record_of(f, "none" if f.verdict in STANDING else "count")) is not None
+    ]
+    return records + [
+        internal_record(span, ref, "count") for span, ref in passages(contract, internal, said.text)
+    ]
+
+
+def passages(
+    contract: ClaimContractSummary, internal: InternalText | None, text: str
+) -> list[tuple[tuple[int, int], str]]:
+    """Where `text` repeats the company's prompt the contract names, with the prompt's version."""
+    config = contract.internal_text
+    if config is None or internal is None:
+        return []
+    return [
+        (span, config.shingle_hashes_ref)
+        for span in internal.passages(text, config.shingle_hashes_ref, config.n)
+    ]
 
 
 def findings_of(frame: TurnFrame | None, contract: ClaimContractSummary, said: Said) -> list[Finding]:
@@ -77,9 +102,11 @@ class ClaimCheck:
         contract: Callable[[], ClaimContractSummary | None],
         *,
         refresh: Callable[[], Awaitable[object]] | None = None,
+        internal: InternalText | None = None,
     ) -> None:
         self._contract = contract
         self._refresh = refresh
+        self._internal = internal
         self._warming: asyncio.Task[object] | None = None
 
     def warm(self) -> None:
@@ -100,7 +127,7 @@ class ClaimCheck:
             return []
         frame = current_turn()
         try:
-            records = check_said(frame, contract, Said(text, context, immutable, agent))
+            records = check_said(frame, contract, Said(text, context, immutable, agent), self._internal)
         except Exception:
             logger.warning("niadra: the claim check failed", exc_info=True)
             if frame is not None:
@@ -121,7 +148,15 @@ class ClaimCheck:
         contract = self._contract()
         if contract is None:
             return Guarded(text)
-        return guard_text(contract, current_turn(), text, context=context, immutable=immutable, agent=agent)
+        return guard_text(
+            contract,
+            current_turn(),
+            text,
+            context=context,
+            immutable=immutable,
+            agent=agent,
+            internal=self._internal,
+        )
 
     @overload
     def guard(
@@ -164,7 +199,13 @@ class ClaimCheck:
         from niadra.turns.guard import Guard, guard_stream
 
         make = functools.partial(
-            Guard, context=context, immutable=immutable, agent=agent, hold=hold, message=message
+            Guard,
+            context=context,
+            immutable=immutable,
+            agent=agent,
+            hold=hold,
+            message=message,
+            internal=self._internal,
         )
         if isinstance(stream, AsyncIterable):
             return self._guard_async(stream, current_turn(), make)
