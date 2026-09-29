@@ -1,0 +1,168 @@
+{
+  "vectors": "suppression-key",
+  "version": "v0",
+  "spec": "spec/suppression-list.md",
+  "cases": [
+    {
+      "id": "key.phone_e164",
+      "description": "A phone number already in E.164.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "+5511987654321",
+      "expect": {
+        "canonical": "phone:+5511987654321",
+        "key": "artBgq3okzeNZ3ZtbJSsKtr1JqULKXhkJeIg-433n-s"
+      }
+    },
+    {
+      "id": "key.phone_formatted",
+      "description": "Spaces, parentheses and hyphens are dropped.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "+55 (11) 98765-4321",
+      "expect": {
+        "canonical": "phone:+5511987654321",
+        "key": "artBgq3okzeNZ3ZtbJSsKtr1JqULKXhkJeIg-433n-s"
+      }
+    },
+    {
+      "id": "key.phone_international_prefix",
+      "description": "A leading 00 is the international prefix.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "0055 11 98765 4321",
+      "expect": {
+        "canonical": "phone:+5511987654321",
+        "key": "artBgq3okzeNZ3ZtbJSsKtr1JqULKXhkJeIg-433n-s"
+      }
+    },
+    {
+      "id": "key.phone_brazilian_national",
+      "description": "A Brazilian national number gains the country code.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "(11) 98765-4321",
+      "expect": {
+        "canonical": "phone:+5511987654321",
+        "key": "artBgq3okzeNZ3ZtbJSsKtr1JqULKXhkJeIg-433n-s"
+      }
+    },
+    {
+      "id": "key.phone_ninth_digit",
+      "description": "A legacy Brazilian mobile number gains the ninth digit.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "+55 11 8765-4321",
+      "expect": {
+        "canonical": "phone:+5511987654321",
+        "key": "artBgq3okzeNZ3ZtbJSsKtr1JqULKXhkJeIg-433n-s"
+      }
+    },
+    {
+      "id": "key.phone_landline",
+      "description": "A Brazilian landline never gains the ninth digit.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "+55 11 3456-7890",
+      "expect": {
+        "canonical": "phone:+551134567890",
+        "key": "GRiV6hlamtQgMd9fHenWjFr82GQWeUXaPJPSIwWYAp4"
+      }
+    },
+    {
+      "id": "key.phone_other_country",
+      "description": "A number of another country keeps its digits.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "+1 (415) 555-0100",
+      "expect": {
+        "canonical": "phone:+14155550100",
+        "key": "2MKme4jgvWD_N4KYBwVwmwYwdtNNy9Q3ru34U4Nho5U"
+      }
+    },
+    {
+      "id": "key.wa_id",
+      "description": "A WhatsApp id is the phone number without the plus sign.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "wa_id",
+      "value": "5511987654321",
+      "expect": {
+        "canonical": "phone:+5511987654321",
+        "key": "artBgq3okzeNZ3ZtbJSsKtr1JqULKXhkJeIg-433n-s"
+      }
+    },
+    {
+      "id": "key.wa_jid",
+      "description": "A WhatsApp JID is keyed by its user part, device suffix dropped.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "wa_jid",
+      "value": "551187654321:12@s.whatsapp.net",
+      "expect": {
+        "canonical": "phone:+5511987654321",
+        "key": "artBgq3okzeNZ3ZtbJSsKtr1JqULKXhkJeIg-433n-s"
+      }
+    },
+    {
+      "id": "key.email",
+      "description": "An e-mail address is trimmed and lowercased.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "email",
+      "value": "  Ana.Souza@Example.COM ",
+      "expect": {
+        "canonical": "email:ana.souza@example.com",
+        "key": "tLUSZKaZgzy0yDs44PzVPO5222brxpuEgkJ8NlRPsCc"
+      }
+    },
+    {
+      "id": "key.other_source",
+      "description": "Another source's salt keys the same phone differently.",
+      "salt": "WxSmuunK-XrER5U9eQvLjEVKeJpCMXNLntZbyBJXqoU",
+      "type": "phone_e164",
+      "value": "+5511987654321",
+      "expect": {
+        "canonical": "phone:+5511987654321",
+        "key": "6pfOxoyo29pw1cajH7QTqHL05PznrN0CY06b92wnSKo"
+      }
+    },
+    {
+      "id": "key.not_a_phone",
+      "description": "Letters are not a phone number.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "+55 11 9876-ABCD",
+      "expect": {
+        "error": "invalid_handle"
+      }
+    },
+    {
+      "id": "key.phone_too_short",
+      "description": "Fewer than eight digits are not a phone number.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "+55 1234",
+      "expect": {
+        "error": "invalid_handle"
+      }
+    },
+    {
+      "id": "key.not_an_email",
+      "description": "An address without a domain is not an e-mail.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "email",
+      "value": "ana.souza@",
+      "expect": {
+        "error": "invalid_handle"
+      }
+    },
+    {
+      "id": "key.unsupported_type",
+      "description": "Only the handles a contact goes to are keyed.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "crm_id",
+      "value": "C-123",
+      "expect": {
+        "error": "unsupported_type"
+      }
+    }
+  ]
+}

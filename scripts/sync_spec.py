@@ -55,10 +55,6 @@ Unlike the rest of the SDK, these methods raise: an `APIError` subclass on an er
 `NotAvailableError` (501) while the server has not built the route. The calls built on them decide what
 fails open and what fails closed, per purpose. A route of a feature the space did not turn on answers
 `NotFoundError`, as a route that does not exist."""
-# The tags whose models the server still declares as stubs: their fields may change before the server fixes
-# them. Take a tag out of here when it does, and run this script.
-DRAFT_TAGS = {"signals", "coordination"}
-DRAFT_NOTE = "Draft: the server has not fixed these models yet, and their fields may still change."
 # Schemas the SDK already mirrors by hand, and where they live.
 EXISTING = {
     "Handle": "niadra.models.common",
@@ -67,6 +63,7 @@ EXISTING = {
     "ItemError": "niadra.models.events",
     "HandleType": "niadra.vocabulary",
     "SubjectKind": "niadra.vocabulary",
+    "Verification": "niadra.vocabulary",
 }
 # Constrained strings the server names, by (minLength, maxLength, pattern). A module declares the ones it
 # uses; a name followed by module names applies only in those.
@@ -239,6 +236,10 @@ def operations(document: dict[str, Any]) -> list[Operation]:
 def generate(document: dict[str, Any]) -> dict[str, str]:
     """Every generated file, by its path in the repository."""
     schemas: dict[str, Any] = document["components"]["schemas"]
+    # Two server models named alike are published under their module path; a public SDK never carries one.
+    unnamed = sorted(name for name in schemas if "__" in name)
+    if unnamed:
+        raise ValueError(f"schemas named by the server's module path: {unnamed}")
     ops = operations(document)
     sent = _reach([{"$ref": o.body} for o in ops if o.body], schemas)
     module_of: dict[str, str] = {}
@@ -246,15 +247,12 @@ def generate(document: dict[str, Any]) -> dict[str, str]:
         roots = [{"$ref": n} for o in ops if o.tag == tag for n in (o.body, o.response) if n]
         for name in sorted(_reach(roots, schemas)):
             module_of.setdefault(name, EXISTING.get(name, f"niadra.models.{module}"))
-    drafts = {TAGS[t] for t in DRAFT_TAGS}
-    if drafts & {TAGS[t] for t in TAGS if t not in DRAFT_TAGS}:
-        raise ValueError("a module would hold both draft and built routes")
     files = {}
     for module in dict.fromkeys(TAGS.values()):
         qualified = f"niadra.models.{module}"
         names = [n for n in _ordered(schemas) if module_of.get(n) == qualified]
         writer = ModelWriter(schemas, module_of, sent, qualified)
-        files[f"src/niadra/models/{module}.py"] = writer.module(module, names, draft=module in drafts)
+        files[f"src/niadra/models/{module}.py"] = writer.module(module, names)
     files["src/niadra/api.py"] = ApiWriter(module_of).module(ops)
     return {path: ruff(path, text) for path, text in files.items()}
 
@@ -359,8 +357,8 @@ class ModelWriter:
         self.imports = Imports()
         self.aliases: dict[str, str] = {}
 
-    def module(self, module: str, names: list[str], *, draft: bool) -> str:
-        doc = MODULE_DOCS[module] + (f"\n\n{DRAFT_NOTE}" if draft else "")
+    def module(self, module: str, names: list[str]) -> str:
+        doc = MODULE_DOCS[module]
         classes = "\n\n".join(self.definition(name) for name in names)
         aliases = "".join(f"{name} = {self.aliases[name]}\n" for name in sorted(self.aliases))
         return (

@@ -1,0 +1,117 @@
+{
+  "vectors": "claim-anchor",
+  "version": "v0",
+  "spec": "spec/claim-contract.md",
+  "cases": [
+    {
+      "id": "anchor.exact",
+      "quote": "Aquele que, por ação ou omissão voluntária, negligência ou imprudência, violar direito e causar dano a outrem",
+      "document": "Art. 186. Aquele que, por ação ou omissão voluntária, negligência ou imprudência, violar direito e causar dano a outrem, ainda que exclusivamente moral, comete ato ilícito.",
+      "expect": {
+        "normalized_quote_length": 106,
+        "distance": 0,
+        "holds": true
+      }
+    },
+    {
+      "id": "anchor.case_and_accents",
+      "quote": "AQUELE QUE, POR ACAO OU OMISSAO VOLUNTARIA, NEGLIGENCIA OU IMPRUDENCIA, VIOLAR DIREITO",
+      "document": "Art. 186. Aquele que, por ação ou omissão voluntária, negligência ou imprudência, violar direito e causar dano a outrem, ainda que exclusivamente moral, comete ato ilícito.",
+      "expect": {
+        "normalized_quote_length": 83,
+        "distance": 0,
+        "holds": true
+      }
+    },
+    {
+      "id": "anchor.punctuation_and_spaces",
+      "quote": "aquele que por ação   ou omissão voluntária - negligência ou imprudência",
+      "document": "Art. 186. Aquele que, por ação ou omissão voluntária, negligência ou imprudência, violar direito e causar dano a outrem, ainda que exclusivamente moral, comete ato ilícito.",
+      "expect": {
+        "normalized_quote_length": 68,
+        "distance": 0,
+        "holds": true
+      }
+    },
+    {
+      "id": "anchor.one_word_changed",
+      "quote": "Aquele que, por ação ou omissão voluntária, negligência ou imperícia, violar direito e causar dano a outrem",
+      "document": "Art. 186. Aquele que, por ação ou omissão voluntária, negligência ou imprudência, violar direito e causar dano a outrem, ainda que exclusivamente moral, comete ato ilícito.",
+      "expect": {
+        "normalized_quote_length": 104,
+        "distance": 5,
+        "holds": true
+      }
+    },
+    {
+      "id": "anchor.paraphrase",
+      "quote": "responde objetivamente pelo dano quem age com culpa grave ou dolo",
+      "document": "Art. 186. Aquele que, por ação ou omissão voluntária, negligência ou imprudência, violar direito e causar dano a outrem, ainda que exclusivamente moral, comete ato ilícito.",
+      "expect": {
+        "normalized_quote_length": 65,
+        "distance": 43,
+        "holds": false
+      }
+    },
+    {
+      "id": "anchor.typo",
+      "quote": "O LOCATÁRIO pagará multa de 10% (dez por cento) sobre o valor do aluguel em caso de atrazo superior a 5 dias",
+      "document": "Cláusula 5. O LOCATÁRIO pagará multa de 10% (dez por cento) sobre o valor do aluguel em caso de atraso superior a 5 (cinco) dias.",
+      "expect": {
+        "normalized_quote_length": 105,
+        "distance": 4,
+        "holds": true
+      }
+    },
+    {
+      "id": "anchor.number_changed",
+      "quote": "multa de 20% (vinte por cento) sobre o valor do aluguel",
+      "document": "Cláusula 5. O LOCATÁRIO pagará multa de 10% (dez por cento) sobre o valor do aluguel em caso de atraso superior a 5 (cinco) dias.",
+      "expect": {
+        "normalized_quote_length": 52,
+        "distance": 6,
+        "holds": false
+      }
+    },
+    {
+      "id": "anchor.fact_exact",
+      "quote": "recebeu cobrança indevida no valor de R$ 1.250,00",
+      "document": "O autor afirma que, em 12/03/2026, recebeu cobrança indevida no valor de R$ 1.250,00, sem qualquer aviso prévio.",
+      "expect": {
+        "normalized_quote_length": 48,
+        "distance": 0,
+        "holds": true
+      }
+    },
+    {
+      "id": "anchor.fact_amount_changed",
+      "quote": "recebeu cobrança indevida no valor de R$ 12.500,00",
+      "document": "O autor afirma que, em 12/03/2026, recebeu cobrança indevida no valor de R$ 1.250,00, sem qualquer aviso prévio.",
+      "expect": {
+        "normalized_quote_length": 49,
+        "distance": 3,
+        "holds": true
+      }
+    },
+    {
+      "id": "anchor.empty_quote",
+      "quote": "",
+      "document": "O autor afirma que, em 12/03/2026, recebeu cobrança indevida no valor de R$ 1.250,00, sem qualquer aviso prévio.",
+      "expect": {
+        "normalized_quote_length": 0,
+        "distance": 0,
+        "holds": false
+      }
+    },
+    {
+      "id": "anchor.longer_than_document",
+      "quote": "O autor afirma que, em 12/03/2026, recebeu cobrança indevida no valor de R$ 1.250,00, sem qualquer aviso prévio. E ainda requer danos morais em valor não inferior a vinte salários mínimos.",
+      "document": "O autor afirma que, em 12/03/2026, recebeu cobrança indevida no valor de R$ 1.250,00, sem qualquer aviso prévio.",
+      "expect": {
+        "normalized_quote_length": 182,
+        "distance": 75,
+        "holds": false
+      }
+    }
+  ]
+}

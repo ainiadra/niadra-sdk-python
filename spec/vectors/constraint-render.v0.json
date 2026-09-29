@@ -1,0 +1,1634 @@
+{
+  "vectors": "constraint-render",
+  "version": "v0",
+  "spec": "spec/constraints.md",
+  "cases": [
+    {
+      "id": "retail.not_in.advisory_suggests",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.color",
+            "op": "not_in",
+            "values": [
+              "Preto"
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {
+          "query": "vestido"
+        },
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "advisory",
+      "expect": {
+        "applies": true,
+        "args": {
+          "query": "vestido"
+        },
+        "suggested": {
+          "not_color": "preto"
+        },
+        "injected": [],
+        "hard_sent": [],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.not_in.apply_injects",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.color",
+            "op": "not_in",
+            "values": [
+              "Preto"
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {
+          "query": "vestido"
+        },
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "apply",
+      "expect": {
+        "applies": true,
+        "args": {
+          "query": "vestido",
+          "not_color": "preto"
+        },
+        "suggested": {
+          "not_color": "preto"
+        },
+        "injected": [
+          "h1"
+        ],
+        "hard_sent": [
+          "h1"
+        ],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.not_in.persistent_not_injected",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.color",
+            "op": "not_in",
+            "values": [
+              "preto"
+            ],
+            "source": "stated",
+            "scope": "persistent",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {
+          "query": "vestido"
+        },
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "apply",
+      "expect": {
+        "applies": true,
+        "args": {
+          "query": "vestido"
+        },
+        "suggested": {
+          "not_color": "preto"
+        },
+        "injected": [],
+        "hard_sent": [],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.not_in.model_already_sent",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.color",
+            "op": "not_in",
+            "values": [
+              "Preto"
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {
+          "query": "vestido",
+          "not_color": "preto"
+        },
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "advisory",
+      "expect": {
+        "applies": true,
+        "args": {
+          "query": "vestido",
+          "not_color": "preto"
+        },
+        "suggested": {
+          "not_color": "preto"
+        },
+        "injected": [],
+        "hard_sent": [
+          "h1"
+        ],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.not_in.current_utterance_wins",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.color",
+            "op": "not_in",
+            "values": [
+              "Preto"
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {
+          "query": "vestido",
+          "color": "preto"
+        },
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "apply",
+      "expect": {
+        "applies": true,
+        "args": {
+          "query": "vestido",
+          "color": "preto"
+        },
+        "suggested": {
+          "not_color": "preto"
+        },
+        "injected": [],
+        "hard_sent": [],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": [
+          {
+            "id": "h1",
+            "param": "color"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retail.not_in.merged",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.color",
+            "op": "not_in",
+            "values": [
+              "Preto"
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          },
+          {
+            "id": "h2",
+            "attr": "item_variant.color",
+            "op": "not_in",
+            "values": [
+              "marrom"
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {},
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "apply",
+      "expect": {
+        "applies": true,
+        "args": {
+          "not_color": [
+            "preto",
+            "marrom"
+          ]
+        },
+        "suggested": {
+          "not_color": [
+            "preto",
+            "marrom"
+          ]
+        },
+        "injected": [
+          "h1",
+          "h2"
+        ],
+        "hard_sent": [
+          "h1",
+          "h2"
+        ],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.in.several_values",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.color",
+            "op": "in",
+            "values": [
+              "bege",
+              "off-white"
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {},
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "advisory",
+      "expect": {
+        "applies": true,
+        "args": {},
+        "suggested": {
+          "color": [
+            "bege",
+            "off-white"
+          ]
+        },
+        "injected": [],
+        "hard_sent": [],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.lte.declared_op",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.price_sale",
+            "op": "lte",
+            "values": [
+              300
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {},
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "apply",
+      "expect": {
+        "applies": true,
+        "args": {
+          "max_price": 300
+        },
+        "suggested": {
+          "max_price": 300
+        },
+        "injected": [
+          "h1"
+        ],
+        "hard_sent": [
+          "h1"
+        ],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.gte.undeclared_op_is_residual",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.price_sale",
+            "op": "gte",
+            "values": [
+              100
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {},
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "apply",
+      "expect": {
+        "applies": true,
+        "args": {},
+        "suggested": {},
+        "injected": [],
+        "hard_sent": [],
+        "residual": [
+          "h1"
+        ],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.unbound_is_residual",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.material",
+            "op": "not_in",
+            "values": [
+              "couro"
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {},
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "advisory",
+      "expect": {
+        "applies": true,
+        "args": {},
+        "suggested": {},
+        "injected": [],
+        "hard_sent": [],
+        "residual": [
+          "h1"
+        ],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.unbound_overfetch_post_filter",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.material",
+            "op": "not_in",
+            "values": [
+              "couro"
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": [
+          "item_variant:loja:991"
+        ]
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": true
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {},
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "advisory",
+      "expect": {
+        "applies": true,
+        "args": {},
+        "suggested": {},
+        "injected": [],
+        "hard_sent": [],
+        "residual": [
+          "h1",
+          "exclude"
+        ],
+        "post_filter": [
+          "h1",
+          "exclude"
+        ],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.category.other_category_skipped",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.size_label",
+            "op": "in",
+            "values": [
+              "38"
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            },
+            "category": "calca"
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {},
+        "for": "self",
+        "category": "blusa",
+        "asked": []
+      },
+      "mode": "apply",
+      "expect": {
+        "applies": true,
+        "args": {},
+        "suggested": {},
+        "injected": [],
+        "hard_sent": [],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.category.same_category",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.size_label",
+            "op": "in",
+            "values": [
+              "38"
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            },
+            "category": "calca"
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {},
+        "for": "self",
+        "category": "calca",
+        "asked": []
+      },
+      "mode": "apply",
+      "expect": {
+        "applies": true,
+        "args": {
+          "size": "38"
+        },
+        "suggested": {
+          "size": "38"
+        },
+        "injected": [
+          "h1"
+        ],
+        "hard_sent": [
+          "h1"
+        ],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.attribute.inferred_unasked",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [],
+        "attributes": [
+          {
+            "id": "z1",
+            "name": "size.pants",
+            "system": "BR",
+            "value": "38",
+            "confidence": 0.9,
+            "source": "kept",
+            "apply": "when_asked"
+          }
+        ],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {},
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "apply",
+      "expect": {
+        "applies": true,
+        "args": {},
+        "suggested": {},
+        "injected": [],
+        "hard_sent": [],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.attribute.inferred_asked_suggested_only",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [],
+        "attributes": [
+          {
+            "id": "z1",
+            "name": "size.pants",
+            "system": "BR",
+            "value": "38",
+            "confidence": 0.9,
+            "source": "kept",
+            "apply": "when_asked"
+          }
+        ],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {},
+        "for": "self",
+        "category": null,
+        "asked": [
+          "size"
+        ]
+      },
+      "mode": "apply",
+      "expect": {
+        "applies": true,
+        "args": {},
+        "suggested": {
+          "size": "38"
+        },
+        "injected": [],
+        "hard_sent": [],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.attribute.stated_always_injected",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [],
+        "attributes": [
+          {
+            "id": "z2",
+            "name": "size.pants",
+            "system": "BR",
+            "value": "40",
+            "confidence": 1.0,
+            "source": "stated",
+            "apply": "always"
+          }
+        ],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {},
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "apply",
+      "expect": {
+        "applies": true,
+        "args": {
+          "size": "40"
+        },
+        "suggested": {
+          "size": "40"
+        },
+        "injected": [
+          "z2"
+        ],
+        "hard_sent": [],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.beneficiary.other_person",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "beneficiary:b1"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.color",
+            "op": "not_in",
+            "values": [
+              "Preto"
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {
+          "query": "vestido"
+        },
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "apply",
+      "expect": {
+        "applies": false,
+        "args": {
+          "query": "vestido"
+        },
+        "suggested": {},
+        "injected": [],
+        "hard_sent": [],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "retail.honored.results",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.color",
+            "op": "not_in",
+            "values": [
+              "Preto"
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {
+          "not_color": "preto"
+        },
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "advisory",
+      "results": [
+        {
+          "item_variant.color": "bege"
+        },
+        {
+          "item_variant.color": "Preto"
+        },
+        {
+          "item_variant.price_sale": 199.9
+        }
+      ],
+      "expect": {
+        "applies": true,
+        "args": {
+          "not_color": "preto"
+        },
+        "suggested": {
+          "not_color": "preto"
+        },
+        "injected": [],
+        "hard_sent": [
+          "h1"
+        ],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": [],
+        "honored": {
+          "results_checked": 3,
+          "violations": 1,
+          "unverifiable": 1
+        }
+      }
+    },
+    {
+      "id": "health.network.excluded",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "plan.network",
+            "op": "not_in",
+            "values": [
+              "rede-x"
+            ],
+            "source": "stated",
+            "scope": "persistent",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "quote_plans",
+        "args": [
+          {
+            "attr": "plan.network",
+            "param": "network",
+            "negation": {
+              "param": "exclude_networks"
+            }
+          },
+          {
+            "attr": "plan.price_full",
+            "param": "price_range",
+            "ops": [
+              "between"
+            ]
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {
+          "city": "Campinas"
+        },
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "advisory",
+      "expect": {
+        "applies": true,
+        "args": {
+          "city": "Campinas"
+        },
+        "suggested": {
+          "exclude_networks": "rede-x"
+        },
+        "injected": [],
+        "hard_sent": [],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
+      "id": "health.price.between",
+      "block": {
+        "version": "cv_0a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "plan.price_full",
+            "op": "between",
+            "values": [
+              300,
+              500
+            ],
+            "source": "stated",
+            "scope": "turn",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": []
+      },
+      "binding": {
+        "tool": "quote_plans",
+        "args": [
+          {
+            "attr": "plan.network",
+            "param": "network",
+            "negation": {
+              "param": "exclude_networks"
+            }
+          },
+          {
+            "attr": "plan.price_full",
+            "param": "price_range",
+            "ops": [
+              "between"
+            ]
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {
+          "city": "Campinas"
+        },
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "apply",
+      "expect": {
+        "applies": true,
+        "args": {
+          "city": "Campinas",
+          "price_range": [
+            300,
+            500
+          ]
+        },
+        "suggested": {
+          "price_range": [
+            300,
+            500
+          ]
+        },
+        "injected": [
+          "h1"
+        ],
+        "hard_sent": [
+          "h1"
+        ],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    }
+  ]
+}

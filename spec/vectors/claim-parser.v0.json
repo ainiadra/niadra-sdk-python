@@ -1,0 +1,2942 @@
+{
+  "vectors": "claim-parser",
+  "version": "v0",
+  "spec": "spec/claim-contract.md",
+  "cases": [
+    {
+      "id": "pt.money.symbol_before",
+      "lang": "pt",
+      "text": "O plano sai por R$ 511,06 por mês.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.money.symbol_no_space",
+      "lang": "pt",
+      "text": "Fica R$511,06.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              5,
+              13
+            ],
+            "text": "R$511,06",
+            "class": "money",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.money.thousands",
+      "lang": "pt",
+      "text": "O total é R$ 1.234,56.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              10,
+              21
+            ],
+            "text": "R$ 1.234,56",
+            "class": "money",
+            "value": {
+              "amount": "1234.56",
+              "unit": "BRL"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.money.integer_grouped",
+      "lang": "pt",
+      "text": "Custa R$ 2.500 à vista.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              6,
+              14
+            ],
+            "text": "R$ 2.500",
+            "class": "money",
+            "value": {
+              "amount": "2500",
+              "unit": "BRL"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.money.word_after",
+      "lang": "pt",
+      "text": "São 150 reais de entrada.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              4,
+              13
+            ],
+            "text": "150 reais",
+            "class": "money",
+            "value": {
+              "amount": "150",
+              "unit": "BRL"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.money.dollar_code",
+      "lang": "pt",
+      "text": "Custa US$ 1,5 mil lá fora.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              6,
+              17
+            ],
+            "text": "US$ 1,5 mil",
+            "class": "money",
+            "value": {
+              "amount": "1500",
+              "unit": "USD"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.money.scale_million",
+      "lang": "pt",
+      "text": "A causa vale R$ 2 milhões.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              13,
+              25
+            ],
+            "text": "R$ 2 milhões",
+            "class": "money",
+            "value": {
+              "amount": "2000000",
+              "unit": "BRL"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.money.bare_two_decimals",
+      "lang": "pt",
+      "text": "A parcela fica em 49,90 no cartão.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              18,
+              23
+            ],
+            "text": "49,90",
+            "class": "money",
+            "value": {
+              "amount": "49.9"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.money.range_between",
+      "lang": "pt",
+      "text": "Os planos ficam entre R$ 300 e R$ 400.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              22,
+              37
+            ],
+            "text": "R$ 300 e R$ 400",
+            "class": "money",
+            "value": {
+              "min": "300",
+              "max": "400",
+              "unit": "BRL"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.money.range_a",
+      "lang": "pt",
+      "text": "Fica de R$ 300 a 400 dependendo da idade.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              8,
+              20
+            ],
+            "text": "R$ 300 a 400",
+            "class": "money",
+            "value": {
+              "min": "300",
+              "max": "400",
+              "unit": "BRL"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.money.range_words_unit_after",
+      "lang": "pt",
+      "text": "Algo de 300 a 400 reais.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              8,
+              23
+            ],
+            "text": "300 a 400 reais",
+            "class": "money",
+            "value": {
+              "min": "300",
+              "max": "400",
+              "unit": "BRL"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.money.words",
+      "lang": "pt",
+      "text": "Fica trezentos reais.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              5,
+              20
+            ],
+            "text": "trezentos reais",
+            "class": "money",
+            "value": {
+              "amount": "300",
+              "unit": "BRL"
+            },
+            "written": "words"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.money.words_compound",
+      "lang": "pt",
+      "text": "O total dá dois mil e quinhentos reais.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              11,
+              38
+            ],
+            "text": "dois mil e quinhentos reais",
+            "class": "money",
+            "value": {
+              "amount": "2500",
+              "unit": "BRL"
+            },
+            "written": "words"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.money.dot_decimal",
+      "lang": "pt",
+      "text": "O valor é R$ 511.06, sem desconto.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              10,
+              19
+            ],
+            "text": "R$ 511.06",
+            "class": "money",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.money.two_in_sentence",
+      "lang": "pt",
+      "text": "De R$ 299,90 por R$ 199,90, com R$ 20 de frete.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              3,
+              12
+            ],
+            "text": "R$ 299,90",
+            "class": "money",
+            "value": {
+              "amount": "299.9",
+              "unit": "BRL"
+            },
+            "written": "digits"
+          },
+          {
+            "span": [
+              17,
+              26
+            ],
+            "text": "R$ 199,90",
+            "class": "money",
+            "value": {
+              "amount": "199.9",
+              "unit": "BRL"
+            },
+            "written": "digits"
+          },
+          {
+            "span": [
+              32,
+              37
+            ],
+            "text": "R$ 20",
+            "class": "money",
+            "value": {
+              "amount": "20",
+              "unit": "BRL"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.percent.symbol",
+      "lang": "pt",
+      "text": "Tem 12,5% de desconto.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              4,
+              9
+            ],
+            "text": "12,5%",
+            "class": "percent",
+            "value": {
+              "amount": "12.5",
+              "unit": "%"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.percent.words_unit",
+      "lang": "pt",
+      "text": "Um desconto de 10 por cento.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              15,
+              27
+            ],
+            "text": "10 por cento",
+            "class": "percent",
+            "value": {
+              "amount": "10",
+              "unit": "%"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.percent.words",
+      "lang": "pt",
+      "text": "Um reajuste de quinze por cento.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              15,
+              31
+            ],
+            "text": "quinze por cento",
+            "class": "percent",
+            "value": {
+              "amount": "15",
+              "unit": "%"
+            },
+            "written": "words"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.percent.range",
+      "lang": "pt",
+      "text": "A coparticipação é de 20 a 30%.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              22,
+              30
+            ],
+            "text": "20 a 30%",
+            "class": "percent",
+            "value": {
+              "min": "20",
+              "max": "30",
+              "unit": "%"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.date.numeric_full",
+      "lang": "pt",
+      "text": "O prazo vence em 20/10/2026.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              17,
+              27
+            ],
+            "text": "20/10/2026",
+            "class": "date",
+            "value": {
+              "date": "2026-10-20"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.date.numeric_short_year",
+      "lang": "pt",
+      "text": "Vence em 05/11/26.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              9,
+              17
+            ],
+            "text": "05/11/26",
+            "class": "date",
+            "value": {
+              "date": "2026-11-05"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.date.day_month",
+      "lang": "pt",
+      "text": "Até 05/10, por favor.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              4,
+              9
+            ],
+            "text": "05/10",
+            "class": "date",
+            "value": {
+              "date": "--10-05"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.date.iso",
+      "lang": "pt",
+      "text": "Registrado em 2026-10-05.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              14,
+              24
+            ],
+            "text": "2026-10-05",
+            "class": "date",
+            "value": {
+              "date": "2026-10-05"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.date.words",
+      "lang": "pt",
+      "text": "A audiência é em 5 de outubro de 2026.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              17,
+              37
+            ],
+            "text": "5 de outubro de 2026",
+            "class": "date",
+            "value": {
+              "date": "2026-10-05"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.date.words_no_year",
+      "lang": "pt",
+      "text": "Chega até 15 de dezembro.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              10,
+              24
+            ],
+            "text": "15 de dezembro",
+            "class": "date",
+            "value": {
+              "date": "--12-15"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.date.ordinal",
+      "lang": "pt",
+      "text": "Começa em 1º de novembro.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              10,
+              24
+            ],
+            "text": "1º de novembro",
+            "class": "date",
+            "value": {
+              "date": "--11-01"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.date.month_of_year",
+      "lang": "pt",
+      "text": "Previsto para outubro de 2026.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              14,
+              29
+            ],
+            "text": "outubro de 2026",
+            "class": "date",
+            "value": {
+              "date": "2026-10"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.date.month_year_numeric",
+      "lang": "pt",
+      "text": "Válido até 10/2026.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              11,
+              18
+            ],
+            "text": "10/2026",
+            "class": "date",
+            "value": {
+              "date": "2026-10"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.date.day_only",
+      "lang": "pt",
+      "text": "O boleto vence no dia 20.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              22,
+              24
+            ],
+            "text": "20",
+            "class": "date",
+            "value": {
+              "date": "---20"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.date.range_words",
+      "lang": "pt",
+      "text": "A loja fecha de 24 a 26 de dezembro.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              16,
+              35
+            ],
+            "text": "24 a 26 de dezembro",
+            "class": "date",
+            "value": {
+              "date_from": "--12-24",
+              "date_to": "--12-26"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.date.invalid",
+      "lang": "pt",
+      "text": "Em 31/02 não há expediente.",
+      "expect": {
+        "mentions": []
+      }
+    },
+    {
+      "id": "pt.date.short_month",
+      "lang": "pt",
+      "text": "Publicado em 3 set. 2026.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              13,
+              24
+            ],
+            "text": "3 set. 2026",
+            "class": "date",
+            "value": {
+              "date": "2026-09-03"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.duration.days",
+      "lang": "pt",
+      "text": "A carência é de 180 dias.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              16,
+              24
+            ],
+            "text": "180 dias",
+            "class": "duration",
+            "value": {
+              "amount": "180",
+              "unit": "day"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.duration.business_days",
+      "lang": "pt",
+      "text": "Responda em 15 dias úteis.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              12,
+              25
+            ],
+            "text": "15 dias úteis",
+            "class": "duration",
+            "value": {
+              "amount": "15",
+              "unit": "business_day"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.duration.calendar_days",
+      "lang": "pt",
+      "text": "São 30 dias corridos.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              4,
+              20
+            ],
+            "text": "30 dias corridos",
+            "class": "duration",
+            "value": {
+              "amount": "30",
+              "unit": "day"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.duration.hours_compact",
+      "lang": "pt",
+      "text": "Te respondo em 48h.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              15,
+              18
+            ],
+            "text": "48h",
+            "class": "duration",
+            "value": {
+              "amount": "48",
+              "unit": "hour"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.duration.words_business",
+      "lang": "pt",
+      "text": "O prazo é de quinze dias úteis.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              13,
+              30
+            ],
+            "text": "quinze dias úteis",
+            "class": "duration",
+            "value": {
+              "amount": "15",
+              "unit": "business_day"
+            },
+            "written": "words"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.duration.one_year",
+      "lang": "pt",
+      "text": "A fidelidade é de um ano.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              18,
+              24
+            ],
+            "text": "um ano",
+            "class": "duration",
+            "value": {
+              "amount": "1",
+              "unit": "year"
+            },
+            "written": "words"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.duration.range_between",
+      "lang": "pt",
+      "text": "Entrega entre 3 e 5 dias úteis.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              14,
+              30
+            ],
+            "text": "3 e 5 dias úteis",
+            "class": "duration",
+            "value": {
+              "min": "3",
+              "max": "5",
+              "unit": "business_day"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.duration.months",
+      "lang": "pt",
+      "text": "A carência para parto é de 10 meses.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              27,
+              35
+            ],
+            "text": "10 meses",
+            "class": "duration",
+            "value": {
+              "amount": "10",
+              "unit": "month"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.quantity.units",
+      "lang": "pt",
+      "text": "Restam 3 unidades desse modelo.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              7,
+              17
+            ],
+            "text": "3 unidades",
+            "class": "quantity",
+            "value": {
+              "amount": "3",
+              "unit": "unit"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.quantity.volume",
+      "lang": "pt",
+      "text": "O frasco tem 100 ml.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              13,
+              19
+            ],
+            "text": "100 ml",
+            "class": "quantity",
+            "value": {
+              "amount": "100",
+              "unit": "ml"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.quantity.storage",
+      "lang": "pt",
+      "text": "O celular tem 128 GB.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              14,
+              20
+            ],
+            "text": "128 GB",
+            "class": "quantity",
+            "value": {
+              "amount": "128",
+              "unit": "GB"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.dosage.mg",
+      "lang": "pt",
+      "text": "Tome 500 mg a cada 8 horas.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              5,
+              11
+            ],
+            "text": "500 mg",
+            "class": "dosage",
+            "value": {
+              "amount": "500",
+              "unit": "mg"
+            },
+            "written": "digits"
+          },
+          {
+            "span": [
+              19,
+              26
+            ],
+            "text": "8 horas",
+            "class": "duration",
+            "value": {
+              "amount": "8",
+              "unit": "hour"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.dosage.drops",
+      "lang": "pt",
+      "text": "São 20 gotas por dia.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              4,
+              12
+            ],
+            "text": "20 gotas",
+            "class": "dosage",
+            "value": {
+              "amount": "20",
+              "unit": "drop"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.count.installments",
+      "lang": "pt",
+      "text": "Em 10x sem juros.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              3,
+              6
+            ],
+            "text": "10x",
+            "class": "count",
+            "value": {
+              "amount": "10",
+              "unit": "x"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.count.noun",
+      "lang": "pt",
+      "text": "Você tem 2 dependentes.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              9,
+              10
+            ],
+            "text": "2",
+            "class": "count",
+            "value": {
+              "amount": "2"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.count.scale",
+      "lang": "pt",
+      "text": "Atendemos 5 mil pessoas por dia.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              10,
+              15
+            ],
+            "text": "5 mil",
+            "class": "count",
+            "value": {
+              "amount": "5000"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.label.order_number",
+      "lang": "pt",
+      "text": "O pedido nº 88213 foi entregue.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              12,
+              17
+            ],
+            "text": "88213",
+            "class": "label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.label.postal_code",
+      "lang": "pt",
+      "text": "O CEP é 01310-100.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              8,
+              17
+            ],
+            "text": "01310-100",
+            "class": "label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.label.case_number",
+      "lang": "pt",
+      "text": "No processo 0001234-56.2026.8.26.0100 houve decisão.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              12,
+              37
+            ],
+            "text": "0001234-56.2026.8.26.0100",
+            "class": "label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.label.statute",
+      "lang": "pt",
+      "text": "Nos termos do art. 335 do CPC e da Lei 8.078/90.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              19,
+              22
+            ],
+            "text": "335",
+            "class": "label"
+          },
+          {
+            "span": [
+              39,
+              47
+            ],
+            "text": "8.078/90",
+            "class": "label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.label.size",
+      "lang": "pt",
+      "text": "Tenho no tamanho 38.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              17,
+              19
+            ],
+            "text": "38",
+            "class": "label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.label.time",
+      "lang": "pt",
+      "text": "Te ligo às 14h.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              11,
+              14
+            ],
+            "text": "14h",
+            "class": "label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.label.time_minutes",
+      "lang": "pt",
+      "text": "A audiência começa às 14:30.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              22,
+              27
+            ],
+            "text": "14:30",
+            "class": "label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.label.phone",
+      "lang": "pt",
+      "text": "Liga no (11) 98765-4321.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              8,
+              23
+            ],
+            "text": "(11) 98765-4321",
+            "class": "label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.label.code",
+      "lang": "pt",
+      "text": "Use o cupom BEMVINDO10 ou o código PX-4471.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              12,
+              22
+            ],
+            "text": "BEMVINDO10",
+            "class": "label"
+          },
+          {
+            "span": [
+              35,
+              42
+            ],
+            "text": "PX-4471",
+            "class": "label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.label.year",
+      "lang": "pt",
+      "text": "É da coleção 2026.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              13,
+              17
+            ],
+            "text": "2026",
+            "class": "label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.label.leading_zero",
+      "lang": "pt",
+      "text": "A senha começa com 0123.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              19,
+              23
+            ],
+            "text": "0123",
+            "class": "label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.label.ordinal",
+      "lang": "pt",
+      "text": "Fica no 3º andar.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              8,
+              10
+            ],
+            "text": "3º",
+            "class": "label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.none.words_alone",
+      "lang": "pt",
+      "text": "Tenho dois filhos e uma filha.",
+      "expect": {
+        "mentions": []
+      }
+    },
+    {
+      "id": "pt.none.plain_number",
+      "lang": "pt",
+      "text": "Nota 4,5 de 5.",
+      "expect": {
+        "mentions": []
+      }
+    },
+    {
+      "id": "pt.role.after",
+      "lang": "pt",
+      "text": "O plano sai por R$ 511,06 sem desconto.",
+      "roles": {
+        "price_full": [
+          "sem desconto",
+          "cheio"
+        ],
+        "price_discounted": [
+          "com desconto",
+          "promocional"
+        ],
+        "per_person": [
+          "por pessoa",
+          "por vida"
+        ]
+      },
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": "price_full",
+            "role_status": "matched"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.role.two_numbers",
+      "lang": "pt",
+      "text": "Fica R$ 511,06 sem desconto e R$ 459,95 com desconto.",
+      "roles": {
+        "price_full": [
+          "sem desconto",
+          "cheio"
+        ],
+        "price_discounted": [
+          "com desconto",
+          "promocional"
+        ],
+        "per_person": [
+          "por pessoa",
+          "por vida"
+        ]
+      },
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              5,
+              14
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": "price_full",
+            "role_status": "matched"
+          },
+          {
+            "span": [
+              30,
+              39
+            ],
+            "text": "R$ 459,95",
+            "class": "money",
+            "value": {
+              "amount": "459.95",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": "price_discounted",
+            "role_status": "matched"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.role.before",
+      "lang": "pt",
+      "text": "Com desconto, o plano fica em R$ 459,95.",
+      "roles": {
+        "price_full": [
+          "sem desconto",
+          "cheio"
+        ],
+        "price_discounted": [
+          "com desconto",
+          "promocional"
+        ],
+        "per_person": [
+          "por pessoa",
+          "por vida"
+        ]
+      },
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              30,
+              39
+            ],
+            "text": "R$ 459,95",
+            "class": "money",
+            "value": {
+              "amount": "459.95",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": "price_discounted",
+            "role_status": "matched"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.role.per_person",
+      "lang": "pt",
+      "text": "São R$ 180,00 por pessoa.",
+      "roles": {
+        "price_full": [
+          "sem desconto",
+          "cheio"
+        ],
+        "price_discounted": [
+          "com desconto",
+          "promocional"
+        ],
+        "per_person": [
+          "por pessoa",
+          "por vida"
+        ]
+      },
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              4,
+              13
+            ],
+            "text": "R$ 180,00",
+            "class": "money",
+            "value": {
+              "amount": "180",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": "per_person",
+            "role_status": "matched"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.role.ambiguous",
+      "lang": "pt",
+      "text": "Sem desconto R$ 511,06 com desconto.",
+      "roles": {
+        "price_full": [
+          "sem desconto",
+          "cheio"
+        ],
+        "price_discounted": [
+          "com desconto",
+          "promocional"
+        ],
+        "per_person": [
+          "por pessoa",
+          "por vida"
+        ]
+      },
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              13,
+              22
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": null,
+            "role_status": "ambiguous"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.role.none",
+      "lang": "pt",
+      "text": "O plano custa R$ 511,06.",
+      "roles": {
+        "price_full": [
+          "sem desconto",
+          "cheio"
+        ],
+        "price_discounted": [
+          "com desconto",
+          "promocional"
+        ],
+        "per_person": [
+          "por pessoa",
+          "por vida"
+        ]
+      },
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              14,
+              23
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": null,
+            "role_status": "none"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.role.too_far",
+      "lang": "pt",
+      "text": "Sem desconto, o plano mais completo que temos para a sua família fica em R$ 511,06.",
+      "roles": {
+        "price_full": [
+          "sem desconto",
+          "cheio"
+        ],
+        "price_discounted": [
+          "com desconto",
+          "promocional"
+        ],
+        "per_person": [
+          "por pessoa",
+          "por vida"
+        ]
+      },
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              73,
+              82
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": null,
+            "role_status": "none"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.role.other_sentence",
+      "lang": "pt",
+      "text": "Esse é o preço cheio. Fica R$ 511,06.",
+      "roles": {
+        "price_full": [
+          "sem desconto",
+          "cheio"
+        ],
+        "price_discounted": [
+          "com desconto",
+          "promocional"
+        ],
+        "per_person": [
+          "por pessoa",
+          "por vida"
+        ]
+      },
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              27,
+              36
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": null,
+            "role_status": "none"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.role.own_term_wins",
+      "lang": "pt",
+      "text": "De R$ 299,90 por R$ 199,90, com R$ 20 de frete.",
+      "roles": {
+        "price_list": [
+          "de",
+          "antes"
+        ],
+        "price_sale": [
+          "por",
+          "sai por"
+        ],
+        "shipping": [
+          "frete",
+          "de frete"
+        ]
+      },
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              3,
+              12
+            ],
+            "text": "R$ 299,90",
+            "class": "money",
+            "value": {
+              "amount": "299.9",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": "price_list",
+            "role_status": "matched"
+          },
+          {
+            "span": [
+              17,
+              26
+            ],
+            "text": "R$ 199,90",
+            "class": "money",
+            "value": {
+              "amount": "199.9",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": "price_sale",
+            "role_status": "matched"
+          },
+          {
+            "span": [
+              32,
+              37
+            ],
+            "text": "R$ 20",
+            "class": "money",
+            "value": {
+              "amount": "20",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": "shipping",
+            "role_status": "matched"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.role.date",
+      "lang": "pt",
+      "text": "A audiência é em 10/10/2026 e o prazo final é 20/10/2026.",
+      "roles": {
+        "due_date": [
+          "vence",
+          "prazo final"
+        ],
+        "hearing": [
+          "audiência"
+        ]
+      },
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              17,
+              27
+            ],
+            "text": "10/10/2026",
+            "class": "date",
+            "value": {
+              "date": "2026-10-10"
+            },
+            "written": "digits",
+            "role": "hearing",
+            "role_status": "matched"
+          },
+          {
+            "span": [
+              46,
+              56
+            ],
+            "text": "20/10/2026",
+            "class": "date",
+            "value": {
+              "date": "2026-10-20"
+            },
+            "written": "digits",
+            "role": "due_date",
+            "role_status": "matched"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.nature.computed_by_role",
+      "lang": "pt",
+      "text": "O plano sai por R$ 511,06 sem desconto.",
+      "roles": {
+        "price_full": [
+          "sem desconto",
+          "cheio"
+        ],
+        "price_discounted": [
+          "com desconto",
+          "promocional"
+        ],
+        "per_person": [
+          "por pessoa",
+          "por vida"
+        ]
+      },
+      "evidence": [
+        {
+          "class": "money",
+          "role": "price_full",
+          "value": {
+            "amount": "511.06",
+            "unit": "BRL"
+          }
+        }
+      ],
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": "price_full",
+            "role_status": "matched",
+            "nature": "computed"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.nature.computed_by_role_mismatch",
+      "lang": "pt",
+      "text": "O plano sai por R$ 520,00 sem desconto.",
+      "roles": {
+        "price_full": [
+          "sem desconto",
+          "cheio"
+        ],
+        "price_discounted": [
+          "com desconto",
+          "promocional"
+        ],
+        "per_person": [
+          "por pessoa",
+          "por vida"
+        ]
+      },
+      "evidence": [
+        {
+          "class": "money",
+          "role": "price_full",
+          "value": {
+            "amount": "511.06",
+            "unit": "BRL"
+          }
+        }
+      ],
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 520,00",
+            "class": "money",
+            "value": {
+              "amount": "520",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": "price_full",
+            "role_status": "matched",
+            "nature": "computed"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.nature.computed_by_value",
+      "lang": "pt",
+      "text": "O plano custa R$ 511,06.",
+      "roles": {
+        "price_full": [
+          "sem desconto",
+          "cheio"
+        ],
+        "price_discounted": [
+          "com desconto",
+          "promocional"
+        ],
+        "per_person": [
+          "por pessoa",
+          "por vida"
+        ]
+      },
+      "evidence": [
+        {
+          "class": "money",
+          "role": "price_full",
+          "value": {
+            "amount": "511.06",
+            "unit": "BRL"
+          }
+        }
+      ],
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              14,
+              23
+            ],
+            "text": "R$ 511,06",
+            "class": "money",
+            "value": {
+              "amount": "511.06",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": null,
+            "role_status": "none",
+            "nature": "computed"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.nature.model",
+      "lang": "pt",
+      "text": "O plano custa R$ 530,00.",
+      "roles": {
+        "price_full": [
+          "sem desconto",
+          "cheio"
+        ],
+        "price_discounted": [
+          "com desconto",
+          "promocional"
+        ],
+        "per_person": [
+          "por pessoa",
+          "por vida"
+        ]
+      },
+      "evidence": [
+        {
+          "class": "money",
+          "role": "price_full",
+          "value": {
+            "amount": "511.06",
+            "unit": "BRL"
+          }
+        }
+      ],
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              14,
+              23
+            ],
+            "text": "R$ 530,00",
+            "class": "money",
+            "value": {
+              "amount": "530",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": null,
+            "role_status": "none",
+            "nature": "model"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.nature.quoted",
+      "lang": "pt",
+      "text": "A inicial diz que “o valor devido é R$ 12.000,00”, o que não procede.",
+      "roles": {
+        "price_full": [
+          "sem desconto",
+          "cheio"
+        ],
+        "price_discounted": [
+          "com desconto",
+          "promocional"
+        ],
+        "per_person": [
+          "por pessoa",
+          "por vida"
+        ]
+      },
+      "evidence": [],
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              36,
+              48
+            ],
+            "text": "R$ 12.000,00",
+            "class": "money",
+            "value": {
+              "amount": "12000",
+              "unit": "BRL"
+            },
+            "written": "digits",
+            "role": null,
+            "role_status": "none",
+            "nature": "quoted"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.nature.quoted_straight",
+      "lang": "pt",
+      "text": "Consta: \"prazo de 15 dias\" no contrato.",
+      "roles": {},
+      "evidence": [],
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              18,
+              25
+            ],
+            "text": "15 dias",
+            "class": "duration",
+            "value": {
+              "amount": "15",
+              "unit": "day"
+            },
+            "written": "digits",
+            "role": null,
+            "role_status": "none",
+            "nature": "quoted"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.nature.no_evidence",
+      "lang": "pt",
+      "text": "São 15 dias úteis.",
+      "roles": {},
+      "evidence": [],
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              4,
+              17
+            ],
+            "text": "15 dias úteis",
+            "class": "duration",
+            "value": {
+              "amount": "15",
+              "unit": "business_day"
+            },
+            "written": "digits",
+            "role": null,
+            "role_status": "none",
+            "nature": "model"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt.nature.date_partial_equals_full",
+      "lang": "pt",
+      "text": "O prazo vence em 20/10.",
+      "roles": {
+        "due_date": [
+          "vence",
+          "prazo final"
+        ],
+        "hearing": [
+          "audiência"
+        ]
+      },
+      "evidence": [
+        {
+          "class": "date",
+          "role": "due_date",
+          "value": {
+            "date": "2026-10-20"
+          }
+        }
+      ],
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              17,
+              22
+            ],
+            "text": "20/10",
+            "class": "date",
+            "value": {
+              "date": "--10-20"
+            },
+            "written": "digits",
+            "role": "due_date",
+            "role_status": "matched",
+            "nature": "computed"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.money.dollar",
+      "lang": "en",
+      "text": "It costs $1,200.50 today.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              9,
+              18
+            ],
+            "text": "$1,200.50",
+            "class": "money",
+            "value": {
+              "amount": "1200.5"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.money.code_range",
+      "lang": "en",
+      "text": "Plans run from USD 300 to 400.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              15,
+              29
+            ],
+            "text": "USD 300 to 400",
+            "class": "money",
+            "value": {
+              "min": "300",
+              "max": "400",
+              "unit": "USD"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.money.words",
+      "lang": "en",
+      "text": "It is twenty-five dollars.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              6,
+              25
+            ],
+            "text": "twenty-five dollars",
+            "class": "money",
+            "value": {
+              "amount": "25",
+              "unit": "USD"
+            },
+            "written": "words"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.money.words_large",
+      "lang": "en",
+      "text": "That is two hundred and fifty thousand dollars.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              8,
+              46
+            ],
+            "text": "two hundred and fifty thousand dollars",
+            "class": "money",
+            "value": {
+              "amount": "250000",
+              "unit": "USD"
+            },
+            "written": "words"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.money.comma_thousands",
+      "lang": "en",
+      "text": "The fee is $1,500.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              11,
+              17
+            ],
+            "text": "$1,500",
+            "class": "money",
+            "value": {
+              "amount": "1500"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.money.euro",
+      "lang": "en",
+      "text": "Only €30 more.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              5,
+              8
+            ],
+            "text": "€30",
+            "class": "money",
+            "value": {
+              "amount": "30",
+              "unit": "EUR"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.percent.symbol",
+      "lang": "en",
+      "text": "Save 15% now.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              5,
+              8
+            ],
+            "text": "15%",
+            "class": "percent",
+            "value": {
+              "amount": "15",
+              "unit": "%"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.percent.words",
+      "lang": "en",
+      "text": "A twenty percent discount.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              2,
+              16
+            ],
+            "text": "twenty percent",
+            "class": "percent",
+            "value": {
+              "amount": "20",
+              "unit": "%"
+            },
+            "written": "words"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.date.month_first",
+      "lang": "en",
+      "text": "The deadline is 10/05/2026.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              16,
+              26
+            ],
+            "text": "10/05/2026",
+            "class": "date",
+            "value": {
+              "date": "2026-10-05"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.date.words",
+      "lang": "en",
+      "text": "It is due October 5, 2026.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              10,
+              25
+            ],
+            "text": "October 5, 2026",
+            "class": "date",
+            "value": {
+              "date": "2026-10-05"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.date.words_day_first",
+      "lang": "en",
+      "text": "It is due 5 October 2026.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              10,
+              24
+            ],
+            "text": "5 October 2026",
+            "class": "date",
+            "value": {
+              "date": "2026-10-05"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.date.no_year",
+      "lang": "en",
+      "text": "Due by 12/25.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              7,
+              12
+            ],
+            "text": "12/25",
+            "class": "date",
+            "value": {
+              "date": "--12-25"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.duration.business_range",
+      "lang": "en",
+      "text": "Delivered in 3-5 business days.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              13,
+              30
+            ],
+            "text": "3-5 business days",
+            "class": "duration",
+            "value": {
+              "min": "3",
+              "max": "5",
+              "unit": "business_day"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.duration.hours",
+      "lang": "en",
+      "text": "Within 24 hours.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              7,
+              15
+            ],
+            "text": "24 hours",
+            "class": "duration",
+            "value": {
+              "amount": "24",
+              "unit": "hour"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.duration.words",
+      "lang": "en",
+      "text": "One year of coverage.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              0,
+              8
+            ],
+            "text": "One year",
+            "class": "duration",
+            "value": {
+              "amount": "1",
+              "unit": "year"
+            },
+            "written": "words"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.dosage.mcg",
+      "lang": "en",
+      "text": "Take 50 mcg daily.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              5,
+              11
+            ],
+            "text": "50 mcg",
+            "class": "dosage",
+            "value": {
+              "amount": "50",
+              "unit": "mcg"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.label.time",
+      "lang": "en",
+      "text": "I will call at 3 pm.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              15,
+              19
+            ],
+            "text": "3 pm",
+            "class": "label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.label.order",
+      "lang": "en",
+      "text": "Your order #48213 shipped.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              12,
+              17
+            ],
+            "text": "48213",
+            "class": "label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.role.was_now",
+      "lang": "en",
+      "text": "It was $80 and is now $60.",
+      "roles": {
+        "price_list": [
+          "was",
+          "list price"
+        ],
+        "price_sale": [
+          "now",
+          "sale price"
+        ],
+        "per_person": [
+          "per person"
+        ]
+      },
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              7,
+              10
+            ],
+            "text": "$80",
+            "class": "money",
+            "value": {
+              "amount": "80"
+            },
+            "written": "digits",
+            "role": "price_list",
+            "role_status": "matched"
+          },
+          {
+            "span": [
+              22,
+              25
+            ],
+            "text": "$60",
+            "class": "money",
+            "value": {
+              "amount": "60"
+            },
+            "written": "digits",
+            "role": "price_sale",
+            "role_status": "matched"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.nature.computed",
+      "lang": "en",
+      "text": "The sale price is $60.",
+      "roles": {
+        "price_list": [
+          "was",
+          "list price"
+        ],
+        "price_sale": [
+          "now",
+          "sale price"
+        ],
+        "per_person": [
+          "per person"
+        ]
+      },
+      "evidence": [
+        {
+          "class": "money",
+          "role": "price_sale",
+          "value": {
+            "amount": "60"
+          }
+        }
+      ],
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              18,
+              21
+            ],
+            "text": "$60",
+            "class": "money",
+            "value": {
+              "amount": "60"
+            },
+            "written": "digits",
+            "role": "price_sale",
+            "role_status": "matched",
+            "nature": "computed"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en.nature.model",
+      "lang": "en",
+      "text": "The sale price is $55.",
+      "roles": {
+        "price_list": [
+          "was",
+          "list price"
+        ],
+        "price_sale": [
+          "now",
+          "sale price"
+        ],
+        "per_person": [
+          "per person"
+        ]
+      },
+      "evidence": [
+        {
+          "class": "money",
+          "role": "price_list",
+          "value": {
+            "amount": "80"
+          }
+        }
+      ],
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              18,
+              21
+            ],
+            "text": "$55",
+            "class": "money",
+            "value": {
+              "amount": "55"
+            },
+            "written": "digits",
+            "role": "price_sale",
+            "role_status": "matched",
+            "nature": "model"
+          }
+        ]
+      }
+    },
+    {
+      "id": "es.money.pesos",
+      "lang": "es",
+      "text": "Cuesta 1.234,56 pesos.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              7,
+              21
+            ],
+            "text": "1.234,56 pesos",
+            "class": "money",
+            "value": {
+              "amount": "1234.56"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "es.money.symbol",
+      "lang": "es",
+      "text": "Son $ 2.500 al mes.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              4,
+              11
+            ],
+            "text": "$ 2.500",
+            "class": "money",
+            "value": {
+              "amount": "2500"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "es.money.words",
+      "lang": "es",
+      "text": "Son doscientos treinta euros.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              4,
+              28
+            ],
+            "text": "doscientos treinta euros",
+            "class": "money",
+            "value": {
+              "amount": "230",
+              "unit": "EUR"
+            },
+            "written": "words"
+          }
+        ]
+      }
+    },
+    {
+      "id": "es.money.range_between",
+      "lang": "es",
+      "text": "Entre 300 y 400 dólares.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              6,
+              23
+            ],
+            "text": "300 y 400 dólares",
+            "class": "money",
+            "value": {
+              "min": "300",
+              "max": "400",
+              "unit": "USD"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "es.percent.words",
+      "lang": "es",
+      "text": "Un 20 por ciento menos.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              3,
+              16
+            ],
+            "text": "20 por ciento",
+            "class": "percent",
+            "value": {
+              "amount": "20",
+              "unit": "%"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "es.percent.words_number",
+      "lang": "es",
+      "text": "Un veinticinco por ciento de descuento.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              3,
+              25
+            ],
+            "text": "veinticinco por ciento",
+            "class": "percent",
+            "value": {
+              "amount": "25",
+              "unit": "%"
+            },
+            "written": "words"
+          }
+        ]
+      }
+    },
+    {
+      "id": "es.date.words",
+      "lang": "es",
+      "text": "El 5 de octubre de 2026.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              3,
+              23
+            ],
+            "text": "5 de octubre de 2026",
+            "class": "date",
+            "value": {
+              "date": "2026-10-05"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "es.date.numeric",
+      "lang": "es",
+      "text": "Vence el 20/10/2026.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              9,
+              19
+            ],
+            "text": "20/10/2026",
+            "class": "date",
+            "value": {
+              "date": "2026-10-20"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "es.duration.business_words",
+      "lang": "es",
+      "text": "En quince días hábiles.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              3,
+              22
+            ],
+            "text": "quince días hábiles",
+            "class": "duration",
+            "value": {
+              "amount": "15",
+              "unit": "business_day"
+            },
+            "written": "words"
+          }
+        ]
+      }
+    },
+    {
+      "id": "es.duration.range",
+      "lang": "es",
+      "text": "Entre 3 y 5 días.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              6,
+              16
+            ],
+            "text": "3 y 5 días",
+            "class": "duration",
+            "value": {
+              "min": "3",
+              "max": "5",
+              "unit": "day"
+            },
+            "written": "digits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "es.duration.years",
+      "lang": "es",
+      "text": "La garantía es de dos años.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              18,
+              26
+            ],
+            "text": "dos años",
+            "class": "duration",
+            "value": {
+              "amount": "2",
+              "unit": "year"
+            },
+            "written": "words"
+          }
+        ]
+      }
+    },
+    {
+      "id": "es.label.time",
+      "lang": "es",
+      "text": "Te llamo a las 10.",
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              15,
+              17
+            ],
+            "text": "10",
+            "class": "label"
+          }
+        ]
+      }
+    },
+    {
+      "id": "es.role.per_person",
+      "lang": "es",
+      "text": "Son 90 euros por persona.",
+      "roles": {
+        "price_full": [
+          "sin descuento"
+        ],
+        "price_discounted": [
+          "con descuento"
+        ],
+        "per_person": [
+          "por persona"
+        ]
+      },
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              4,
+              12
+            ],
+            "text": "90 euros",
+            "class": "money",
+            "value": {
+              "amount": "90",
+              "unit": "EUR"
+            },
+            "written": "digits",
+            "role": "per_person",
+            "role_status": "matched"
+          }
+        ]
+      }
+    },
+    {
+      "id": "es.nature.computed",
+      "lang": "es",
+      "text": "Con descuento queda en 90 euros.",
+      "roles": {
+        "price_full": [
+          "sin descuento"
+        ],
+        "price_discounted": [
+          "con descuento"
+        ],
+        "per_person": [
+          "por persona"
+        ]
+      },
+      "evidence": [
+        {
+          "class": "money",
+          "role": "price_discounted",
+          "value": {
+            "amount": "90",
+            "unit": "EUR"
+          }
+        }
+      ],
+      "expect": {
+        "mentions": [
+          {
+            "span": [
+              23,
+              31
+            ],
+            "text": "90 euros",
+            "class": "money",
+            "value": {
+              "amount": "90",
+              "unit": "EUR"
+            },
+            "written": "digits",
+            "role": "price_discounted",
+            "role_status": "matched",
+            "nature": "computed"
+          }
+        ]
+      }
+    }
+  ]
+}

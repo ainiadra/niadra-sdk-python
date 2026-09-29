@@ -1,0 +1,72 @@
+{
+  "version": "2026-09-29.1",
+  "languages": ["pt", "en", "es"],
+  "categories": [
+    {
+      "id": "price",
+      "detect": {
+        "classes": ["money"],
+        "roles": {
+          "price_list": ["de", "antes", "era", "preço original", "was", "antes costaba"],
+          "price_sale": ["por", "sai por", "está por", "promocional", "em promoção", "com desconto", "now", "ahora"],
+          "shipping": ["frete", "de frete", "entrega", "shipping", "envío"],
+          "installment": ["parcela", "parcelas", "x de", "vezes de", "por mês", "a month", "al mes"]
+        }
+      },
+      "evidence": {"value": {"same_role": true, "fresh_for": "claim"}},
+      "natures": {"computed": "check", "quoted": "verbatim", "model": "warn"},
+      "actions": {"default": "warn", "contexts": {"chat": "rewrite_if_unequivocal"}}
+    },
+    {
+      "id": "availability_denial",
+      "detect": {
+        "terms": ["não temos em estoque", "não temos esse", "não temos essa", "está esgotado", "está esgotada",
+                  "esgotou", "sem estoque", "acabou o estoque", "não tem no seu tamanho", "out of stock",
+                  "sold out", "agotado", "sin stock"]
+      },
+      "evidence": {"tool_any": ["search_products", "check_stock"]},
+      "actions": {"default": "warn"}
+    },
+    {
+      "id": "action_promise",
+      "detect": {
+        "terms": ["separei", "já separei", "reservei", "já reservei", "já enviei o link", "te mandei o link",
+                  "vou buscar no estoque", "I reserved", "te reservé"]
+      },
+      "evidence": {"tool_any": ["reserve_item", "send_link"]},
+      "actions": {"default": "warn"}
+    }
+  ],
+  "negative_corpus": {
+    "version": "2026-09-29",
+    "phrases": [
+      "Você é quem ia pagar?",
+      "Quer que eu separe por cor ou por tamanho?",
+      "Separamos as peças por coleção no site.",
+      "Esse vestido veste bem quem usa 38 ou 40.",
+      "Tenho essa peça no tamanho 42.",
+      "O pedido 88213 saiu para entrega hoje.",
+      "Não temos certeza do prazo da transportadora, mas eu te aviso.",
+      "Essa blusa acabou de chegar na loja.",
+      "O cupom BEMVINDO10 dá frete grátis.",
+      "A segunda peça sai com desconto na promoção.",
+      "Mostrei 3 opções parecidas; quer ver mais?",
+      "Chega em até 5 dias úteis para a sua região.",
+      "Qual o seu tamanho de calça?",
+      "Você prefere bege ou off-white?",
+      "Pode me mandar a foto do produto que você viu?",
+      "Seu CEP é 04567-000?",
+      "Essa peça é da coleção 2026.",
+      "Quer que eu te avise quando voltar ao estoque?",
+      "Posso filtrar só as peças abaixo do seu orçamento.",
+      "A troca pode ser feita em qualquer loja em até 30 dias.",
+      "O look do vídeo usa a saia midi e a bota de cano curto.",
+      "Esse modelo não tem bolso, tudo bem?",
+      "Do you want me to check another size?",
+      "This one runs small, so size up.",
+      "¿Prefieres el color beige o el negro?",
+      "¿Quieres que te avise cuando vuelva a estar disponible?"
+    ]
+  },
+  "outputs": {"immutable": ["order_confirmation"], "mutable": ["chat"]}
+}

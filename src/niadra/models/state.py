@@ -16,6 +16,20 @@ from niadra.models.common import Handle
 TypeName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}$")]
 
 
+class Actions(ResponseModel):
+    """What happens to a claim that does not stand, by the task's context (an output kind or a document kind);
+    `default` for any other. A context the contract lists as immutable is never rewritten.
+    """
+
+    contexts: dict[
+        TypeName, Literal["block", "warn", "count", "rewrite_if_unequivocal", "discard_anchor_and_count"]
+    ] = Field(default_factory=dict, max_length=32)
+    default: Literal["block", "warn", "count", "rewrite_if_unequivocal", "discard_anchor_and_count"]
+    replace_with: Annotated[str, StringConstraints(min_length=1, max_length=500)] | None = Field(
+        default=None, description="The caveat a blocked passage gives way to, in a mutable output."
+    )
+
+
 class AgentState(ResponseModel):
     body: dict[str, Any] = Field(default_factory=dict)
     updated_at: datetime | None = None
@@ -55,10 +69,114 @@ class AgentStateWriteResult(ResponseModel):
     version: int
 
 
+class AnchorEvidence(ResponseModel):
+    coverage: Literal["fact", "law"] = Field(description="Counted apart: law and fact never add up.")
+    min_match: float = Field(default=0.9, ge=0.9, le=1.0)
+
+
+class ValueEvidence(ResponseModel):
+    """A value in the turn record, from a tool's result or from state, that the number is checked against."""
+
+    fresh_for: Literal["claim"] | None = Field(
+        default=None, description="The value is within its type's `claim_max_age`, or the claim is `stale`."
+    )
+    gap_terms: dict[TypeName, list[Annotated[str, StringConstraints(min_length=1, max_length=80)]]] = Field(
+        default_factory=dict,
+        max_length=32,
+        description="The words that state each declared gap; a gap without them is stated by its name.",
+    )
+    must_state_gaps: bool = Field(
+        default=False, description="The value's declared gaps must be said with it, or `gap_not_stated`."
+    )
+    same_role: bool = Field(default=False, description="The value's role is the number's role.")
+    type: TypeName | None = None
+    value: TypeName | None = Field(default=None, description="A field or a computed value of `type`.")
+
+
+class ClaimEvidence(ResponseModel):
+    """What the turn record must hold for a claim of the category to stand: exactly one kind."""
+
+    anchor: AnchorEvidence | None = None
+    tool: Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_.:-]{0,63}$")] | None = Field(
+        default=None, description="A call of this tool in the turn."
+    )
+    tool_any: list[Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_.:-]{0,63}$")]] = Field(
+        default_factory=list, max_length=20
+    )
+    value: ValueEvidence | None = None
+
+
+class Detect(ResponseModel):
+    """How a category finds its claims in the text, without a model: numbers of these classes, the words
+    around them that give their role, terms of the trade, named patterns, or sections of a document.
+    """
+
+    classes: list[Literal["money", "percent", "date", "duration", "quantity", "count", "dosage"]] = Field(
+        default_factory=list, max_length=7
+    )
+    document_sections: list[TypeName] = Field(default_factory=list, max_length=20)
+    patterns: list[Literal["article_citation", "precedent_citation"]] = Field(default_factory=list)
+    roles: dict[TypeName, list[Annotated[str, StringConstraints(min_length=1, max_length=80)]]] = Field(
+        default_factory=dict,
+        max_length=32,
+        description="The words that give a number its role, synonyms and every language in one list.",
+    )
+    terms: list[Annotated[str, StringConstraints(min_length=1, max_length=80)]] = Field(
+        default_factory=list,
+        max_length=100,
+        description=(
+            "With `classes`, a number counts only in a sentence that holds one of them; alone, the term"
+            " is the claim."
+        ),
+    )
+
+
+class Natures(ResponseModel):
+    """How a number is handled by where it came from: computed (a value with provenance in the turn, by rule
+    or observed) is checked against it; quoted (inside quotation marks) is checked only for being in a
+    source, as written, even when it is false; said by the model (no origin) takes this action, or the
+    category's.
+    """
+
+    computed: Literal["check", "count"] = "check"
+    model: Literal["block", "warn", "count"] | None = None
+    quoted: Literal["verbatim", "count"] = "verbatim"
+
+
+class ClaimCategory(ResponseModel):
+    actions: Actions
+    agents: list[ShortStr] = Field(default_factory=list, max_length=50, description="Empty: every agent.")
+    detect: Detect
+    evidence: ClaimEvidence
+    id: TypeName
+    natures: Natures = Field(default_factory=Natures)
+
+
+class ClaimOutputs(ResponseModel):
+    immutable: list[TypeName] = Field(default_factory=list, max_length=32)
+    mutable: list[TypeName] = Field(default_factory=list, max_length=32)
+
+
+class InternalText(ResponseModel):
+    """Fingerprints of the company's own prompt: hashes of every `n` words, computed by the SDK, never the
+    prompt itself. An output that repeats one gives way to `redact`.
+    """
+
+    n: int = Field(default=8, ge=4, le=32)
+    redact: Annotated[str, StringConstraints(min_length=1, max_length=200)]
+    shingle_hashes_ref: ShortStr = Field(description="The prompt version the hashes were computed from.")
+
+
 class ClaimContractSummary(ResponseModel):
-    categories: list[dict[str, Any]] = Field(default_factory=list)
+    """The contract as the SDK keeps it: everything but the negative corpus's phrases, which only the CI's
+    `niadra contract test` reads, from the company's own copy.
+    """
+
+    categories: list[ClaimCategory] = Field(default_factory=list)
+    internal_text: InternalText | None = None
+    languages: list[Literal["pt", "en", "es"]]
     negative_corpus_version: ShortStr | None = None
-    outputs: dict[str, list[str]] = Field(default_factory=dict)
+    outputs: ClaimOutputs = Field(default_factory=ClaimOutputs)
     version: ShortStr
 
 

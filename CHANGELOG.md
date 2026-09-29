@@ -16,8 +16,7 @@ built on them.
   server names the operation. Unlike the rest of the SDK they raise; the server answers 501 until it
   builds a route, and the SDK raises `NotAvailableError` for it.
 - `niadra.models.turns`, `state`, `signals` and `coordination`: the models of those routes, generated
-  from the server's OpenAPI document by `scripts/sync_spec.py`. `signals` and `coordination` are drafts
-  until the server fixes their models.
+  from the server's OpenAPI document by `scripts/sync_spec.py`.
 - `niadra.turns.digest`: the digest of a turn record's value, SHA-256 over its canonical JSON (RFC 8785),
   as every producer computes it.
 - The conformance vectors of the open specifications, run by `tests/test_vectors.py`, and the design of
