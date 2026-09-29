@@ -61,6 +61,13 @@ class AgentStateWrite(Model):
     if_version: Annotated[int, Field(ge=0)] | None = None
     mode: Literal["cas", "merge_by_key"]
     scope: AgentStateScope
+    subject: Handle | None = Field(
+        default=None,
+        description=(
+            "The customer the state is about, when its scope does not name them: erasing the customer "
+            "and their data package find the state by it."
+        ),
+    )
 
 
 class AgentStateWriteResult(ResponseModel):

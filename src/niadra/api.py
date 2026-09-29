@@ -188,11 +188,15 @@ class Api(SyncRoutes):
         )
 
     def write_agent_state(self, body: AgentStateWrite) -> AgentStateWriteResult:
-        """`PUT /v1/agent-state`."""
+        """`PUT /v1/agent-state`. A write by the agent's code: over the cap it answers `stored: false`, never
+        an error.
+        """
         return self._call(AgentStateWriteResult, "PUT", "/v1/agent-state", body=body)
 
     def read_agent_state(self, body: AgentStateReadRequest) -> AgentState:
-        """`POST /v1/agent-state/read`."""
+        """`POST /v1/agent-state/read`. The working state of one scope and agent: version 0 and an empty body
+        when it was never written.
+        """
         return self._call(AgentState, "POST", "/v1/agent-state/read", body=body)
 
     def release_content(
@@ -538,11 +542,15 @@ class AsyncApi(AsyncRoutes):
         )
 
     async def write_agent_state(self, body: AgentStateWrite) -> AgentStateWriteResult:
-        """`PUT /v1/agent-state`."""
+        """`PUT /v1/agent-state`. A write by the agent's code: over the cap it answers `stored: false`, never
+        an error.
+        """
         return await self._call(AgentStateWriteResult, "PUT", "/v1/agent-state", body=body)
 
     async def read_agent_state(self, body: AgentStateReadRequest) -> AgentState:
-        """`POST /v1/agent-state/read`."""
+        """`POST /v1/agent-state/read`. The working state of one scope and agent: version 0 and an empty body
+        when it was never written.
+        """
         return await self._call(AgentState, "POST", "/v1/agent-state/read", body=body)
 
     async def release_content(

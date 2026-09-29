@@ -11,12 +11,14 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+import httpx
 import pydantic
 import pytest
 import respx
 
 from niadra import AsyncNiadra, Niadra, NotAvailableError, NotFoundError, ServerError, phone
 from niadra.errors import ConfigurationError
+from niadra.models.coordination import EffectReserve
 from niadra.models.state import SdkProfile, StateViewRequest
 from niadra.models.turns import PromoteRequest, TurnCall, TurnRecord, TurnsRequest, TurnTokens
 from tests.conftest import BASE, KEY, batch_ok
@@ -115,6 +117,23 @@ def test_a_body_travels_by_its_wire_names_and_only_with_what_was_set(respx_mock:
     sent = json.loads(route.calls.last.request.content)["turns"][0]
     assert sent["calls"] == [{"call_id": "m1", "kind": "model", "tokens": {"in": 2953, "out": 138}}]
     assert "fidelity" not in sent and "spec" not in sent  # defaults the caller left are the server's
+
+
+def test_a_success_without_a_body_is_none_where_the_route_allows_one(respx_mock: respx.MockRouter) -> None:
+    effect_id = "E" * 43  # a keyed hash of the effect key, base64url
+    effect = {
+        "effect_id": effect_id,
+        "attempt": 1,
+        "reserved_at": "2026-09-29T10:00:00Z",
+        "state": "reserved",
+    }
+    respx_mock.post(f"{BASE}/v1/coordination/effects").mock(
+        side_effect=[httpx.Response(201, json=effect), httpx.Response(200)]
+    )
+    body = EffectReserve(effect_key="farewell:c-1", kind="notice")
+    reserved = Niadra(KEY).api.reserve_effect(body)
+    assert reserved is not None and reserved.effect_id == effect_id
+    assert Niadra(KEY).api.reserve_effect(body) is None
 
 
 def test_idempotent_routes_carry_a_key(respx_mock: respx.MockRouter) -> None:
