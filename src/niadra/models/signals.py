@@ -246,6 +246,13 @@ class ConstraintsBlock(ResponseModel):
     rules: list[CompanyRule] = Field(default_factory=list, max_length=50)
     soft: list[SoftConstraint] = Field(default_factory=list, max_length=100)
     subject: BlockSubject = Field(default_factory=BlockSubject)
+    text: str | None = Field(
+        default=None,
+        description=(
+            "The block as lines for a model, in the space's language, each field by its label and each "
+            "operator in words; the SDK places it beside the state view's text. Not part of `version`."
+        ),
+    )
     version: Annotated[str, StringConstraints(pattern=r"^cv_[0-9a-f]{8,64}$")] = Field(
         description="A digest of the block, which the turn record cites."
     )

@@ -123,3 +123,24 @@ def test_the_language_follows_the_pack() -> None:
 def test_a_holdout_gets_no_block() -> None:
     context = _context(path="holdout", state={"text": STATE_PT}, constraints=BLOCK)
     assert context.turn_block == ""
+
+
+def test_the_server_text_of_the_constraints_block_goes_as_it_came() -> None:
+    served = "\n".join(
+        [
+            "<restrições>",
+            "- exigido: sem coparticipação",
+            "- exigido: mensalidade de no máximo 700",
+            "</restrições>",
+        ]
+    )
+    context = _context(constraints={**BLOCK, "text": served}, state={"text": STATE_PT})
+    block = context.turn_block
+    assert f"{STATE_PT}\n{served}\n</niadra>" in block
+    assert "item_variant.color" not in block, "the SDK's own lines are only for a server that sends none"
+
+
+def test_a_server_without_the_text_gets_the_sdk_lines() -> None:
+    lines = constraint_lines(ConstraintsBlock.model_validate(BLOCK), "pt")
+    block = _context(constraints=BLOCK).turn_block
+    assert "\n".join(lines) in block

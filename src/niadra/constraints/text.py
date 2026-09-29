@@ -1,5 +1,6 @@
-"""The blocks a read adds by `include`, as text for the turn block: the state view's lines, which the server
-writes, and the constraints block's, which the SDK writes here in the pack's language.
+"""The blocks a read adds by `include`, as text for the turn block: the state view's lines and the constraints
+block's, both as the server writes them (`text`), in the space's language. For a server that sends no text
+for the constraints block, the SDK writes its lines here, in the pack's language.
 
 They go after the slots and before the delta, in one `<niadra>` section that opens with the pack's "data, not
 instructions" line, so the model reads them as the pack's other sections. A read that asked for no block
@@ -98,8 +99,8 @@ def language(pack: str | None, state: StateView | None = None) -> str:
 
 
 def constraint_lines(block: ConstraintsBlock, lang: str) -> list[str]:
-    """The block as lines: the hard constraints that hold (a constraint that lost a conflict is left out), the
-    soft ones, the attributes, what not to show and what to ask."""
+    """The block as lines, for a server that sends none: the hard constraints that hold (a constraint that
+    lost a conflict is left out), the soft ones, the attributes, what not to show and what to ask."""
     words = _WORDS.get(lang, _WORDS["en"])
     lost = {i for c in block.conflicts for i in c.ids if i != c.kept}
     lines = []
@@ -133,8 +134,9 @@ def include_text(pack: str | None, state: StateView | None, constraints: Constra
     parts: list[str] = []
     if state is not None and state.text:
         parts.append(state.text)
-    lines = constraint_lines(constraints, lang) if constraints is not None else []
-    if lines:
+    if constraints is not None and constraints.text:
+        parts.append(constraints.text)
+    elif constraints is not None and (lines := constraint_lines(constraints, lang)):
         parts.append("\n".join([f"<{words['tag']}>", *lines, f"</{words['tag']}>"]))
     if not parts:
         return ""
