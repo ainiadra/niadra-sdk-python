@@ -5,8 +5,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Annotated, Any, Literal
+from uuid import UUID
 
-from pydantic import ConfigDict, Field, StringConstraints
+from pydantic import Field, StringConstraints
 
 from niadra.models._base import IdStr, Model, ResponseModel, ShortStr
 from niadra.models.common import ObjectRef
@@ -16,7 +17,24 @@ BlobKey = Annotated[str, StringConstraints(pattern=r"^[a-z]{1,8}:[A-Za-z0-9_-]{1
 ObjectKey = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}:[^:\s]{1,256}:\S{1,512}$")]
 Sha256 = Annotated[str, StringConstraints(pattern=r"^sha256:[0-9a-f]{64}$")]
 TurnId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")]
+TypeName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}$")]
 Version = Annotated[str, StringConstraints(min_length=1, max_length=128)]
+
+
+class Attribute(Model):
+    """What the person is: a size, a preferred network, a diet. Said here; the lifecycle's outcomes (bought,
+    kept, returned for size) derive the rest on the server, never an agent.
+    """
+
+    category: ShortStr | None = None
+    for_: Annotated[str, StringConstraints(pattern=r"^(?:self|gift|beneficiary:[A-Za-z0-9_-]{1,64})$")] = (
+        Field(default="self", alias="for")
+    )
+    kind: Literal["attribute"]
+    name: Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,63}(?:\.[a-z0-9_]{1,64}){0,3}$")]
+    source: Literal["stated", "correction"] = "stated"
+    system: ShortStr | None = Field(default=None, description="The measuring system: `BR`, `EU`, `US`.")
+    value: bool | int | float | Annotated[str, StringConstraints(max_length=256)]
 
 
 class Change(ResponseModel):
@@ -32,6 +50,95 @@ class Change(ResponseModel):
 class ChangePage(ResponseModel):
     items: list[Change]
     next_cursor: str | None = None
+
+
+class ClaimEvidenceRef(Model):
+    """Where a claim's evidence is in the turn record: a call's field, an object's field, or a document."""
+
+    anchor: IdStr | None = Field(default=None, description="The blob that keeps the quoted text.")
+    call_id: IdStr | None = None
+    document: IdStr | None = Field(default=None, description="The document an anchor cites.")
+    field: TypeName | None = None
+    ref: IdStr | None = Field(default=None, description="An object, `type:namespace:id`.")
+    score: Annotated[float, Field(ge=0.0, le=1.0)] | None = Field(
+        default=None, description="The anchor's similarity."
+    )
+
+
+class ClaimValue(Model):
+    """A number the parser read, normalized: an amount, or a range from `min` to `max`, with its unit (the
+    currency code of money, `%`, a time unit, a unit of measure or of dose), or a date, or a range of
+    dates.
+    """
+
+    amount: (
+        Annotated[str, StringConstraints(pattern=r"^-?(?:0|[1-9][0-9]{0,17})(?:\.[0-9]{1,6})?$")] | None
+    ) = None
+    date: (
+        Annotated[
+            str,
+            StringConstraints(
+                pattern=r"^(?:[0-9]{4}-[0-9]{2}(?:-[0-9]{2})?|--[0-9]{2}-[0-9]{2}|---[0-9]{2})$"
+            ),
+        ]
+        | None
+    ) = None
+    date_from: (
+        Annotated[
+            str,
+            StringConstraints(
+                pattern=r"^(?:[0-9]{4}-[0-9]{2}(?:-[0-9]{2})?|--[0-9]{2}-[0-9]{2}|---[0-9]{2})$"
+            ),
+        ]
+        | None
+    ) = None
+    date_to: (
+        Annotated[
+            str,
+            StringConstraints(
+                pattern=r"^(?:[0-9]{4}-[0-9]{2}(?:-[0-9]{2})?|--[0-9]{2}-[0-9]{2}|---[0-9]{2})$"
+            ),
+        ]
+        | None
+    ) = None
+    max: Annotated[str, StringConstraints(pattern=r"^-?(?:0|[1-9][0-9]{0,17})(?:\.[0-9]{1,6})?$")] | None = (
+        None
+    )
+    min: Annotated[str, StringConstraints(pattern=r"^-?(?:0|[1-9][0-9]{0,17})(?:\.[0-9]{1,6})?$")] | None = (
+        None
+    )
+    unit: Annotated[str, StringConstraints(min_length=1, max_length=16)] | None = None
+
+
+class ClaimRecord(Model):
+    """One claim the SDK found in an output, as the turn record carries it: kinds, spans and verdicts."""
+
+    action: Literal["none", "block", "warn", "count", "rewrite", "discard_anchor"]
+    category: TypeName
+    class_: Literal["money", "percent", "date", "duration", "quantity", "count", "dosage"] | None = Field(
+        default=None, alias="class"
+    )
+    evidence: ClaimEvidenceRef | None = None
+    nature: Literal["computed", "quoted", "model"] | None = None
+    role: TypeName | None = None
+    span: tuple[int, int] = Field(description="Code point offsets of the claim in the output, end exclusive.")
+    value: ClaimValue | None = None
+    verdict: Literal[
+        "matched",
+        "mismatch",
+        "stale",
+        "gap_not_stated",
+        "role_ambiguous",
+        "unsupported",
+        "no_evidence",
+        "quoted_found",
+        "quoted_missing",
+        "anchored",
+        "below_threshold",
+        "source_exists_claim_unverified",
+        "source_missing",
+        "not_checked",
+    ]
 
 
 class DataIssue(ResponseModel):
@@ -60,6 +167,28 @@ class DataIssuePage(ResponseModel):
     next_cursor: str | None = None
 
 
+class Engaged(Model):
+    exposure_id: UUID | None = Field(default=None, description="Absent for an item of no list.")
+    for_: Annotated[str, StringConstraints(pattern=r"^(?:self|gift|beneficiary:[A-Za-z0-9_-]{1,64})$")] = (
+        Field(default="self", alias="for")
+    )
+    how: Literal["click", "detail", "mention", "add_to_cart", "compare", "share", "other"]
+    kind: Literal["engaged"]
+    ref: ObjectKey
+
+
+class Feedback(Model):
+    for_: Annotated[str, StringConstraints(pattern=r"^(?:self|gift|beneficiary:[A-Za-z0-9_-]{1,64})$")] = (
+        Field(default="self", alias="for")
+    )
+    kind: Literal["feedback"]
+    polarity: Literal["positive", "negative"]
+    reason_attrs: list[
+        Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}\.[a-z][a-z0-9_]{0,63}$")]
+    ] = Field(default_factory=list, max_length=10)
+    ref: ObjectKey
+
+
 class Notification(ResponseModel):
     """A webhook's body, for who pulls instead of receiving it: the same body, in `change_seq` order."""
 
@@ -72,6 +201,73 @@ class Notification(ResponseModel):
 class NotificationPage(ResponseModel):
     items: list[Notification]
     next_cursor: str | None = None
+
+
+class Preference(Model):
+    """What the person wants or refuses, said or captured from a tool's arguments; only these become hard."""
+
+    attr: Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}\.[a-z][a-z0-9_]{0,63}$")]
+    category: ShortStr | None = Field(default=None, description="Holds only in this category of the type.")
+    expires_at: datetime | None = None
+    for_: Annotated[str, StringConstraints(pattern=r"^(?:self|gift|beneficiary:[A-Za-z0-9_-]{1,64})$")] = (
+        Field(default="self", alias="for")
+    )
+    kind: Literal["preference"]
+    op: Literal["in", "not_in", "eq", "ne", "lt", "lte", "gt", "gte", "between"]
+    scope: Literal["turn", "session", "persistent"] = "session"
+    source: Literal["stated", "tool_args", "correction"] = "stated"
+    strength: Literal["must", "must_not", "prefer", "avoid"]
+    values: list[bool | int | float | Annotated[str, StringConstraints(max_length=256)]] = Field(
+        min_length=1, max_length=50
+    )
+
+
+class PresentedItem(Model):
+    pos: int = Field(ge=1, le=10000, description="1-based position in the whole list, across pages.")
+    ref: ObjectKey
+    shown: dict[
+        Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,63}$")],
+        bool | int | float | Annotated[str, StringConstraints(max_length=256)] | None,
+    ] = Field(
+        default_factory=dict,
+        max_length=32,
+        description=(
+            "The values the item showed, for the fields its type tracks or lets be claimed; what "
+            "`changes_since_seen` later compares against."
+        ),
+    )
+    team: Literal["a", "b"] | None = Field(
+        default=None, description="Which of two interleaved lists contributed the item."
+    )
+
+
+class Presented(Model):
+    """A list delivered to the person: the exposure. Its canonical moment is `delivered_at`, when the
+    interface bridge handed the list to the client, never when a tool returned it or the model named it.
+    """
+
+    delivered_at: datetime
+    exposure_id: UUID
+    for_: Annotated[str, StringConstraints(pattern=r"^(?:self|gift|beneficiary:[A-Za-z0-9_-]{1,64})$")] = (
+        Field(default="self", alias="for")
+    )
+    items: list[PresentedItem] = Field(min_length=1, max_length=100)
+    kind: Literal["presented"]
+    list_id: ShortStr
+    list_kind: ShortStr = "results"
+    method: Literal["bridge", "otel", "tool_result"] = Field(
+        default="bridge",
+        description=(
+            "`bridge` from the interface bridge, `otel` from a `niadra.exposure` span, `tool_result` "
+            "inferred from what a tool returned: labeled, because it counts more than was shown."
+        ),
+    )
+    offset: int = Field(default=0, ge=0, le=10000)
+    page: int = Field(default=1, ge=1, le=1000, description='"See more" is the same list with `page + 1`.')
+    parent_list_id: ShortStr | None = None
+    visible_k: Annotated[int, Field(ge=1, le=100)] | None = Field(
+        default=None, description="How many of the first items were visible on delivery."
+    )
 
 
 class PromoteRequest(Model):
@@ -88,6 +284,17 @@ class PromoteResponse(ResponseModel):
     already_kept: int
     not_found: int = Field(description="Turns no longer in the short tier, or never recorded.")
     promoted: int
+
+
+class Seen(Model):
+    """A ping of the list component: how far the person saw."""
+
+    exposure_id: UUID
+    for_: Annotated[str, StringConstraints(pattern=r"^(?:self|gift|beneficiary:[A-Za-z0-9_-]{1,64})$")] = (
+        Field(default="self", alias="for")
+    )
+    kind: Literal["seen"]
+    max_index_seen: int = Field(ge=1, le=10000, description="The highest `pos` the component showed.")
 
 
 class TurnAgent(Model):
@@ -208,31 +415,6 @@ class TurnCall(Model):
     truncated: bool = Field(default=False, description="Arguments or result arrived cut (OpenTelemetry).")
 
 
-class TurnEvidence(Model):
-    anchor: BlobKey | None = Field(default=None, description="The quoted text a fact is anchored to.")
-    call_id: ShortStr | None = None
-    field: ShortStr | None = None
-
-
-class TurnClaim(Model):
-    """A claim contract verdict, found by the SDK before the text reached the customer or a document. The
-    fields are the claim contract's record; its spec fixes the vocabularies of `verdict` and `action`, so
-    this record takes them as names until that model replaces this one.
-    """
-
-    action: ShortStr = Field(default="none", description="E.g. `none`, `warn`, `count`, `block`.")
-    category: ShortStr
-    class_: Literal["money", "percent", "date", "quantity", "count", "duration", "dosage", "text"] | None = (
-        Field(default=None, alias="class")
-    )
-    evidence: TurnEvidence | None = None
-    nature: Literal["computed", "quoted", "model"] | None = None
-    role: ShortStr | None = None
-    span: tuple[int, int] | None = Field(default=None, description="Start and end offsets in the output.")
-    value: Any = None
-    verdict: ShortStr = Field(description="E.g. `matched`, `role_ambiguous`, `below_threshold`.")
-
-
 class TurnCoordination(Model):
     decision: Literal["allow", "defer", "deny", "handoff_to"]
     decision_id: IdStr
@@ -245,17 +427,6 @@ class TurnCost(Model):
 class TurnEffect(Model):
     key: IdStr
     state: Literal["reserved", "done", "failed", "unknown_outcome"]
-
-
-class TurnInteraction(Model):
-    """What the person was shown or did in the turn. Its fields are the `interaction.v0` spec's, validated
-    when the turn is applied; until that spec's `Interaction` model lands, the record fixes only the kind
-    and keeps the rest as it came. The swap narrows the type and changes no document.
-    """
-
-    model_config = ConfigDict(extra="allow", frozen=True, populate_by_name=True)
-
-    kind: Literal["presented", "seen", "engaged", "feedback", "preference", "attribute", "watch", "unwatch"]
 
 
 class TurnOutput(Model):
@@ -281,6 +452,29 @@ class TurnRead(Model):
     version: Version | None = None
 
 
+class Unwatch(Model):
+    for_: Annotated[str, StringConstraints(pattern=r"^(?:self|gift|beneficiary:[A-Za-z0-9_-]{1,64})$")] = (
+        Field(default="self", alias="for")
+    )
+    kind: Literal["unwatch"]
+    ref: ObjectKey
+
+
+class Watch(Model):
+    """An explicit "let me know when": the only way an interest raises a notice."""
+
+    condition: Annotated[str, StringConstraints(min_length=1, max_length=500)] = Field(
+        description="A `niadra-expr` expression over the object's fields."
+    )
+    consent_event_key: IdStr
+    expires_at: datetime | None = None
+    for_: Annotated[str, StringConstraints(pattern=r"^(?:self|gift|beneficiary:[A-Za-z0-9_-]{1,64})$")] = (
+        Field(default="self", alias="for")
+    )
+    kind: Literal["watch"]
+    ref: ObjectKey
+
+
 class TurnRecord(Model):
     """One turn, from its input (a message, an interface action, an event, a timer firing) to the last thing
     it emitted to the customer or to a document.
@@ -290,7 +484,7 @@ class TurnRecord(Model):
     blobs: dict[BlobKey, TurnBlob] = Field(default_factory=dict, max_length=1000)
     build: TurnBuild = Field(default_factory=TurnBuild)
     calls: list[TurnCall] = Field(default_factory=list, max_length=500)
-    claims: list[TurnClaim] = Field(default_factory=list, max_length=500)
+    claims: list[ClaimRecord] = Field(default_factory=list, max_length=500)
     completeness: Literal["complete", "partial", "incomplete", "unknown"] = "complete"
     content_mode: Literal["stored", "pointer", "hash_only"]
     conversation_id: IdStr | None = None
@@ -312,7 +506,12 @@ class TurnRecord(Model):
             "truncated",
         ]
     ] = Field(default_factory=list, max_length=20)
-    interactions: list[TurnInteraction] = Field(default_factory=list, max_length=200)
+    interactions: list[
+        Annotated[
+            Presented | Seen | Engaged | Feedback | Preference | Attribute | Watch | Unwatch,
+            Field(discriminator="kind"),
+        ]
+    ] = Field(default_factory=list, max_length=200)
     kind: Literal["message", "action", "event", "timer"] = "message"
     latency_ms: Annotated[int, Field(ge=0)] | None = None
     output: TurnOutput = Field(default_factory=TurnOutput)

@@ -420,6 +420,116 @@
       }
     },
     {
+      "id": "retail.conflict.the_entry_that_lost_is_not_rendered",
+      "block": {
+        "version": "cv_5c1d2e3f4a5b",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "item_variant.color",
+            "op": "not_in",
+            "values": [
+              "Preto"
+            ],
+            "source": "stated",
+            "scope": "persistent",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-1"
+            }
+          },
+          {
+            "id": "h2",
+            "attr": "item_variant.color",
+            "op": "in",
+            "values": [
+              "Preto"
+            ],
+            "source": "stated",
+            "scope": "session",
+            "relax": "never",
+            "origin": {
+              "kind": "stated",
+              "event_key": "ev-2"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": [],
+        "conflicts": [
+          {
+            "ids": [
+              "h1",
+              "h2"
+            ],
+            "kept": "h2",
+            "by": "current_utterance"
+          }
+        ]
+      },
+      "binding": {
+        "tool": "search_products",
+        "args": [
+          {
+            "attr": "item_variant.color",
+            "param": "color",
+            "transform": "lower",
+            "negation": {
+              "param": "not_color"
+            }
+          },
+          {
+            "attr": "item_variant.price_sale",
+            "param": "max_price",
+            "ops": [
+              "lte"
+            ]
+          },
+          {
+            "attr": "item_variant.size_label",
+            "param": "size"
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {
+        "item_variant.size_label": "size",
+        "item_variant.color": "color"
+      },
+      "call": {
+        "args": {
+          "query": "vestido"
+        },
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "apply",
+      "expect": {
+        "applies": true,
+        "args": {
+          "query": "vestido",
+          "color": "preto"
+        },
+        "suggested": {
+          "color": "preto"
+        },
+        "injected": [
+          "h2"
+        ],
+        "hard_sent": [
+          "h2"
+        ],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
+    },
+    {
       "id": "retail.not_in.merged",
       "block": {
         "version": "cv_0a1b2c3d4e5f",

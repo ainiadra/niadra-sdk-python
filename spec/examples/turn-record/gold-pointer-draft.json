@@ -89,7 +89,9 @@
         1204,
         1214
       ],
-      "value": "2026-10-14",
+      "value": {
+        "date": "2026-10-14"
+      },
       "evidence": {
         "call_id": "t2",
         "field": "due_date"
@@ -120,7 +122,7 @@
         "anchor": "a:2"
       },
       "verdict": "below_threshold",
-      "action": "discard_anchor_and_count"
+      "action": "discard_anchor"
     }
   ],
   "output": {

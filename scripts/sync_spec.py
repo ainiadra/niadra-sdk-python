@@ -14,6 +14,7 @@ a generated file differs from what this script writes, so regenerating is this o
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import keyword
 import re
@@ -80,10 +81,11 @@ STRING_ALIASES = {
 SHARED_ALIASES = {"ShortStr", "IdStr"}
 # Wire names that are not Python names, named as the server's models name them.
 FIELD_NAMES = {"in": "input", "out": "output"}
-# Names the annotations use: a field named the same would hide the type inside its class.
-TYPE_NAMES = {"date", "datetime", "UUID", "Any", "Annotated", "Literal", "Field", "str", "int", "float"}
-INTERNAL = re.compile(r"\bfront A\d\b|\bcore wave\b|\bphase \d\b|\bintegrator\b", re.IGNORECASE)
-FRONT_REF = re.compile(r"\s*\(front A\d\)")
+# Words that name how the server was planned and built, never what it does: a public SDK carries none.
+INTERNAL = re.compile(
+    r"\bfronts? A\d\b|\(A\d\)|\b(?:core|the) wave\b|\bphase \d\b|\bintegrator\b|\bstudy \d+\b|\bestudo\b",
+    re.IGNORECASE,
+)
 SUCCESS = ("200", "201", "202", "204", "207")
 WIDTH = 110
 
@@ -118,10 +120,13 @@ def cut(document: dict[str, Any]) -> dict[str, Any]:
     """The operations tagged in `TAGS` and the schemas they reach, as an OpenAPI document of its own."""
     paths: dict[str, Any] = {}
     for path, methods in document["paths"].items():
-        kept = {m: op for m, op in methods.items() if set(op.get("tags") or ()) & set(TAGS)}
+        kept = {m: copy.deepcopy(op) for m, op in methods.items() if set(op.get("tags") or ()) & set(TAGS)}
         if kept:
             paths[path] = kept
-    schemas = document["components"]["schemas"]
+    schemas = dict(document["components"]["schemas"])
+    for methods in paths.values():
+        for op in methods.values():
+            _hoist_body(op, schemas)
     return _published(
         {
             "openapi": document["openapi"],
@@ -131,6 +136,19 @@ def cut(document: dict[str, Any]) -> dict[str, Any]:
         },
         "",
     )
+
+
+def _hoist_body(op: dict[str, Any], schemas: dict[str, Any]) -> None:
+    """A body the server declares inline (a route that parses its own body) as the named schema it is."""
+    content = op.get("requestBody", {}).get("content", {}).get("application/json")
+    if not content or "$ref" in content["schema"]:
+        return
+    schema = {k: v for k, v in content["schema"].items() if k != "$id"}
+    name = schema.get("title")
+    if not name or schemas.get(name, schema) != schema:
+        raise ValueError(f"{op['operationId']}: an inline body with no title of its own")
+    schemas[name] = schema
+    content["schema"] = {"$ref": f"#/components/schemas/{name}"}
 
 
 def _published(node: Any, where: str) -> Any:
@@ -177,14 +195,15 @@ def _reach(roots: Any, schemas: dict[str, Any]) -> set[str]:
 
 
 def public(text: str | None, where: str) -> str | None:
-    """The server's text as a public SDK may carry it: a description naming internal planning is left out."""
+    """The server's text, which a public SDK carries as it is: one naming internal planning stops the run."""
     if not text:
         return None
-    text = FRONT_REF.sub("", text).strip()
-    if INTERNAL.search(text):
-        print(f"warning: left out the description of {where}: it names internal planning", file=sys.stderr)
-        return None
-    return text
+    found = INTERNAL.search(text)
+    if found:
+        raise ValueError(
+            f"the description of {where} names internal planning ({found.group()!r}); fix it on the server"
+        )
+    return text.strip()
 
 
 @dataclass
@@ -377,13 +396,22 @@ class ModelWriter:
             config = self.imports.add("pydantic", "ConfigDict")
             out += f'    model_config = {config}(extra="allow", frozen=True, populate_by_name=True)\n\n'
         required = set(schema.get("required", ()))
-        for wire, prop in schema.get("properties", {}).items():
-            out += "    " + self.field(name, wire, prop, wire in required) + "\n"
-        return out
+        lines = [
+            self.field(name, wire, prop, wire in required)
+            for wire, prop in schema.get("properties", {}).items()
+        ]
+        # A field hides a type of the same name from every annotation of its class.
+        attrs = {line.split(":", 1)[0] for line in lines}
+        for line in lines:
+            annotation = re.sub(r'"(?:[^"\\]|\\.)*"', "", line.split(":", 1)[1].split(" = ", 1)[0])
+            hidden = attrs & set(re.findall(r"\w+", annotation))
+            if hidden:
+                raise ValueError(f"{name}: the field {sorted(hidden)[0]} hides a type its class uses")
+        return out + "".join(f"    {line}\n" for line in lines)
 
     def field(self, owner: str, wire: str, prop: dict[str, Any], required: bool) -> str:
         attr = FIELD_NAMES.get(wire, wire + "_" if keyword.iskeyword(wire) else wire)
-        if not attr.isidentifier() or attr in TYPE_NAMES:
+        if not attr.isidentifier():
             raise ValueError(f"{owner}.{wire}: not a field name the models can use")
         inner, nullable = _unwrap(prop)
         kwargs: dict[str, str] = {}
@@ -479,6 +507,11 @@ class ModelWriter:
             if nullable:
                 return self.type(inner) + " | None"
             return " | ".join(self.type(s) for s in schema["anyOf"])
+        if "oneOf" in schema and "propertyName" in schema.get("discriminator", {}):
+            union = " | ".join(self.type(s) for s in schema["oneOf"])
+            on = _literal(schema["discriminator"]["propertyName"])
+            annotated = self.imports.add("typing", "Annotated")
+            return f"{annotated}[{union}, {self.imports.add('pydantic', 'Field')}(discriminator={on})]"
         if "const" in schema:
             return f"{self.imports.add('typing', 'Literal')}[{_literal(schema['const'])}]"
         if "enum" in schema:
@@ -488,8 +521,8 @@ class ModelWriter:
         kind = schema.get("type")
         if kind == "string":
             return self._string_type(schema)
-        if kind in ("integer", "number", "boolean"):
-            return {"integer": "int", "number": "float", "boolean": "bool"}[kind]
+        if kind in ("integer", "number", "boolean", "null"):
+            return {"integer": "int", "number": "float", "boolean": "bool", "null": "None"}[kind]
         if kind == "array":
             if "prefixItems" in schema:
                 return f"tuple[{', '.join(self.type(s) for s in schema['prefixItems'])}]"

@@ -210,6 +210,9 @@ Feature = Literal[
     "notifications",
     "legal_holds",
 ]
+"""The agent features a space turns on: everything is off until the space's `features` document lists it, and
+`GET /v1/sdk/profile` announces what is on.
+"""
 
 
 class FieldCoverage(ResponseModel):
