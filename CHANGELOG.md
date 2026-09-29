@@ -96,6 +96,13 @@ built on them.
   and runs its counterfactual through the binding served for its name, and `binding=` in code still wins.
   Left unset, `mask_output` follows the served binding's `capabilities.mask_output`. `api.constraints()`
   with `tool` answers the block rendered for that tool, as advice.
+- Watch revalidation in `niadra resolver-worker`: a watch fires only on a value its source confirmed. The
+  worker serves `watch_revalidation` requests first, pushes every object it read with the `request_id` it
+  answers (which settles the request and decides the object's due watches even when the value did not
+  change), and releases a request it cannot answer (`POST /v1/state/refresh-requests/{id}/release`), as
+  `not_found` when the resolver returns `niadra.resolvers.NOT_FOUND` and `failed` when it fails. A type
+  without a resolver, or whose resolver's circuit is open, still waits out its lease. `Resolvers.fetch()`
+  says why a read brought no object; `resolve()` is unchanged.
 
 ### Deprecated
 

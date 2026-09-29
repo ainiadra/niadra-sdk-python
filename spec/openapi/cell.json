@@ -6608,6 +6608,20 @@
           "ref": {
             "$ref": "#/components/schemas/StateRef"
           },
+          "request_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The refresh request this item answers, from the resolver worker's lease: the request is settled, and a `watch_revalidation` is decided on these values even when they are not newer than the ones held.",
+            "title": "Request Id"
+          },
           "version": {
             "description": "The source's version of the object. A field moves only when this is greater than the version that last wrote it; a source never reuses a version for other content.",
             "maximum": 9007199254740991.0,
@@ -8407,6 +8421,48 @@
           "admitted"
         ],
         "title": "Refetch",
+        "type": "object"
+      },
+      "RefreshRelease": {
+        "additionalProperties": false,
+        "description": "A leased request the resolver worker cannot answer: the object is not at the source, or fetching it\nfailed. The request leaves at once and its paid call counts; a `watch_revalidation` falls back to the\ntype's `unconfirmed_watch`.",
+        "properties": {
+          "outcome": {
+            "enum": [
+              "not_found",
+              "failed"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome"
+        ],
+        "title": "RefreshRelease",
+        "type": "object"
+      },
+      "RefreshReleased": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "request_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "reason"
+        ],
+        "title": "RefreshReleased",
         "type": "object"
       },
       "RefreshRequest": {
@@ -15874,6 +15930,60 @@
           }
         },
         "summary": "Refresh Requests",
+        "tags": [
+          "state"
+        ]
+      }
+    },
+    "/v1/state/refresh-requests/{request_id}/release": {
+      "post": {
+        "description": "A leased request the worker cannot answer, the object not at the source or the fetch failed: it leaves\nnow, its paid call counted. A request it can answer it answers by pushing the object with the request's\n`request_id`.",
+        "operationId": "release_refresh_request_v1_state_refresh_requests__request_id__release_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "title": "Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRelease"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshReleased"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not match the contract."
+          }
+        },
+        "summary": "Release Refresh Request",
         "tags": [
           "state"
         ]

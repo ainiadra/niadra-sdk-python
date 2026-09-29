@@ -18,7 +18,8 @@ resolver's circuit open (5 failures in 30 s open it for 30 s), the answer is `cl
 said.
 
 The same resolvers serve `niadra resolver-worker` (`niadra.cli.worker`), which takes the space's refresh
-requests and pushes what they read.
+requests and pushes what they read. A resolver that finds the object gone from its source returns
+`NOT_FOUND`: the worker tells Niadra so, and a watch on the object is decided without waiting.
 """
 
 from __future__ import annotations
@@ -61,7 +62,20 @@ class Resolved:
     scope: Literal["global", "customer", "context"] = "global"
 
 
-Resolver = Callable[[StateRef, "Sequence[str] | None"], "Mapping[str, Any] | Resolved | Awaitable[Any]"]
+class _NotFound:
+    def __repr__(self) -> str:
+        return "NOT_FOUND"
+
+
+NOT_FOUND = _NotFound()
+"""What a resolver returns when the object is not at its source any more."""
+
+Fetched = Resolved | Literal["not_found", "failed"]
+"""What the worker's read of one object came to: the object, or why there is none."""
+
+Resolver = Callable[
+    [StateRef, "Sequence[str] | None"], "Mapping[str, Any] | Resolved | _NotFound | Awaitable[Any]"
+]
 
 
 @dataclass(frozen=True)
@@ -148,10 +162,16 @@ class Resolvers:
 
     def resolve(self, ref: StateRef, fields: Sequence[str] | None, budget: float) -> Resolved | None:
         """Calls the resolver of `ref.type` from a synchronous caller, within `budget`; None when it failed,
-        ran out of time or its circuit is open."""
+        ran out of time, found no object or its circuit is open."""
+        found = self.fetch(ref, fields, budget)
+        return found if isinstance(found, Resolved) else None
+
+    def fetch(self, ref: StateRef, fields: Sequence[str] | None, budget: float) -> Fetched:
+        """`resolve()` that tells why there is no object: `not_found` when the resolver says the source has
+        none (`NOT_FOUND`), `failed` when it failed, ran out of time or its circuit is open."""
         entry = self._entry(ref.type)
         if entry is None:
-            return None
+            return "failed"
         pool = self._executor()
         future = pool.submit(_call_sync, entry.fn, ref, fields)
         try:
@@ -173,22 +193,26 @@ class Resolvers:
                     asyncio.to_thread(_call_sync, entry.fn, ref, fields), timeout=budget
                 )
         except Exception:
-            return self._outcome(entry, None)
-        return self._outcome(entry, found)
+            found = None
+        outcome = self._outcome(entry, found)
+        return outcome if isinstance(outcome, Resolved) else None
 
     def _entry(self, type: str) -> _Entry | None:
         with self._lock:
             entry = self._entries.get(type)
             return entry if entry is not None and entry.breaker.closed(self._clock()) else None
 
-    def _outcome(self, entry: _Entry, found: Any) -> Resolved | None:
+    def _outcome(self, entry: _Entry, found: Any) -> Fetched:
+        """What a resolver's answer comes to; a missing object is an answer, never a failure of the source."""
         resolved = _as_resolved(found)
         with self._lock:
-            if resolved is None:
+            if resolved is None and found is not NOT_FOUND:
                 entry.breaker.failed(self._clock())
             else:
                 entry.breaker.succeeded()
-        return resolved
+        if resolved is not None:
+            return resolved
+        return "not_found" if found is NOT_FOUND else "failed"
 
     def _executor(self) -> concurrent.futures.ThreadPoolExecutor:
         with self._lock:

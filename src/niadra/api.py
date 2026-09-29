@@ -78,6 +78,8 @@ from niadra.models.state import (
     ObjectPushRequest,
     ObjectPushResponse,
     ObjectSnapshotResponse,
+    RefreshRelease,
+    RefreshReleased,
     RefreshRequestPage,
     SdkProfile,
     StateReadRequest,
@@ -306,6 +308,15 @@ class Api(SyncRoutes):
         answer is offered again, three times at most.
         """
         return self._call(RefreshRequestPage, "GET", "/v1/state/refresh-requests", params={"limit": limit})
+
+    def release_refresh_request(self, request_id: str, body: RefreshRelease) -> RefreshReleased:
+        """`POST /v1/state/refresh-requests/{request_id}/release`. A leased request the worker cannot answer,
+        the object not at the source or the fetch failed: it leaves now, its paid call counted. A request
+        it can answer it answers by pushing the object with the request's `request_id`.
+        """
+        return self._call(
+            RefreshReleased, "POST", f"/v1/state/refresh-requests/{segment(request_id)}/release", body=body
+        )
 
     def state_verify(self, body: StateVerifyRequest) -> StateVerifyResponse:
         """`POST /v1/state/verify`. A verdict per object and field for a claim, without waiting for the
@@ -798,6 +809,15 @@ class AsyncApi(AsyncRoutes):
         """
         return await self._call(
             RefreshRequestPage, "GET", "/v1/state/refresh-requests", params={"limit": limit}
+        )
+
+    async def release_refresh_request(self, request_id: str, body: RefreshRelease) -> RefreshReleased:
+        """`POST /v1/state/refresh-requests/{request_id}/release`. A leased request the worker cannot answer,
+        the object not at the source or the fetch failed: it leaves now, its paid call counted. A request
+        it can answer it answers by pushing the object with the request's `request_id`.
+        """
+        return await self._call(
+            RefreshReleased, "POST", f"/v1/state/refresh-requests/{segment(request_id)}/release", body=body
         )
 
     async def state_verify(self, body: StateVerifyRequest) -> StateVerifyResponse:

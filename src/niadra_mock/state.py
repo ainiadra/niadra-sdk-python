@@ -8,7 +8,8 @@ objects a claim is verified against, the refresh requests a resolver worker take
 - `observe()` sets an object's field with its status; `POST /v1/state/verify` answers each check from them.
 - `request_refresh()` queues a refresh request; `GET /v1/state/refresh-requests` leases the waiting ones for
   60 s, and `POST /v1/objects/push` applies fields by the per-field version rule and settles the requests of
-  the objects it pushed.
+  the objects it pushed (and the one an item names by `request_id`). `POST
+  /v1/state/refresh-requests/{id}/release` takes one back with its outcome, kept in `released`.
 """
 
 from __future__ import annotations
@@ -47,6 +48,7 @@ class StateStore:
     )
     objects: dict[tuple[str, str, str], dict[str, _Field]] = field(default_factory=dict)
     refreshes: dict[str, dict[str, Any]] = field(default_factory=dict)
+    released: list[dict[str, str]] = field(default_factory=list)
     pushes: list[dict[str, Any]] = field(default_factory=list)
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
@@ -140,6 +142,14 @@ class StateStore:
                     break
         return {"items": items}
 
+    def release(self, request_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        with self._lock:
+            request = self.refreshes.pop(request_id, None)
+            if request is None:
+                raise StateError(404, "not_found")
+            self.released.append({"request_id": request_id, "outcome": body["outcome"]})
+        return {"request_id": request_id, "reason": request["reason"]}
+
     def push(self, body: dict[str, Any]) -> dict[str, Any]:
         applied = stale = 0
         with self._lock:
@@ -154,8 +164,9 @@ class StateStore:
                         moved = True
                 applied, stale = (applied + 1, stale) if moved else (applied, stale + 1)
                 self.pushes.append(item)
-                for request_id in [r for r, v in self.refreshes.items() if tuple(v["ref"].values()) == key]:
-                    del self.refreshes[request_id]
+                settled = [r for r, v in self.refreshes.items() if tuple(v["ref"].values()) == key]
+                for request_id in [*settled, item.get("request_id")]:
+                    self.refreshes.pop(request_id or "", None)
         return {"applied": applied, "stale_version": stale, "out_of_set": 0}
 
 
