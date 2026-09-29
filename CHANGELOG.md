@@ -24,6 +24,10 @@ built on them.
   an `Environment`, with the four logical values in `niadra.state.logic`.
 - The conformance vectors of the open specifications, run by `tests/test_vectors.py`, and the design of
   the turn capture (`docs/design/turn-capture.md`).
+- `niadra.claims`: the claim contract's checker, pure and without a model: the number and role parser,
+  the category detection, the verdicts and actions, and the 0.90 text anchor, over the categories of the
+  contract the SDK profile serves (`ClaimContractSummary`). It passes the `claim-parser`, `claim-detect`
+  and `claim-anchor` vectors, and no phrase of the example contracts' negative corpus triggers it.
 
 ## [0.6.1] - 2026-09-28
 
