@@ -8,6 +8,9 @@ suppression list, each behind its feature as the server has them.
   block of a feature that is off answers 404, and `coordination` and `budget` answer 501.
 - `GET /v1/suppressions` and `/v1/suppressions/salt` need `coordination`; `suppress()` adds an entry keyed
   with the reader's salt, as the server keys it.
+- `declare()` adds a type to the registry the profile serves (with the tool bindings of `tool_bindings`), and
+  `POST /v1/types/fingerprint` (feature `state`) compares a fingerprint with the declared one, opening a
+  drift issue per type as the object type spec, 8.8.3, says.
 """
 
 from __future__ import annotations
@@ -24,8 +27,14 @@ from niadra.models.common import Handle
 from niadra.models.coordination import Suppression, SuppressionPage, SuppressionSalt
 from niadra.models.signals import ConstraintsBlock
 from niadra.models.state import ClaimContractSummary, SdkProfile, StateView
+from niadra_mock.state import StateError
 
 BLOCK_FEATURES = {"constraints": "signals", "state": "state"}
+# The members of a type the profile serves, as the server summarizes the registry for the SDK.
+SUMMARY = (
+    *("type", "version", "ownership", "nature", "key", "inputs", "fields", "values", "sources", "union"),
+    *("states", "purposes", "readings", "agent_state"),
+)
 PROFILE_TTL_S = 300
 
 
@@ -45,6 +54,10 @@ class FeatureStore:
     blocks: dict[tuple[str, str], ConstraintsBlock] = field(default_factory=dict)
     views: dict[tuple[str, str], StateView] = field(default_factory=dict)
     suppressions: list[Suppression] = field(default_factory=list)
+    types: list[dict[str, Any]] = field(default_factory=list)
+    tool_bindings: list[dict[str, Any]] = field(default_factory=list)
+    drift_issues: dict[str, dict[str, Any]] = field(default_factory=dict)
+    """The open drift issues, by type: `issue_id`, `field` and `occurrences`."""
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def profile(self) -> SdkProfile:
@@ -53,8 +66,38 @@ class FeatureStore:
         return SdkProfile(
             features=sorted(self.features),
             claim_contract=self.claim_contract,
+            types=[_summary(t) for t in self.types],
+            tool_bindings=[dict(b) for b in self.tool_bindings],
             valid_for_s=PROFILE_TTL_S,
         )
+
+    def declare(self, declared: dict[str, Any]) -> None:
+        """Adds `declared` to the type registry, replacing a type of the same name."""
+        with self._lock:
+            self.types = [t for t in self.types if t.get("type") != declared["type"]] + [dict(declared)]
+
+    def type_fingerprint(self, body: dict[str, Any]) -> dict[str, Any]:
+        """`POST /v1/types/fingerprint`: drift when the fingerprint differs from the declared one."""
+        self.need("state")
+        with self._lock:
+            declared = next((t for t in self.types if t.get("type") == body.get("type")), None)
+            if declared is None:
+                raise FeatureOffError
+            mirror = declared.get("mirror_of") or {}
+            if not mirror.get("fingerprint"):
+                raise StateError(422, "no_fingerprint")
+            if body["fingerprint"] == mirror["fingerprint"]:
+                return {"drift": False, "issue_id": None}
+            if mirror.get("drift", "alert") == "ignore":
+                return {"drift": True, "issue_id": None}
+            named = list((body.get("changes") or {}).get("fields") or [])
+            issue = self.drift_issues.get(declared["type"])
+            if issue is None:
+                issue = {"issue_id": f"di_{len(self.drift_issues) + 1}", "occurrences": 0}
+                self.drift_issues[declared["type"]] = issue
+            issue["occurrences"] += 1
+            issue["field"] = named[0] if len(named) == 1 else None
+            return {"drift": True, "issue_id": issue["issue_id"]}
 
     def constrain(self, handle: Handle, block: ConstraintsBlock | dict[str, Any]) -> None:
         """The constraints block a read about `handle` returns with `include: ["constraints"]`."""
@@ -147,3 +190,10 @@ class FeatureStore:
 
     def _salt_id(self) -> str:
         return "salt-" + hashlib.sha256(self.salt).hexdigest()[:8]
+
+
+def _summary(declared: dict[str, Any]) -> dict[str, Any]:
+    out = {k: declared[k] for k in SUMMARY if k in declared}
+    if "fields" in out:
+        out["fields"] = {n: {k: v for k, v in f.items() if k != "access"} for n, f in out["fields"].items()}
+    return out

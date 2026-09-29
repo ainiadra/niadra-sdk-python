@@ -2,14 +2,18 @@
 
     niadra resolver-worker --resolvers company.pricing:resolvers
     niadra replay --agent company.agent:build_agent --build company.agent:BUILD --scenario sc_1 --runs 5
+    niadra types derive --dsn postgresql://reader@replica/erp --table public.orders --out order.json
+    niadra contract test --contract claim-contract.json --examples tests/claims/examples.json
 
-Both read the key from `NIADRA_API_KEY` (and `NIADRA_BASE_URL`, when set). `module:name` names a Python
-object: for `--resolvers`, a `Resolvers` or a function that registers the resolvers on the one it gets; for
-`--agent`, a function that makes a fresh agent; for `--build`, the build the run runs (`Niadra.build()`, or
-a mapping of its pins).
+The commands that talk to Niadra read the key from `NIADRA_API_KEY` (and `NIADRA_BASE_URL`, when set).
+`module:name` names a Python object: for `--resolvers`, a `Resolvers` or a function that registers the
+resolvers on the one it gets; for `--agent`, a function that makes a fresh agent; for `--build`, the build the
+run runs (`Niadra.build()`, or a mapping of its pins).
 
 `niadra replay` exits with 0 when the verdict is `pass` or `flaky`, 1 for `regression`, and 2 for
-`pin_mismatch` or `infrastructure_error`.
+`pin_mismatch` or `infrastructure_error`. `niadra types derive --check` and `niadra contract test` exit with
+0 when everything holds, 1 when it does not (drift, a phrase that triggers) and 2 when they could not run: see
+`niadra.cli.types` and `niadra.cli.contract`.
 """
 
 from __future__ import annotations
@@ -23,6 +27,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from niadra._client import Niadra
+from niadra.cli import contract, types
 from niadra.resolvers import Resolvers
 
 EXIT = {"pass": 0, "flaky": 0, "regression": 1}
@@ -45,14 +50,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--mode", default="hermetic_turn", choices=["hermetic_turn", "hermetic_conversation", "era_memory"]
     )
     replay.add_argument("--vary", action="append", default=[], help="a pin the run changes on purpose")
+    types.add(commands)
+    contract.add(commands)
     args = parser.parse_args(argv)
-    niadra = Niadra()
+    clients: list[Niadra] = []
+
+    def client() -> Niadra:
+        if not clients:
+            clients.append(Niadra())
+        return clients[0]
+
     try:
+        if args.command == "types":
+            return types.run(args, client)
+        if args.command == "contract":
+            return contract.run(args, client)
         if args.command == "resolver-worker":
-            return _worker(niadra, args)
-        return _replay(niadra, args)
+            return _worker(client(), args)
+        return _replay(client(), args)
     finally:
-        niadra.close()
+        for niadra in clients:
+            niadra.close()
 
 
 def _worker(niadra: Niadra, args: argparse.Namespace) -> int:
