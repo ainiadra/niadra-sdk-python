@@ -432,12 +432,14 @@
       },
       "AttributionReport": {
         "additionalProperties": false,
-        "description": "Value by method and band, deterministic and probable apart; weights are never summed as money.",
+        "description": "Value by day, agent, method and band, deterministic and probable apart; a value is never multiplied by\na confidence, and no total adds a probable value to a deterministic one.",
         "properties": {
+          "identity": {
+            "$ref": "#/components/schemas/IdentityCalibration"
+          },
           "rows": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/AttributionRow"
             },
             "title": "Rows",
             "type": "array"
@@ -446,6 +448,13 @@
             "format": "date",
             "title": "Since",
             "type": "string"
+          },
+          "totals": {
+            "items": {
+              "$ref": "#/components/schemas/AttributionTotal"
+            },
+            "title": "Totals",
+            "type": "array"
           },
           "until": {
             "format": "date",
@@ -456,9 +465,178 @@
         "required": [
           "since",
           "until",
-          "rows"
+          "rows",
+          "totals",
+          "identity"
         ],
         "title": "AttributionReport",
+        "type": "object"
+      },
+      "AttributionRow": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "title": "Agent",
+            "type": "string"
+          },
+          "band": {
+            "enum": [
+              "deterministic",
+              "probable"
+            ],
+            "title": "Band",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "finality": {
+            "enum": [
+              "provisional",
+              "final",
+              "expired_without_outcome"
+            ],
+            "title": "Finality",
+            "type": "string"
+          },
+          "lines": {
+            "title": "Lines",
+            "type": "integer"
+          },
+          "method": {
+            "enum": [
+              "line",
+              "order",
+              "identity",
+              "assisted_handoff"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "outcome": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Outcome",
+            "type": "string"
+          },
+          "outcomes": {
+            "title": "Outcomes",
+            "type": "integer"
+          },
+          "value_minor": {
+            "title": "Value Minor",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "outcome",
+          "agent",
+          "method",
+          "band",
+          "finality",
+          "currency",
+          "outcomes",
+          "lines",
+          "value_minor"
+        ],
+        "title": "AttributionRow",
+        "type": "object"
+      },
+      "AttributionTotal": {
+        "additionalProperties": false,
+        "description": "One method, band and finality over the period: deterministic and probable are never added together.",
+        "properties": {
+          "band": {
+            "enum": [
+              "deterministic",
+              "probable"
+            ],
+            "title": "Band",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "finality": {
+            "enum": [
+              "provisional",
+              "final",
+              "expired_without_outcome"
+            ],
+            "title": "Finality",
+            "type": "string"
+          },
+          "lines": {
+            "title": "Lines",
+            "type": "integer"
+          },
+          "method": {
+            "enum": [
+              "line",
+              "order",
+              "identity",
+              "assisted_handoff"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "outcome": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Outcome",
+            "type": "string"
+          },
+          "outcomes": {
+            "title": "Outcomes",
+            "type": "integer"
+          },
+          "value_minor": {
+            "title": "Value Minor",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "outcome",
+          "method",
+          "band",
+          "finality",
+          "currency",
+          "outcomes",
+          "lines",
+          "value_minor"
+        ],
+        "title": "AttributionTotal",
+        "type": "object"
+      },
+      "BiFile": {
+        "additionalProperties": false,
+        "description": "The company's BI export for the period, as CSV with a header: `order` (the id the company knows the\nobject by), `line` (optional), `value` (in major units, as the signed definition nets it) and\n`currency`.",
+        "properties": {
+          "content": {
+            "maxLength": 5000000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          },
+          "format": {
+            "const": "csv",
+            "default": "csv",
+            "title": "Format",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "BiFile",
         "type": "object"
       },
       "BlockSubject": {
@@ -3917,13 +4095,59 @@
         "title": "HardConstraint",
         "type": "object"
       },
+      "IdentityCalibration": {
+        "additionalProperties": false,
+        "description": "How often the identity method names the exposure the line's own token names, on the lines where both\nexist: the confidence of that method in this space.",
+        "properties": {
+          "agreeing": {
+            "title": "Agreeing",
+            "type": "integer"
+          },
+          "compared": {
+            "title": "Compared",
+            "type": "integer"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          }
+        },
+        "required": [
+          "agreeing",
+          "compared"
+        ],
+        "title": "IdentityCalibration",
+        "type": "object"
+      },
       "Inference": {
         "additionalProperties": false,
+        "description": "One thing the signals infer about the subject, with what it rests on: the subject can see it, correct\nit and delete it. What the subject said is not an inference, and is not listed.",
         "properties": {
           "at": {
+            "description": "When its latest evidence happened.",
             "format": "date-time",
             "title": "At",
             "type": "string"
+          },
+          "attr": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{0,39}\\.[a-z][a-z0-9_]{0,63}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The field whose value is inferred.",
+            "title": "Attr"
           },
           "confidence": {
             "anyOf": [
@@ -3938,16 +4162,25 @@
           },
           "evidence": {
             "additionalProperties": true,
+            "description": "What it rests on, as counts: effective exposure, weighted signal, events, sessions and lift for a value; times for an interest.",
             "title": "Evidence",
             "type": "object"
           },
+          "for": {
+            "default": "self",
+            "pattern": "^(?:self|gift|beneficiary:[A-Za-z0-9_-]{1,64})$",
+            "title": "For",
+            "type": "string"
+          },
           "key": {
+            "description": "A keyed hash that names the inference; it never carries its value.",
             "maxLength": 512,
             "minLength": 1,
             "title": "Key",
             "type": "string"
           },
           "kind": {
+            "description": "`soft_constraint` when the constraints block carries it as a soft entry, `attribute` for the inferred size, `affinity` for a value with evidence and no entry yet, `interest` for an object.",
             "enum": [
               "affinity",
               "soft_constraint",
@@ -3958,12 +4191,42 @@
             "type": "string"
           },
           "origin": {
+            "description": "`interactions`, `implicit_negative` (shown often and never engaged with), or why an interest was kept: `engaged`, `feedback`, `watch`.",
             "maxLength": 256,
             "minLength": 1,
             "title": "Origin",
             "type": "string"
           },
+          "polarity": {
+            "anyOf": [
+              {
+                "enum": [
+                  "prefer",
+                  "avoid"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polarity"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{0,39}:[^:\\s]{1,256}:\\S{1,512}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The object of an interest.",
+            "title": "Ref"
+          },
           "used_for": {
+            "description": "The purposes it is used for.",
             "items": {
               "maxLength": 256,
               "minLength": 1,
@@ -3971,6 +4234,27 @@
             },
             "title": "Used For",
             "type": "array"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
           }
         },
         "required": [
@@ -3984,7 +4268,7 @@
       },
       "InferenceCorrection": {
         "additionalProperties": false,
-        "description": "Becomes a stated preference (`source: correction`).",
+        "description": "The value the subject says instead: a stated preference, or a stated attribute for an inferred size\n(`source: correction`). The inference it corrects is deleted. An interest is deleted, not corrected.",
         "properties": {
           "reason": {
             "anyOf": [
@@ -4000,6 +4284,21 @@
             "title": "Reason"
           },
           "value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "maxLength": 256,
+                "type": "string"
+              }
+            ],
             "title": "Value"
           }
         },
@@ -4227,6 +4526,15 @@
             ],
             "title": "Released At"
           },
+          "scope": {
+            "enum": [
+              "handle",
+              "object",
+              "conversation"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
           "status": {
             "enum": [
               "active",
@@ -4238,6 +4546,7 @@
         },
         "required": [
           "hold_id",
+          "scope",
           "status",
           "created_at"
         ],
@@ -4246,6 +4555,7 @@
       },
       "LegalHoldCreate": {
         "additionalProperties": false,
+        "description": "Exactly one of `handle`, `object` or `conversation_id`: what is kept from purging while the hold is\nactive.",
         "properties": {
           "conversation_id": {
             "anyOf": [
@@ -4484,6 +4794,28 @@
             "title": "Fields",
             "type": "object"
           },
+          "inputs": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxProperties": 20,
+                "propertyNames": {
+                  "maxLength": 256,
+                  "minLength": 1
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For a customer's derived object (a quote): the objects its inputs are fields of, by the name its type gives them, as `type:namespace:id` (`{\"lead\": \"lead:crm:L-9\"}`). When a field of one of them changes, the object expires, naming the input.",
+            "title": "Inputs"
+          },
           "provenance": {
             "$ref": "#/components/schemas/Provenance"
           },
@@ -4492,6 +4824,7 @@
           },
           "version": {
             "description": "The source's version of the object. A field moves only when this is greater than the version that last wrote it; a source never reuses a version for other content.",
+            "maximum": 9007199254740991.0,
             "minimum": 0.0,
             "title": "Version",
             "type": "integer"
@@ -4570,6 +4903,14 @@
               }
             ],
             "title": "As Of"
+          },
+          "axes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Each time axis of the type whose value is known: a date as `YYYY-MM-DD`, an instant in UTC. The platform keeps `known_at` (when the producer first knew of the object) and the time its content last changed.",
+            "title": "Axes",
+            "type": "object"
           },
           "blocked": {
             "additionalProperties": {
@@ -4769,41 +5110,25 @@
         "title": "ObjectRef",
         "type": "object"
       },
-      "ObjectSnapshotRequest": {
-        "additionalProperties": false,
-        "description": "Reconciliation from an NDJSON file uploaded through the file path that exists (`/v1/ingest`).",
-        "properties": {
-          "type": {
-            "pattern": "^[a-z][a-z0-9_]{0,39}$",
-            "title": "Type",
-            "type": "string"
-          },
-          "upload_ref": {
-            "maxLength": 512,
-            "minLength": 1,
-            "title": "Upload Ref",
-            "type": "string"
-          }
-        },
-        "required": [
-          "type",
-          "upload_ref"
-        ],
-        "title": "ObjectSnapshotRequest",
-        "type": "object"
-      },
       "ObjectSnapshotResponse": {
         "additionalProperties": false,
+        "description": "A snapshot taken in: its lines are applied as pushes of provenance `snapshot`, which never sustain a\nclaim, by the same version rule.",
         "properties": {
           "import_id": {
             "maxLength": 512,
             "minLength": 1,
             "title": "Import Id",
             "type": "string"
+          },
+          "objects": {
+            "description": "The lines taken in.",
+            "title": "Objects",
+            "type": "integer"
           }
         },
         "required": [
-          "import_id"
+          "import_id",
+          "objects"
         ],
         "title": "ObjectSnapshotResponse",
         "type": "object"
@@ -4846,13 +5171,222 @@
         "title": "OpenObject",
         "type": "object"
       },
+      "OutcomeLink": {
+        "additionalProperties": false,
+        "description": "One outcome attributed to what an agent did, by one method. `line` and `order` are deterministic: the\nexposure token the order line or the order carried, or the agent's own action on the object.\n`identity` and `assisted_handoff` are probable: the same item engaged with or shown within a window, or a\nhandoff that assisted the sale. A link carries its line's value whole or none at all: a value is never\nweighted.",
+        "properties": {
+          "action_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Id"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent"
+          },
+          "band": {
+            "enum": [
+              "deterministic",
+              "probable"
+            ],
+            "title": "Band",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "exposure_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exposure Id"
+          },
+          "final_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When a provisional link becomes final.",
+            "title": "Final At"
+          },
+          "finality": {
+            "description": "`provisional` until the exchange window ends or the object reaches a final state; `expired_without_outcome` when its deadline passed first.",
+            "enum": [
+              "provisional",
+              "final",
+              "expired_without_outcome"
+            ],
+            "title": "Finality",
+            "type": "string"
+          },
+          "handoff_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handoff Id"
+          },
+          "known_at": {
+            "format": "date-time",
+            "title": "Known At",
+            "type": "string"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "link_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Link Id",
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "line",
+              "order",
+              "identity",
+              "assisted_handoff"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "object": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}:[^:\\s]{1,256}:\\S{1,512}$",
+            "title": "Object",
+            "type": "string"
+          },
+          "outcome": {
+            "description": "The outcome definition of the `measurement` document.",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Outcome",
+            "type": "string"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "state": {
+            "description": "The state the object or its line is in.",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "State",
+            "type": "string"
+          },
+          "turn_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn Id"
+          },
+          "valid_at": {
+            "description": "When the outcome first counted.",
+            "format": "date-time",
+            "title": "Valid At",
+            "type": "string"
+          },
+          "value_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "In the currency's minor units; absent: none.",
+            "title": "Value Minor"
+          }
+        },
+        "required": [
+          "link_id",
+          "outcome",
+          "object",
+          "state",
+          "method",
+          "band",
+          "finality",
+          "valid_at",
+          "known_at"
+        ],
+        "title": "OutcomeLink",
+        "type": "object"
+      },
       "OutcomePage": {
         "additionalProperties": false,
         "properties": {
           "items": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/OutcomeLink"
             },
             "title": "Items",
             "type": "array"
@@ -5685,6 +6219,9 @@
       "ReconcileRequest": {
         "additionalProperties": false,
         "properties": {
+          "file": {
+            "$ref": "#/components/schemas/BiFile"
+          },
           "since": {
             "format": "date",
             "title": "Since",
@@ -5694,39 +6231,129 @@
             "format": "date",
             "title": "Until",
             "type": "string"
-          },
-          "upload_ref": {
-            "maxLength": 512,
-            "minLength": 1,
-            "title": "Upload Ref",
-            "type": "string"
           }
         },
         "required": [
-          "upload_ref",
           "since",
-          "until"
+          "until",
+          "file"
         ],
         "title": "ReconcileRequest",
         "type": "object"
       },
       "ReconcileResult": {
         "additionalProperties": false,
+        "description": "Our value of each line against the BI's, on the lines both know; lines only one side knows are\ncounted apart and never enter the deviation.",
         "properties": {
-          "detail": {
-            "additionalProperties": true,
-            "title": "Detail",
-            "type": "object"
+          "bi_minor": {
+            "title": "Bi Minor",
+            "type": "integer"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
           },
           "deviation": {
-            "title": "Deviation",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "|ours - BI| / BI on the lines both know.",
+            "title": "Deviation"
+          },
+          "matched": {
+            "title": "Matched",
+            "type": "integer"
+          },
+          "only_bi": {
+            "title": "Only Bi",
+            "type": "integer"
+          },
+          "only_ours": {
+            "title": "Only Ours",
+            "type": "integer"
+          },
+          "ours_minor": {
+            "title": "Ours Minor",
+            "type": "integer"
+          },
+          "report_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Report Id",
+            "type": "string"
+          },
+          "tolerance": {
+            "title": "Tolerance",
             "type": "number"
+          },
+          "within_tolerance": {
+            "title": "Within Tolerance",
+            "type": "boolean"
+          },
+          "worst": {
+            "description": "The lines that differ most.",
+            "items": {
+              "$ref": "#/components/schemas/ReconciledLine"
+            },
+            "title": "Worst",
+            "type": "array"
           }
         },
         "required": [
-          "deviation"
+          "report_id",
+          "deviation",
+          "tolerance",
+          "within_tolerance",
+          "matched",
+          "only_ours",
+          "only_bi",
+          "ours_minor",
+          "bi_minor"
         ],
         "title": "ReconcileResult",
+        "type": "object"
+      },
+      "ReconciledLine": {
+        "additionalProperties": false,
+        "properties": {
+          "bi_minor": {
+            "title": "Bi Minor",
+            "type": "integer"
+          },
+          "line": {
+            "title": "Line",
+            "type": "string"
+          },
+          "order": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Order",
+            "type": "string"
+          },
+          "ours_minor": {
+            "title": "Ours Minor",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "order",
+          "line",
+          "ours_minor",
+          "bi_minor"
+        ],
+        "title": "ReconciledLine",
         "type": "object"
       },
       "Refetch": {
@@ -6012,11 +6639,56 @@
             "title": "Created At",
             "type": "string"
           },
+          "decision_receipt_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Receipt Id"
+          },
+          "explanation": {
+            "additionalProperties": true,
+            "description": "Built from receipts: their ids, kinds, surfaces, rules, versions and inputs by reference, never personal content.",
+            "title": "Explanation",
+            "type": "object"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "upheld",
+                  "reversed",
+                  "corrected"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
           "profile_id": {
             "maxLength": 512,
             "minLength": 1,
             "title": "Profile Id",
             "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
           },
           "request_id": {
             "maxLength": 512,
@@ -6033,7 +6705,20 @@
                 "type": "null"
               }
             ],
+            "description": "The reviewer's note.",
             "title": "Resolution"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
           },
           "status": {
             "enum": [
@@ -6055,19 +6740,19 @@
       },
       "ReviewRequestCreate": {
         "additionalProperties": false,
-        "description": "A request to review an automated decision (LGPD, art. 20), sent to the controller's DPO.",
+        "description": "A request to review an automated decision, sent to the controller's data protection officer.",
         "properties": {
           "decision_receipt_id": {
             "anyOf": [
               {
-                "maxLength": 512,
-                "minLength": 1,
+                "format": "uuid",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "The receipt of the decision; absent, the subject's recent decisions.",
             "title": "Decision Receipt Id"
           },
           "reason": {
@@ -7366,6 +8051,20 @@
             ],
             "title": "State",
             "type": "string"
+          },
+          "supersedes_firing_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The firing this one replaces: a timer that already fired fires again once the value that armed it is revised.",
+            "title": "Supersedes Firing Id"
           }
         },
         "required": [
@@ -10310,6 +11009,7 @@
     },
     "/v1/legal-holds": {
       "post": {
+        "description": "Keeps a handle's, an object's or a conversation's data from purging until the release.",
         "operationId": "create_legal_hold_v1_legal_holds_post",
         "parameters": [
           {
@@ -10364,6 +11064,7 @@
     },
     "/v1/legal-holds/{hold_id}/release": {
       "post": {
+        "description": "What erasures left waiting under the hold goes once it is released.",
         "operationId": "release_legal_hold_v1_legal_holds__hold_id__release_post",
         "parameters": [
           {
@@ -10416,6 +11117,7 @@
     },
     "/v1/measure/attribution": {
       "get": {
+        "description": "Outcomes and value by day, agent, method and band, without a person: deterministic and probable\napart.",
         "operationId": "attribution_v1_measure_attribution_get",
         "parameters": [
           {
@@ -10531,6 +11233,7 @@
     },
     "/v1/measure/outcomes": {
       "get": {
+        "description": "Outcomes attributed to what agents did, newest first: each link with its method, band and finality.",
         "operationId": "outcomes_v1_measure_outcomes_get",
         "parameters": [
           {
@@ -10634,6 +11337,7 @@
     },
     "/v1/measure/reconcile": {
       "post": {
+        "description": "The period's attributed lines against the company's BI file, line by line, with the deviation kept.",
         "operationId": "reconcile_v1_measure_reconcile_post",
         "requestBody": {
           "content": {
@@ -10820,6 +11524,7 @@
     },
     "/v1/objects/push": {
       "post": {
+        "description": "State from a system of record: a shared object's items are decided against the working set's hot\ncopy with no database statement and written within a second; a customer's, kept in one statement.",
         "operationId": "push_objects_v1_objects_push_post",
         "requestBody": {
           "content": {
@@ -10861,12 +11566,25 @@
     },
     "/v1/objects/snapshot": {
       "post": {
+        "description": "Reconciliation of a shared type from its system of record: NDJSON, one push item per line, applied as\npushes of provenance `snapshot` by the same version rule.",
         "operationId": "snapshot_objects_v1_objects_snapshot_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "type",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9_]{0,39}$",
+              "title": "Type",
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/x-ndjson": {
               "schema": {
-                "$ref": "#/components/schemas/ObjectSnapshotRequest"
+                "type": "string"
               }
             }
           },
@@ -10902,6 +11620,7 @@
     },
     "/v1/profiles/{profile_id}/inferences": {
       "get": {
+        "description": "Every inference about the subject, with its origin, evidence, confidence, use and date.",
         "operationId": "list_inferences_v1_profiles__profile_id__inferences_get",
         "parameters": [
           {
@@ -10974,6 +11693,7 @@
     },
     "/v1/profiles/{profile_id}/inferences/{key}": {
       "delete": {
+        "description": "A tombstone: the same evidence never infers it again.",
         "operationId": "delete_inference_v1_profiles__profile_id__inferences__key__delete",
         "parameters": [
           {
@@ -11019,6 +11739,7 @@
     },
     "/v1/profiles/{profile_id}/inferences/{key}/correct": {
       "post": {
+        "description": "The subject's value becomes a stated preference or attribute; the inference is deleted.",
         "operationId": "correct_inference_v1_profiles__profile_id__inferences__key__correct_post",
         "parameters": [
           {
@@ -11081,6 +11802,7 @@
     },
     "/v1/profiles/{profile_id}/review-requests": {
       "post": {
+        "description": "Sent to the controller's data protection officer with the explanation built from receipts.",
         "operationId": "create_review_request_v1_profiles__profile_id__review_requests_post",
         "parameters": [
           {
@@ -11248,6 +11970,7 @@
     },
     "/v1/review-requests/{request_id}/resolve": {
       "post": {
+        "description": "The controller's decision, recorded once.",
         "operationId": "resolve_review_request_v1_review_requests__request_id__resolve_post",
         "parameters": [
           {

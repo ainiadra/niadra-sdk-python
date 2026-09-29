@@ -71,7 +71,6 @@ from niadra.models.state import (
     ObjectCoverage,
     ObjectPushRequest,
     ObjectPushResponse,
-    ObjectSnapshotRequest,
     ObjectSnapshotResponse,
     RefreshRequestPage,
     SdkProfile,
@@ -216,12 +215,17 @@ class Api(SyncRoutes):
         return self._call(ObjectCoverage, "GET", "/v1/objects/coverage")
 
     def push_objects(self, body: ObjectPushRequest) -> ObjectPushResponse:
-        """`POST /v1/objects/push`."""
+        """`POST /v1/objects/push`. State from a system of record: a shared object's items are decided against
+        the working set's hot copy with no database statement and written within a second; a customer's,
+        kept in one statement.
+        """
         return self._call(ObjectPushResponse, "POST", "/v1/objects/push", body=body)
 
-    def snapshot_objects(self, body: ObjectSnapshotRequest) -> ObjectSnapshotResponse:
-        """`POST /v1/objects/snapshot`."""
-        return self._call(ObjectSnapshotResponse, "POST", "/v1/objects/snapshot", body=body)
+    def snapshot_objects(self, *, type: str) -> ObjectSnapshotResponse:
+        """`POST /v1/objects/snapshot`. Reconciliation of a shared type from its system of record: NDJSON, one
+        push item per line, applied as pushes of provenance `snapshot` by the same version rule.
+        """
+        return self._call(ObjectSnapshotResponse, "POST", "/v1/objects/snapshot", params={"type": type})
 
     def sdk_profile(self) -> SdkProfile:
         """`GET /v1/sdk/profile`. What the SDK keeps in its local cache, from the configuration alone: no
@@ -259,15 +263,21 @@ class Api(SyncRoutes):
         return self._call(ConstraintsBlock, "POST", "/v1/constraints", body=body)
 
     def create_legal_hold(self, body: LegalHoldCreate, *, idempotency_key: str | None = None) -> LegalHold:
-        """`POST /v1/legal-holds`."""
+        """`POST /v1/legal-holds`. Keeps a handle's, an object's or a conversation's data from purging until
+        the release.
+        """
         return self._call(LegalHold, "POST", "/v1/legal-holds", body=body, key=idempotency_key or new_key())
 
     def release_legal_hold(self, hold_id: str, body: LegalHoldRelease) -> LegalHold:
-        """`POST /v1/legal-holds/{hold_id}/release`."""
+        """`POST /v1/legal-holds/{hold_id}/release`. What erasures left waiting under the hold goes once it is
+        released.
+        """
         return self._call(LegalHold, "POST", f"/v1/legal-holds/{segment(hold_id)}/release", body=body)
 
     def attribution(self, *, since: date, until: date) -> AttributionReport:
-        """`GET /v1/measure/attribution`."""
+        """`GET /v1/measure/attribution`. Outcomes and value by day, agent, method and band, without a person:
+        deterministic and probable apart.
+        """
         return self._call(
             AttributionReport, "GET", "/v1/measure/attribution", params={"since": since, "until": until}
         )
@@ -281,7 +291,9 @@ class Api(SyncRoutes):
         return self._call(InterleavingReport, "GET", "/v1/measure/interleaving")
 
     def outcomes(self, *, cursor: str | None = None, limit: int = 50) -> OutcomePage:
-        """`GET /v1/measure/outcomes`."""
+        """`GET /v1/measure/outcomes`. Outcomes attributed to what agents did, newest first: each link with
+        its method, band and finality.
+        """
         return self._call(
             OutcomePage, "GET", "/v1/measure/outcomes", params={"cursor": cursor, "limit": limit}
         )
@@ -291,7 +303,9 @@ class Api(SyncRoutes):
         return self._call(PowerResult, "POST", "/v1/measure/power", body=body)
 
     def reconcile(self, body: ReconcileRequest) -> ReconcileResult:
-        """`POST /v1/measure/reconcile`."""
+        """`POST /v1/measure/reconcile`. The period's attributed lines against the company's BI file, line by
+        line, with the deviation kept.
+        """
         return self._call(ReconcileResult, "POST", "/v1/measure/reconcile", body=body)
 
     def unmet_demand(self, *, cursor: str | None = None, limit: int = 50) -> UnmetDemandPage:
@@ -303,7 +317,9 @@ class Api(SyncRoutes):
     def list_inferences(
         self, profile_id: str, *, cursor: str | None = None, limit: int = 50
     ) -> InferencePage:
-        """`GET /v1/profiles/{profile_id}/inferences`."""
+        """`GET /v1/profiles/{profile_id}/inferences`. Every inference about the subject, with its origin,
+        evidence, confidence, use and date.
+        """
         return self._call(
             InferencePage,
             "GET",
@@ -312,11 +328,15 @@ class Api(SyncRoutes):
         )
 
     def delete_inference(self, profile_id: str, key: str) -> None:
-        """`DELETE /v1/profiles/{profile_id}/inferences/{key}`."""
+        """`DELETE /v1/profiles/{profile_id}/inferences/{key}`. A tombstone: the same evidence never infers it
+        again.
+        """
         return self._send("DELETE", f"/v1/profiles/{segment(profile_id)}/inferences/{segment(key)}")
 
     def correct_inference(self, profile_id: str, key: str, body: InferenceCorrection) -> Inference:
-        """`POST /v1/profiles/{profile_id}/inferences/{key}/correct`."""
+        """`POST /v1/profiles/{profile_id}/inferences/{key}/correct`. The subject's value becomes a stated
+        preference or attribute; the inference is deleted.
+        """
         return self._call(
             Inference,
             "POST",
@@ -327,7 +347,9 @@ class Api(SyncRoutes):
     def create_review_request(
         self, profile_id: str, body: ReviewRequestCreate, *, idempotency_key: str | None = None
     ) -> ReviewRequest:
-        """`POST /v1/profiles/{profile_id}/review-requests`."""
+        """`POST /v1/profiles/{profile_id}/review-requests`. Sent to the controller's data protection officer
+        with the explanation built from receipts.
+        """
         return self._call(
             ReviewRequest,
             "POST",
@@ -343,7 +365,7 @@ class Api(SyncRoutes):
         )
 
     def resolve_review_request(self, request_id: str, body: ReviewResolution) -> ReviewRequest:
-        """`POST /v1/review-requests/{request_id}/resolve`."""
+        """`POST /v1/review-requests/{request_id}/resolve`. The controller's decision, recorded once."""
         return self._call(
             ReviewRequest, "POST", f"/v1/review-requests/{segment(request_id)}/resolve", body=body
         )
@@ -570,12 +592,17 @@ class AsyncApi(AsyncRoutes):
         return await self._call(ObjectCoverage, "GET", "/v1/objects/coverage")
 
     async def push_objects(self, body: ObjectPushRequest) -> ObjectPushResponse:
-        """`POST /v1/objects/push`."""
+        """`POST /v1/objects/push`. State from a system of record: a shared object's items are decided against
+        the working set's hot copy with no database statement and written within a second; a customer's,
+        kept in one statement.
+        """
         return await self._call(ObjectPushResponse, "POST", "/v1/objects/push", body=body)
 
-    async def snapshot_objects(self, body: ObjectSnapshotRequest) -> ObjectSnapshotResponse:
-        """`POST /v1/objects/snapshot`."""
-        return await self._call(ObjectSnapshotResponse, "POST", "/v1/objects/snapshot", body=body)
+    async def snapshot_objects(self, *, type: str) -> ObjectSnapshotResponse:
+        """`POST /v1/objects/snapshot`. Reconciliation of a shared type from its system of record: NDJSON, one
+        push item per line, applied as pushes of provenance `snapshot` by the same version rule.
+        """
+        return await self._call(ObjectSnapshotResponse, "POST", "/v1/objects/snapshot", params={"type": type})
 
     async def sdk_profile(self) -> SdkProfile:
         """`GET /v1/sdk/profile`. What the SDK keeps in its local cache, from the configuration alone: no
@@ -617,17 +644,23 @@ class AsyncApi(AsyncRoutes):
     async def create_legal_hold(
         self, body: LegalHoldCreate, *, idempotency_key: str | None = None
     ) -> LegalHold:
-        """`POST /v1/legal-holds`."""
+        """`POST /v1/legal-holds`. Keeps a handle's, an object's or a conversation's data from purging until
+        the release.
+        """
         return await self._call(
             LegalHold, "POST", "/v1/legal-holds", body=body, key=idempotency_key or new_key()
         )
 
     async def release_legal_hold(self, hold_id: str, body: LegalHoldRelease) -> LegalHold:
-        """`POST /v1/legal-holds/{hold_id}/release`."""
+        """`POST /v1/legal-holds/{hold_id}/release`. What erasures left waiting under the hold goes once it is
+        released.
+        """
         return await self._call(LegalHold, "POST", f"/v1/legal-holds/{segment(hold_id)}/release", body=body)
 
     async def attribution(self, *, since: date, until: date) -> AttributionReport:
-        """`GET /v1/measure/attribution`."""
+        """`GET /v1/measure/attribution`. Outcomes and value by day, agent, method and band, without a person:
+        deterministic and probable apart.
+        """
         return await self._call(
             AttributionReport, "GET", "/v1/measure/attribution", params={"since": since, "until": until}
         )
@@ -641,7 +674,9 @@ class AsyncApi(AsyncRoutes):
         return await self._call(InterleavingReport, "GET", "/v1/measure/interleaving")
 
     async def outcomes(self, *, cursor: str | None = None, limit: int = 50) -> OutcomePage:
-        """`GET /v1/measure/outcomes`."""
+        """`GET /v1/measure/outcomes`. Outcomes attributed to what agents did, newest first: each link with
+        its method, band and finality.
+        """
         return await self._call(
             OutcomePage, "GET", "/v1/measure/outcomes", params={"cursor": cursor, "limit": limit}
         )
@@ -651,7 +686,9 @@ class AsyncApi(AsyncRoutes):
         return await self._call(PowerResult, "POST", "/v1/measure/power", body=body)
 
     async def reconcile(self, body: ReconcileRequest) -> ReconcileResult:
-        """`POST /v1/measure/reconcile`."""
+        """`POST /v1/measure/reconcile`. The period's attributed lines against the company's BI file, line by
+        line, with the deviation kept.
+        """
         return await self._call(ReconcileResult, "POST", "/v1/measure/reconcile", body=body)
 
     async def unmet_demand(self, *, cursor: str | None = None, limit: int = 50) -> UnmetDemandPage:
@@ -663,7 +700,9 @@ class AsyncApi(AsyncRoutes):
     async def list_inferences(
         self, profile_id: str, *, cursor: str | None = None, limit: int = 50
     ) -> InferencePage:
-        """`GET /v1/profiles/{profile_id}/inferences`."""
+        """`GET /v1/profiles/{profile_id}/inferences`. Every inference about the subject, with its origin,
+        evidence, confidence, use and date.
+        """
         return await self._call(
             InferencePage,
             "GET",
@@ -672,11 +711,15 @@ class AsyncApi(AsyncRoutes):
         )
 
     async def delete_inference(self, profile_id: str, key: str) -> None:
-        """`DELETE /v1/profiles/{profile_id}/inferences/{key}`."""
+        """`DELETE /v1/profiles/{profile_id}/inferences/{key}`. A tombstone: the same evidence never infers it
+        again.
+        """
         return await self._send("DELETE", f"/v1/profiles/{segment(profile_id)}/inferences/{segment(key)}")
 
     async def correct_inference(self, profile_id: str, key: str, body: InferenceCorrection) -> Inference:
-        """`POST /v1/profiles/{profile_id}/inferences/{key}/correct`."""
+        """`POST /v1/profiles/{profile_id}/inferences/{key}/correct`. The subject's value becomes a stated
+        preference or attribute; the inference is deleted.
+        """
         return await self._call(
             Inference,
             "POST",
@@ -687,7 +730,9 @@ class AsyncApi(AsyncRoutes):
     async def create_review_request(
         self, profile_id: str, body: ReviewRequestCreate, *, idempotency_key: str | None = None
     ) -> ReviewRequest:
-        """`POST /v1/profiles/{profile_id}/review-requests`."""
+        """`POST /v1/profiles/{profile_id}/review-requests`. Sent to the controller's data protection officer
+        with the explanation built from receipts.
+        """
         return await self._call(
             ReviewRequest,
             "POST",
@@ -703,7 +748,7 @@ class AsyncApi(AsyncRoutes):
         )
 
     async def resolve_review_request(self, request_id: str, body: ReviewResolution) -> ReviewRequest:
-        """`POST /v1/review-requests/{request_id}/resolve`."""
+        """`POST /v1/review-requests/{request_id}/resolve`. The controller's decision, recorded once."""
         return await self._call(
             ReviewRequest, "POST", f"/v1/review-requests/{segment(request_id)}/resolve", body=body
         )

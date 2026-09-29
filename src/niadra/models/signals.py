@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Annotated, Any, Literal
+from uuid import UUID
 
 from pydantic import Field, StringConstraints
 
@@ -27,12 +28,62 @@ class AttributeEntry(ResponseModel):
     value: bool | int | float | Annotated[str, StringConstraints(max_length=256)]
 
 
-class AttributionReport(ResponseModel):
-    """Value by method and band, deterministic and probable apart; weights are never summed as money."""
+class AttributionRow(ResponseModel):
+    agent: str
+    band: Literal["deterministic", "probable"]
+    currency: str
+    day: date
+    finality: Literal["provisional", "final", "expired_without_outcome"]
+    lines: int
+    method: Literal["line", "order", "identity", "assisted_handoff"]
+    outcome: ShortStr
+    outcomes: int
+    value_minor: int
 
-    rows: list[dict[str, Any]]
+
+class AttributionTotal(ResponseModel):
+    """One method, band and finality over the period: deterministic and probable are never added together."""
+
+    band: Literal["deterministic", "probable"]
+    currency: str
+    finality: Literal["provisional", "final", "expired_without_outcome"]
+    lines: int
+    method: Literal["line", "order", "identity", "assisted_handoff"]
+    outcome: ShortStr
+    outcomes: int
+    value_minor: int
+
+
+class IdentityCalibration(ResponseModel):
+    """How often the identity method names the exposure the line's own token names, on the lines where both
+    exist: the confidence of that method in this space.
+    """
+
+    agreeing: int
+    compared: int
+    rate: float | None = None
+
+
+class AttributionReport(ResponseModel):
+    """Value by day, agent, method and band, deterministic and probable apart; a value is never multiplied by
+    a confidence, and no total adds a probable value to a deterministic one.
+    """
+
+    identity: IdentityCalibration
+    rows: list[AttributionRow]
     since: date
+    totals: list[AttributionTotal]
     until: date
+
+
+class BiFile(Model):
+    """The company's BI export for the period, as CSV with a header: `order` (the id the company knows the
+    object by), `line` (optional), `value` (in major units, as the signed definition nets it) and
+    `currency`.
+    """
+
+    content: Annotated[str, StringConstraints(min_length=1, max_length=5000000)]
+    format: Literal["csv"] = "csv"
 
 
 class BlockSubject(ResponseModel):
@@ -169,20 +220,52 @@ class CounterfactualRunCreate(Model):
 
 
 class Inference(ResponseModel):
-    at: datetime
+    """One thing the signals infer about the subject, with what it rests on: the subject can see it, correct
+    it and delete it. What the subject said is not an inference, and is not listed.
+    """
+
+    at: datetime = Field(description="When its latest evidence happened.")
+    attr: (
+        Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}\.[a-z][a-z0-9_]{0,63}$")] | None
+    ) = Field(default=None, description="The field whose value is inferred.")
     confidence: float | None = None
-    evidence: dict[str, Any] = Field(default_factory=dict)
-    key: IdStr
-    kind: Literal["affinity", "soft_constraint", "attribute", "interest"]
-    origin: ShortStr
-    used_for: list[ShortStr] = Field(default_factory=list)
+    evidence: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "What it rests on, as counts: effective exposure, weighted signal, events, sessions and "
+            "lift for a value; times for an interest."
+        ),
+    )
+    for_: Annotated[str, StringConstraints(pattern=r"^(?:self|gift|beneficiary:[A-Za-z0-9_-]{1,64})$")] = (
+        Field(default="self", alias="for")
+    )
+    key: IdStr = Field(description="A keyed hash that names the inference; it never carries its value.")
+    kind: Literal["affinity", "soft_constraint", "attribute", "interest"] = Field(
+        description=(
+            "`soft_constraint` when the constraints block carries it as a soft entry, `attribute` for "
+            "the inferred size, `affinity` for a value with evidence and no entry yet, `interest` for "
+            "an object."
+        )
+    )
+    origin: ShortStr = Field(
+        description=(
+            "`interactions`, `implicit_negative` (shown often and never engaged with), or why an "
+            "interest was kept: `engaged`, `feedback`, `watch`."
+        )
+    )
+    polarity: Literal["prefer", "avoid"] | None = None
+    ref: ObjectKey | None = Field(default=None, description="The object of an interest.")
+    used_for: list[ShortStr] = Field(default_factory=list, description="The purposes it is used for.")
+    value: bool | int | float | Annotated[str, StringConstraints(max_length=256)] | None = None
 
 
 class InferenceCorrection(Model):
-    """Becomes a stated preference (`source: correction`)."""
+    """The value the subject says instead: a stated preference, or a stated attribute for an inferred size
+    (`source: correction`). The inference it corrects is deleted. An interest is deleted, not corrected.
+    """
 
     reason: Annotated[str, StringConstraints(min_length=1, max_length=500)] | None = None
-    value: Any
+    value: bool | int | float | Annotated[str, StringConstraints(max_length=256)]
 
 
 class InferencePage(ResponseModel):
@@ -198,10 +281,15 @@ class LegalHold(ResponseModel):
     created_at: datetime
     hold_id: IdStr
     released_at: datetime | None = None
+    scope: Literal["handle", "object", "conversation"]
     status: Literal["active", "released"]
 
 
 class LegalHoldCreate(Model):
+    """Exactly one of `handle`, `object` or `conversation_id`: what is kept from purging while the hold is
+    active.
+    """
+
     conversation_id: IdStr | None = None
     handle: Handle | None = None
     object: ObjectRef | None = None
@@ -212,8 +300,42 @@ class LegalHoldRelease(Model):
     reason: Annotated[str, StringConstraints(min_length=1, max_length=500)]
 
 
+class OutcomeLink(ResponseModel):
+    """One outcome attributed to what an agent did, by one method. `line` and `order` are deterministic: the
+    exposure token the order line or the order carried, or the agent's own action on the object. `identity`
+    and `assisted_handoff` are probable: the same item engaged with or shown within a window, or a handoff
+    that assisted the sale. A link carries its line's value whole or none at all: a value is never
+    weighted.
+    """
+
+    action_id: IdStr | None = None
+    agent: ShortStr | None = None
+    band: Literal["deterministic", "probable"]
+    currency: ShortStr | None = None
+    exposure_id: IdStr | None = None
+    final_at: datetime | None = Field(default=None, description="When a provisional link becomes final.")
+    finality: Literal["provisional", "final", "expired_without_outcome"] = Field(
+        description=(
+            "`provisional` until the exchange window ends or the object reaches a final state; "
+            "`expired_without_outcome` when its deadline passed first."
+        )
+    )
+    handoff_id: IdStr | None = None
+    known_at: datetime
+    line: ShortStr | None = None
+    link_id: IdStr
+    method: Literal["line", "order", "identity", "assisted_handoff"]
+    object: ObjectKey
+    outcome: ShortStr = Field(description="The outcome definition of the `measurement` document.")
+    position: int | None = None
+    state: ShortStr = Field(description="The state the object or its line is in.")
+    turn_id: IdStr | None = None
+    valid_at: datetime = Field(description="When the outcome first counted.")
+    value_minor: int | None = Field(default=None, description="In the currency's minor units; absent: none.")
+
+
 class OutcomePage(ResponseModel):
-    items: list[dict[str, Any]]
+    items: list[OutcomeLink]
     next_cursor: str | None = None
 
 
@@ -230,28 +352,61 @@ class PowerResult(ResponseModel):
 
 
 class ReconcileRequest(Model):
+    file: BiFile
     since: date
     until: date
-    upload_ref: IdStr
+
+
+class ReconciledLine(ResponseModel):
+    bi_minor: int
+    line: str
+    order: IdStr
+    ours_minor: int
 
 
 class ReconcileResult(ResponseModel):
-    detail: dict[str, Any] = Field(default_factory=dict)
-    deviation: float
+    """Our value of each line against the BI's, on the lines both know; lines only one side knows are counted
+    apart and never enter the deviation.
+    """
+
+    bi_minor: int
+    currency: str | None = None
+    deviation: float | None = Field(description="|ours - BI| / BI on the lines both know.")
+    matched: int
+    only_bi: int
+    only_ours: int
+    ours_minor: int
+    report_id: IdStr
+    tolerance: float
+    within_tolerance: bool
+    worst: list[ReconciledLine] = Field(default_factory=list, description="The lines that differ most.")
 
 
 class ReviewRequest(ResponseModel):
     created_at: datetime
+    decision_receipt_id: UUID | None = None
+    explanation: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Built from receipts: their ids, kinds, surfaces, rules, versions and inputs by reference, "
+            "never personal content."
+        ),
+    )
+    outcome: Literal["upheld", "reversed", "corrected"] | None = None
     profile_id: IdStr
+    reason: str | None = None
     request_id: IdStr
-    resolution: str | None = None
+    resolution: str | None = Field(default=None, description="The reviewer's note.")
+    resolved_at: datetime | None = None
     status: Literal["open", "resolved"]
 
 
 class ReviewRequestCreate(Model):
-    """A request to review an automated decision (LGPD, art. 20), sent to the controller's DPO."""
+    """A request to review an automated decision, sent to the controller's data protection officer."""
 
-    decision_receipt_id: IdStr | None = None
+    decision_receipt_id: UUID | None = Field(
+        default=None, description="The receipt of the decision; absent, the subject's recent decisions."
+    )
     reason: Annotated[str, StringConstraints(min_length=1, max_length=500)]
 
 

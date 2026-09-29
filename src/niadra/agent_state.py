@@ -15,6 +15,9 @@ a read brings (read your writes). With Niadra out of reach, a read serves that c
 applies to it at once and leaves again later with the same `if_version`: the answer says `pending`. A
 compare-and-swap that then conflicts is never merged in silence: it lands in `conflicts` and is logged. Over
 the cap a write is not stored and the previous state stays (`reason: over_cap`), never an error.
+
+In a replayed turn the state never leaves: it starts empty and the agent's writes stay in the replay, with
+the same rules.
 """
 
 from __future__ import annotations
@@ -218,6 +221,26 @@ def _apply(base: Mapping[str, Any], write: AgentStateWrite) -> dict[str, Any]:
     return out
 
 
+def _played() -> Any:
+    frame = current_turn()
+    return frame.playback if frame is not None else None
+
+
+def _played_get(played: Any, scope: Mapping[str, str], agent: str) -> WorkingState:
+    body, version = played.states.get(_key(scope, agent), ({}, 0))
+    return WorkingState(copy.deepcopy(body), version)
+
+
+def _played_put(played: Any, write: AgentStateWrite) -> StateWrite:
+    key = _key(write.scope.model_dump(mode="json"), write.agent)
+    with played._lock:
+        body, version = played.states.get(key, ({}, 0))
+        if write.if_version is not None and write.if_version != version:
+            return StateWrite(False, version, "conflict")
+        played.states[key] = (_apply(body if write.mode == "merge_by_key" else {}, write), version + 1)
+    return StateWrite(True, version + 1)
+
+
 def _read(version: int) -> None:
     frame = current_turn()
     if frame is not None:
@@ -273,6 +296,9 @@ class AgentStateHandle(_Handle):
 
     def get(self) -> WorkingState:
         """The state of this scope and agent: version 0 and an empty body before the first write."""
+        played = _played()
+        if played is not None:
+            return _played_get(played, self._scope, self._agent)
         try:
             data = self._send(self._states.read_http(self._scope, self._agent, self._budget))
         except Exception:
@@ -284,6 +310,9 @@ class AgentStateHandle(_Handle):
     ) -> StateWrite:
         """Writes the state: `merge_by_key` by default, `cas` at `if_version`. See the module."""
         write = self._write(body, mode, if_version)
+        played = _played()
+        if played is not None:
+            return _played_put(played, write)
         try:
             data = self._send(self._states.write_http(write, self._budget))
         except Exception as error:
@@ -300,6 +329,9 @@ class AsyncAgentStateHandle(_Handle):
 
     async def get(self) -> WorkingState:
         """The state of this scope and agent: version 0 and an empty body before the first write."""
+        played = _played()
+        if played is not None:
+            return _played_get(played, self._scope, self._agent)
         try:
             data = await self._send(self._states.read_http(self._scope, self._agent, self._budget))
         except Exception:
@@ -311,6 +343,9 @@ class AsyncAgentStateHandle(_Handle):
     ) -> StateWrite:
         """Writes the state: `merge_by_key` by default, `cas` at `if_version`. See the module."""
         write = self._write(body, mode, if_version)
+        played = _played()
+        if played is not None:
+            return _played_put(played, write)
         try:
             data = await self._send(self._states.write_http(write, self._budget))
         except Exception as error:

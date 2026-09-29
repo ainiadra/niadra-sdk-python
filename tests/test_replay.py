@@ -125,6 +125,12 @@ def test_nothing_the_replayed_agent_sends_or_declares_reaches_niadra(app: MockAp
             context = conversation.context()
             assert context.error == "replay"
             decision = conversation.check("farewell", purpose="service", effect_key="farewell:c-1")
+            state = conversation.agent_state.get()
+            assert (state.version, state.body) == (0, {})
+            wrote = conversation.agent_state.put({"step": "farewell"}, if_version=0)
+            assert (wrote.stored, wrote.version) == (True, 1)
+            assert not conversation.agent_state.put({"step": "again"}, if_version=0).stored
+            assert conversation.agent_state.get().body == {"step": "farewell"}
             if decision.decision == "allow":
                 conversation.agent("Até logo!")
                 conversation.declare.effect("farewell:c-1", "done")
@@ -134,6 +140,7 @@ def test_nothing_the_replayed_agent_sends_or_declares_reaches_niadra(app: MockAp
     assert run.verdict == "pass" and run.scenarios[0]["assertions"][0]["passed"] == 2
     assert niadra.flush(5)
     assert len(app.cell.events) == events and not app.cell.coordination.declarations
+    assert not app.cell.state.agent_states
 
 
 def test_a_call_the_record_does_not_hold_runs_only_when_safe(app: MockApp, niadra: Niadra) -> None:

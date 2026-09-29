@@ -50,6 +50,8 @@ class Playback:
     done: dict[str, int] = field(default_factory=dict)
     """Effect keys the agent declared done, and how many times."""
     handoff: bool = False
+    states: dict[tuple[str, str, str], tuple[dict[str, Any], int]] = field(default_factory=dict)
+    """The agent's working state as this execution wrote it: body and version, by scope and agent."""
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def muted(self, item: Any) -> bool:
