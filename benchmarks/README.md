@@ -609,6 +609,23 @@ uv run bench combine --references results/partial/2026-09-27-aaf0dd results/2026
   results/2026-09-27-a1ff8a results/2026-09-27-4cb045 results/2026-09-27-aa9155
 ```
 
+The combine of 29/09/2026 (`results/2026-09-28-25548d`): Niadra again on a temporary cell with production's
+machine and database classes (m7i-flex.large, db.t4g.micro with the production parameter group,
+shared_buffers 88 MiB), running production's images (server `src-cdc4b2673c98bf22`: niadra-back 13b19e5,
+niadra-infra c2e40b5), harness 9435eb2. Three runs of one repetition of the 356 cases, the cell drained
+between them (`2026-09-28-915dd9`, `2026-09-28-444ce1`, `2026-09-29-ba158a`, each with its `cell-cost.json`),
+stacked into `2026-09-28-abcac0` (its `cell-cost.json` gives the three repetitions' lines); then the eleven
+runs of 27/09, with the same references. `2026-09-29-c59882` is Niadra's `host` path from the cell's own
+machine (`deploy/cell/host-lines.sh`, three repetitions on 20 cases, `--dry-run`); it is not combined:
+
+```bash
+uv run bench stack results/2026-09-28-915dd9 results/2026-09-28-444ce1 results/2026-09-29-ba158a
+uv run bench combine --references results/partial/2026-09-27-aaf0dd results/2026-09-28-abcac0 \
+  results/2026-09-27-9e1e99 results/2026-09-27-1f0e6a results/2026-09-27-eed88a results/2026-09-27-d03ae2 \
+  results/2026-09-27-64b5ae results/2026-09-27-320e9d results/2026-09-27-385a79 results/2026-09-27-63d738 \
+  results/2026-09-27-a1ff8a results/2026-09-27-4cb045 results/2026-09-27-aa9155
+```
+
 Expected duration per repetition of dataset v2 (356 cases, about 2,330 conversations), not yet measured:
 Niadra's seeding at the production cap about 23 minutes, then its settle; Mem0 about 1 h 15 (seeding both
 scenarios, the accuracy pass, the timed loops); each added system from an hour to many hours (Graphiti,
