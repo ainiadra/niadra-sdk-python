@@ -1,0 +1,2154 @@
+{
+  "schema": "niadra-bench.results.v1",
+  "run_id": "20260928T233006Z-444ce1",
+  "date": "2026-09-28",
+  "started_at": "2026-09-28T23:30:06+00:00",
+  "finished_at": "2026-09-29T00:07:42+00:00",
+  "environment": {
+    "kind": "region",
+    "region": "us-east-2",
+    "machine_class": "m7i-flex.large",
+    "database_class": "db.t4g.micro",
+    "harness_host": "temporary EC2 instance in the cell's VPC, one system at a time (deploy/temp-host)",
+    "harness_machine_class": "m7i-flex.large",
+    "verified_by_instance_metadata": true,
+    "host": null,
+    "python": "3.12.14"
+  },
+  "versions": {
+    "harness": "0.1.0",
+    "harness_commit": "9435eb2066f20d5583c60c17afe25ad0430573e3",
+    "niadra_sdk": "0.6.1",
+    "niadra_server": "src-cdc4b2673c98bf22",
+    "mem0ai": "2.2.0"
+  },
+  "config": {
+    "hash": "sha256:7ad9c33ec9a6e17da92f74654104b8494487a2b239bf8bddbb950f715d8b0ce0",
+    "repetitions": 1,
+    "agent_model": "openai/gpt-6-luna",
+    "judge_model": "openai/gpt-6-luna",
+    "agent": "llm",
+    "agent_reasoning_effort": "low",
+    "extraction_model": "openai/gpt-6-luna",
+    "reasoning_effort": "low",
+    "niadra_models": [
+      "openai/gpt-6-luna",
+      "typesafe/jev-1.13"
+    ],
+    "embedder": "paraphrase-multilingual-minilm-l12-v2-r1",
+    "latency_rates": [
+      10,
+      25
+    ],
+    "latency_duration_s": 30.0,
+    "latency_conversations": 20,
+    "mem0_top_k": 10,
+    "mem0_threshold": 0.1,
+    "token_encoding": "o200k_base",
+    "turns_per_conversation": 10,
+    "prices_checked_on": "2026-09-27",
+    "history_rates": [
+      10,
+      25
+    ],
+    "history_duration_s": 30.0,
+    "history_conversations": 20,
+    "history_max_tokens": 800,
+    "ingest_rates": [
+      10,
+      25
+    ],
+    "ingest_duration_s": 30.0,
+    "ingest_conversations": 20,
+    "ingest_mem0_modes": [
+      "raw",
+      "infer"
+    ],
+    "niadra_guards": "off",
+    "context_has_answer_rule": "specific-v2",
+    "references": "on",
+    "max_settle_s": null,
+    "quick": false,
+    "limit": null
+  },
+  "dataset": {
+    "version": "v2",
+    "hash": "sha256:afdd99efd133199eae45e6a2b229156df39e8659c26c2d00bb636529dbdbfb1d",
+    "generator_version": "2",
+    "cases": 356,
+    "valid": {
+      "median": 341,
+      "min": 341,
+      "max": 341,
+      "runs": [
+        341
+      ]
+    },
+    "excluded": [
+      [
+        "en-075",
+        "en-080",
+        "en-147",
+        "en-149",
+        "en-150",
+        "en-151",
+        "en-152",
+        "en-156",
+        "en-157",
+        "en-164",
+        "pt-075",
+        "pt-077",
+        "pt-080",
+        "pt-085",
+        "pt-164"
+      ]
+    ]
+  },
+  "metrics": {
+    "latency": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "niadra",
+          "path": "edge",
+          "rate": 10,
+          "p50": {
+            "median": 15.4,
+            "min": 15.4,
+            "max": 15.4,
+            "runs": [
+              15.4
+            ]
+          },
+          "p95": {
+            "median": 26.9,
+            "min": 26.9,
+            "max": 26.9,
+            "runs": [
+              26.9
+            ]
+          },
+          "p99": {
+            "median": 38.1,
+            "min": 38.1,
+            "max": 38.1,
+            "runs": [
+              38.1
+            ]
+          },
+          "max": {
+            "median": 46.0,
+            "min": 46.0,
+            "max": 46.0,
+            "runs": [
+              46.0
+            ]
+          },
+          "errors": 0,
+          "sent": 300
+        },
+        {
+          "system": "niadra",
+          "path": "edge",
+          "rate": 25,
+          "p50": {
+            "median": 16.9,
+            "min": 16.9,
+            "max": 16.9,
+            "runs": [
+              16.9
+            ]
+          },
+          "p95": {
+            "median": 30.7,
+            "min": 30.7,
+            "max": 30.7,
+            "runs": [
+              30.7
+            ]
+          },
+          "p99": {
+            "median": 81.1,
+            "min": 81.1,
+            "max": 81.1,
+            "runs": [
+              81.1
+            ]
+          },
+          "max": {
+            "median": 117.3,
+            "min": 117.3,
+            "max": 117.3,
+            "runs": [
+              117.3
+            ]
+          },
+          "errors": 0,
+          "sent": 750
+        },
+        {
+          "system": "niadra",
+          "path": "vpc",
+          "rate": 10,
+          "p50": {
+            "median": 16.3,
+            "min": 16.3,
+            "max": 16.3,
+            "runs": [
+              16.3
+            ]
+          },
+          "p95": {
+            "median": 30.4,
+            "min": 30.4,
+            "max": 30.4,
+            "runs": [
+              30.4
+            ]
+          },
+          "p99": {
+            "median": 52.7,
+            "min": 52.7,
+            "max": 52.7,
+            "runs": [
+              52.7
+            ]
+          },
+          "max": {
+            "median": 128.5,
+            "min": 128.5,
+            "max": 128.5,
+            "runs": [
+              128.5
+            ]
+          },
+          "errors": 0,
+          "sent": 300
+        },
+        {
+          "system": "niadra",
+          "path": "vpc",
+          "rate": 25,
+          "p50": {
+            "median": 17.0,
+            "min": 17.0,
+            "max": 17.0,
+            "runs": [
+              17.0
+            ]
+          },
+          "p95": {
+            "median": 33.3,
+            "min": 33.3,
+            "max": 33.3,
+            "runs": [
+              33.3
+            ]
+          },
+          "p99": {
+            "median": 105.6,
+            "min": 105.6,
+            "max": 105.6,
+            "runs": [
+              105.6
+            ]
+          },
+          "max": {
+            "median": 213.6,
+            "min": 213.6,
+            "max": 213.6,
+            "runs": [
+              213.6
+            ]
+          },
+          "errors": 0,
+          "sent": 750
+        }
+      ]
+    },
+    "accuracy": {
+      "unit": "share of valid cases",
+      "results": [
+        {
+          "system": "full_history",
+          "scenario": null,
+          "cases": {
+            "median": 341,
+            "min": 341,
+            "max": 341,
+            "runs": [
+              341
+            ]
+          },
+          "judge": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "deterministic": {
+            "median": 0.9912,
+            "min": 0.9912,
+            "max": 0.9912,
+            "runs": [
+              0.9912
+            ]
+          },
+          "context_has_answer": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "by_category": {
+            "continuity": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "identity": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "recurrence": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "order_time": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "promise_action": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "privacy": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "contradiction": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "paraphrase": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "long_history": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "unanswerable": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 0.88,
+                "min": 0.88,
+                "max": 0.88,
+                "runs": [
+                  0.88
+                ]
+              }
+            },
+            "recurrence_topic": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            }
+          },
+          "retrieve_errors": 0,
+          "context_has_answer_loose": {
+            "median": 0.8835,
+            "min": 0.8835,
+            "max": 0.8835,
+            "runs": [
+              0.8835
+            ]
+          }
+        },
+        {
+          "system": "niadra",
+          "scenario": null,
+          "cases": {
+            "median": 341,
+            "min": 341,
+            "max": 341,
+            "runs": [
+              341
+            ]
+          },
+          "judge": {
+            "median": 0.9912,
+            "min": 0.9912,
+            "max": 0.9912,
+            "runs": [
+              0.9912
+            ]
+          },
+          "deterministic": {
+            "median": 0.9971,
+            "min": 0.9971,
+            "max": 0.9971,
+            "runs": [
+              0.9971
+            ]
+          },
+          "context_has_answer": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "by_category": {
+            "continuity": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "identity": {
+              "judge": {
+                "median": 0.95,
+                "min": 0.95,
+                "max": 0.95,
+                "runs": [
+                  0.95
+                ]
+              },
+              "deterministic": {
+                "median": 0.975,
+                "min": 0.975,
+                "max": 0.975,
+                "runs": [
+                  0.975
+                ]
+              }
+            },
+            "recurrence": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "order_time": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "promise_action": {
+              "judge": {
+                "median": 0.9615,
+                "min": 0.9615,
+                "max": 0.9615,
+                "runs": [
+                  0.9615
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "privacy": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "contradiction": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "paraphrase": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "long_history": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "unanswerable": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "recurrence_topic": {
+              "judge": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            }
+          },
+          "retrieve_errors": 0,
+          "context_has_answer_loose": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          }
+        },
+        {
+          "system": "no_memory",
+          "scenario": null,
+          "cases": {
+            "median": 341,
+            "min": 341,
+            "max": 341,
+            "runs": [
+              341
+            ]
+          },
+          "judge": {
+            "median": 0.088,
+            "min": 0.088,
+            "max": 0.088,
+            "runs": [
+              0.088
+            ]
+          },
+          "deterministic": {
+            "median": 0.0938,
+            "min": 0.0938,
+            "max": 0.0938,
+            "runs": [
+              0.0938
+            ]
+          },
+          "context_has_answer": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "by_category": {
+            "continuity": {
+              "judge": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              },
+              "deterministic": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              }
+            },
+            "identity": {
+              "judge": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              },
+              "deterministic": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              }
+            },
+            "recurrence": {
+              "judge": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              },
+              "deterministic": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              }
+            },
+            "order_time": {
+              "judge": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              },
+              "deterministic": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              }
+            },
+            "promise_action": {
+              "judge": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              },
+              "deterministic": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              }
+            },
+            "privacy": {
+              "judge": {
+                "median": 0.9375,
+                "min": 0.9375,
+                "max": 0.9375,
+                "runs": [
+                  0.9375
+                ]
+              },
+              "deterministic": {
+                "median": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "runs": [
+                  1.0
+                ]
+              }
+            },
+            "contradiction": {
+              "judge": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              },
+              "deterministic": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              }
+            },
+            "paraphrase": {
+              "judge": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              },
+              "deterministic": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              }
+            },
+            "long_history": {
+              "judge": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              },
+              "deterministic": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              }
+            },
+            "unanswerable": {
+              "judge": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              },
+              "deterministic": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              }
+            },
+            "recurrence_topic": {
+              "judge": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              },
+              "deterministic": {
+                "median": 0.0,
+                "min": 0.0,
+                "max": 0.0,
+                "runs": [
+                  0.0
+                ]
+              }
+            }
+          },
+          "retrieve_errors": 0,
+          "context_has_answer_loose": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          }
+        }
+      ]
+    },
+    "tokens": {
+      "unit": "tokens per turn",
+      "results": [
+        {
+          "system": "full_history",
+          "scenario": null,
+          "view": "default",
+          "median": {
+            "median": 263.0,
+            "min": 263.0,
+            "max": 263.0,
+            "runs": [
+              263.0
+            ]
+          },
+          "p95": {
+            "median": 1307,
+            "min": 1307,
+            "max": 1307,
+            "runs": [
+              1307
+            ]
+          }
+        },
+        {
+          "system": "niadra",
+          "scenario": null,
+          "view": "chat",
+          "median": {
+            "median": 98.0,
+            "min": 98.0,
+            "max": 98.0,
+            "runs": [
+              98.0
+            ]
+          },
+          "p95": {
+            "median": 183,
+            "min": 183,
+            "max": 183,
+            "runs": [
+              183
+            ]
+          }
+        },
+        {
+          "system": "niadra",
+          "scenario": null,
+          "view": "voice",
+          "median": {
+            "median": 91.0,
+            "min": 91.0,
+            "max": 91.0,
+            "runs": [
+              91.0
+            ]
+          },
+          "p95": {
+            "median": 151,
+            "min": 151,
+            "max": 151,
+            "runs": [
+              151
+            ]
+          }
+        },
+        {
+          "system": "no_memory",
+          "scenario": null,
+          "view": "default",
+          "median": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "p95": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "runs": [
+              0
+            ]
+          }
+        }
+      ]
+    },
+    "privacy": {
+      "unit": "memory blocks with the sensitive value",
+      "results": [
+        {
+          "system": "full_history",
+          "scenario": null,
+          "verification": null,
+          "cases": {
+            "median": 32,
+            "min": 32,
+            "max": 32,
+            "runs": [
+              32
+            ]
+          },
+          "leaks": {
+            "median": 32,
+            "min": 32,
+            "max": 32,
+            "runs": [
+              32
+            ]
+          },
+          "leak_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          }
+        },
+        {
+          "system": "niadra",
+          "scenario": null,
+          "verification": "per conversation",
+          "cases": {
+            "median": 32,
+            "min": 32,
+            "max": 32,
+            "runs": [
+              32
+            ]
+          },
+          "leaks": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "runs": [
+              0
+            ]
+          },
+          "leak_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          }
+        },
+        {
+          "system": "no_memory",
+          "scenario": null,
+          "verification": null,
+          "cases": {
+            "median": 32,
+            "min": 32,
+            "max": 32,
+            "runs": [
+              32
+            ]
+          },
+          "leaks": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "runs": [
+              0
+            ]
+          },
+          "leak_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          }
+        }
+      ]
+    },
+    "cost": {
+      "unit": "USD per 1000 conversations",
+      "results": [
+        {
+          "system": "niadra",
+          "variant": "price_low",
+          "basis": "public price, models included",
+          "memory_usd_per_1000": {
+            "median": 5.0,
+            "min": 5.0,
+            "max": 5.0,
+            "runs": [
+              5.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": 0.098,
+            "min": 0.098,
+            "max": 0.098,
+            "runs": [
+              0.098
+            ]
+          }
+        },
+        {
+          "system": "niadra",
+          "variant": "price_high",
+          "basis": "public price, models included",
+          "memory_usd_per_1000": {
+            "median": 15.0,
+            "min": 15.0,
+            "max": 15.0,
+            "runs": [
+              15.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": 0.098,
+            "min": 0.098,
+            "max": 0.098,
+            "runs": [
+              0.098
+            ]
+          }
+        },
+        {
+          "system": "mem0_platform",
+          "variant": "hobby",
+          "basis": "public plan price over its monthly quota",
+          "memory_usd_per_1000": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "conversations_per_month": 100
+        },
+        {
+          "system": "mem0_platform",
+          "variant": "starter",
+          "basis": "public plan price over its monthly quota",
+          "memory_usd_per_1000": {
+            "median": 38.0,
+            "min": 38.0,
+            "max": 38.0,
+            "runs": [
+              38.0
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "conversations_per_month": 500
+        },
+        {
+          "system": "mem0_platform",
+          "variant": "pro",
+          "basis": "public plan price over its monthly quota",
+          "memory_usd_per_1000": {
+            "median": 49.8,
+            "min": 49.8,
+            "max": 49.8,
+            "runs": [
+              49.8
+            ]
+          },
+          "agent_prompt_usd_per_1000": {
+            "median": null,
+            "min": null,
+            "max": null,
+            "runs": [
+              null
+            ]
+          },
+          "conversations_per_month": 5000
+        }
+      ]
+    },
+    "freshness": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "niadra",
+          "p50": {
+            "median": 94.8,
+            "min": 94.8,
+            "max": 94.8,
+            "runs": [
+              94.8
+            ]
+          },
+          "p95": {
+            "median": 139.9,
+            "min": 139.9,
+            "max": 139.9,
+            "runs": [
+              139.9
+            ]
+          },
+          "max": {
+            "median": 151.0,
+            "min": 151.0,
+            "max": 151.0,
+            "runs": [
+              151.0
+            ]
+          },
+          "trials": 20,
+          "timeouts": 0
+        }
+      ]
+    },
+    "resilience": {
+      "results": [
+        {
+          "system": "niadra",
+          "fault": "delay_2000ms",
+          "memory_stage_p50_ms": {
+            "median": 201.3,
+            "min": 201.3,
+            "max": 201.3,
+            "runs": [
+              201.3
+            ]
+          },
+          "memory_stage_max_ms": {
+            "median": 202.7,
+            "min": 202.7,
+            "max": 202.7,
+            "runs": [
+              202.7
+            ]
+          },
+          "within_budget_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "raised_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "empty_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "turn_budget_ms": 1000
+        },
+        {
+          "system": "niadra",
+          "fault": "http_503",
+          "memory_stage_p50_ms": {
+            "median": 160.0,
+            "min": 160.0,
+            "max": 160.0,
+            "runs": [
+              160.0
+            ]
+          },
+          "memory_stage_max_ms": {
+            "median": 201.0,
+            "min": 201.0,
+            "max": 201.0,
+            "runs": [
+              201.0
+            ]
+          },
+          "within_budget_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "raised_rate": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "empty_rate": {
+            "median": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "runs": [
+              1.0
+            ]
+          },
+          "turn_budget_ms": 1000
+        }
+      ]
+    },
+    "history": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "niadra",
+          "path": "edge",
+          "operation": "search",
+          "call": "POST /v1/history/search",
+          "rate": 10,
+          "p50": {
+            "median": 56.1,
+            "min": 56.1,
+            "max": 56.1,
+            "runs": [
+              56.1
+            ]
+          },
+          "p95": {
+            "median": 115.5,
+            "min": 115.5,
+            "max": 115.5,
+            "runs": [
+              115.5
+            ]
+          },
+          "p99": {
+            "median": 280.2,
+            "min": 280.2,
+            "max": 280.2,
+            "runs": [
+              280.2
+            ]
+          },
+          "max": {
+            "median": 373.8,
+            "min": 373.8,
+            "max": 373.8,
+            "runs": [
+              373.8
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0,
+          "server_timing": {
+            "app": {
+              "p50": {
+                "median": 51.8,
+                "min": 51.8,
+                "max": 51.8,
+                "runs": [
+                  51.8
+                ]
+              },
+              "p95": {
+                "median": 104.0,
+                "min": 104.0,
+                "max": 104.0,
+                "runs": [
+                  104.0
+                ]
+              }
+            }
+          }
+        },
+        {
+          "system": "niadra",
+          "path": "vpc",
+          "operation": "search",
+          "call": "POST /v1/history/search",
+          "rate": 10,
+          "p50": {
+            "median": 53.7,
+            "min": 53.7,
+            "max": 53.7,
+            "runs": [
+              53.7
+            ]
+          },
+          "p95": {
+            "median": 87.8,
+            "min": 87.8,
+            "max": 87.8,
+            "runs": [
+              87.8
+            ]
+          },
+          "p99": {
+            "median": 111.0,
+            "min": 111.0,
+            "max": 111.0,
+            "runs": [
+              111.0
+            ]
+          },
+          "max": {
+            "median": 164.8,
+            "min": 164.8,
+            "max": 164.8,
+            "runs": [
+              164.8
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0,
+          "server_timing": {
+            "app": {
+              "p50": {
+                "median": 50.4,
+                "min": 50.4,
+                "max": 50.4,
+                "runs": [
+                  50.4
+                ]
+              },
+              "p95": {
+                "median": 82.2,
+                "min": 82.2,
+                "max": 82.2,
+                "runs": [
+                  82.2
+                ]
+              }
+            }
+          }
+        },
+        {
+          "system": "niadra",
+          "path": "edge",
+          "operation": "open",
+          "call": "POST /v1/history/open",
+          "rate": 10,
+          "p50": {
+            "median": 54.1,
+            "min": 54.1,
+            "max": 54.1,
+            "runs": [
+              54.1
+            ]
+          },
+          "p95": {
+            "median": 142.1,
+            "min": 142.1,
+            "max": 142.1,
+            "runs": [
+              142.1
+            ]
+          },
+          "p99": {
+            "median": 341.8,
+            "min": 341.8,
+            "max": 341.8,
+            "runs": [
+              341.8
+            ]
+          },
+          "max": {
+            "median": 435.0,
+            "min": 435.0,
+            "max": 435.0,
+            "runs": [
+              435.0
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "niadra",
+          "path": "vpc",
+          "operation": "open",
+          "call": "POST /v1/history/open",
+          "rate": 10,
+          "p50": {
+            "median": 64.4,
+            "min": 64.4,
+            "max": 64.4,
+            "runs": [
+              64.4
+            ]
+          },
+          "p95": {
+            "median": 336.3,
+            "min": 336.3,
+            "max": 336.3,
+            "runs": [
+              336.3
+            ]
+          },
+          "p99": {
+            "median": 668.7,
+            "min": 668.7,
+            "max": 668.7,
+            "runs": [
+              668.7
+            ]
+          },
+          "max": {
+            "median": 1066.3,
+            "min": 1066.3,
+            "max": 1066.3,
+            "runs": [
+              1066.3
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "embedder",
+          "path": "host",
+          "operation": "encode",
+          "call": "POST /v1/embed",
+          "rate": 10,
+          "p50": {
+            "median": 15.5,
+            "min": 15.5,
+            "max": 15.5,
+            "runs": [
+              15.5
+            ]
+          },
+          "p95": {
+            "median": 16.3,
+            "min": 16.3,
+            "max": 16.3,
+            "runs": [
+              16.3
+            ]
+          },
+          "p99": {
+            "median": 19.2,
+            "min": 19.2,
+            "max": 19.2,
+            "runs": [
+              19.2
+            ]
+          },
+          "max": {
+            "median": 20.4,
+            "min": 20.4,
+            "max": 20.4,
+            "runs": [
+              20.4
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "embedder",
+          "path": "host",
+          "operation": "encode",
+          "call": "POST /v1/embed",
+          "rate": 25,
+          "p50": {
+            "median": 15.4,
+            "min": 15.4,
+            "max": 15.4,
+            "runs": [
+              15.4
+            ]
+          },
+          "p95": {
+            "median": 16.1,
+            "min": 16.1,
+            "max": 16.1,
+            "runs": [
+              16.1
+            ]
+          },
+          "p99": {
+            "median": 19.2,
+            "min": 19.2,
+            "max": 19.2,
+            "runs": [
+              19.2
+            ]
+          },
+          "max": {
+            "median": 50.9,
+            "min": 50.9,
+            "max": 50.9,
+            "runs": [
+              50.9
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 750,
+          "empty": 0,
+          "degraded": 0
+        }
+      ]
+    },
+    "ingest": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "niadra",
+          "path": "edge",
+          "operation": "batch",
+          "call": "POST /v1/batch",
+          "rate": 10,
+          "p50": {
+            "median": 60.5,
+            "min": 60.5,
+            "max": 60.5,
+            "runs": [
+              60.5
+            ]
+          },
+          "p95": {
+            "median": 177.6,
+            "min": 177.6,
+            "max": 177.6,
+            "runs": [
+              177.6
+            ]
+          },
+          "p99": {
+            "median": 274.7,
+            "min": 274.7,
+            "max": 274.7,
+            "runs": [
+              274.7
+            ]
+          },
+          "max": {
+            "median": 404.2,
+            "min": 404.2,
+            "max": 404.2,
+            "runs": [
+              404.2
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "niadra",
+          "path": "vpc",
+          "operation": "batch",
+          "call": "POST /v1/batch",
+          "rate": 10,
+          "p50": {
+            "median": 66.2,
+            "min": 66.2,
+            "max": 66.2,
+            "runs": [
+              66.2
+            ]
+          },
+          "p95": {
+            "median": 574.6,
+            "min": 574.6,
+            "max": 574.6,
+            "runs": [
+              574.6
+            ]
+          },
+          "p99": {
+            "median": 1025.8,
+            "min": 1025.8,
+            "max": 1025.8,
+            "runs": [
+              1025.8
+            ]
+          },
+          "max": {
+            "median": 1572.2,
+            "min": 1572.2,
+            "max": 1572.2,
+            "runs": [
+              1572.2
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 300,
+          "empty": 0,
+          "degraded": 0
+        }
+      ]
+    },
+    "backing": {
+      "unit": "values without a source per 1000 answers",
+      "results": [
+        {
+          "system": "full_history",
+          "scenario": null,
+          "per_1000_answers": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "answers": 356,
+          "unbacked": 0,
+          "by_kind": {},
+          "by_category": {
+            "continuity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "contradiction": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "identity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "long_history": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "order_time": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "paraphrase": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "privacy": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "promise_action": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "recurrence": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "recurrence_topic": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "unanswerable": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            }
+          }
+        },
+        {
+          "system": "niadra",
+          "scenario": null,
+          "per_1000_answers": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "answers": 356,
+          "unbacked": 0,
+          "by_kind": {},
+          "by_category": {
+            "continuity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "contradiction": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "identity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "long_history": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "order_time": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "paraphrase": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "privacy": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "promise_action": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "recurrence": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "recurrence_topic": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "unanswerable": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            }
+          }
+        },
+        {
+          "system": "no_memory",
+          "scenario": null,
+          "per_1000_answers": {
+            "median": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "runs": [
+              0.0
+            ]
+          },
+          "answers": 356,
+          "unbacked": 0,
+          "by_kind": {},
+          "by_category": {
+            "continuity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "contradiction": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "identity": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "long_history": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "order_time": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "paraphrase": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "privacy": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "promise_action": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "recurrence": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "recurrence_topic": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            },
+            "unanswerable": {
+              "median": 0.0,
+              "min": 0.0,
+              "max": 0.0,
+              "runs": [
+                0.0
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -58,7 +58,7 @@ chmod 0400 /tmp/bootstrap.json
 kubectl -n "$NS" exec "$pod" -- env \
   NIADRA_BOOTSTRAP=/tmp/bootstrap.json NIADRA_CONTROL_URL=https://control.api.niadra.com \
   "NIADRA_HOST_ADDRESS=http://{service}.$NS.svc.cluster.local:8000" NIADRA_PATHS=host \
-  BENCH_ENVIRONMENT=region \
+  BENCH_ENVIRONMENT=region BENCH_ROOT=/tmp/src/benchmarks \
   sh -c 'cd /tmp/src/benchmarks && bench run --output /tmp/results @ARGS@'
 kubectl -n "$NS" cp "$pod:/tmp/results" "$out" >/dev/null
 echo "results on the node: $out"
