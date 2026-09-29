@@ -81,6 +81,7 @@ from niadra.models.objects import ObjectTimeline
 from niadra.models.tokens import SubjectToken, SubjectTokenRequest
 from niadra.vocabulary import DeliveryPath, EventKind, Speaker, Verification, Visibility
 from niadra_mock.agent_memory import AgentMemoryStore
+from niadra_mock.turns import TurnStore
 from niadra_mock.when import read_when
 
 HandleKey = tuple[str, str, str]
@@ -242,6 +243,10 @@ class MockCell:
     guards: dict[HandleKey, dict[str, PackGuard]] = field(default_factory=dict)
     """Guard lines per profile and kind of value (`add_guard`), served with a read's slots."""
     prefetches: list[PrefetchRequest] = field(default_factory=list)
+    features: set[str] = field(default_factory=lambda: {"turns"})
+    """The agent features the space turned on; a route of one that is off answers 404."""
+    turns: TurnStore = field(default_factory=TurnStore)
+    """The turn records this space kept (`POST /v1/turns`)."""
 
     def __post_init__(self) -> None:
         # The notes check against every id this cell has seen as a handle: none may land in a note.
@@ -268,6 +273,7 @@ class MockCell:
             self.guards.clear()
             self.agent_memory.notes.clear()
             self.agent_memory.proposals.clear()
+            self.turns.turns.clear()
 
     def enable_agent_memory(self, *, writes: str = "agent") -> None:
         """Turns the agent memory on, as the approved `agent_memory.enabled` setting of a space does.

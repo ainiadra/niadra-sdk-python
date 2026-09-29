@@ -57,6 +57,8 @@ haystack = ["haystack-ai>=3.2,<4"]
 camel = ["camel-ai>=0.2.90,<0.3"]
 dspy = ["dspy>=3.4,<4"]
 ag2 = ["ag2>=1.1,<2"]
+# `niadra.turns.otel`: the turn on the agent's OpenTelemetry spans.
+otel = ["opentelemetry-sdk>=1.20,<2"]
 
 [project.urls]
 Homepage = "https://niadra.com"
@@ -73,6 +75,8 @@ dev = [
   "respx>=0.21",
   "ruff>=0.8",
   "mypy>=1.13",
+  "opentelemetry-sdk>=1.20,<2",
+  "hypothesis>=6.100",
 ]
 
 [build-system]

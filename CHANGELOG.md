@@ -22,6 +22,13 @@ built on them.
 - `niadra.state.expr`: niadra-expr, the type registry's expression language, evaluated as the server
   evaluates it: `parse`, `compile_expression` (resolution against a type declaration) and `evaluate` over
   an `Environment`, with the four logical values in `niadra.state.logic`.
+- Turn records: `conversation.turn()` records what one turn read, called and said, with the build it
+  ran on (`Niadra.build()`), and `@niadra.tool` records each call of a tool of yours inside it, deep-copied
+  at the moment, with the objects its result showed. A bounded queue keeps the closed turns (values of
+  unflagged turns go first when it is full) and a background sender posts them to `POST /v1/turns` in the
+  space's content mode, with the values in your own bucket in `pointer` mode (`turns.store()`). Capture
+  costs a tool call 0.05 ms at the 95th percentile for a 25 KB result. `niadra.turns.otel` puts the turn
+  on your OpenTelemetry spans (`pip install 'niadra[otel]'`).
 - The conformance vectors of the open specifications, run by `tests/test_vectors.py`, and the design of
   the turn capture (`docs/design/turn-capture.md`).
 - `niadra.claims`: the claim contract's checker, pure and without a model: the number and role parser,

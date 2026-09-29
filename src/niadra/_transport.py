@@ -55,6 +55,8 @@ class Request:
     method: str
     path: str
     json: Any = None
+    content: bytes | None = None
+    """A body already encoded, sent as is instead of `json`; `headers` name its type and encoding."""
     params: dict[str, Any] | None = None
     timeout: float = 5.0
     budget: float | None = None
@@ -205,6 +207,7 @@ class SyncTransport:
                 request.method,
                 self._base_url + request.path,
                 json=request.json,
+                content=request.content,
                 params=request.params,
                 headers=_headers(self._api_key, request),
                 timeout=timeout,
@@ -318,6 +321,7 @@ class AsyncTransport:
                 request.method,
                 self._base_url + request.path,
                 json=request.json,
+                content=request.content,
                 params=request.params,
                 headers=_headers(self._api_key, request),
                 timeout=timeout,
