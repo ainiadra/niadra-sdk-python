@@ -1,8 +1,7 @@
 # Turn capture
 
-Status: sections 1 and 2, the decorator of section 4, and in section 3 the profile, the blocks of a read,
-the claim contract in count mode and the suppression list's copy are built; the framework hooks of section 4
-are being built. Where the code settled a detail differently from the first
+Status: built, except the rows of section 4's table other than Google ADK, OpenAI Agents and LangGraph
+(LangChain and the TypeScript SDK come next), and in section 3 the contact keys and the quotes. Where the code settled a detail differently from the first
 draft of this note, the note now says what the code does, and why.
 
 A turn runs from its input (a message, an interface action, an event, a timer firing) to the last thing
@@ -162,7 +161,13 @@ its own time budget.
   `timer`), and a sub-agent's start opens a sub-turn.
 - **Closing:** the turn closes after the last emission to the customer or to the document. For a
   streamed reply that is after the stream ends, not when the model call returns.
-- **Off unless asked.** Every hook is off by default, turned on by a parameter, and runs only when the
-  profile lists `turns` for the space. With it off, the adapter behaves exactly as it does today.
+- **Off unless asked.** Every hook is off by default, turned on by a parameter (`turns=True`), and runs
+  only when the profile lists `turns` for the space. With it off, the adapter behaves exactly as it does
+  today.
+- **As built** (`integrations/_common.py`, `TurnHooks`): a framework may run a callback in a task of its
+  own, where a context variable set in another callback does not reach, so the adapters key their turns
+  and calls by the framework's own ids (the invocation and agent, the run, the tool call id) and make the
+  turn current around the tools and the recorded answer. A model call is recorded by the adapter that
+  sees its tokens; `conversation.agent(usage=...)` only pins the model.
 - **A hook never fails the agent.** When the hook's own code fails, it logs, marks the turn `incomplete`
   and lets the agent's call go on.

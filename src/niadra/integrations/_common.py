@@ -6,15 +6,19 @@
   own tool shape. The customer is bound by the kit and is never a parameter the model sees.
 - Every Niadra call an adapter makes is guarded: a failure is logged without content and the
   agent carries on without the memory. Nothing here raises into the framework.
+- Turn records are off unless the adapter is given `turns=True` (`TurnHooks`), and then kept only
+  while the space records turns. A hook that fails marks its turn incomplete, never the agent.
 """
 
 from __future__ import annotations
 
+import contextlib
+import importlib.metadata
 import inspect
 import json
 import logging
 import re
-from collections.abc import Awaitable, Callable, Coroutine, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Coroutine, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, TypeVar
 
@@ -25,6 +29,8 @@ from niadra.models.events import ModelUsage
 from niadra.models.results import Context
 from niadra.tools import _UNAVAILABLE as UNAVAILABLE
 from niadra.tools import BUILTIN_DEFINITIONS, AsyncToolKit, ToolKit
+from niadra.turns.capture import CallCapture, TurnFrame, TurnKind, current_turn
+from niadra.turns.capture import _turn as _current_turn
 from niadra.usage import provider_of
 from niadra.vocabulary import Verification
 
@@ -412,3 +418,134 @@ def memory_kit_of(session: AnySession | None, option: AgentMemoryOption | None) 
     except Exception as exc:
         warn("build the history tools", exc)
         return None
+
+
+def adapter_version(name: str, package: str) -> str:
+    """`name/<version of package>`, as a turn record names its adapter."""
+    try:
+        return f"{name}/{importlib.metadata.version(package)}"
+    except importlib.metadata.PackageNotFoundError:
+        return name
+
+
+class TurnHooks:
+    """The turns an adapter opens and closes on its framework's callbacks, and the calls it records in
+    them, keyed by the framework's own ids (an invocation, a run, a tool call id).
+
+    A turn opened while another is current, in the task that runs the callback, is its sub-turn: a
+    sub-agent, or an agent used as a tool. With `enabled=False` every method does nothing.
+    """
+
+    def __init__(self, session: AnySession, adapter: str, *, enabled: bool) -> None:
+        self.session = session
+        self.adapter = adapter
+        self.enabled = enabled
+        self._frames: dict[str, TurnFrame] = {}
+        self._calls: dict[str, CallCapture] = {}
+
+    def open(
+        self, key: str, agent: str | None, *, kind: TurnKind = "message", parent: str | None = None
+    ) -> TurnFrame | None:
+        """Opens the turn `key` and makes it current; a turn already open under `key` is returned. `parent`
+        names the turn this one is a sub-turn of, for a framework that runs the callback where that turn's
+        context does not reach."""
+        if not self.enabled:
+            return None
+        if key in self._frames:
+            return self._frames[key]
+        try:
+            with self.current(parent) if parent in self._frames else contextlib.nullcontext():
+                outer = current_turn()
+                frame = self.session._recorder().open(
+                    agent=agent or self.session.agent_id,
+                    kind=kind,
+                    conversation_id=self.session.conversation_id if outer is None else None,
+                    task_id=self.session.task_id if outer is None else None,
+                    adapter=self.adapter,
+                )
+            self._frames[key] = frame.open()
+            return frame
+        except Exception as exc:
+            warn("open the turn", exc)
+            return None
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._frames
+
+    def frame(self, key: str | None = None) -> TurnFrame | None:
+        """The turn `key`, else the current one, else the last one this adapter opened and left open."""
+        if key is not None and key in self._frames:
+            return self._frames[key]
+        current = current_turn()
+        if current is not None:
+            return current
+        return next(reversed(self._frames.values()), None)
+
+    def close(self, key: str, error: BaseException | None = None) -> None:
+        frame = self._frames.pop(key, None)
+        if frame is not None:
+            try:
+                frame.close(error)
+            except Exception as exc:
+                warn("close the turn", exc)
+
+    def close_all(self) -> None:
+        """Closes every turn this adapter opened, the newest first: the end of a run closes its sub-turns."""
+        for key in reversed(list(self._frames)):
+            self.close(key)
+
+    @contextlib.contextmanager
+    def current(self, key: str | None = None) -> Iterator[TurnFrame | None]:
+        """Makes the turn `key` current for the block, for a framework that runs tools where the turn's
+        context does not reach, so tools decorated with `@niadra.tool` land in it too."""
+        frame = self.frame(key) if self.enabled else None
+        token = _current_turn.set(frame) if frame is not None else None
+        try:
+            yield frame
+        finally:
+            if token is not None:
+                with contextlib.suppress(ValueError):
+                    _current_turn.reset(token)
+
+    def tool_start(self, call_key: str, name: str, args: Any, *, frame_key: str | None = None) -> None:
+        """Records a tool call starting, with the provider's call id as `call_key` when there is one."""
+        frame = self.frame(frame_key) if self.enabled else None
+        if frame is None:
+            return
+        try:
+            self._calls[call_key] = frame.tool_call(name, args, call_id=call_key or None)
+        except Exception as exc:
+            warn("record the tool call", exc)
+            frame.incomplete()
+
+    def tool_end(self, call_key: str, result: Any = None, error: BaseException | None = None) -> None:
+        call = self._calls.pop(call_key, None)
+        if call is None:
+            return
+        try:
+            if error is not None:
+                call.failed(error)
+            else:
+                call.result(result)
+        except Exception as exc:
+            warn("record the tool result", exc)
+            call.frame.incomplete()
+
+    def model(
+        self,
+        model: str | None,
+        tokens_in: int | None,
+        tokens_out: int | None,
+        tokens_cached: int = 0,
+        *,
+        frame_key: str | None = None,
+    ) -> None:
+        frame = self.frame(frame_key) if self.enabled else None
+        if frame is None:
+            return
+        try:
+            frame.model_call(
+                model, tokens_in=tokens_in, tokens_out=tokens_out, tokens_cached=tokens_cached or 0
+            )
+        except Exception as exc:
+            warn("record the model call", exc)

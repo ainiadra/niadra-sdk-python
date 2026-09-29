@@ -123,3 +123,45 @@ async def test_the_older_react_agent_takes_the_pre_model_hook(chat: Any, on_mock
     result = await agent.ainvoke(say("Hi"), config={"callbacks": [NiadraCallbackHandler(chat)]})
     assert any(EARLIER in str(m.content) for m in model.prompts[0])
     assert not any(EARLIER in str(m.content) for m in result["messages"])
+
+
+async def test_with_turns_an_invocation_is_a_turn_with_its_tools(
+    chat: Any, on_mock_async: AsyncNiadra, mock_app: MockApp
+) -> None:
+    from langchain_core.tools import tool
+
+    from niadra.turns import current_turn
+
+    seen: list[Any] = []
+
+    @tool
+    def stock(sku: str) -> str:
+        """Units of an item in stock."""
+        seen.append(current_turn())
+        return f"{sku}: 3"
+
+    model = FakeChat(replies=[tool_call("stock", {"sku": "PX-4471"}, "call-9"), answer("3 in stock.")])
+    middleware = NiadraMiddleware(chat, turns=True, history_tools=False)
+    agent = create_agent(model, tools=[stock], middleware=[middleware])
+    await agent.ainvoke(say("Is the PX in stock?"))
+    await on_mock_async.flush()
+    (record,) = [s.record for s in mock_app.cell.turns.turns.values()]
+    assert record["conversation_id"] == "graph-1"
+    assert record["build"]["adapter"].startswith("langgraph/")
+    (call,) = [c for c in record["calls"] if c["kind"] == "tool"]
+    assert (call["call_id"], call["name"], call["status"]) == ("call-9", "stock", "ok")
+    assert record["blobs"][call["args"]]["content"] == {"sku": "PX-4471"}
+    assert record["blobs"][call["result_model"]]["content"] == "PX-4471: 3"
+    assert seen[0] is not None and seen[0].turn_id == record["turn_id"]
+    models = [c for c in record["calls"] if c["kind"] == "model"]
+    assert models[-1]["name"] == "gpt-4.1" and models[-1]["tokens"] == {"in": 1200, "cached": 1024, "out": 7}
+    assert len(record["output"]["event_keys"]) == 1
+
+
+async def test_without_turns_the_middleware_records_no_turn(
+    chat: Any, on_mock_async: AsyncNiadra, mock_app: MockApp
+) -> None:
+    agent = create_agent(FakeChat(replies=[answer("Hi.")]), middleware=[NiadraMiddleware(chat)])
+    await agent.ainvoke(say("Hello"))
+    await on_mock_async.flush()
+    assert mock_app.cell.turns.turns == {}

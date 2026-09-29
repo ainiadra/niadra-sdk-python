@@ -165,3 +165,82 @@ async def test_niadra_down_never_stops_the_agent(chat: Any, mock_app: MockApp) -
     assert any(e.content and e.content.parts and e.content.parts[0].text == "Still here." for e in events)
     assert model.requests[0].system.startswith("You are Acme's agent.")
     assert EARLIER not in model.requests[0].system
+
+
+def stock(sku: str) -> dict[str, Any]:
+    """Units of an item in stock."""
+    return {"sku": sku, "qty": 3}
+
+
+def turned(memory: NiadraADK, model: FakeGemini, **options: Any) -> LlmAgent:
+    return agent_for(
+        memory,
+        model,
+        before_agent_callback=memory.before_agent,
+        after_agent_callback=memory.after_agent,
+        before_tool_callback=memory.before_tool,
+        after_tool_callback=memory.after_tool,
+        on_tool_error_callback=memory.on_tool_error,
+        **options,
+    )
+
+
+async def test_with_turns_each_run_is_a_turn_with_its_tools_and_model_calls(
+    chat: Any, on_mock_async: AsyncNiadra, mock_app: MockApp
+) -> None:
+    memory = NiadraADK(chat, turns=True)
+    memory.tools.append(stock)
+    model = FakeGemini(model="fake", replies=[call("stock", {"sku": "PX-4471"}), text("3 in stock.")])
+    await run(turned(memory, model), "Is the PX in stock?")
+    await on_mock_async.flush()
+    (record,) = [stored.record for stored in mock_app.cell.turns.turns.values()]
+    assert record["agent"] == {"name": "support"}
+    assert record["build"]["adapter"].startswith("google_adk/")
+    (tool,) = [c for c in record["calls"] if c["kind"] == "tool"]
+    assert tool["name"] == "stock" and tool["status"] == "ok"
+    assert record["blobs"][tool["args"]]["content"] == {"sku": "PX-4471"}
+    assert record["blobs"][tool["result_model"]]["content"] == {"sku": "PX-4471", "qty": 3}
+    models = [c for c in record["calls"] if c["kind"] == "model"]
+    assert [m.get("name") for m in models] == [None, "gemini-2.5-flash"]  # the first reported no model
+    assert models[1]["tokens"] == {"in": 1400, "cached": 1024, "out": 9}
+    assert len(record["output"]["event_keys"]) == 1
+
+
+async def test_without_turns_nothing_is_recorded(
+    chat: Any, on_mock_async: AsyncNiadra, mock_app: MockApp
+) -> None:
+    memory = NiadraADK(chat)
+    await run(turned(memory, FakeGemini(model="fake", replies=[text("Hi.")])), "Hello")
+    await on_mock_async.flush()
+    assert mock_app.cell.turns.turns == {}
+
+
+async def test_an_agent_used_as_a_tool_is_a_sub_turn(
+    chat: Any, on_mock_async: AsyncNiadra, mock_app: MockApp
+) -> None:
+    from google.adk.tools.agent_tool import AgentTool
+
+    memory = NiadraADK(chat, turns=True)
+    pricing = LlmAgent(
+        name="pricing",
+        model=FakeGemini(model="fake", replies=[text("R$ 199,90")]),
+        instruction="Prices.",
+        before_agent_callback=memory.before_agent,
+        after_agent_callback=memory.after_agent,
+    )
+    model = FakeGemini(model="fake", replies=[call("pricing", {"request": "PX"}), text("It is R$ 199,90.")])
+    agent = LlmAgent(
+        name="support",
+        model=model,
+        instruction="You are Acme's agent.",
+        tools=[AgentTool(agent=pricing)],
+        before_agent_callback=memory.before_agent,
+        after_agent_callback=memory.after_agent,
+        before_tool_callback=memory.before_tool,
+        after_tool_callback=memory.after_tool,
+    )
+    await run(agent, "How much is the PX?")
+    await on_mock_async.flush()
+    records = {r["agent"]["name"]: r for r in (s.record for s in mock_app.cell.turns.turns.values())}
+    assert set(records) == {"support", "pricing"}
+    assert records["pricing"]["agent"]["parent_turn_id"] == records["support"]["turn_id"]

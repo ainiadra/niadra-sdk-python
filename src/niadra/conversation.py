@@ -27,8 +27,8 @@
   `tool_result()` records what a tool of your own returned, so its values count as sources.
 - Leaving the block emits `conversation.ended` (or `task.ended`), even when the block raised.
 - `turn()` opens a turn record (`niadra.turns`): inside it, the reads, the tools decorated with
-  `@niadra.tool`, the model named in `agent(usage=...)` and what the agent said land in the record,
-  which the client sends in the background.
+  `@niadra.tool`, the model named in `agent(usage=...)` (as the `model` pin) and what the agent said
+  land in the record, which the client sends in the background.
 
 `mark_injected()` records the moment the pack went into the model's prompt. The agent's later
 turns and actions carry it as `context_stamp`, with the pack's etag, which is how measurement
@@ -210,7 +210,7 @@ class _Session:
         if usage is not None and (reported := _as_usage(usage)) is not None:
             event["usage"] = reported
             if (frame := current_turn()) is not None:
-                frame.model_call(reported.model)
+                frame.pin_model(reported.model)
         if report is not None:
             event.setdefault("backing", Backing(**report.event_fields()))
         sent = self._turn(Speaker.AI_AGENT, "outbound", text, event)

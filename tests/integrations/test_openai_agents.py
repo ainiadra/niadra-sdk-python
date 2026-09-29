@@ -192,3 +192,53 @@ async def test_the_agents_own_notes_come_before_the_customers_context(
     await Runner.run(agent, "Hi", hooks=memory.hooks, run_config=memory.run_config())
     instructions = model.calls[0].system_instructions or ""
     assert instructions.index("replacement order") < instructions.index("<niadra>")
+
+
+async def test_with_turns_a_run_is_a_turn_and_a_handoff_a_sub_turn(
+    chat: Any, on_mock_async: AsyncNiadra, mock_app: MockApp
+) -> None:
+    from agents import function_tool
+
+    @function_tool
+    def stock(sku: str) -> str:
+        """Units of an item in stock."""
+        return f"{sku}: 3"
+
+    billing = Agent(
+        name="Billing", instructions="Billing.", model=ScriptedModel([said("Billing here.", "resp-2")])
+    )
+    model = ScriptedModel(
+        [
+            ModelStep(
+                output=[function_call("stock", {"sku": "PX-4471"}, call_id="call-7")], usage=usage(900, 0)
+            ),
+            ModelStep(output=[function_call("transfer_to_billing", {}, call_id="h1")]),
+        ]
+    )
+    model.model = "gpt-4.1"  # type: ignore[attr-defined]
+    triage = Agent(name="Triage", instructions="Route.", model=model, tools=[stock], handoffs=[billing])
+    memory = NiadraAgentsMemory(chat, turns=True)
+    await Runner.run(triage, "Is the PX in stock?", hooks=memory.hooks, run_config=memory.run_config())
+    await on_mock_async.flush()
+    records = {r["agent"]["name"]: r for r in (s.record for s in mock_app.cell.turns.turns.values())}
+    assert set(records) == {"Triage", "Billing"}
+    triage_turn, billing_turn = records["Triage"], records["Billing"]
+    assert billing_turn["agent"]["parent_turn_id"] == triage_turn["turn_id"]
+    assert triage_turn["build"]["adapter"].startswith("openai_agents/")
+    (tool,) = [c for c in triage_turn["calls"] if c["kind"] == "tool"]
+    assert (tool["call_id"], tool["name"], tool["status"]) == ("call-7", "stock", "ok")
+    assert triage_turn["blobs"][tool["args"]]["content"] == {"sku": "PX-4471"}
+    assert triage_turn["blobs"][tool["result_model"]]["content"] == "PX-4471: 3"
+    first = next(c for c in triage_turn["calls"] if c["kind"] == "model")
+    assert (first["name"], first["tokens"]["in"]) == ("gpt-4.1", 900)
+    assert len(billing_turn["output"]["event_keys"]) == 1
+
+
+async def test_without_turns_the_hooks_record_no_turn(
+    chat: Any, on_mock_async: AsyncNiadra, mock_app: MockApp
+) -> None:
+    memory = NiadraAgentsMemory(chat)
+    agent = Agent(name="Support", instructions="x", model=ScriptedModel([said("Hi.")]))
+    await Runner.run(agent, "Hello", hooks=memory.hooks, run_config=memory.run_config())
+    await on_mock_async.flush()
+    assert mock_app.cell.turns.turns == {}
