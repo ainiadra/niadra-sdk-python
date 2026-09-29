@@ -22,6 +22,23 @@ from typing import Any
 
 import pytest
 
+from niadra.claims import (
+    Anchor,
+    Mention,
+    Output,
+    Role,
+    Turn,
+    TurnValue,
+    check,
+    detected,
+    mentions,
+    nature_of,
+    normalize,
+    roles_of,
+    score,
+)
+from niadra.claims.anchor import distance
+from niadra.models.state import ClaimContractSummary
 from niadra.state.expr import (
     Calendar,
     Environment,
@@ -246,6 +263,94 @@ def _expr(case: dict[str, Any]) -> None:
     assert _same(case["expect"], result), result
 
 
+def _turn_value(item: dict[str, Any]) -> TurnValue:
+    known = {"class", "value", "role", "fresh", "object_type", "name", "call_id", "ref", "declared_gaps"}
+    assert set(item) <= known, sorted(set(item) - known)
+    return TurnValue(
+        item["class"],
+        item["value"],
+        item.get("role"),
+        item.get("fresh", True),
+        item.get("object_type"),
+        item.get("name"),
+        item.get("call_id"),
+        item.get("ref"),
+        tuple(item.get("declared_gaps", ())),
+    )
+
+
+def _claim_parser(case: dict[str, Any]) -> None:
+    text, lang = case["text"], case["lang"]
+    found = mentions(text, lang)
+    roles: dict[Mention, Role] = {}
+    if "roles" in case:
+        for cls in {m.cls for m in found if m.cls != "label"}:
+            same = [m for m in found if m.cls == cls]
+            roles.update(zip(same, roles_of(text, same, case["roles"]), strict=True))
+    values = tuple(_turn_value(item) for item in case.get("evidence", ()))
+    got = []
+    for m in found:
+        item: dict[str, Any] = {"span": [m.start, m.end], "text": text[m.start : m.end], "class": m.cls}
+        if m.cls != "label":
+            item |= {"value": m.value(), "written": m.written}
+            if "roles" in case:
+                item |= {"role": roles[m].name, "role_status": roles[m].status}
+            if "evidence" in case:
+                item["nature"] = nature_of(text, m, roles.get(m, Role(None, "none")), values)
+        got.append(item)
+    assert got == case["expect"]["mentions"]
+
+
+def _claim_detect(case: dict[str, Any]) -> None:
+    contract = ClaimContractSummary.model_validate(json.loads((SPEC / case["contract"]).read_text()))
+    out, turn = case["output"], case["turn"]
+    assert set(out) <= {"text", "lang", "context", "immutable", "agent"}, sorted(out)
+    assert set(turn) <= {"values", "tools", "documents", "anchors", "sections"}, sorted(turn)
+    values = tuple(_turn_value(item) for item in turn.get("values", ()))
+    assert all(set(a) <= {"span", "quote", "document"} for a in turn.get("anchors", ()))
+    anchors = tuple(
+        Anchor(a["span"][0], a["span"][1], a["quote"], a["document"]) for a in turn.get("anchors", ())
+    )
+    sections = {name: tuple((s, e) for s, e in spans) for name, spans in turn.get("sections", {}).items()}
+    output = Output(out["text"], out["lang"], out["context"], out["immutable"], out.get("agent"))
+    found = check(
+        contract.categories,
+        output,
+        Turn(values, tuple(turn.get("tools", ())), turn.get("documents", {}), anchors, sections),
+    )
+    got = []
+    for f in found:
+        item: dict[str, Any] = {
+            "category": f.category,
+            "span": [f.start, f.end],
+            "text": out["text"][f.start : f.end],
+        }
+        if f.cls is not None:
+            item |= {
+                "class": f.cls,
+                "nature": f.nature,
+                "role": f.role,
+                "value": dict(f.value) if f.value else None,
+            }
+        item |= {"verdict": f.verdict, "action": f.action}
+        if isinstance(f.evidence, TurnValue):
+            item["evidence"] = {"value": values.index(f.evidence)}
+        elif isinstance(f.evidence, Anchor):
+            item["evidence"] = {"anchor": anchors.index(f.evidence)}
+        got.append(item)
+    assert got == case["expect"]["findings"]
+
+
+def _claim_anchor(case: dict[str, Any]) -> None:
+    expect = case["expect"]
+    quote = normalize(case["quote"])
+    assert len(quote) == expect["normalized_quote_length"]
+    assert distance(quote, normalize(case["document"])) == expect["distance"]
+    got = score(case["quote"], case["document"])
+    assert got == (1 - expect["distance"] / len(quote) if quote else 0.0)
+    assert (got >= 0.90) == expect["holds"]
+
+
 def _pending(case_fields: str, expect_fields: str, what: str) -> Expected:
     """A published file whose runner the SDK does not have yet."""
     return Expected(frozenset(case_fields.split()), frozenset(expect_fields.split()), None, pending=what)
@@ -256,16 +361,18 @@ EXPECTED: dict[str, Expected] = {
         frozenset({"id", "note", "value", "expect"}), frozenset({"canonical", "sha256", "size"}), _digest
     ),
     "niadra-expr.v0": Expected(_EXPR_CASE, frozenset({"value"}), _expr),
-    "claim-parser.v0": _pending(
-        "id lang text roles evidence expect", "mentions", "the claim contract's number and role parser"
+    "claim-parser.v0": Expected(
+        frozenset({"id", "lang", "text", "roles", "evidence", "expect"}),
+        frozenset({"mentions"}),
+        _claim_parser,
     ),
-    "claim-detect.v0": _pending(
-        "id contract output turn expect", "findings", "the claim contract's detection"
+    "claim-detect.v0": Expected(
+        frozenset({"id", "contract", "output", "turn", "expect"}), frozenset({"findings"}), _claim_detect
     ),
-    "claim-anchor.v0": _pending(
-        "id quote document expect",
-        "normalized_quote_length distance holds",
-        "the claim contract's text anchor",
+    "claim-anchor.v0": Expected(
+        frozenset({"id", "quote", "document", "expect"}),
+        frozenset({"normalized_quote_length", "distance", "holds"}),
+        _claim_anchor,
     ),
     "constraint-render.v0": _pending(
         "id block binding families call mode results expect",
@@ -345,6 +452,26 @@ def test_the_negative_corpus_never_triggers_the_claim_contract(sector: str) -> N
     path = SPEC / "examples" / "claim-contract" / f"{sector}.json"
     if not path.exists():
         pytest.skip(f"pending vectors: examples/claim-contract/{sector}.json is not published yet")
-    phrases = json.loads(path.read_text())["negative_corpus"]["phrases"]
+    document = json.loads(path.read_text())
+    phrases = document["negative_corpus"]["phrases"]
     assert phrases, f"{sector}: an empty negative corpus proves nothing"
-    pytest.xfail("pending implementation: the claim contract's detection")
+    contract = ClaimContractSummary.model_validate(document)
+    # A phrase triggers when, in any of the contract's languages and for any of its agents, a category
+    # finds a claim in it (the claim contract spec, section 10.2).
+    agents = {None, *(a for c in contract.categories for a in c.agents)}
+    triggered = [
+        (phrase, lang, agent, categories)
+        for phrase in phrases
+        for lang in contract.languages
+        for agent in sorted(agents, key=str)
+        if (categories := detected(contract.categories, Output(phrase, lang, "chat", False, agent)))
+    ]
+    assert not triggered
+
+
+def test_the_negative_corpus_check_would_catch_a_phrase_that_triggers() -> None:
+    document = json.loads((SPEC / "examples" / "claim-contract" / "retail.json").read_text())
+    contract = ClaimContractSummary.model_validate(document)
+    assert detected(contract.categories, Output("Infelizmente está esgotado.", "pt", "chat", False)) == [
+        "availability_denial"
+    ]
