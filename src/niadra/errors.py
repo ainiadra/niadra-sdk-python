@@ -1,8 +1,9 @@
 """Exceptions raised by the SDK.
 
 With the default `strict=False`, public client methods never raise: they log and return a
-safe value. These exceptions surface only with `strict=True`, or from code you call
-directly, such as `ApiKey.parse()` or the handle helpers.
+safe value. These exceptions surface only with `strict=True`, from the route methods of
+`niadra.api`, which always raise, or from code you call directly, such as `ApiKey.parse()` or
+the handle helpers.
 """
 
 from __future__ import annotations
@@ -86,6 +87,13 @@ class ServerError(APIError):
     pass
 
 
+class NotAvailableError(ServerError):
+    """501: the server declares the route and has not built it yet. Nothing was done."""
+
+    def __str__(self) -> str:
+        return f"{super().__str__()}: not available on this server yet"
+
+
 _BY_STATUS: dict[int, type[APIError]] = {
     400: BadRequestError,
     401: AuthenticationError,
@@ -100,6 +108,8 @@ _BY_STATUS: dict[int, type[APIError]] = {
 def error_for_status(status_code: int, problem: Problem | None, retry_after: float | None = None) -> APIError:
     if status_code == 429:
         return RateLimitError(status_code, problem, retry_after)
+    if status_code == 501:
+        return NotAvailableError(status_code, problem)
     if status_code >= 500:
         return ServerError(status_code, problem)
     return _BY_STATUS.get(status_code, APIError)(status_code, problem)

@@ -1,0 +1,152 @@
+{
+  "vectors": "turn-record-digest",
+  "version": "v0",
+  "spec": "spec/turn-record.md",
+  "cases": [
+    {
+      "id": "digest.keys_sorted",
+      "note": "Keys are sorted at every depth; arrays keep their order.",
+      "value": {
+        "b": 1,
+        "a": {
+          "d": [
+            3,
+            2,
+            1
+          ],
+          "c": null
+        }
+      },
+      "expect": {
+        "canonical": "{\"a\":{\"c\":null,\"d\":[3,2,1]},\"b\":1}",
+        "sha256": "sha256:99292fc65b1416433c73754bd2133c24f100c4da791e825377abb6756eeb69ae",
+        "size": 34
+      }
+    },
+    {
+      "id": "digest.no_whitespace",
+      "note": "No space between tokens.",
+      "value": {
+        "plan": "family",
+        "ages": [
+          34,
+          36,
+          5
+        ]
+      },
+      "expect": {
+        "canonical": "{\"ages\":[34,36,5],\"plan\":\"family\"}",
+        "sha256": "sha256:be2e0377c384b29133db0bc9da1dd2cbbb42c7a315d4fa25cb5ce6ae520d2e23",
+        "size": 34
+      }
+    },
+    {
+      "id": "digest.utf16_key_order",
+      "note": "Keys sort by UTF-16 code units: the emoji (U+1F600) comes before U+FB01.",
+      "value": {
+        "ﬁ": 1,
+        "😀": 2,
+        "z": 3
+      },
+      "expect": {
+        "canonical": "{\"z\":3,\"😀\":2,\"ﬁ\":1}",
+        "sha256": "sha256:ab6100d253cb4c4150785e30d4faa3022ed6910e357e0352cf32ad674e107e7f",
+        "size": 24
+      }
+    },
+    {
+      "id": "digest.unicode_kept",
+      "note": "Non-ASCII characters stay as UTF-8, never escaped.",
+      "value": {
+        "city": "São Paulo",
+        "note": "ação"
+      },
+      "expect": {
+        "canonical": "{\"city\":\"São Paulo\",\"note\":\"ação\"}",
+        "sha256": "sha256:5b84f993acd9a9346d6ec26eb3a8d6bc230cbfe1225172bc8237e14f83accd5f",
+        "size": 37
+      }
+    },
+    {
+      "id": "digest.escapes",
+      "note": "Only the JSON escapes: short forms where they exist, \\u00XX for other controls.",
+      "value": {
+        "s": "line\nbreak\t\"quoted\" \\ \u001f"
+      },
+      "expect": {
+        "canonical": "{\"s\":\"line\\nbreak\\t\\\"quoted\\\" \\\\ \\u001f\"}",
+        "sha256": "sha256:cbedd9e4f2373fe3eca8d3f100da4a87e0020531175c1b15263c7c7ced9f3cc6",
+        "size": 41
+      }
+    },
+    {
+      "id": "digest.integer_valued_float",
+      "note": "511.0 is written 511.",
+      "value": {
+        "price": 511.0,
+        "qty": 3
+      },
+      "expect": {
+        "canonical": "{\"price\":511,\"qty\":3}",
+        "sha256": "sha256:a80acd642db988802175c4a2dc9ca0a8ff3b66c23a796dc8d7746045746bf275",
+        "size": 21
+      }
+    },
+    {
+      "id": "digest.decimals",
+      "note": "The shortest form that reads back the same number.",
+      "value": {
+        "price_full": 511.06,
+        "rate": 0.1,
+        "small": 1e-06
+      },
+      "expect": {
+        "canonical": "{\"price_full\":511.06,\"rate\":0.1,\"small\":0.000001}",
+        "sha256": "sha256:c289f77933af8aac6de2806fb3c32f51f8b5ed1c008f2f89033238bf01da18bc",
+        "size": 49
+      }
+    },
+    {
+      "id": "digest.exponents",
+      "note": "Exponent form from 1e21 up and below 1e-6, as ECMAScript writes it.",
+      "value": {
+        "big": 1e+21,
+        "tiny": 1e-07,
+        "neg": -2.5e-08
+      },
+      "expect": {
+        "canonical": "{\"big\":1e+21,\"neg\":-2.5e-8,\"tiny\":1e-7}",
+        "sha256": "sha256:365e93e5bb167f4ac6dcf432dc3f8a6280ab2ffb73da0bca93f290bb65bba731",
+        "size": 39
+      }
+    },
+    {
+      "id": "digest.negative_zero",
+      "note": "Negative zero is written 0.",
+      "value": {
+        "z": -0.0
+      },
+      "expect": {
+        "canonical": "{\"z\":0}",
+        "sha256": "sha256:e313adcae40818c4a48a6f5a32c7ab937365ffb0962282a5bf1a629f8d456b63",
+        "size": 7
+      }
+    },
+    {
+      "id": "digest.literals",
+      "note": "Literals and empty containers.",
+      "value": {
+        "t": true,
+        "f": false,
+        "n": null,
+        "e": [],
+        "o": {}
+      },
+      "expect": {
+        "canonical": "{\"e\":[],\"f\":false,\"n\":null,\"o\":{},\"t\":true}",
+        "sha256": "sha256:2f0e28eea66ca5517f95d7383c87bee4e791e5f3eee58e9e1e578817b92c7afd",
+        "size": 43
+      }
+    }
+  ]
+}

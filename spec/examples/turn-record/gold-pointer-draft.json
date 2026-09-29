@@ -1,0 +1,175 @@
+{
+  "spec": "turn-record.v0",
+  "turn_id": "0192f5c4-1d00-7b11-9a01-5e6f7a8b9c02",
+  "task_id": "draft-reply-2026-0042",
+  "agent": {
+    "name": "drafter",
+    "role": "copilot"
+  },
+  "kind": "event",
+  "started_at": "2026-09-29T16:30:00Z",
+  "ended_at": "2026-09-29T16:31:42Z",
+  "fidelity": "gold",
+  "completeness": "complete",
+  "content_mode": "pointer",
+  "build": {
+    "pins": {
+      "prompts": {
+        "drafting": "v31"
+      },
+      "corpus_digest": "sha256:132b03709beac0ab146ee69e2f3a3510ed8a10a5ca46ae3e696ee1d6bed625af",
+      "model": "provider/model-2026-08",
+      "assembler": "1.4.2",
+      "tool_schemas": {
+        "fetch_case": "sha256:d75af59be7283daf6c3194091787203bd894bd680a21d3f0f28aeb830642d54a",
+        "deadline": "sha256:8eb16ccf4cb46bd0ef464d3e82e9444354d3899cb66ce6444fe34fb38c7fd085"
+      }
+    },
+    "sdk": "niadra-python/0.7.0"
+  },
+  "reads": [
+    {
+      "surface": "state",
+      "version": "sv_20260929_1630",
+      "blob": "s:1"
+    }
+  ],
+  "calls": [
+    {
+      "call_id": "t1",
+      "kind": "tool",
+      "name": "fetch_case",
+      "status": "ok",
+      "latency_ms": 310,
+      "args_hash": "sha256:db549fade7e4c432c7b5d2c0263172ced6f73286fecff24f58b4d027237210e3",
+      "args": "b:1",
+      "result_model": "b:2",
+      "observations": [
+        {
+          "ref": "notice_with_deadline:court:0001234-55",
+          "fields": {
+            "due_date": "2026-10-14"
+          },
+          "provenance": {
+            "source": "snapshot",
+            "source_observed_at": "2026-09-29T06:00:00Z",
+            "scope": "global"
+          }
+        }
+      ]
+    },
+    {
+      "call_id": "t2",
+      "kind": "tool",
+      "name": "deadline",
+      "status": "ok",
+      "latency_ms": 12,
+      "args": "b:3",
+      "result_model": "b:4",
+      "cost_units": {}
+    },
+    {
+      "call_id": "m1",
+      "kind": "model",
+      "status": "ok",
+      "latency_ms": 58000,
+      "tokens": {
+        "in": 41000,
+        "cached": 36000,
+        "out": 5200
+      }
+    }
+  ],
+  "claims": [
+    {
+      "category": "deadline",
+      "nature": "computed",
+      "role": "due_date",
+      "span": [
+        1204,
+        1214
+      ],
+      "value": "2026-10-14",
+      "evidence": {
+        "call_id": "t2",
+        "field": "due_date"
+      },
+      "verdict": "matched",
+      "action": "count"
+    },
+    {
+      "category": "fact_from_record",
+      "nature": "quoted",
+      "span": [
+        310,
+        402
+      ],
+      "evidence": {
+        "anchor": "a:1"
+      },
+      "verdict": "anchored",
+      "action": "none"
+    },
+    {
+      "category": "legal_citation",
+      "span": [
+        2210,
+        2251
+      ],
+      "evidence": {
+        "anchor": "a:2"
+      },
+      "verdict": "below_threshold",
+      "action": "discard_anchor_and_count"
+    }
+  ],
+  "output": {
+    "document": "d:1"
+  },
+  "latency_ms": 102000,
+  "flags": [
+    "guard_acted"
+  ],
+  "blobs": {
+    "s:1": {
+      "sha256": "sha256:2a1f2ea23aa0872a77c3ea87c2af461dd15b38e0b7ee505cc03b2335c73aabef",
+      "size": 10,
+      "pointer": "s3://firm-turns/turns/draft-reply-2026-0042/s1.json"
+    },
+    "b:1": {
+      "sha256": "sha256:2060f845fcb5ee04058a66c6b36647ad9f9543eb4fa373a252458f17d3afd416",
+      "size": 6,
+      "pointer": "s3://firm-turns/turns/draft-reply-2026-0042/b1.json"
+    },
+    "b:2": {
+      "sha256": "sha256:400a936d0ac7637324413df9aaf2067ff68468e602a5446af1e454878b5bad1e",
+      "size": 8,
+      "pointer": "s3://firm-turns/turns/draft-reply-2026-0042/b2.json"
+    },
+    "b:3": {
+      "sha256": "sha256:f4f259892bb93e2fd369f55892ac8842ff658ca6b2f162c71916acaa14b73d29",
+      "size": 6,
+      "pointer": "s3://firm-turns/turns/draft-reply-2026-0042/b3.json"
+    },
+    "b:4": {
+      "sha256": "sha256:096e929abe31157e5a522fecfe1333bb96b3252e9ee74923b6e9027206c4d068",
+      "size": 8,
+      "pointer": "s3://firm-turns/turns/draft-reply-2026-0042/b4.json"
+    },
+    "a:1": {
+      "sha256": "sha256:9170fa78b9d469a1bee5ff75b7ff5c1744b9eccf4b40889aec2f21b04306c3b2",
+      "size": 8,
+      "pointer": "s3://firm-turns/turns/draft-reply-2026-0042/a1.json"
+    },
+    "a:2": {
+      "sha256": "sha256:2f019577b103978a4913e2abb56e3b9744cec24b9a288b954b992d7145be05ad",
+      "size": 8,
+      "pointer": "s3://firm-turns/turns/draft-reply-2026-0042/a2.json"
+    },
+    "d:1": {
+      "sha256": "sha256:86f39f6b73501a9a7d3cc8cf818393e9afd039fb1b5146bb05299ee2841e4313",
+      "size": 8,
+      "pointer": "s3://firm-turns/turns/draft-reply-2026-0042/d1.json"
+    }
+  }
+}

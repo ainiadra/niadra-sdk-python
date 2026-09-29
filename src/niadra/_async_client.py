@@ -29,6 +29,7 @@ from niadra._cache import ContextCache, cache_key
 from niadra._queue import AsyncFlusher, is_retryable
 from niadra._transport import AsyncTransport
 from niadra._voice import TurnRead, VoiceLine, VoiceLines, compose, words_of
+from niadra.api import AsyncApi
 from niadra.conversation import AsyncConversation, AsyncTask
 from niadra.errors import APITimeoutError
 from niadra.models.admin import IngestStatus, KeyIdentity
@@ -94,6 +95,8 @@ class AsyncNiadra:
         self._transport = AsyncTransport(self._core.base_url, self._core.api_key, http_client)
         self.admin = AsyncAdmin(self._core, self._transport)
         """Governance calls for a key with the `admin` scope: memory, fact history, corrections, erasure."""
+        self.api = AsyncApi(self._core, self._transport)
+        """The routes of turn records, typed state, signals and coordination, one method each. They raise."""
         self._flusher = AsyncFlusher(self._core.buffer, self._send_batch, self._core.queue_options)
         self._refreshes: set[asyncio.Task[None]] = set()
         # Per conversation, one prefetch in flight and the newest text waiting behind it.
