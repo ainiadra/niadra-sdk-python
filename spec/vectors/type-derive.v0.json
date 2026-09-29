@@ -1,0 +1,3602 @@
+{
+  "vectors": "type-derive",
+  "version": "v0",
+  "spec": "spec/object-type.md",
+  "cases": [
+    {
+      "id": "derive.retail.orders",
+      "description": "A retail order table: a list CHECK on the status gives the states, an enumeration and a varchar list give enum fields, the foreign key a relation, jsonb goes to the review with the comparison CHECK and the trigger.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "public.orders",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "customer_id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "not_null": true
+          },
+          {
+            "name": "size",
+            "type": "character varying(4)",
+            "not_null": false
+          },
+          {
+            "name": "channel",
+            "type": "public.channel",
+            "not_null": true,
+            "enum": "public.channel"
+          },
+          {
+            "name": "total",
+            "type": "numeric(12,2)",
+            "not_null": true
+          },
+          {
+            "name": "priority",
+            "type": "integer",
+            "not_null": false
+          },
+          {
+            "name": "placed_at",
+            "type": "timestamp with time zone",
+            "not_null": true
+          },
+          {
+            "name": "due_on",
+            "type": "date",
+            "not_null": false
+          },
+          {
+            "name": "gift",
+            "type": "boolean",
+            "not_null": false
+          },
+          {
+            "name": "tags",
+            "type": "text[]",
+            "not_null": false
+          },
+          {
+            "name": "meta",
+            "type": "jsonb",
+            "not_null": false
+          },
+          {
+            "name": "Delivery Window",
+            "type": "interval",
+            "not_null": false
+          },
+          {
+            "name": "state",
+            "type": "text",
+            "not_null": false
+          }
+        ],
+        "primary_key": [
+          "id"
+        ],
+        "checks": [
+          "CHECK ((priority = ANY (ARRAY[1, 2, 3])))",
+          "CHECK (((size)::text = ANY ((ARRAY['P'::character varying, 'M'::character varying, 'G'::character varying])::text[])))",
+          "CHECK ((status = ANY (ARRAY['open'::text, 'paid'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text])))",
+          "CHECK ((total >= (0)::numeric))"
+        ],
+        "enums": [
+          {
+            "name": "public.channel",
+            "labels": [
+              "store",
+              "site",
+              "app"
+            ]
+          }
+        ],
+        "foreign_keys": [
+          {
+            "columns": [
+              "customer_id"
+            ],
+            "references": "public.customers",
+            "referenced_columns": [
+              "id"
+            ]
+          }
+        ],
+        "triggers": [
+          {
+            "name": "orders_touch",
+            "definition": "CREATE TRIGGER orders_touch BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION public.orders_touch()",
+            "enabled": true
+          }
+        ]
+      },
+      "options": {},
+      "expect": {
+        "fingerprint": "sha256:41490504437121877d60d8520a27c1b35f518d1e8c2fc6a5fa06aad99954b7e2",
+        "type": {
+          "type": "orders",
+          "version": "1",
+          "ownership": "subject",
+          "mirror_of": {
+            "system": "postgresql",
+            "derived_by": "introspection",
+            "fingerprint": "sha256:41490504437121877d60d8520a27c1b35f518d1e8c2fc6a5fa06aad99954b7e2",
+            "drift": "alert"
+          },
+          "key": {
+            "natural": [
+              "id"
+            ]
+          },
+          "fields": {
+            "delivery_window": {
+              "type": "duration"
+            },
+            "channel": {
+              "type": "enum"
+            },
+            "customer_id": {
+              "type": "ref"
+            },
+            "due_on": {
+              "type": "date"
+            },
+            "gift": {
+              "type": "bool"
+            },
+            "id": {
+              "type": "string"
+            },
+            "placed_at": {
+              "type": "datetime"
+            },
+            "priority": {
+              "type": "enum"
+            },
+            "size": {
+              "type": "enum"
+            },
+            "state_": {
+              "type": "string"
+            },
+            "status": {
+              "type": "enum"
+            },
+            "tags": {
+              "type": "list"
+            },
+            "total": {
+              "type": "number"
+            }
+          },
+          "states": [
+            "open",
+            "paid",
+            "shipped",
+            "delivered",
+            "cancelled"
+          ],
+          "relations": {
+            "customer": {
+              "type": "customers",
+              "via": "customer_id"
+            }
+          }
+        },
+        "review": [
+          {
+            "kind": "column",
+            "column": "meta",
+            "type": "jsonb"
+          },
+          {
+            "kind": "check",
+            "definition": "CHECK ((total >= (0)::numeric))"
+          },
+          {
+            "kind": "trigger",
+            "name": "orders_touch",
+            "enabled": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "derive.retail.orders_listed_in_another_order",
+      "description": "The same catalog listed in another order has the same fingerprint and proposal.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "public.orders",
+        "columns": [
+          {
+            "name": "size",
+            "type": "character varying(4)",
+            "not_null": false
+          },
+          {
+            "name": "meta",
+            "type": "jsonb",
+            "not_null": false
+          },
+          {
+            "name": "state",
+            "type": "text",
+            "not_null": false
+          },
+          {
+            "name": "placed_at",
+            "type": "timestamp with time zone",
+            "not_null": true
+          },
+          {
+            "name": "gift",
+            "type": "boolean",
+            "not_null": false
+          },
+          {
+            "name": "channel",
+            "type": "public.channel",
+            "not_null": true,
+            "enum": "public.channel"
+          },
+          {
+            "name": "Delivery Window",
+            "type": "interval",
+            "not_null": false
+          },
+          {
+            "name": "due_on",
+            "type": "date",
+            "not_null": false
+          },
+          {
+            "name": "customer_id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "tags",
+            "type": "text[]",
+            "not_null": false
+          },
+          {
+            "name": "priority",
+            "type": "integer",
+            "not_null": false
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "not_null": true
+          },
+          {
+            "name": "total",
+            "type": "numeric(12,2)",
+            "not_null": true
+          }
+        ],
+        "primary_key": [
+          "id"
+        ],
+        "checks": [
+          "CHECK ((status = ANY (ARRAY['open'::text, 'paid'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text])))",
+          "CHECK ((priority = ANY (ARRAY[1, 2, 3])))",
+          "CHECK (((size)::text = ANY ((ARRAY['P'::character varying, 'M'::character varying, 'G'::character varying])::text[])))",
+          "CHECK ((total >= (0)::numeric))"
+        ],
+        "enums": [
+          {
+            "name": "public.channel",
+            "labels": [
+              "store",
+              "site",
+              "app"
+            ]
+          }
+        ],
+        "foreign_keys": [
+          {
+            "columns": [
+              "customer_id"
+            ],
+            "references": "public.customers",
+            "referenced_columns": [
+              "id"
+            ]
+          }
+        ],
+        "triggers": [
+          {
+            "name": "orders_touch",
+            "definition": "CREATE TRIGGER orders_touch BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION public.orders_touch()",
+            "enabled": true
+          }
+        ]
+      },
+      "options": {},
+      "expect": {
+        "fingerprint": "sha256:41490504437121877d60d8520a27c1b35f518d1e8c2fc6a5fa06aad99954b7e2",
+        "type": {
+          "type": "orders",
+          "version": "1",
+          "ownership": "subject",
+          "mirror_of": {
+            "system": "postgresql",
+            "derived_by": "introspection",
+            "fingerprint": "sha256:41490504437121877d60d8520a27c1b35f518d1e8c2fc6a5fa06aad99954b7e2",
+            "drift": "alert"
+          },
+          "key": {
+            "natural": [
+              "id"
+            ]
+          },
+          "fields": {
+            "delivery_window": {
+              "type": "duration"
+            },
+            "channel": {
+              "type": "enum"
+            },
+            "customer_id": {
+              "type": "ref"
+            },
+            "due_on": {
+              "type": "date"
+            },
+            "gift": {
+              "type": "bool"
+            },
+            "id": {
+              "type": "string"
+            },
+            "placed_at": {
+              "type": "datetime"
+            },
+            "priority": {
+              "type": "enum"
+            },
+            "size": {
+              "type": "enum"
+            },
+            "state_": {
+              "type": "string"
+            },
+            "status": {
+              "type": "enum"
+            },
+            "tags": {
+              "type": "list"
+            },
+            "total": {
+              "type": "number"
+            }
+          },
+          "states": [
+            "open",
+            "paid",
+            "shipped",
+            "delivered",
+            "cancelled"
+          ],
+          "relations": {
+            "customer": {
+              "type": "customers",
+              "via": "customer_id"
+            }
+          }
+        },
+        "review": [
+          {
+            "kind": "column",
+            "column": "meta",
+            "type": "jsonb"
+          },
+          {
+            "kind": "check",
+            "definition": "CHECK ((total >= (0)::numeric))"
+          },
+          {
+            "kind": "trigger",
+            "name": "orders_touch",
+            "enabled": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "derive.retail.orders_new_status_value",
+      "description": "A new value in the status CHECK changes the fingerprint and adds a state.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "public.orders",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "customer_id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "not_null": true
+          },
+          {
+            "name": "size",
+            "type": "character varying(4)",
+            "not_null": false
+          },
+          {
+            "name": "channel",
+            "type": "public.channel",
+            "not_null": true,
+            "enum": "public.channel"
+          },
+          {
+            "name": "total",
+            "type": "numeric(12,2)",
+            "not_null": true
+          },
+          {
+            "name": "priority",
+            "type": "integer",
+            "not_null": false
+          },
+          {
+            "name": "placed_at",
+            "type": "timestamp with time zone",
+            "not_null": true
+          },
+          {
+            "name": "due_on",
+            "type": "date",
+            "not_null": false
+          },
+          {
+            "name": "gift",
+            "type": "boolean",
+            "not_null": false
+          },
+          {
+            "name": "tags",
+            "type": "text[]",
+            "not_null": false
+          },
+          {
+            "name": "meta",
+            "type": "jsonb",
+            "not_null": false
+          },
+          {
+            "name": "Delivery Window",
+            "type": "interval",
+            "not_null": false
+          },
+          {
+            "name": "state",
+            "type": "text",
+            "not_null": false
+          }
+        ],
+        "primary_key": [
+          "id"
+        ],
+        "checks": [
+          "CHECK ((priority = ANY (ARRAY[1, 2, 3])))",
+          "CHECK (((size)::text = ANY ((ARRAY['P'::character varying, 'M'::character varying, 'G'::character varying])::text[])))",
+          "CHECK ((status = ANY (ARRAY['open'::text, 'paid'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text, 'returned'::text])))",
+          "CHECK ((total >= (0)::numeric))"
+        ],
+        "enums": [
+          {
+            "name": "public.channel",
+            "labels": [
+              "store",
+              "site",
+              "app"
+            ]
+          }
+        ],
+        "foreign_keys": [
+          {
+            "columns": [
+              "customer_id"
+            ],
+            "references": "public.customers",
+            "referenced_columns": [
+              "id"
+            ]
+          }
+        ],
+        "triggers": [
+          {
+            "name": "orders_touch",
+            "definition": "CREATE TRIGGER orders_touch BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION public.orders_touch()",
+            "enabled": true
+          }
+        ]
+      },
+      "options": {},
+      "expect": {
+        "fingerprint": "sha256:4d894dbb85167baed98dd6b6f5bd50c25af18c0296a323a55e8606ab6785a86e",
+        "type": {
+          "type": "orders",
+          "version": "1",
+          "ownership": "subject",
+          "mirror_of": {
+            "system": "postgresql",
+            "derived_by": "introspection",
+            "fingerprint": "sha256:4d894dbb85167baed98dd6b6f5bd50c25af18c0296a323a55e8606ab6785a86e",
+            "drift": "alert"
+          },
+          "key": {
+            "natural": [
+              "id"
+            ]
+          },
+          "fields": {
+            "delivery_window": {
+              "type": "duration"
+            },
+            "channel": {
+              "type": "enum"
+            },
+            "customer_id": {
+              "type": "ref"
+            },
+            "due_on": {
+              "type": "date"
+            },
+            "gift": {
+              "type": "bool"
+            },
+            "id": {
+              "type": "string"
+            },
+            "placed_at": {
+              "type": "datetime"
+            },
+            "priority": {
+              "type": "enum"
+            },
+            "size": {
+              "type": "enum"
+            },
+            "state_": {
+              "type": "string"
+            },
+            "status": {
+              "type": "enum"
+            },
+            "tags": {
+              "type": "list"
+            },
+            "total": {
+              "type": "number"
+            }
+          },
+          "states": [
+            "open",
+            "paid",
+            "shipped",
+            "delivered",
+            "cancelled",
+            "returned"
+          ],
+          "relations": {
+            "customer": {
+              "type": "customers",
+              "via": "customer_id"
+            }
+          }
+        },
+        "review": [
+          {
+            "kind": "column",
+            "column": "meta",
+            "type": "jsonb"
+          },
+          {
+            "kind": "check",
+            "definition": "CHECK ((total >= (0)::numeric))"
+          },
+          {
+            "kind": "trigger",
+            "name": "orders_touch",
+            "enabled": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "derive.retail.orders_nullability_changed",
+      "description": "A column's nullability is part of the fingerprint, though the type does not show it.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "public.orders",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "customer_id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "not_null": true
+          },
+          {
+            "name": "size",
+            "type": "character varying(4)",
+            "not_null": false
+          },
+          {
+            "name": "channel",
+            "type": "public.channel",
+            "not_null": true,
+            "enum": "public.channel"
+          },
+          {
+            "name": "total",
+            "type": "numeric(12,2)",
+            "not_null": true
+          },
+          {
+            "name": "priority",
+            "type": "integer",
+            "not_null": false
+          },
+          {
+            "name": "placed_at",
+            "type": "timestamp with time zone",
+            "not_null": true
+          },
+          {
+            "name": "due_on",
+            "type": "date",
+            "not_null": false
+          },
+          {
+            "name": "gift",
+            "type": "boolean",
+            "not_null": true
+          },
+          {
+            "name": "tags",
+            "type": "text[]",
+            "not_null": false
+          },
+          {
+            "name": "meta",
+            "type": "jsonb",
+            "not_null": false
+          },
+          {
+            "name": "Delivery Window",
+            "type": "interval",
+            "not_null": false
+          },
+          {
+            "name": "state",
+            "type": "text",
+            "not_null": false
+          }
+        ],
+        "primary_key": [
+          "id"
+        ],
+        "checks": [
+          "CHECK ((priority = ANY (ARRAY[1, 2, 3])))",
+          "CHECK (((size)::text = ANY ((ARRAY['P'::character varying, 'M'::character varying, 'G'::character varying])::text[])))",
+          "CHECK ((status = ANY (ARRAY['open'::text, 'paid'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text])))",
+          "CHECK ((total >= (0)::numeric))"
+        ],
+        "enums": [
+          {
+            "name": "public.channel",
+            "labels": [
+              "store",
+              "site",
+              "app"
+            ]
+          }
+        ],
+        "foreign_keys": [
+          {
+            "columns": [
+              "customer_id"
+            ],
+            "references": "public.customers",
+            "referenced_columns": [
+              "id"
+            ]
+          }
+        ],
+        "triggers": [
+          {
+            "name": "orders_touch",
+            "definition": "CREATE TRIGGER orders_touch BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION public.orders_touch()",
+            "enabled": true
+          }
+        ]
+      },
+      "options": {},
+      "expect": {
+        "fingerprint": "sha256:539a42858a94717e44520b9f25ad9c03768e5b21942d13a2937769ad84b96dd4",
+        "type": {
+          "type": "orders",
+          "version": "1",
+          "ownership": "subject",
+          "mirror_of": {
+            "system": "postgresql",
+            "derived_by": "introspection",
+            "fingerprint": "sha256:539a42858a94717e44520b9f25ad9c03768e5b21942d13a2937769ad84b96dd4",
+            "drift": "alert"
+          },
+          "key": {
+            "natural": [
+              "id"
+            ]
+          },
+          "fields": {
+            "delivery_window": {
+              "type": "duration"
+            },
+            "channel": {
+              "type": "enum"
+            },
+            "customer_id": {
+              "type": "ref"
+            },
+            "due_on": {
+              "type": "date"
+            },
+            "gift": {
+              "type": "bool"
+            },
+            "id": {
+              "type": "string"
+            },
+            "placed_at": {
+              "type": "datetime"
+            },
+            "priority": {
+              "type": "enum"
+            },
+            "size": {
+              "type": "enum"
+            },
+            "state_": {
+              "type": "string"
+            },
+            "status": {
+              "type": "enum"
+            },
+            "tags": {
+              "type": "list"
+            },
+            "total": {
+              "type": "number"
+            }
+          },
+          "states": [
+            "open",
+            "paid",
+            "shipped",
+            "delivered",
+            "cancelled"
+          ],
+          "relations": {
+            "customer": {
+              "type": "customers",
+              "via": "customer_id"
+            }
+          }
+        },
+        "review": [
+          {
+            "kind": "column",
+            "column": "meta",
+            "type": "jsonb"
+          },
+          {
+            "kind": "check",
+            "definition": "CHECK ((total >= (0)::numeric))"
+          },
+          {
+            "kind": "trigger",
+            "name": "orders_touch",
+            "enabled": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "derive.retail.orders_enum_labels_reordered",
+      "description": "The order of an enumeration's labels is part of the fingerprint.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "public.orders",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "customer_id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "not_null": true
+          },
+          {
+            "name": "size",
+            "type": "character varying(4)",
+            "not_null": false
+          },
+          {
+            "name": "channel",
+            "type": "public.channel",
+            "not_null": true,
+            "enum": "public.channel"
+          },
+          {
+            "name": "total",
+            "type": "numeric(12,2)",
+            "not_null": true
+          },
+          {
+            "name": "priority",
+            "type": "integer",
+            "not_null": false
+          },
+          {
+            "name": "placed_at",
+            "type": "timestamp with time zone",
+            "not_null": true
+          },
+          {
+            "name": "due_on",
+            "type": "date",
+            "not_null": false
+          },
+          {
+            "name": "gift",
+            "type": "boolean",
+            "not_null": false
+          },
+          {
+            "name": "tags",
+            "type": "text[]",
+            "not_null": false
+          },
+          {
+            "name": "meta",
+            "type": "jsonb",
+            "not_null": false
+          },
+          {
+            "name": "Delivery Window",
+            "type": "interval",
+            "not_null": false
+          },
+          {
+            "name": "state",
+            "type": "text",
+            "not_null": false
+          }
+        ],
+        "primary_key": [
+          "id"
+        ],
+        "checks": [
+          "CHECK ((priority = ANY (ARRAY[1, 2, 3])))",
+          "CHECK (((size)::text = ANY ((ARRAY['P'::character varying, 'M'::character varying, 'G'::character varying])::text[])))",
+          "CHECK ((status = ANY (ARRAY['open'::text, 'paid'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text])))",
+          "CHECK ((total >= (0)::numeric))"
+        ],
+        "enums": [
+          {
+            "name": "public.channel",
+            "labels": [
+              "store",
+              "app",
+              "site"
+            ]
+          }
+        ],
+        "foreign_keys": [
+          {
+            "columns": [
+              "customer_id"
+            ],
+            "references": "public.customers",
+            "referenced_columns": [
+              "id"
+            ]
+          }
+        ],
+        "triggers": [
+          {
+            "name": "orders_touch",
+            "definition": "CREATE TRIGGER orders_touch BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION public.orders_touch()",
+            "enabled": true
+          }
+        ]
+      },
+      "options": {},
+      "expect": {
+        "fingerprint": "sha256:13ffd1893e0dedf12381b9d109885ae205d0b0844a058ed870c65f5a7ac0ef6a",
+        "type": {
+          "type": "orders",
+          "version": "1",
+          "ownership": "subject",
+          "mirror_of": {
+            "system": "postgresql",
+            "derived_by": "introspection",
+            "fingerprint": "sha256:13ffd1893e0dedf12381b9d109885ae205d0b0844a058ed870c65f5a7ac0ef6a",
+            "drift": "alert"
+          },
+          "key": {
+            "natural": [
+              "id"
+            ]
+          },
+          "fields": {
+            "delivery_window": {
+              "type": "duration"
+            },
+            "channel": {
+              "type": "enum"
+            },
+            "customer_id": {
+              "type": "ref"
+            },
+            "due_on": {
+              "type": "date"
+            },
+            "gift": {
+              "type": "bool"
+            },
+            "id": {
+              "type": "string"
+            },
+            "placed_at": {
+              "type": "datetime"
+            },
+            "priority": {
+              "type": "enum"
+            },
+            "size": {
+              "type": "enum"
+            },
+            "state_": {
+              "type": "string"
+            },
+            "status": {
+              "type": "enum"
+            },
+            "tags": {
+              "type": "list"
+            },
+            "total": {
+              "type": "number"
+            }
+          },
+          "states": [
+            "open",
+            "paid",
+            "shipped",
+            "delivered",
+            "cancelled"
+          ],
+          "relations": {
+            "customer": {
+              "type": "customers",
+              "via": "customer_id"
+            }
+          }
+        },
+        "review": [
+          {
+            "kind": "column",
+            "column": "meta",
+            "type": "jsonb"
+          },
+          {
+            "kind": "check",
+            "definition": "CHECK ((total >= (0)::numeric))"
+          },
+          {
+            "kind": "trigger",
+            "name": "orders_touch",
+            "enabled": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "derive.retail.orders_with_options",
+      "description": "The options name the type, the system and a shared ownership.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "public.orders",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "customer_id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "not_null": true
+          },
+          {
+            "name": "size",
+            "type": "character varying(4)",
+            "not_null": false
+          },
+          {
+            "name": "channel",
+            "type": "public.channel",
+            "not_null": true,
+            "enum": "public.channel"
+          },
+          {
+            "name": "total",
+            "type": "numeric(12,2)",
+            "not_null": true
+          },
+          {
+            "name": "priority",
+            "type": "integer",
+            "not_null": false
+          },
+          {
+            "name": "placed_at",
+            "type": "timestamp with time zone",
+            "not_null": true
+          },
+          {
+            "name": "due_on",
+            "type": "date",
+            "not_null": false
+          },
+          {
+            "name": "gift",
+            "type": "boolean",
+            "not_null": false
+          },
+          {
+            "name": "tags",
+            "type": "text[]",
+            "not_null": false
+          },
+          {
+            "name": "meta",
+            "type": "jsonb",
+            "not_null": false
+          },
+          {
+            "name": "Delivery Window",
+            "type": "interval",
+            "not_null": false
+          },
+          {
+            "name": "state",
+            "type": "text",
+            "not_null": false
+          }
+        ],
+        "primary_key": [
+          "id"
+        ],
+        "checks": [
+          "CHECK ((priority = ANY (ARRAY[1, 2, 3])))",
+          "CHECK (((size)::text = ANY ((ARRAY['P'::character varying, 'M'::character varying, 'G'::character varying])::text[])))",
+          "CHECK ((status = ANY (ARRAY['open'::text, 'paid'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text])))",
+          "CHECK ((total >= (0)::numeric))"
+        ],
+        "enums": [
+          {
+            "name": "public.channel",
+            "labels": [
+              "store",
+              "site",
+              "app"
+            ]
+          }
+        ],
+        "foreign_keys": [
+          {
+            "columns": [
+              "customer_id"
+            ],
+            "references": "public.customers",
+            "referenced_columns": [
+              "id"
+            ]
+          }
+        ],
+        "triggers": [
+          {
+            "name": "orders_touch",
+            "definition": "CREATE TRIGGER orders_touch BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION public.orders_touch()",
+            "enabled": true
+          }
+        ]
+      },
+      "options": {
+        "type": "order",
+        "system": "erp.sales",
+        "ownership": "shared"
+      },
+      "expect": {
+        "fingerprint": "sha256:41490504437121877d60d8520a27c1b35f518d1e8c2fc6a5fa06aad99954b7e2",
+        "type": {
+          "type": "order",
+          "version": "1",
+          "ownership": "shared",
+          "mirror_of": {
+            "system": "erp.sales",
+            "derived_by": "introspection",
+            "fingerprint": "sha256:41490504437121877d60d8520a27c1b35f518d1e8c2fc6a5fa06aad99954b7e2",
+            "drift": "alert"
+          },
+          "key": {
+            "natural": [
+              "id"
+            ]
+          },
+          "fields": {
+            "delivery_window": {
+              "type": "duration"
+            },
+            "channel": {
+              "type": "enum"
+            },
+            "customer_id": {
+              "type": "ref"
+            },
+            "due_on": {
+              "type": "date"
+            },
+            "gift": {
+              "type": "bool"
+            },
+            "id": {
+              "type": "string"
+            },
+            "placed_at": {
+              "type": "datetime"
+            },
+            "priority": {
+              "type": "enum"
+            },
+            "size": {
+              "type": "enum"
+            },
+            "state_": {
+              "type": "string"
+            },
+            "status": {
+              "type": "enum"
+            },
+            "tags": {
+              "type": "list"
+            },
+            "total": {
+              "type": "number"
+            }
+          },
+          "states": [
+            "open",
+            "paid",
+            "shipped",
+            "delivered",
+            "cancelled"
+          ],
+          "relations": {
+            "customer": {
+              "type": "customers",
+              "via": "customer_id"
+            }
+          }
+        },
+        "review": [
+          {
+            "kind": "column",
+            "column": "meta",
+            "type": "jsonb"
+          },
+          {
+            "kind": "check",
+            "definition": "CHECK ((total >= (0)::numeric))"
+          },
+          {
+            "kind": "trigger",
+            "name": "orders_touch",
+            "enabled": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "derive.legal.court_notices",
+      "description": "A court notice: an enumeration of states, a quoted column with a list CHECK, a CHECK between two columns for the review, and a trigger on the status.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "legal.court_notices",
+        "columns": [
+          {
+            "name": "id",
+            "type": "bigint",
+            "not_null": true
+          },
+          {
+            "name": "lawsuit_id",
+            "type": "bigint",
+            "not_null": true
+          },
+          {
+            "name": "status",
+            "type": "legal.notice_status",
+            "not_null": true,
+            "enum": "legal.notice_status"
+          },
+          {
+            "name": "due_at",
+            "type": "timestamp with time zone",
+            "not_null": true
+          },
+          {
+            "name": "served_on",
+            "type": "date",
+            "not_null": true
+          },
+          {
+            "name": "body",
+            "type": "text",
+            "not_null": false
+          },
+          {
+            "name": "Deadline Days",
+            "type": "integer",
+            "not_null": false
+          },
+          {
+            "name": "sealed",
+            "type": "boolean",
+            "not_null": true
+          }
+        ],
+        "primary_key": [
+          "id"
+        ],
+        "checks": [
+          "CHECK ((\"Deadline Days\" = ANY (ARRAY[5, 10, 15, 30])))",
+          "CHECK ((served_on <= (due_at)::date))"
+        ],
+        "enums": [
+          {
+            "name": "legal.notice_status",
+            "labels": [
+              "received",
+              "read",
+              "answered",
+              "expired"
+            ]
+          }
+        ],
+        "foreign_keys": [
+          {
+            "columns": [
+              "lawsuit_id"
+            ],
+            "references": "legal.lawsuits",
+            "referenced_columns": [
+              "id"
+            ]
+          }
+        ],
+        "triggers": [
+          {
+            "name": "notices_due",
+            "definition": "CREATE TRIGGER notices_due BEFORE INSERT OR UPDATE OF status ON legal.court_notices FOR EACH ROW EXECUTE FUNCTION legal.notices_due()",
+            "enabled": true
+          }
+        ]
+      },
+      "options": {},
+      "expect": {
+        "fingerprint": "sha256:cf99e68c8f1eddd32e5477d79e151dd3861c4846e86fa9a6ffe8a885ddca69ed",
+        "type": {
+          "type": "court_notices",
+          "version": "1",
+          "ownership": "subject",
+          "mirror_of": {
+            "system": "postgresql",
+            "derived_by": "introspection",
+            "fingerprint": "sha256:cf99e68c8f1eddd32e5477d79e151dd3861c4846e86fa9a6ffe8a885ddca69ed",
+            "drift": "alert"
+          },
+          "key": {
+            "natural": [
+              "id"
+            ]
+          },
+          "fields": {
+            "deadline_days": {
+              "type": "enum"
+            },
+            "body": {
+              "type": "string"
+            },
+            "due_at": {
+              "type": "datetime"
+            },
+            "id": {
+              "type": "number"
+            },
+            "lawsuit_id": {
+              "type": "ref"
+            },
+            "sealed": {
+              "type": "bool"
+            },
+            "served_on": {
+              "type": "date"
+            },
+            "status": {
+              "type": "enum"
+            }
+          },
+          "states": [
+            "received",
+            "read",
+            "answered",
+            "expired"
+          ],
+          "relations": {
+            "lawsuit": {
+              "type": "lawsuits",
+              "via": "lawsuit_id"
+            }
+          }
+        },
+        "review": [
+          {
+            "kind": "check",
+            "definition": "CHECK ((served_on <= (due_at)::date))"
+          },
+          {
+            "kind": "trigger",
+            "name": "notices_due",
+            "enabled": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "derive.health.proposals",
+      "description": "A health plan proposal: the states come from the `state` column, which becomes the field `state_`; a two-column foreign key and bytea go to the review, and negative and decimal constants of a real column are read as numbers.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "sales.proposals",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "lead_id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "plan",
+            "type": "text",
+            "not_null": true
+          },
+          {
+            "name": "lives",
+            "type": "integer",
+            "not_null": true
+          },
+          {
+            "name": "monthly_fee",
+            "type": "money",
+            "not_null": false
+          },
+          {
+            "name": "enrollment_fee",
+            "type": "numeric",
+            "not_null": false
+          },
+          {
+            "name": "state",
+            "type": "character varying(20)",
+            "not_null": true
+          },
+          {
+            "name": "waiting",
+            "type": "interval",
+            "not_null": false
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp without time zone",
+            "not_null": true
+          },
+          {
+            "name": "documents",
+            "type": "bytea",
+            "not_null": false
+          },
+          {
+            "name": "broker_id",
+            "type": "integer",
+            "not_null": false
+          },
+          {
+            "name": "region",
+            "type": "text",
+            "not_null": false
+          },
+          {
+            "name": "discount",
+            "type": "real",
+            "not_null": false
+          }
+        ],
+        "primary_key": [
+          "id"
+        ],
+        "checks": [
+          "CHECK ((discount = ANY (ARRAY[('-0.5'::numeric)::real, (0)::real, (0.1)::real, (2.5)::real]))) NOT VALID",
+          "CHECK ((plan <> 'x'::text))",
+          "CHECK ((lives >= 1))",
+          "CHECK ((plan = ANY (ARRAY['basic'::text, 'plus'::text, 'premium'::text])))",
+          "CHECK (((state)::text = ANY ((ARRAY['draft'::character varying, 'sent'::character varying, 'accepted'::character varying, 'refused'::character varying])::text[])))"
+        ],
+        "enums": [],
+        "foreign_keys": [
+          {
+            "columns": [
+              "broker_id",
+              "region"
+            ],
+            "references": "sales.brokers",
+            "referenced_columns": [
+              "id",
+              "region"
+            ]
+          },
+          {
+            "columns": [
+              "lead_id"
+            ],
+            "references": "sales.leads",
+            "referenced_columns": [
+              "id"
+            ]
+          }
+        ],
+        "triggers": [
+          {
+            "name": "proposals_audit",
+            "definition": "CREATE TRIGGER proposals_audit AFTER UPDATE ON sales.proposals FOR EACH ROW EXECUTE FUNCTION public.orders_touch()",
+            "enabled": false
+          }
+        ]
+      },
+      "options": {},
+      "expect": {
+        "fingerprint": "sha256:150a554a2164f8b2bfe2ac98d992757f3af90472eb995100eb86b636e9591b24",
+        "type": {
+          "type": "proposals",
+          "version": "1",
+          "ownership": "subject",
+          "mirror_of": {
+            "system": "postgresql",
+            "derived_by": "introspection",
+            "fingerprint": "sha256:150a554a2164f8b2bfe2ac98d992757f3af90472eb995100eb86b636e9591b24",
+            "drift": "alert"
+          },
+          "key": {
+            "natural": [
+              "id"
+            ]
+          },
+          "fields": {
+            "broker_id": {
+              "type": "number"
+            },
+            "created_at": {
+              "type": "datetime"
+            },
+            "discount": {
+              "type": "enum"
+            },
+            "enrollment_fee": {
+              "type": "number"
+            },
+            "id": {
+              "type": "string"
+            },
+            "lead_id": {
+              "type": "ref"
+            },
+            "lives": {
+              "type": "number"
+            },
+            "monthly_fee": {
+              "type": "money"
+            },
+            "plan": {
+              "type": "enum"
+            },
+            "region": {
+              "type": "string"
+            },
+            "state_": {
+              "type": "enum"
+            },
+            "waiting": {
+              "type": "duration"
+            }
+          },
+          "states": [
+            "draft",
+            "sent",
+            "accepted",
+            "refused"
+          ],
+          "relations": {
+            "lead": {
+              "type": "leads",
+              "via": "lead_id"
+            }
+          }
+        },
+        "review": [
+          {
+            "kind": "column",
+            "column": "documents",
+            "type": "bytea"
+          },
+          {
+            "kind": "check",
+            "definition": "CHECK ((lives >= 1))"
+          },
+          {
+            "kind": "check",
+            "definition": "CHECK ((plan <> 'x'::text))"
+          },
+          {
+            "kind": "foreign_key",
+            "columns": [
+              "broker_id",
+              "region"
+            ],
+            "references": "sales.brokers"
+          },
+          {
+            "kind": "trigger",
+            "name": "proposals_audit",
+            "enabled": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "derive.retail.stock_moves_without_key",
+      "description": "A quoted table name becomes the type's name; no primary key means no key; a quoted column holds a quote in a literal; a CHECK with OR is not read.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "public.\"Stock Moves\"",
+        "columns": [
+          {
+            "name": "SKU",
+            "type": "text",
+            "not_null": false
+          },
+          {
+            "name": "qty",
+            "type": "integer",
+            "not_null": false
+          },
+          {
+            "name": "moved_at",
+            "type": "timestamp with time zone",
+            "not_null": false
+          },
+          {
+            "name": "Kind",
+            "type": "text",
+            "not_null": false
+          }
+        ],
+        "primary_key": [],
+        "checks": [
+          "CHECK ((\"Kind\" = ANY (ARRAY['it''s'::text, 'in'::text, 'out'::text])))",
+          "CHECK (((qty = '-1'::integer) OR (qty > 0)))"
+        ],
+        "enums": [],
+        "foreign_keys": [],
+        "triggers": []
+      },
+      "options": {},
+      "expect": {
+        "fingerprint": "sha256:1f210fb7581100c1815496f396d03f91fdfcf3366dd049da83673ad8be55d62c",
+        "type": {
+          "type": "stock_moves",
+          "version": "1",
+          "ownership": "subject",
+          "mirror_of": {
+            "system": "postgresql",
+            "derived_by": "introspection",
+            "fingerprint": "sha256:1f210fb7581100c1815496f396d03f91fdfcf3366dd049da83673ad8be55d62c",
+            "drift": "alert"
+          },
+          "fields": {
+            "kind": {
+              "type": "enum"
+            },
+            "sku": {
+              "type": "string"
+            },
+            "moved_at": {
+              "type": "datetime"
+            },
+            "qty": {
+              "type": "number"
+            }
+          }
+        },
+        "review": [
+          {
+            "kind": "check",
+            "definition": "CHECK (((qty = '-1'::integer) OR (qty > 0)))"
+          }
+        ]
+      }
+    },
+    {
+      "id": "derive.names.collisions_and_reserved_words",
+      "description": "Names: uppercase and spaces fold to `_`, a later column that takes a name gets `_2`, a leading digit or `_` gets `c_`, a non-ASCII letter and a code point beyond the BMP are one `_` each, reserved words get `_`, and long names are cut at 64.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "public.naming",
+        "primary_key": [
+          "Order Id"
+        ],
+        "checks": [],
+        "enums": [],
+        "foreign_keys": [],
+        "triggers": [],
+        "columns": [
+          {
+            "name": "Order Id",
+            "type": "text",
+            "not_null": true
+          },
+          {
+            "name": "order_id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "2fa",
+            "type": "boolean",
+            "not_null": false
+          },
+          {
+            "name": "Preço",
+            "type": "numeric(10,2)",
+            "not_null": false
+          },
+          {
+            "name": "and",
+            "type": "text",
+            "not_null": false
+          },
+          {
+            "name": "📦 box",
+            "type": "integer",
+            "not_null": false
+          },
+          {
+            "name": "_hidden",
+            "type": "text",
+            "not_null": false
+          },
+          {
+            "name": "config",
+            "type": "jsonb",
+            "not_null": false
+          },
+          {
+            "name": "at",
+            "type": "time without time zone",
+            "not_null": false
+          },
+          {
+            "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "type": "text",
+            "not_null": false
+          },
+          {
+            "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxY",
+            "type": "text",
+            "not_null": false
+          }
+        ]
+      },
+      "options": {},
+      "expect": {
+        "fingerprint": "sha256:9577694a669bef78885338bbb07d14fe2c98296ac8359512fb64d48007cc6ff3",
+        "type": {
+          "type": "naming",
+          "version": "1",
+          "ownership": "subject",
+          "mirror_of": {
+            "system": "postgresql",
+            "derived_by": "introspection",
+            "fingerprint": "sha256:9577694a669bef78885338bbb07d14fe2c98296ac8359512fb64d48007cc6ff3",
+            "drift": "alert"
+          },
+          "key": {
+            "natural": [
+              "order_id"
+            ]
+          },
+          "fields": {
+            "c_2fa": {
+              "type": "bool"
+            },
+            "order_id": {
+              "type": "string"
+            },
+            "pre_o": {
+              "type": "number"
+            },
+            "c__hidden": {
+              "type": "string"
+            },
+            "and_": {
+              "type": "string"
+            },
+            "order_id_2": {
+              "type": "string"
+            },
+            "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx": {
+              "type": "string"
+            },
+            "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_2": {
+              "type": "string"
+            },
+            "c___box": {
+              "type": "number"
+            }
+          }
+        },
+        "review": [
+          {
+            "kind": "column",
+            "column": "at",
+            "type": "time without time zone"
+          },
+          {
+            "kind": "column",
+            "column": "config",
+            "type": "jsonb"
+          }
+        ]
+      }
+    },
+    {
+      "id": "derive.relations.roles_and_states_that_are_not_names",
+      "description": "Relations: `customer_id` and `customer` both want the role `customer`, a role that would be reserved keeps the field's name, a foreign key wins over a list CHECK; status values that are not names go to the review, and `state` is not used while `status` is a field.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "public.carts",
+        "primary_key": [
+          "id"
+        ],
+        "enums": [],
+        "triggers": [],
+        "columns": [
+          {
+            "name": "id",
+            "type": "bigint",
+            "not_null": true
+          },
+          {
+            "name": "customer_id",
+            "type": "bigint",
+            "not_null": true
+          },
+          {
+            "name": "customer",
+            "type": "bigint",
+            "not_null": false
+          },
+          {
+            "name": "and_id",
+            "type": "bigint",
+            "not_null": false
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "not_null": true
+          },
+          {
+            "name": "state",
+            "type": "text",
+            "not_null": false
+          },
+          {
+            "name": "store_code",
+            "type": "text",
+            "not_null": false
+          }
+        ],
+        "checks": [
+          "CHECK ((status = ANY (ARRAY['Em aberto'::text, 'Pago'::text])))",
+          "CHECK ((state = 'open'::text))",
+          "CHECK ((store_code = ANY (ARRAY['a'::text, 'b'::text])))"
+        ],
+        "foreign_keys": [
+          {
+            "columns": [
+              "customer_id"
+            ],
+            "references": "public.customers",
+            "referenced_columns": [
+              "id"
+            ]
+          },
+          {
+            "columns": [
+              "customer"
+            ],
+            "references": "crm.\"Customer Accounts\"",
+            "referenced_columns": [
+              "id"
+            ]
+          },
+          {
+            "columns": [
+              "and_id"
+            ],
+            "references": "public.ands",
+            "referenced_columns": [
+              "id"
+            ]
+          },
+          {
+            "columns": [
+              "store_code"
+            ],
+            "references": "public.stores",
+            "referenced_columns": [
+              "code"
+            ]
+          }
+        ]
+      },
+      "options": {},
+      "expect": {
+        "fingerprint": "sha256:6611f078d44c37843e019f7c82717ac02dab2c1d1399d93c0c6dfb58fd259fa1",
+        "type": {
+          "type": "carts",
+          "version": "1",
+          "ownership": "subject",
+          "mirror_of": {
+            "system": "postgresql",
+            "derived_by": "introspection",
+            "fingerprint": "sha256:6611f078d44c37843e019f7c82717ac02dab2c1d1399d93c0c6dfb58fd259fa1",
+            "drift": "alert"
+          },
+          "key": {
+            "natural": [
+              "id"
+            ]
+          },
+          "fields": {
+            "and_id": {
+              "type": "ref"
+            },
+            "customer": {
+              "type": "ref"
+            },
+            "customer_id": {
+              "type": "ref"
+            },
+            "id": {
+              "type": "number"
+            },
+            "state_": {
+              "type": "enum"
+            },
+            "status": {
+              "type": "enum"
+            },
+            "store_code": {
+              "type": "ref"
+            }
+          },
+          "relations": {
+            "and_id": {
+              "type": "ands",
+              "via": "and_id"
+            },
+            "customer": {
+              "type": "customer_accounts",
+              "via": "customer"
+            },
+            "customer_2": {
+              "type": "customers",
+              "via": "customer_id"
+            },
+            "store_code": {
+              "type": "stores",
+              "via": "store_code"
+            }
+          }
+        },
+        "review": [
+          {
+            "kind": "states",
+            "column": "status"
+          }
+        ]
+      }
+    },
+    {
+      "id": "derive.checks.forms_of_a_list",
+      "description": "List CHECK forms: one constant, NOT VALID, extra parentheses and casts; an empty array, two conditions, a column the table does not have and a test for null are not read.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "public.forms",
+        "primary_key": [],
+        "enums": [],
+        "foreign_keys": [],
+        "triggers": [
+          {
+            "name": "b_second",
+            "definition": "CREATE TRIGGER b_second AFTER INSERT ON public.forms FOR EACH ROW EXECUTE FUNCTION public.f()",
+            "enabled": false
+          },
+          {
+            "name": "a_first",
+            "definition": "CREATE TRIGGER a_first BEFORE DELETE ON public.forms FOR EACH ROW EXECUTE FUNCTION public.f()",
+            "enabled": true
+          }
+        ],
+        "columns": [
+          {
+            "name": "one",
+            "type": "text",
+            "not_null": false
+          },
+          {
+            "name": "two",
+            "type": "text",
+            "not_null": false
+          },
+          {
+            "name": "three",
+            "type": "text",
+            "not_null": false
+          },
+          {
+            "name": "four",
+            "type": "text",
+            "not_null": false
+          },
+          {
+            "name": "five",
+            "type": "text",
+            "not_null": false
+          },
+          {
+            "name": "six",
+            "type": "text",
+            "not_null": false
+          }
+        ],
+        "checks": [
+          "CHECK ((one = 'only'::text))",
+          "CHECK ((two = ANY (ARRAY['a'::text, 'b'::text]))) NOT VALID",
+          "CHECK ((((three)::text = ANY ((ARRAY['x'::character varying])::text[]))))",
+          "CHECK ((four = ANY (ARRAY[]::text[])))",
+          "CHECK (((five = 'a'::text) AND (six = 'b'::text)))",
+          "CHECK ((missing = ANY (ARRAY['a'::text])))",
+          "CHECK ((six IS NOT NULL))"
+        ]
+      },
+      "options": {},
+      "expect": {
+        "fingerprint": "sha256:f6312d03567b88e679f95bf7f561dabb5c21bf8e39fa24bf6922e8403cd80d26",
+        "type": {
+          "type": "forms",
+          "version": "1",
+          "ownership": "subject",
+          "mirror_of": {
+            "system": "postgresql",
+            "derived_by": "introspection",
+            "fingerprint": "sha256:f6312d03567b88e679f95bf7f561dabb5c21bf8e39fa24bf6922e8403cd80d26",
+            "drift": "alert"
+          },
+          "fields": {
+            "five": {
+              "type": "string"
+            },
+            "four": {
+              "type": "string"
+            },
+            "one": {
+              "type": "enum"
+            },
+            "six": {
+              "type": "string"
+            },
+            "three": {
+              "type": "enum"
+            },
+            "two": {
+              "type": "enum"
+            }
+          }
+        },
+        "review": [
+          {
+            "kind": "check",
+            "definition": "CHECK (((five = 'a'::text) AND (six = 'b'::text)))"
+          },
+          {
+            "kind": "check",
+            "definition": "CHECK ((four = ANY (ARRAY[]::text[])))"
+          },
+          {
+            "kind": "check",
+            "definition": "CHECK ((missing = ANY (ARRAY['a'::text])))"
+          },
+          {
+            "kind": "check",
+            "definition": "CHECK ((six IS NOT NULL))"
+          },
+          {
+            "kind": "trigger",
+            "name": "a_first",
+            "enabled": true
+          },
+          {
+            "kind": "trigger",
+            "name": "b_second",
+            "enabled": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "error.ownership_agent",
+      "description": "An agent's working state is never derived.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "public.orders",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "customer_id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "not_null": true
+          },
+          {
+            "name": "size",
+            "type": "character varying(4)",
+            "not_null": false
+          },
+          {
+            "name": "channel",
+            "type": "public.channel",
+            "not_null": true,
+            "enum": "public.channel"
+          },
+          {
+            "name": "total",
+            "type": "numeric(12,2)",
+            "not_null": true
+          },
+          {
+            "name": "priority",
+            "type": "integer",
+            "not_null": false
+          },
+          {
+            "name": "placed_at",
+            "type": "timestamp with time zone",
+            "not_null": true
+          },
+          {
+            "name": "due_on",
+            "type": "date",
+            "not_null": false
+          },
+          {
+            "name": "gift",
+            "type": "boolean",
+            "not_null": false
+          },
+          {
+            "name": "tags",
+            "type": "text[]",
+            "not_null": false
+          },
+          {
+            "name": "meta",
+            "type": "jsonb",
+            "not_null": false
+          },
+          {
+            "name": "Delivery Window",
+            "type": "interval",
+            "not_null": false
+          },
+          {
+            "name": "state",
+            "type": "text",
+            "not_null": false
+          }
+        ],
+        "primary_key": [
+          "id"
+        ],
+        "checks": [
+          "CHECK ((priority = ANY (ARRAY[1, 2, 3])))",
+          "CHECK (((size)::text = ANY ((ARRAY['P'::character varying, 'M'::character varying, 'G'::character varying])::text[])))",
+          "CHECK ((status = ANY (ARRAY['open'::text, 'paid'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text])))",
+          "CHECK ((total >= (0)::numeric))"
+        ],
+        "enums": [
+          {
+            "name": "public.channel",
+            "labels": [
+              "store",
+              "site",
+              "app"
+            ]
+          }
+        ],
+        "foreign_keys": [
+          {
+            "columns": [
+              "customer_id"
+            ],
+            "references": "public.customers",
+            "referenced_columns": [
+              "id"
+            ]
+          }
+        ],
+        "triggers": [
+          {
+            "name": "orders_touch",
+            "definition": "CREATE TRIGGER orders_touch BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION public.orders_touch()",
+            "enabled": true
+          }
+        ]
+      },
+      "options": {
+        "ownership": "agent"
+      },
+      "expect": {
+        "error": "ownership_not_derivable"
+      }
+    },
+    {
+      "id": "error.type_name",
+      "description": "The type option must be a type name.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "public.orders",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "customer_id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "not_null": true
+          },
+          {
+            "name": "size",
+            "type": "character varying(4)",
+            "not_null": false
+          },
+          {
+            "name": "channel",
+            "type": "public.channel",
+            "not_null": true,
+            "enum": "public.channel"
+          },
+          {
+            "name": "total",
+            "type": "numeric(12,2)",
+            "not_null": true
+          },
+          {
+            "name": "priority",
+            "type": "integer",
+            "not_null": false
+          },
+          {
+            "name": "placed_at",
+            "type": "timestamp with time zone",
+            "not_null": true
+          },
+          {
+            "name": "due_on",
+            "type": "date",
+            "not_null": false
+          },
+          {
+            "name": "gift",
+            "type": "boolean",
+            "not_null": false
+          },
+          {
+            "name": "tags",
+            "type": "text[]",
+            "not_null": false
+          },
+          {
+            "name": "meta",
+            "type": "jsonb",
+            "not_null": false
+          },
+          {
+            "name": "Delivery Window",
+            "type": "interval",
+            "not_null": false
+          },
+          {
+            "name": "state",
+            "type": "text",
+            "not_null": false
+          }
+        ],
+        "primary_key": [
+          "id"
+        ],
+        "checks": [
+          "CHECK ((priority = ANY (ARRAY[1, 2, 3])))",
+          "CHECK (((size)::text = ANY ((ARRAY['P'::character varying, 'M'::character varying, 'G'::character varying])::text[])))",
+          "CHECK ((status = ANY (ARRAY['open'::text, 'paid'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text])))",
+          "CHECK ((total >= (0)::numeric))"
+        ],
+        "enums": [
+          {
+            "name": "public.channel",
+            "labels": [
+              "store",
+              "site",
+              "app"
+            ]
+          }
+        ],
+        "foreign_keys": [
+          {
+            "columns": [
+              "customer_id"
+            ],
+            "references": "public.customers",
+            "referenced_columns": [
+              "id"
+            ]
+          }
+        ],
+        "triggers": [
+          {
+            "name": "orders_touch",
+            "definition": "CREATE TRIGGER orders_touch BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION public.orders_touch()",
+            "enabled": true
+          }
+        ]
+      },
+      "options": {
+        "type": "Order"
+      },
+      "expect": {
+        "error": "invalid_name"
+      }
+    },
+    {
+      "id": "error.system_name",
+      "description": "The system option must be a system name.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "public.orders",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "customer_id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "not_null": true
+          },
+          {
+            "name": "size",
+            "type": "character varying(4)",
+            "not_null": false
+          },
+          {
+            "name": "channel",
+            "type": "public.channel",
+            "not_null": true,
+            "enum": "public.channel"
+          },
+          {
+            "name": "total",
+            "type": "numeric(12,2)",
+            "not_null": true
+          },
+          {
+            "name": "priority",
+            "type": "integer",
+            "not_null": false
+          },
+          {
+            "name": "placed_at",
+            "type": "timestamp with time zone",
+            "not_null": true
+          },
+          {
+            "name": "due_on",
+            "type": "date",
+            "not_null": false
+          },
+          {
+            "name": "gift",
+            "type": "boolean",
+            "not_null": false
+          },
+          {
+            "name": "tags",
+            "type": "text[]",
+            "not_null": false
+          },
+          {
+            "name": "meta",
+            "type": "jsonb",
+            "not_null": false
+          },
+          {
+            "name": "Delivery Window",
+            "type": "interval",
+            "not_null": false
+          },
+          {
+            "name": "state",
+            "type": "text",
+            "not_null": false
+          }
+        ],
+        "primary_key": [
+          "id"
+        ],
+        "checks": [
+          "CHECK ((priority = ANY (ARRAY[1, 2, 3])))",
+          "CHECK (((size)::text = ANY ((ARRAY['P'::character varying, 'M'::character varying, 'G'::character varying])::text[])))",
+          "CHECK ((status = ANY (ARRAY['open'::text, 'paid'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text])))",
+          "CHECK ((total >= (0)::numeric))"
+        ],
+        "enums": [
+          {
+            "name": "public.channel",
+            "labels": [
+              "store",
+              "site",
+              "app"
+            ]
+          }
+        ],
+        "foreign_keys": [
+          {
+            "columns": [
+              "customer_id"
+            ],
+            "references": "public.customers",
+            "referenced_columns": [
+              "id"
+            ]
+          }
+        ],
+        "triggers": [
+          {
+            "name": "orders_touch",
+            "definition": "CREATE TRIGGER orders_touch BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION public.orders_touch()",
+            "enabled": true
+          }
+        ]
+      },
+      "options": {
+        "system": "ERP"
+      },
+      "expect": {
+        "error": "invalid_name"
+      }
+    },
+    {
+      "id": "error.unknown_catalog",
+      "description": "Only a PostgreSQL catalog is read.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "mysql",
+        "table": "public.orders",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "customer_id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "not_null": true
+          },
+          {
+            "name": "size",
+            "type": "character varying(4)",
+            "not_null": false
+          },
+          {
+            "name": "channel",
+            "type": "public.channel",
+            "not_null": true,
+            "enum": "public.channel"
+          },
+          {
+            "name": "total",
+            "type": "numeric(12,2)",
+            "not_null": true
+          },
+          {
+            "name": "priority",
+            "type": "integer",
+            "not_null": false
+          },
+          {
+            "name": "placed_at",
+            "type": "timestamp with time zone",
+            "not_null": true
+          },
+          {
+            "name": "due_on",
+            "type": "date",
+            "not_null": false
+          },
+          {
+            "name": "gift",
+            "type": "boolean",
+            "not_null": false
+          },
+          {
+            "name": "tags",
+            "type": "text[]",
+            "not_null": false
+          },
+          {
+            "name": "meta",
+            "type": "jsonb",
+            "not_null": false
+          },
+          {
+            "name": "Delivery Window",
+            "type": "interval",
+            "not_null": false
+          },
+          {
+            "name": "state",
+            "type": "text",
+            "not_null": false
+          }
+        ],
+        "primary_key": [
+          "id"
+        ],
+        "checks": [
+          "CHECK ((priority = ANY (ARRAY[1, 2, 3])))",
+          "CHECK (((size)::text = ANY ((ARRAY['P'::character varying, 'M'::character varying, 'G'::character varying])::text[])))",
+          "CHECK ((status = ANY (ARRAY['open'::text, 'paid'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text])))",
+          "CHECK ((total >= (0)::numeric))"
+        ],
+        "enums": [
+          {
+            "name": "public.channel",
+            "labels": [
+              "store",
+              "site",
+              "app"
+            ]
+          }
+        ],
+        "foreign_keys": [
+          {
+            "columns": [
+              "customer_id"
+            ],
+            "references": "public.customers",
+            "referenced_columns": [
+              "id"
+            ]
+          }
+        ],
+        "triggers": [
+          {
+            "name": "orders_touch",
+            "definition": "CREATE TRIGGER orders_touch BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION public.orders_touch()",
+            "enabled": true
+          }
+        ]
+      },
+      "options": {},
+      "expect": {
+        "error": "unknown_catalog"
+      }
+    },
+    {
+      "id": "error.table_without_schema",
+      "description": "The table is named with its schema.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "orders",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "customer_id",
+            "type": "uuid",
+            "not_null": true
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "not_null": true
+          },
+          {
+            "name": "size",
+            "type": "character varying(4)",
+            "not_null": false
+          },
+          {
+            "name": "channel",
+            "type": "public.channel",
+            "not_null": true,
+            "enum": "public.channel"
+          },
+          {
+            "name": "total",
+            "type": "numeric(12,2)",
+            "not_null": true
+          },
+          {
+            "name": "priority",
+            "type": "integer",
+            "not_null": false
+          },
+          {
+            "name": "placed_at",
+            "type": "timestamp with time zone",
+            "not_null": true
+          },
+          {
+            "name": "due_on",
+            "type": "date",
+            "not_null": false
+          },
+          {
+            "name": "gift",
+            "type": "boolean",
+            "not_null": false
+          },
+          {
+            "name": "tags",
+            "type": "text[]",
+            "not_null": false
+          },
+          {
+            "name": "meta",
+            "type": "jsonb",
+            "not_null": false
+          },
+          {
+            "name": "Delivery Window",
+            "type": "interval",
+            "not_null": false
+          },
+          {
+            "name": "state",
+            "type": "text",
+            "not_null": false
+          }
+        ],
+        "primary_key": [
+          "id"
+        ],
+        "checks": [
+          "CHECK ((priority = ANY (ARRAY[1, 2, 3])))",
+          "CHECK (((size)::text = ANY ((ARRAY['P'::character varying, 'M'::character varying, 'G'::character varying])::text[])))",
+          "CHECK ((status = ANY (ARRAY['open'::text, 'paid'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text])))",
+          "CHECK ((total >= (0)::numeric))"
+        ],
+        "enums": [
+          {
+            "name": "public.channel",
+            "labels": [
+              "store",
+              "site",
+              "app"
+            ]
+          }
+        ],
+        "foreign_keys": [
+          {
+            "columns": [
+              "customer_id"
+            ],
+            "references": "public.customers",
+            "referenced_columns": [
+              "id"
+            ]
+          }
+        ],
+        "triggers": [
+          {
+            "name": "orders_touch",
+            "definition": "CREATE TRIGGER orders_touch BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION public.orders_touch()",
+            "enabled": true
+          }
+        ]
+      },
+      "options": {},
+      "expect": {
+        "error": "invalid_catalog"
+      }
+    },
+    {
+      "id": "error.no_columns",
+      "description": "A table with no column proposes nothing.",
+      "op": "derive",
+      "catalog": {
+        "catalog": "postgresql",
+        "table": "public.orders",
+        "columns": [],
+        "primary_key": [
+          "id"
+        ],
+        "checks": [
+          "CHECK ((priority = ANY (ARRAY[1, 2, 3])))",
+          "CHECK (((size)::text = ANY ((ARRAY['P'::character varying, 'M'::character varying, 'G'::character varying])::text[])))",
+          "CHECK ((status = ANY (ARRAY['open'::text, 'paid'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text])))",
+          "CHECK ((total >= (0)::numeric))"
+        ],
+        "enums": [
+          {
+            "name": "public.channel",
+            "labels": [
+              "store",
+              "site",
+              "app"
+            ]
+          }
+        ],
+        "foreign_keys": [
+          {
+            "columns": [
+              "customer_id"
+            ],
+            "references": "public.customers",
+            "referenced_columns": [
+              "id"
+            ]
+          }
+        ],
+        "triggers": [
+          {
+            "name": "orders_touch",
+            "definition": "CREATE TRIGGER orders_touch BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION public.orders_touch()",
+            "enabled": true
+          }
+        ]
+      },
+      "options": {},
+      "expect": {
+        "error": "no_columns"
+      }
+    },
+    {
+      "id": "changes.none",
+      "description": "The declaration the catalog still derives: nothing changed.",
+      "op": "changes",
+      "declared": {
+        "type": "orders",
+        "version": "1",
+        "ownership": "subject",
+        "mirror_of": {
+          "system": "postgresql",
+          "derived_by": "introspection",
+          "fingerprint": "sha256:41490504437121877d60d8520a27c1b35f518d1e8c2fc6a5fa06aad99954b7e2",
+          "drift": "alert"
+        },
+        "key": {
+          "natural": [
+            "id"
+          ]
+        },
+        "fields": {
+          "delivery_window": {
+            "type": "duration"
+          },
+          "channel": {
+            "type": "enum"
+          },
+          "customer_id": {
+            "type": "ref"
+          },
+          "due_on": {
+            "type": "date"
+          },
+          "gift": {
+            "type": "bool"
+          },
+          "id": {
+            "type": "string"
+          },
+          "placed_at": {
+            "type": "datetime"
+          },
+          "priority": {
+            "type": "enum"
+          },
+          "size": {
+            "type": "enum"
+          },
+          "state_": {
+            "type": "string"
+          },
+          "status": {
+            "type": "enum"
+          },
+          "tags": {
+            "type": "list"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "states": [
+          "open",
+          "paid",
+          "shipped",
+          "delivered",
+          "cancelled"
+        ],
+        "relations": {
+          "customer": {
+            "type": "customers",
+            "via": "customer_id"
+          }
+        }
+      },
+      "live": {
+        "type": "orders",
+        "version": "1",
+        "ownership": "subject",
+        "mirror_of": {
+          "system": "postgresql",
+          "derived_by": "introspection",
+          "fingerprint": "sha256:41490504437121877d60d8520a27c1b35f518d1e8c2fc6a5fa06aad99954b7e2",
+          "drift": "alert"
+        },
+        "key": {
+          "natural": [
+            "id"
+          ]
+        },
+        "fields": {
+          "delivery_window": {
+            "type": "duration"
+          },
+          "channel": {
+            "type": "enum"
+          },
+          "customer_id": {
+            "type": "ref"
+          },
+          "due_on": {
+            "type": "date"
+          },
+          "gift": {
+            "type": "bool"
+          },
+          "id": {
+            "type": "string"
+          },
+          "placed_at": {
+            "type": "datetime"
+          },
+          "priority": {
+            "type": "enum"
+          },
+          "size": {
+            "type": "enum"
+          },
+          "state_": {
+            "type": "string"
+          },
+          "status": {
+            "type": "enum"
+          },
+          "tags": {
+            "type": "list"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "states": [
+          "open",
+          "paid",
+          "shipped",
+          "delivered",
+          "cancelled"
+        ],
+        "relations": {
+          "customer": {
+            "type": "customers",
+            "via": "customer_id"
+          }
+        }
+      },
+      "expect": {
+        "changes": {
+          "fields_added": 0,
+          "fields_removed": 0,
+          "fields_retyped": 0,
+          "states_added": 0,
+          "states_removed": 0,
+          "relations_added": 0,
+          "relations_removed": 0,
+          "key_changed": false,
+          "fields": []
+        }
+      }
+    },
+    {
+      "id": "changes.a_person_edited_the_declaration",
+      "description": "What a person added to the proposal (claims, purposes) is not a change.",
+      "op": "changes",
+      "declared": {
+        "type": "orders",
+        "version": "1",
+        "ownership": "subject",
+        "mirror_of": {
+          "system": "postgresql",
+          "derived_by": "introspection",
+          "fingerprint": "sha256:41490504437121877d60d8520a27c1b35f518d1e8c2fc6a5fa06aad99954b7e2",
+          "drift": "alert"
+        },
+        "key": {
+          "natural": [
+            "id"
+          ]
+        },
+        "fields": {
+          "delivery_window": {
+            "type": "duration"
+          },
+          "channel": {
+            "type": "enum"
+          },
+          "customer_id": {
+            "type": "ref"
+          },
+          "due_on": {
+            "type": "date"
+          },
+          "gift": {
+            "type": "bool"
+          },
+          "id": {
+            "type": "string"
+          },
+          "placed_at": {
+            "type": "datetime"
+          },
+          "priority": {
+            "type": "enum"
+          },
+          "size": {
+            "type": "enum"
+          },
+          "state_": {
+            "type": "string"
+          },
+          "status": {
+            "type": "enum"
+          },
+          "tags": {
+            "type": "list"
+          },
+          "total": {
+            "type": "number",
+            "claim": {
+              "allowed": true,
+              "class": "money",
+              "nature": "observed"
+            }
+          }
+        },
+        "states": [
+          "open",
+          "paid",
+          "shipped",
+          "delivered",
+          "cancelled"
+        ],
+        "relations": {
+          "customer": {
+            "type": "customers",
+            "via": "customer_id"
+          }
+        },
+        "purposes": {
+          "display": {
+            "on_stale": "serve_with_age"
+          }
+        }
+      },
+      "live": {
+        "type": "orders",
+        "version": "1",
+        "ownership": "subject",
+        "mirror_of": {
+          "system": "postgresql",
+          "derived_by": "introspection",
+          "fingerprint": "sha256:41490504437121877d60d8520a27c1b35f518d1e8c2fc6a5fa06aad99954b7e2",
+          "drift": "alert"
+        },
+        "key": {
+          "natural": [
+            "id"
+          ]
+        },
+        "fields": {
+          "delivery_window": {
+            "type": "duration"
+          },
+          "channel": {
+            "type": "enum"
+          },
+          "customer_id": {
+            "type": "ref"
+          },
+          "due_on": {
+            "type": "date"
+          },
+          "gift": {
+            "type": "bool"
+          },
+          "id": {
+            "type": "string"
+          },
+          "placed_at": {
+            "type": "datetime"
+          },
+          "priority": {
+            "type": "enum"
+          },
+          "size": {
+            "type": "enum"
+          },
+          "state_": {
+            "type": "string"
+          },
+          "status": {
+            "type": "enum"
+          },
+          "tags": {
+            "type": "list"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "states": [
+          "open",
+          "paid",
+          "shipped",
+          "delivered",
+          "cancelled"
+        ],
+        "relations": {
+          "customer": {
+            "type": "customers",
+            "via": "customer_id"
+          }
+        }
+      },
+      "expect": {
+        "changes": {
+          "fields_added": 0,
+          "fields_removed": 0,
+          "fields_retyped": 0,
+          "states_added": 0,
+          "states_removed": 0,
+          "relations_added": 0,
+          "relations_removed": 0,
+          "key_changed": false,
+          "fields": []
+        }
+      }
+    },
+    {
+      "id": "changes.new_status_value",
+      "description": "A new value in the status CHECK: one state added, and the status field named.",
+      "op": "changes",
+      "declared": {
+        "type": "orders",
+        "version": "1",
+        "ownership": "subject",
+        "mirror_of": {
+          "system": "postgresql",
+          "derived_by": "introspection",
+          "fingerprint": "sha256:41490504437121877d60d8520a27c1b35f518d1e8c2fc6a5fa06aad99954b7e2",
+          "drift": "alert"
+        },
+        "key": {
+          "natural": [
+            "id"
+          ]
+        },
+        "fields": {
+          "delivery_window": {
+            "type": "duration"
+          },
+          "channel": {
+            "type": "enum"
+          },
+          "customer_id": {
+            "type": "ref"
+          },
+          "due_on": {
+            "type": "date"
+          },
+          "gift": {
+            "type": "bool"
+          },
+          "id": {
+            "type": "string"
+          },
+          "placed_at": {
+            "type": "datetime"
+          },
+          "priority": {
+            "type": "enum"
+          },
+          "size": {
+            "type": "enum"
+          },
+          "state_": {
+            "type": "string"
+          },
+          "status": {
+            "type": "enum"
+          },
+          "tags": {
+            "type": "list"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "states": [
+          "open",
+          "paid",
+          "shipped",
+          "delivered",
+          "cancelled"
+        ],
+        "relations": {
+          "customer": {
+            "type": "customers",
+            "via": "customer_id"
+          }
+        }
+      },
+      "live": {
+        "type": "orders",
+        "version": "1",
+        "ownership": "subject",
+        "mirror_of": {
+          "system": "postgresql",
+          "derived_by": "introspection",
+          "fingerprint": "sha256:4d894dbb85167baed98dd6b6f5bd50c25af18c0296a323a55e8606ab6785a86e",
+          "drift": "alert"
+        },
+        "key": {
+          "natural": [
+            "id"
+          ]
+        },
+        "fields": {
+          "delivery_window": {
+            "type": "duration"
+          },
+          "channel": {
+            "type": "enum"
+          },
+          "customer_id": {
+            "type": "ref"
+          },
+          "due_on": {
+            "type": "date"
+          },
+          "gift": {
+            "type": "bool"
+          },
+          "id": {
+            "type": "string"
+          },
+          "placed_at": {
+            "type": "datetime"
+          },
+          "priority": {
+            "type": "enum"
+          },
+          "size": {
+            "type": "enum"
+          },
+          "state_": {
+            "type": "string"
+          },
+          "status": {
+            "type": "enum"
+          },
+          "tags": {
+            "type": "list"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "states": [
+          "open",
+          "paid",
+          "shipped",
+          "delivered",
+          "cancelled",
+          "returned"
+        ],
+        "relations": {
+          "customer": {
+            "type": "customers",
+            "via": "customer_id"
+          }
+        }
+      },
+      "expect": {
+        "changes": {
+          "fields_added": 0,
+          "fields_removed": 0,
+          "fields_retyped": 0,
+          "states_added": 1,
+          "states_removed": 0,
+          "relations_added": 0,
+          "relations_removed": 0,
+          "key_changed": false,
+          "fields": [
+            "status"
+          ]
+        }
+      }
+    },
+    {
+      "id": "changes.columns_relations_and_key",
+      "description": "A column dropped, one retyped, two added, a relation added and a wider key: counts, and only the declared names.",
+      "op": "changes",
+      "declared": {
+        "type": "orders",
+        "version": "1",
+        "ownership": "subject",
+        "mirror_of": {
+          "system": "postgresql",
+          "derived_by": "introspection",
+          "fingerprint": "sha256:41490504437121877d60d8520a27c1b35f518d1e8c2fc6a5fa06aad99954b7e2",
+          "drift": "alert"
+        },
+        "key": {
+          "natural": [
+            "id"
+          ]
+        },
+        "fields": {
+          "delivery_window": {
+            "type": "duration"
+          },
+          "channel": {
+            "type": "enum"
+          },
+          "customer_id": {
+            "type": "ref"
+          },
+          "due_on": {
+            "type": "date"
+          },
+          "gift": {
+            "type": "bool"
+          },
+          "id": {
+            "type": "string"
+          },
+          "placed_at": {
+            "type": "datetime"
+          },
+          "priority": {
+            "type": "enum"
+          },
+          "size": {
+            "type": "enum"
+          },
+          "state_": {
+            "type": "string"
+          },
+          "status": {
+            "type": "enum"
+          },
+          "tags": {
+            "type": "list"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "states": [
+          "open",
+          "paid",
+          "shipped",
+          "delivered",
+          "cancelled"
+        ],
+        "relations": {
+          "customer": {
+            "type": "customers",
+            "via": "customer_id"
+          }
+        }
+      },
+      "live": {
+        "type": "orders",
+        "version": "1",
+        "ownership": "subject",
+        "mirror_of": {
+          "system": "postgresql",
+          "derived_by": "introspection",
+          "fingerprint": "sha256:41490504437121877d60d8520a27c1b35f518d1e8c2fc6a5fa06aad99954b7e2",
+          "drift": "alert"
+        },
+        "key": {
+          "natural": [
+            "id",
+            "placed_at"
+          ]
+        },
+        "fields": {
+          "delivery_window": {
+            "type": "duration"
+          },
+          "channel": {
+            "type": "enum"
+          },
+          "customer_id": {
+            "type": "ref"
+          },
+          "due_on": {
+            "type": "date"
+          },
+          "id": {
+            "type": "string"
+          },
+          "placed_at": {
+            "type": "datetime"
+          },
+          "priority": {
+            "type": "number"
+          },
+          "size": {
+            "type": "enum"
+          },
+          "state_": {
+            "type": "string"
+          },
+          "status": {
+            "type": "enum"
+          },
+          "tags": {
+            "type": "list"
+          },
+          "total": {
+            "type": "number"
+          },
+          "weight_kg": {
+            "type": "number"
+          },
+          "discount_code": {
+            "type": "string"
+          }
+        },
+        "states": [
+          "open",
+          "paid",
+          "shipped",
+          "delivered",
+          "cancelled"
+        ],
+        "relations": {
+          "customer": {
+            "type": "customers",
+            "via": "customer_id"
+          },
+          "store": {
+            "type": "stores",
+            "via": "store_id"
+          }
+        }
+      },
+      "expect": {
+        "changes": {
+          "fields_added": 2,
+          "fields_removed": 1,
+          "fields_retyped": 1,
+          "states_added": 0,
+          "states_removed": 0,
+          "relations_added": 1,
+          "relations_removed": 0,
+          "key_changed": true,
+          "fields": [
+            "gift",
+            "priority"
+          ]
+        }
+      }
+    },
+    {
+      "id": "changes.states_of_the_state_column",
+      "description": "States removed from the `state` column name the field `state_`; a relation removed; a key gone.",
+      "op": "changes",
+      "declared": {
+        "type": "proposals",
+        "version": "1",
+        "ownership": "subject",
+        "mirror_of": {
+          "system": "postgresql",
+          "derived_by": "introspection",
+          "fingerprint": "sha256:150a554a2164f8b2bfe2ac98d992757f3af90472eb995100eb86b636e9591b24",
+          "drift": "alert"
+        },
+        "key": {
+          "natural": [
+            "id"
+          ]
+        },
+        "fields": {
+          "broker_id": {
+            "type": "number"
+          },
+          "created_at": {
+            "type": "datetime"
+          },
+          "discount": {
+            "type": "enum"
+          },
+          "enrollment_fee": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lead_id": {
+            "type": "ref"
+          },
+          "lives": {
+            "type": "number"
+          },
+          "monthly_fee": {
+            "type": "money"
+          },
+          "plan": {
+            "type": "enum"
+          },
+          "region": {
+            "type": "string"
+          },
+          "state_": {
+            "type": "enum"
+          },
+          "waiting": {
+            "type": "duration"
+          }
+        },
+        "states": [
+          "draft",
+          "sent",
+          "accepted",
+          "refused"
+        ],
+        "relations": {
+          "lead": {
+            "type": "leads",
+            "via": "lead_id"
+          }
+        }
+      },
+      "live": {
+        "type": "proposals",
+        "version": "1",
+        "ownership": "subject",
+        "mirror_of": {
+          "system": "postgresql",
+          "derived_by": "introspection",
+          "fingerprint": "sha256:150a554a2164f8b2bfe2ac98d992757f3af90472eb995100eb86b636e9591b24",
+          "drift": "alert"
+        },
+        "fields": {
+          "broker_id": {
+            "type": "number"
+          },
+          "created_at": {
+            "type": "datetime"
+          },
+          "discount": {
+            "type": "enum"
+          },
+          "enrollment_fee": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lead_id": {
+            "type": "ref"
+          },
+          "lives": {
+            "type": "number"
+          },
+          "monthly_fee": {
+            "type": "money"
+          },
+          "plan": {
+            "type": "enum"
+          },
+          "region": {
+            "type": "string"
+          },
+          "state_": {
+            "type": "enum"
+          },
+          "waiting": {
+            "type": "duration"
+          }
+        },
+        "states": [
+          "draft",
+          "sent",
+          "accepted"
+        ]
+      },
+      "expect": {
+        "changes": {
+          "fields_added": 0,
+          "fields_removed": 0,
+          "fields_retyped": 0,
+          "states_added": 0,
+          "states_removed": 1,
+          "relations_added": 0,
+          "relations_removed": 1,
+          "key_changed": true,
+          "fields": [
+            "state_"
+          ]
+        }
+      }
+    }
+  ]
+}

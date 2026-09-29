@@ -181,6 +181,8 @@ class MockApp:
                 return _model(self.cell.agent_features.suppression_page())
             if method == "GET" and path == "/v1/suppressions/salt":
                 return _model(self.cell.agent_features.suppression_salt())
+            if method == "POST" and path == "/v1/types/fingerprint":
+                return _json(200, self.cell.agent_features.type_fingerprint(json.loads(body)))
             answer = self._agent_features(method, path, parse_qs(query), body)
             if answer is not None:
                 return answer

@@ -42,6 +42,7 @@ from niadra.constraints.render import Binding, BindingArg, Call, honored, render
 from niadra.coordination.destination import DestinationError, canonical_destination, suppression_key
 from niadra.coordination.token import ContactTokenError, verify_contact_token
 from niadra.exposure import ExposureTokenError, exposure_token, parse_exposure_token
+from niadra.introspect import DeriveError, changes, derive
 from niadra.models.signals import ConstraintsBlock
 from niadra.models.state import ClaimContractSummary
 from niadra.replay.counterfactual import overlap_at_k
@@ -401,6 +402,30 @@ def _counterfactual_overlap(case: dict[str, Any]) -> None:
     assert overlap_at_k(case["a"], case["b"], case["k"]) == pytest.approx(case["expect"]["overlap"], abs=1e-6)
 
 
+def _type_derive(case: dict[str, Any]) -> None:
+    if case["op"] == "changes":
+        assert changes(case["declared"], case["live"]) == case["expect"]["changes"]
+        return
+    options = case["options"]
+    assert set(options) <= {"type", "system", "ownership"}
+
+    def run() -> Any:
+        return derive(
+            case["catalog"],
+            type_name=options.get("type"),
+            system=options.get("system"),
+            ownership=options.get("ownership", "subject"),
+        )
+
+    if "error" in case["expect"]:
+        with pytest.raises(DeriveError) as refused:
+            run()
+        assert refused.value.code == case["expect"]["error"]
+        return
+    got = run()
+    assert {"fingerprint": got.fingerprint, "type": got.type, "review": got.review} == case["expect"]
+
+
 def _regression_stats(case: dict[str, Any]) -> None:
     # The statistic is the recorder's; the emulator computes it the same way, and its routes serve it.
     for execution in case["executions"]:
@@ -519,6 +544,11 @@ EXPECTED: dict[str, Expected] = {
         frozenset({"id", "description", "a", "b", "k", "expect"}),
         frozenset({"overlap"}),
         _counterfactual_overlap,
+    ),
+    "type-derive.v0": Expected(
+        frozenset({"id", "op", "description", "catalog", "options", "declared", "live", "expect"}),
+        frozenset({"fingerprint", "type", "review", "changes"}),
+        _type_derive,
     ),
     "regression-stats.v0": Expected(
         frozenset({"id", "description", "executions", "baseline", "expect"}),
