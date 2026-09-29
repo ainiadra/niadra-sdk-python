@@ -242,16 +242,25 @@ async def _quietly(work: Awaitable[object]) -> object:
 
 
 def state_values(objects: Iterable[ObjectRead]) -> list[StateValue]:
-    """The fields of objects a state read served, as the claim check's evidence. A masked or unknown value
-    backs nothing."""
+    """The fields and computed values of objects a state read served, as the claim check's evidence. A
+    computed value (a deadline the company's rule recomputed) backs a claim by its name, and only while it is
+    claim-safe and no unknown field of its object blocks claims. A field that is not claim-safe stays as a
+    copy too old to back one, so a claim that repeats it is `stale`. A masked or unknown value backs
+    nothing."""
     out: list[StateValue] = []
     for item in objects:
         ref = f"{item.ref.type}:{item.ref.namespace}:{item.ref.id}"
         gaps = tuple(item.declared_gaps)
+        claimable = not item.blocked.get("claim")
         for name, field in item.fields.items():
             if field.masked or field.logic != "yes" or field.v is None:
                 continue
-            out.append(StateValue(ref, name, field.v, field.claim_safe, field.role, gaps))
+            out.append(StateValue(ref, name, field.v, field.claim_safe and claimable, field.role, gaps))
+        for name, value in item.values.items():
+            if value.logic != "yes" or value.v is None or not (value.claim_safe and claimable):
+                continue
+            value_gaps = tuple(dict.fromkeys((*gaps, *value.declared_gaps)))
+            out.append(StateValue(ref, name, value.v, True, None, value_gaps))
     return out
 
 

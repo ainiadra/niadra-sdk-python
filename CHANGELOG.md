@@ -99,6 +99,14 @@ built on them.
 - `niadra.models.context.HISTORY_ITEM_KINDS`: use `typing.get_args(niadra.models.context.HistoryItemKind)`.
   Reading it warns (`DeprecationWarning`); it goes in 0.8.0.
 
+### Fixed
+
+- The claim contract reads the computed values a state read serves (`ObjectRead.values`, a deadline the
+  company's rule recomputed) as evidence, by their name, while they are claim-safe and no unknown field of
+  their object blocks claims. The guard used to find no evidence for such a value and blocked a correct
+  answer. A stale or blocked computed value still backs nothing, and a field of an object whose claims are
+  blocked is a copy too old to back one.
+
 ## [0.6.1] - 2026-09-28
 
 A turn another agent should read reaches the memory as soon as it is said.

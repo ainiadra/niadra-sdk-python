@@ -14,9 +14,10 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from niadra import Niadra, phone
-from niadra.models.state import ClaimContractSummary
+from niadra.models.state import ClaimContractSummary, ObjectRead
 from niadra.options import CacheOptions, TurnOptions
 from niadra.turns.capture import StateValue, TurnFrame
+from niadra.turns.claims import state_values
 from niadra.turns.guard import Guard, guard_async_stream, guard_stream, guard_text
 from niadra_mock import MOCK_KEY, MockApp
 
@@ -218,3 +219,55 @@ def test_a_mutable_stream_ends_as_the_whole_text_would(chunks: list[str]) -> Non
 def _chunks(text: str, size: int) -> Iterator[str]:
     for i in range(0, len(text), size):
         yield text[i : i + size]
+
+
+LEGAL = ClaimContractSummary.model_validate(
+    json.loads((ROOT / "spec" / "examples" / "claim-contract" / "legal.json").read_text())
+)
+NOTICE = "intimacao_com_prazo:tj:0001234-56"
+
+
+def _served(due: str, *, claim_safe: bool = True, blocked: bool = False) -> TurnFrame:
+    """A turn whose state block served a notice with the deadline the company's rule recomputed."""
+    read = ObjectRead.model_validate(
+        {
+            "ref": {"type": "intimacao_com_prazo", "namespace": "tj", "id": "0001234-56"},
+            "fields": {
+                "published_at": {"v": "2026-09-30", "logic": "yes", "status": "fresh", "claim_safe": True}
+            },
+            "values": {
+                "due_date": {
+                    "v": due,
+                    "logic": "yes",
+                    "status": "fresh" if claim_safe else "stale",
+                    "claim_safe": claim_safe,
+                    "rule": "prazo_util@v3",
+                    "computed_at": "2026-09-30T12:00:00Z",
+                    "version": 2,
+                    "supersedes_version": 1,
+                }
+            },
+            "blocked": {"claim": ["published_at"]} if blocked else {},
+        }
+    )
+    frame = TurnFrame(None, agent="clerk", conversation_id="c-9")
+    frame.observe_state(state_values([read]))
+    return frame
+
+
+def test_a_recomputed_deadline_the_state_block_served_backs_the_claim() -> None:
+    text = "O prazo final vence em 21/10/2026, sem contar feriado local."
+    guarded = guard_text(LEGAL, _served("2026-10-21"), text)
+    assert guarded.text == text
+    (claim,) = guarded.claims
+    assert (claim.category, claim.verdict, claim.action) == ("deadline", "matched", "none")
+    assert claim.evidence is not None and (claim.evidence.ref, claim.evidence.field) == (NOTICE, "due_date")
+
+
+def test_a_stale_or_blocked_computed_value_is_still_flagged() -> None:
+    text = "O prazo final vence em 21/10/2026, sem contar feriado local."
+    for frame in (_served("2026-10-21", claim_safe=False), _served("2026-10-21", blocked=True)):
+        (claim,) = guard_text(LEGAL, frame, text).claims
+        assert (claim.verdict, claim.nature, claim.action) == ("unsupported", "model", "block")
+    (other,) = guard_text(LEGAL, _served("2026-10-22"), text).claims
+    assert (other.verdict, other.action) == ("unsupported", "block"), "a date the state never gave"
