@@ -363,8 +363,10 @@ def _pattern(pattern: str) -> str:
 def _string(text: str) -> str:
     """A string literal in implicitly joined parts, so no generated line runs past the limit."""
     flat = " ".join(text.split())
-    parts = textwrap.wrap(flat, 90, drop_whitespace=False)
-    return _literal(flat) if len(parts) <= 1 else "(" + " ".join(_literal(p) for p in parts) + ")"
+    # One literal fits a field's `description="..."` line (8 spaces in) up to 86 characters.
+    if len(flat) <= 86:
+        return _literal(flat)
+    return "(" + " ".join(_literal(p) for p in textwrap.wrap(flat, 90, drop_whitespace=False)) + ")"
 
 
 def _docstring(text: str, indent: str) -> str:

@@ -85,6 +85,94 @@
         "title": "AgentState",
         "type": "object"
       },
+      "AgentStateMeta": {
+        "additionalProperties": false,
+        "description": "One working state of a customer, as the Console shows it: never its content.",
+        "properties": {
+          "agent": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Agent",
+            "type": "string"
+          },
+          "bytes": {
+            "description": "The size of the state's body.",
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "schema_version": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema Version"
+          },
+          "scope_kind": {
+            "enum": [
+              "conversation",
+              "task",
+              "object",
+              "subject"
+            ],
+            "title": "Scope Kind",
+            "type": "string"
+          },
+          "source_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Source Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "valid_until": {
+            "format": "date-time",
+            "title": "Valid Until",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agent",
+          "scope_kind",
+          "source_id",
+          "bytes",
+          "version",
+          "updated_at",
+          "valid_until"
+        ],
+        "title": "AgentStateMeta",
+        "type": "object"
+      },
+      "AgentStateMetaPage": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentStateMeta"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "AgentStateMetaPage",
+        "type": "object"
+      },
       "AgentStateReadRequest": {
         "additionalProperties": false,
         "properties": {
@@ -383,6 +471,59 @@
           "value_minor"
         ],
         "title": "ArmOutcomes",
+        "type": "object"
+      },
+      "AskedAttribute": {
+        "additionalProperties": false,
+        "properties": {
+          "attr": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}\\.[a-z][a-z0-9_]{0,63}$",
+            "title": "Attr",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "in",
+              "not_in",
+              "eq",
+              "ne",
+              "lt",
+              "lte",
+              "gt",
+              "gte",
+              "between"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                }
+              ]
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "attr",
+          "op",
+          "values"
+        ],
+        "title": "AskedAttribute",
         "type": "object"
       },
       "AssertionOutcome": {
@@ -870,25 +1011,81 @@
       },
       "BiFile": {
         "additionalProperties": false,
-        "description": "The company's BI export for the period, as CSV with a header: `order` (the id the company knows the\nobject by), `line` (optional), `value` (in major units, as the signed definition nets it) and\n`currency`.",
+        "description": "The company's BI export for the period, uploaded first (`POST /v1/measure/reconcile/uploads`), as CSV\nwith a header: `order` (the id the company knows the object by), `line` (optional), `value` (in major\nunits, as the signed definition nets it) and `currency`. It is read once and deleted.",
         "properties": {
-          "content": {
-            "maxLength": 5000000,
-            "minLength": 1,
-            "title": "Content",
-            "type": "string"
-          },
           "format": {
             "const": "csv",
             "default": "csv",
             "title": "Format",
             "type": "string"
+          },
+          "upload_id": {
+            "format": "uuid",
+            "title": "Upload Id",
+            "type": "string"
           }
         },
         "required": [
-          "content"
+          "upload_id"
         ],
         "title": "BiFile",
+        "type": "object"
+      },
+      "BiUpload": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "upload_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Send exactly these headers; the storage refuses other bytes.",
+            "title": "Upload Headers",
+            "type": "object"
+          },
+          "upload_id": {
+            "format": "uuid",
+            "title": "Upload Id",
+            "type": "string"
+          },
+          "upload_url": {
+            "title": "Upload Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "upload_id",
+          "upload_url",
+          "expires_at"
+        ],
+        "title": "BiUpload",
+        "type": "object"
+      },
+      "BiUploadRequest": {
+        "additionalProperties": false,
+        "description": "Reserves the upload of the company's BI file: its size and SHA-256, which the storage checks.",
+        "properties": {
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size_bytes": {
+            "maximum": 52428800.0,
+            "minimum": 1.0,
+            "title": "Size Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "size_bytes",
+          "sha256"
+        ],
+        "title": "BiUploadRequest",
         "type": "object"
       },
       "BlockSubject": {
@@ -998,7 +1195,7 @@
       },
       "Change": {
         "additionalProperties": false,
-        "description": "One entry of the change log a bisection walks: a pin that changed between two builds of an agent, in\nthe order the builds were first seen.",
+        "description": "One entry of the change log a bisection walks: a pin that changed between two builds of an agent, or\na section of the space's configuration that changed between two applied snapshots (`config`, named by\nthe section, with no agent: every agent reads it, and its digests stand for the values).",
         "properties": {
           "after": {
             "anyOf": [
@@ -3544,6 +3741,7 @@
       },
       "DataIssue": {
         "additionalProperties": false,
+        "description": "A problem in the company's data, returned to its owner with no personal data: one open issue per\nclass, type, field and source, counted each time it is found again.",
         "properties": {
           "acknowledged_at": {
             "anyOf": [
@@ -3555,6 +3753,7 @@
                 "type": "null"
               }
             ],
+            "description": "Once acknowledged, the next occurrence opens a new issue.",
             "title": "Acknowledged At"
           },
           "field": {
@@ -3577,6 +3776,7 @@
             "type": "string"
           },
           "kind": {
+            "description": "`null_field`, `out_of_vocabulary`, `stale_source`, `invalid_value`: a value an agent's tool showed; `coverage_drop`: a field filled less often than before; `divergence`: two sources of one value disagree; `drift`: the schema a type mirrors changed; `rule_conflict`: two rules decide one thing differently; `type_undeclared`: tools showed objects of a type the space never declared.",
             "enum": [
               "null_field",
               "out_of_vocabulary",
@@ -3585,9 +3785,15 @@
               "invalid_value",
               "divergence",
               "drift",
-              "rule_conflict"
+              "rule_conflict",
+              "type_undeclared"
             ],
             "title": "Kind",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "format": "date-time",
+            "title": "Last Seen At",
             "type": "string"
           },
           "object_type": {
@@ -3613,8 +3819,11 @@
             "type": "string"
           },
           "refs": {
+            "description": "The first objects it was seen on, up to 50.",
             "items": {
-              "$ref": "#/components/schemas/ObjectRef"
+              "description": "An object as `<type>:<namespace>:<id>`, e.g. `item_variant:store:991`.",
+              "pattern": "^[a-z][a-z0-9_]{0,39}:[^:\\s]{1,256}:\\S{1,512}$",
+              "type": "string"
             },
             "maxItems": 50,
             "title": "Refs",
@@ -3631,6 +3840,7 @@
                 "type": "null"
               }
             ],
+            "description": "Where the data came from: a tool or a system of record.",
             "title": "Source"
           }
         },
@@ -3638,7 +3848,8 @@
           "issue_id",
           "kind",
           "occurrences",
-          "opened_at"
+          "opened_at",
+          "last_seen_at"
         ],
         "title": "DataIssue",
         "type": "object"
@@ -3826,6 +4037,73 @@
           }
         },
         "title": "Detect",
+        "type": "object"
+      },
+      "DriftChanges": {
+        "additionalProperties": false,
+        "description": "What changed between the declaration and the type the schema proposes now, as counts: never a new name,\na value or a definition (object-type spec, 8.8.2).",
+        "properties": {
+          "fields": {
+            "description": "The declaration's fields removed or retyped, and its state field when the states differ.",
+            "items": {
+              "pattern": "^[a-z][a-z0-9_]{0,63}$",
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Fields",
+            "type": "array"
+          },
+          "fields_added": {
+            "minimum": 0.0,
+            "title": "Fields Added",
+            "type": "integer"
+          },
+          "fields_removed": {
+            "minimum": 0.0,
+            "title": "Fields Removed",
+            "type": "integer"
+          },
+          "fields_retyped": {
+            "minimum": 0.0,
+            "title": "Fields Retyped",
+            "type": "integer"
+          },
+          "key_changed": {
+            "title": "Key Changed",
+            "type": "boolean"
+          },
+          "relations_added": {
+            "minimum": 0.0,
+            "title": "Relations Added",
+            "type": "integer"
+          },
+          "relations_removed": {
+            "minimum": 0.0,
+            "title": "Relations Removed",
+            "type": "integer"
+          },
+          "states_added": {
+            "minimum": 0.0,
+            "title": "States Added",
+            "type": "integer"
+          },
+          "states_removed": {
+            "minimum": 0.0,
+            "title": "States Removed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "fields_added",
+          "fields_removed",
+          "fields_retyped",
+          "states_added",
+          "states_removed",
+          "relations_added",
+          "relations_removed",
+          "key_changed"
+        ],
+        "title": "DriftChanges",
         "type": "object"
       },
       "Effect": {
@@ -4336,9 +4614,13 @@
                 "type": "null"
               }
             ],
+            "description": "The median age, in seconds, of the field's newest observation.",
             "title": "Age P50 S"
           },
           "coverage": {
+            "description": "The share of the type's objects some source observed the field of.",
+            "maximum": 1.0,
+            "minimum": 0.0,
             "title": "Coverage",
             "type": "number"
           },
@@ -5899,22 +6181,48 @@
       },
       "Notification": {
         "additionalProperties": false,
-        "description": "A webhook's body, for who pulls instead of receiving it: the same body, in `change_seq` order.",
+        "description": "A webhook's body, for the company that pulls instead of receiving it: the same fields, ids and\npointers only. An event aimed at one endpoint, or about a memory item only some sources may read,\nreaches its webhooks only.",
         "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
           "data": {
             "additionalProperties": true,
             "title": "Data",
             "type": "object"
           },
           "id": {
+            "description": "The event's id; a webhook delivery of the same event has its own.",
             "maxLength": 512,
             "minLength": 1,
             "title": "Id",
             "type": "string"
           },
-          "occurred_at": {
-            "format": "date-time",
-            "title": "Occurred At",
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Links",
+            "type": "object"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "tenant": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Tenant",
             "type": "string"
           },
           "type": {
@@ -5927,7 +6235,8 @@
         "required": [
           "id",
           "type",
-          "occurred_at",
+          "created_at",
+          "tenant",
           "data"
         ],
         "title": "Notification",
@@ -5935,6 +6244,7 @@
       },
       "NotificationPage": {
         "additionalProperties": false,
+        "description": "Oldest first. `next_cursor` is where the next poll starts: the same cursor when nothing is new.",
         "properties": {
           "items": {
             "items": {
@@ -5944,25 +6254,20 @@
             "type": "array"
           },
           "next_cursor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next Cursor"
+            "title": "Next Cursor",
+            "type": "string"
           }
         },
         "required": [
-          "items"
+          "items",
+          "next_cursor"
         ],
         "title": "NotificationPage",
         "type": "object"
       },
       "ObjectCoverage": {
         "additionalProperties": false,
+        "description": "How much of each declared field the objects of each type carry, and how old it is, from the stamps\nalone: never a value.",
         "properties": {
           "types": {
             "items": {
@@ -7531,6 +7836,21 @@
               }
             ],
             "title": "Absent"
+          },
+          "inputs": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For a reading that includes its inputs: the derived object's inputs, by the name its type gives them, as `type:namespace:id`.",
+            "title": "Inputs"
           },
           "logic": {
             "enum": [
@@ -10454,6 +10774,121 @@
         "title": "TurnEffect",
         "type": "object"
       },
+      "TurnIndexEntry": {
+        "additionalProperties": false,
+        "description": "One row of the kept tier's index, as the day's anchored root counts it: ids, times, the build and the\nmode, never what the turn said. `digest` is SHA-256 over the RFC 8785 form of the other fields.",
+        "properties": {
+          "agent": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Agent",
+            "type": "string"
+          },
+          "build_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Hash"
+          },
+          "content_mode": {
+            "enum": [
+              "stored",
+              "pointer",
+              "hash_only"
+            ],
+            "title": "Content Mode",
+            "type": "string"
+          },
+          "digest": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Digest",
+            "type": "string"
+          },
+          "kept_at": {
+            "format": "date-time",
+            "title": "Kept At",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "message",
+              "action",
+              "event",
+              "timer"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "source_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Source Id",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "turn_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+            "title": "Turn Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "turn_id",
+          "source_id",
+          "agent",
+          "kind",
+          "started_at",
+          "content_mode",
+          "kept_at",
+          "digest"
+        ],
+        "title": "TurnIndexEntry",
+        "type": "object"
+      },
+      "TurnIndexPage": {
+        "additionalProperties": false,
+        "description": "The rows the kept tier took on one UTC day, in turn id order. Their digests, as leaves in that\norder, make the `turns.root` of the day's `audit.root` event (RFC 6962 prefixes, an odd node carried\nup), for the company's own audit chain to anchor.",
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TurnIndexEntry"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "day",
+          "items"
+        ],
+        "title": "TurnIndexPage",
+        "type": "object"
+      },
       "TurnObservation": {
         "additionalProperties": false,
         "description": "State a tool result showed, with provenance per field; without provenance it is display only.",
@@ -11395,6 +11830,11 @@
             "title": "Fields",
             "type": "array"
           },
+          "objects": {
+            "description": "The objects measured: the ones of the type that changed last.",
+            "title": "Objects",
+            "type": "integer"
+          },
           "type": {
             "pattern": "^[a-z][a-z0-9_]{0,39}$",
             "title": "Type",
@@ -11403,6 +11843,7 @@
         },
         "required": [
           "type",
+          "objects",
           "fields"
         ],
         "title": "TypeCoverage",
@@ -11410,10 +11851,20 @@
       },
       "TypeFingerprintRequest": {
         "additionalProperties": false,
+        "description": "A deriving tool's check of a declared type: the fingerprint of the schema it read now.",
         "properties": {
+          "changes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriftChanges"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "fingerprint": {
-            "maxLength": 128,
-            "minLength": 1,
+            "pattern": "^sha256:[0-9a-f]{64}$",
             "title": "Fingerprint",
             "type": "string"
           },
@@ -11434,8 +11885,23 @@
         "additionalProperties": false,
         "properties": {
           "drift": {
+            "description": "Whether the fingerprint differs from the declaration's.",
             "title": "Drift",
             "type": "boolean"
+          },
+          "issue_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The data issue of kind `drift` the check opened or counted in, when the type alerts.",
+            "title": "Issue Id"
           }
         },
         "required": [
@@ -11444,16 +11910,67 @@
         "title": "TypeFingerprintResponse",
         "type": "object"
       },
+      "UnmetDemand": {
+        "additionalProperties": false,
+        "description": "One combination people asked a tool for, in one week, that came back with nothing or with fewer than\nthree results. Never a person: a combination fewer than the space's minimum of people asked is left\nout.",
+        "properties": {
+          "asked": {
+            "description": "What the tool's arguments asked, on the type registry's fields, values normalized; empty when the arguments named none.",
+            "items": {
+              "$ref": "#/components/schemas/AskedAttribute"
+            },
+            "title": "Asked",
+            "type": "array"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "empty": {
+            "description": "Calls that returned nothing; the rest returned one or two results.",
+            "title": "Empty",
+            "type": "integer"
+          },
+          "people": {
+            "description": "Distinct people who asked it that week.",
+            "title": "People",
+            "type": "integer"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          },
+          "week": {
+            "description": "The Monday the week starts on.",
+            "format": "date",
+            "title": "Week",
+            "type": "string"
+          }
+        },
+        "required": [
+          "week",
+          "tool",
+          "asked",
+          "calls",
+          "empty",
+          "people"
+        ],
+        "title": "UnmetDemand",
+        "type": "object"
+      },
       "UnmetDemandPage": {
         "additionalProperties": false,
         "properties": {
           "items": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/UnmetDemand"
             },
             "title": "Items",
             "type": "array"
+          },
+          "min_people": {
+            "title": "Min People",
+            "type": "integer"
           },
           "next_cursor": {
             "anyOf": [
@@ -11465,9 +11982,22 @@
               }
             ],
             "title": "Next Cursor"
+          },
+          "since": {
+            "format": "date",
+            "title": "Since",
+            "type": "string"
+          },
+          "until": {
+            "format": "date",
+            "title": "Until",
+            "type": "string"
           }
         },
         "required": [
+          "since",
+          "until",
+          "min_people",
           "items"
         ],
         "title": "UnmetDemandPage",
@@ -12090,6 +12620,7 @@
     },
     "/v1/content/{ref}/release": {
       "post": {
+        "description": "A person clears content the scan flagged or holds, with a reason and a receipt; the object's reads\nserve it from then on.",
         "operationId": "release_content_v1_content__ref__release_post",
         "parameters": [
           {
@@ -12638,8 +13169,41 @@
     },
     "/v1/data-issues": {
       "get": {
+        "description": "Newest opened first: data problems, drift, divergence and rule conflicts, with no personal data.",
         "operationId": "data_issues_v1_data_issues_get",
         "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "open",
+              "enum": [
+                "open",
+                "acknowledged",
+                "all"
+              ],
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
           {
             "in": "query",
             "name": "cursor",
@@ -12700,6 +13264,7 @@
     },
     "/v1/data-issues/{issue_id}/ack": {
       "post": {
+        "description": "Closes the issue; the next occurrence of the same problem opens a new one.",
         "operationId": "acknowledge_data_issue_v1_data_issues__issue_id__ack_post",
         "parameters": [
           {
@@ -13488,10 +14053,90 @@
         ]
       }
     },
+    "/v1/measure/reconcile/uploads": {
+      "post": {
+        "description": "Where to upload the company's BI file for a reconciliation: a short-lived link for those bytes only.",
+        "operationId": "reconcile_upload_v1_measure_reconcile_uploads_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BiUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BiUpload"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not match the contract."
+          }
+        },
+        "summary": "Reconcile Upload",
+        "tags": [
+          "signals"
+        ]
+      }
+    },
     "/v1/measure/unmet-demand": {
       "get": {
+        "description": "What people asked the tools for and did not get, by week and combination of what was asked, where at\nleast the space's minimum of distinct people asked it: never per person.",
         "operationId": "unmet_demand_v1_measure_unmet_demand_get",
         "parameters": [
+          {
+            "in": "query",
+            "name": "since",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Since",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Until",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tool",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tool"
+            }
+          },
           {
             "in": "query",
             "name": "cursor",
@@ -13552,6 +14197,7 @@
     },
     "/v1/notifications": {
       "get": {
+        "description": "The events the webhooks carry, oldest first, from `cursor` (the start of the feed without one); a\npoll with nothing new answers the same cursor. Events stay 7 days.",
         "operationId": "notifications_v1_notifications_get",
         "parameters": [
           {
@@ -13614,6 +14260,7 @@
     },
     "/v1/objects/coverage": {
       "get": {
+        "description": "Each declared type's fields, the share of its objects that carry each and how old it is: the Console's\nTypes screen. Stamps only, never a value.",
         "operationId": "object_coverage_v1_objects_coverage_get",
         "responses": {
           "200": {
@@ -13724,6 +14371,50 @@
           }
         },
         "summary": "Snapshot Objects",
+        "tags": [
+          "state"
+        ]
+      }
+    },
+    "/v1/profiles/{profile_id}/agent-state": {
+      "get": {
+        "description": "The customer's working states, as the Console shows them: size, version and dates, never the\ncontent.",
+        "operationId": "profile_agent_states_v1_profiles__profile_id__agent_state_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentStateMetaPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not match the contract."
+          }
+        },
+        "summary": "Profile Agent States",
         "tags": [
           "state"
         ]
@@ -14881,6 +15572,79 @@
         ]
       }
     },
+    "/v1/turns/index/{day}": {
+      "get": {
+        "description": "The rows the kept tier took on a UTC day with their digests, which make the `turns.root` of the day's\n`audit.root` event: the company anchors them in its own audit chain.",
+        "operationId": "turn_index_v1_turns_index__day__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 500,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnIndexPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not match the contract."
+          }
+        },
+        "summary": "Turn Index",
+        "tags": [
+          "turns"
+        ]
+      }
+    },
     "/v1/turns/promote": {
       "post": {
         "description": "Promoting is idempotent by itself: a turn promoted again counts as `already_kept`.",
@@ -15024,6 +15788,7 @@
     },
     "/v1/types/fingerprint": {
       "post": {
+        "description": "A deriving tool's check of a declared type: a fingerprint other than the declaration's is drift, and a\ntype that alerts opens a data issue of kind `drift`, or counts the open one, and announces `type.drift`.\nOnly the fingerprint and the counts of what changed travel: never a name, a value or a definition.",
         "operationId": "type_fingerprint_v1_types_fingerprint_post",
         "requestBody": {
           "content": {
@@ -15045,6 +15810,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "The space declares no type of this name."
           },
           "422": {
             "content": {

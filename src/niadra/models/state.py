@@ -13,6 +13,7 @@ from pydantic import Field, StringConstraints
 from niadra.models._base import IdStr, Model, ResponseModel, ShortStr
 from niadra.models.common import Handle
 
+Sha256 = Annotated[str, StringConstraints(pattern=r"^sha256:[0-9a-f]{64}$")]
 TypeName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}$")]
 
 
@@ -34,6 +35,23 @@ class AgentState(ResponseModel):
     body: dict[str, Any] = Field(default_factory=dict)
     updated_at: datetime | None = None
     version: int
+
+
+class AgentStateMeta(ResponseModel):
+    """One working state of a customer, as the Console shows it: never its content."""
+
+    agent: ShortStr
+    bytes: int = Field(description="The size of the state's body.")
+    schema_version: ShortStr | None = None
+    scope_kind: Literal["conversation", "task", "object", "subject"]
+    source_id: IdStr
+    updated_at: datetime
+    valid_until: datetime
+    version: int
+
+
+class AgentStateMetaPage(ResponseModel):
+    items: list[AgentStateMeta]
 
 
 class AgentStateScope(Model):
@@ -229,6 +247,28 @@ class ContentReleaseResult(ResponseModel):
     released: bool
 
 
+class DriftChanges(Model):
+    """What changed between the declaration and the type the schema proposes now, as counts: never a new name,
+    a value or a definition (object-type spec, 8.8.2).
+    """
+
+    fields: list[Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,63}$")]] = Field(
+        default_factory=list,
+        max_length=50,
+        description=(
+            "The declaration's fields removed or retyped, and its state field when the states differ."
+        ),
+    )
+    fields_added: int = Field(ge=0)
+    fields_removed: int = Field(ge=0)
+    fields_retyped: int = Field(ge=0)
+    key_changed: bool
+    relations_added: int = Field(ge=0)
+    relations_removed: int = Field(ge=0)
+    states_added: int = Field(ge=0)
+    states_removed: int = Field(ge=0)
+
+
 Feature = Literal[
     "turns",
     "state",
@@ -246,8 +286,12 @@ Feature = Literal[
 
 
 class FieldCoverage(ResponseModel):
-    age_p50_s: int | None = None
-    coverage: float
+    age_p50_s: int | None = Field(
+        default=None, description="The median age, in seconds, of the field's newest observation."
+    )
+    coverage: float = Field(
+        ge=0.0, le=1.0, description="The share of the type's objects some source observed the field of."
+    )
     field: ShortStr
 
 
@@ -292,6 +336,13 @@ class ReadingResult(ResponseModel):
     """
 
     absent: ShortStr | None = None
+    inputs: dict[str, str] | None = Field(
+        default=None,
+        description=(
+            "For a reading that includes its inputs: the derived object's inputs, by the name its type "
+            "gives them, as `type:namespace:id`."
+        ),
+    )
     logic: Literal["yes", "no", "unobserved", "known_defect"]
     type: Literal["bool", "number", "string", "duration", "date", "datetime", "list"] | None = None
     v: Any = None
@@ -396,10 +447,15 @@ class InterestState(ResponseModel):
 
 class TypeCoverage(ResponseModel):
     fields: list[FieldCoverage]
+    objects: int = Field(description="The objects measured: the ones of the type that changed last.")
     type: TypeName
 
 
 class ObjectCoverage(ResponseModel):
+    """How much of each declared field the objects of each type carry, and how old it is, from the stamps
+    alone: never a value.
+    """
+
     types: list[TypeCoverage]
 
 
@@ -569,9 +625,16 @@ class StateViewRequest(Model):
 
 
 class TypeFingerprintRequest(Model):
-    fingerprint: Annotated[str, StringConstraints(min_length=1, max_length=128)]
+    """A deriving tool's check of a declared type: the fingerprint of the schema it read now."""
+
+    changes: DriftChanges | None = None
+    fingerprint: Sha256
     type: TypeName
 
 
 class TypeFingerprintResponse(ResponseModel):
-    drift: bool
+    drift: bool = Field(description="Whether the fingerprint differs from the declaration's.")
+    issue_id: IdStr | None = Field(
+        default=None,
+        description="The data issue of kind `drift` the check opened or counted in, when the type alerts.",
+    )
