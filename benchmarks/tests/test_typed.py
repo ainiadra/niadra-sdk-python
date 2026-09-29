@@ -161,6 +161,7 @@ def _row(
 
     price = {"category": "price", "verdict": "unsupported", "action": "warn"}
     return {
+        "repetition": 1,
         "case_id": case_id,
         "category": category,
         "view": "chat",
@@ -280,7 +281,7 @@ async def test_seeding_sends_each_write_where_the_cell_takes_it(
     )
     await cell.http.aclose()
     cell.http = httpx.AsyncClient(base_url="http://cell", transport=httpx.MockTransport(answer))
-    cell.scoped = {"billing": "k-push", "whatsapp": "k-coordinate"}
+    cell.spaces["pt"].keys.update({"billing": "k-push", "whatsapp": "k-coordinate"})
     now = datetime(2026, 9, 29, 15, tzinfo=UTC)
     try:
         for category in ("quote_expiry", "hard_constraint", "changes_since_seen", "effect_once"):
@@ -290,7 +291,8 @@ async def test_seeding_sends_each_write_where_the_cell_takes_it(
     finally:
         await cell.close()
     paths = [p for p, _ in sent]
-    assert paths.count("/v1/turns") == 2 and paths.count("/v1/objects/push") == 2
+    # Two presentations (the plan whose price moves, the two plans the filter applies to) and a preference.
+    assert paths.count("/v1/turns") == 3 and paths.count("/v1/objects/push") == 2
     assert paths.count("/v1/coordination/check") == 1 and "/v1/coordination/declare" in paths
     quote = next(b["items"][0] for p, b in sent if p == "/v1/batch" and "cq-11" in json.dumps(b))
     assert quote["kind"] == "system_event" and quote["handles"][0]["value"].startswith("+55119")
@@ -303,6 +305,14 @@ async def test_seeding_sends_each_write_where_the_cell_takes_it(
         "kind": "preference", "attr": "health_plan.copay", "op": "eq", "values": None, "strength": "must",
         "scope": "persistent", "source": "tool_args",
     }  # fmt: skip
+    [options] = next(b for p, b in sent if p == "/v1/turns" and "essencial-1-pt-t1" in json.dumps(b))["turns"]
+    [shown] = options["interactions"]
+    assert (shown["kind"], shown["visible_k"]) == ("presented", 2)
+    assert [(i["pos"], i["ref"], i["shown"].get("copay")) for i in shown["items"]] == [
+        (1, "health_plan:operadora:essencial-1-pt-t1", True),
+        (2, "health_plan:operadora:pleno-1-pt-t1", False),
+    ]
+    assert len(options["calls"][0]["observations"]) == 2
     [push] = next(b for p, b in sent if p == "/v1/objects/push" and "health_plan" in json.dumps(b))["objects"]
     assert push["version"] == 2 and push["fields"] == {"monthly_price": 689.0}
     # Messages go out oldest first, and each conversation ends.
@@ -318,3 +328,90 @@ def test_the_guard_runs_on_a_stale_price() -> None:
     guarded = typed_ab.guard_answer(case, "Sim, o total continua R$ 412,70 com frete.", None, None)
     assert [c["category"] for c in guarded["claims"]] == ["price"]
     assert guarded["claims"][0]["verdict"] != "matched"
+
+
+def test_the_token_check_pairs_the_same_reads_of_the_old_and_the_new_code() -> None:
+    before = {"voice": {f"c{i}": 100 for i in range(10)}, "chat": {"c0": 90}}
+    now = {"voice": {f"c{i}": 100 + (3 if i < 3 else 0) for i in range(10)} | {"new": 50}, "chat": {}}
+    found = typed_ab.paired(now["voice"], before["voice"])
+    assert found is not None
+    assert (found["pairs"], found["changed"], found["median_change"]) == (10, 3, 0.0)
+    assert found["within_5pct"]
+    assert found["ci95"] == [0.0, 0.03]
+    grown = typed_ab.paired({k: 110 for k in before["voice"]}, before["voice"])
+    assert grown is not None
+    assert not grown["within_5pct"]
+    # Nothing in common, nothing to compare.
+    assert typed_ab.paired(now["chat"], before["chat"]) is None
+    document = {
+        "tokens_without_blocks_v2": {"reads": now},
+        "metrics": {"tokens": {"without_reads": {"voice": {"a#1": 40}}}},
+    }
+    baseline = {
+        "tokens_without_blocks_v2": {"reads": before},
+        "metrics": {"tokens": {"without_reads": {"voice": {"a#1": 40, "b#1": 30}}}},
+    }
+    tokens = typed_ab.paired_tokens(document, baseline)
+    assert set(tokens) == {"v2_sample", "typed_without"}
+    assert tokens["typed_without"]["voice"]["pairs"] == 1
+    lines = "\n".join(typed_ab._paired_lines(tokens))
+    assert "| dataset v2 sample | voice | 10 | 100.0 | 100.0 | 3 | +0.0% [+0.0, +3.0] | yes |" in lines
+
+
+async def test_the_english_cases_get_a_space_of_their_own_in_english() -> None:
+    calls: list[tuple[str, str, Any]] = []
+    sources = [
+        {"source_id": f"src-{name}", "name": name, "audience": "customer_agent", "channel": name,
+         "purposes": ["support"], "verification_ceiling": "V3", "trusted_action_ops": [], "vendor": None}
+        for name in ("whatsapp", "voice", "billing")
+    ]  # fmt: skip
+
+    class Control:
+        async def _call(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
+            calls.append((method, path, kwargs.get("json") or kwargs.get("params")))
+            request = httpx.Request(method, f"http://control{path}")
+            if path == "/v1/projects" and method == "GET":
+                return httpx.Response(
+                    200, json=[{"project_id": "p", "slug": "a", "region": "us-east-2"}], request=request
+                )
+            if path == "/v1/projects":
+                spaces = [
+                    {"space_id": "en-sandbox", "environment": "sandbox"},
+                    {"space_id": "x", "environment": "production"},
+                ]
+                return httpx.Response(201, json={"spaces": spaces}, request=request)
+            if path == "/v1/sources" and method == "GET":
+                mine = kwargs["params"]["space_id"] == "en-sandbox"
+                return httpx.Response(200, json=[] if mine else sources, request=request)
+            if path == "/v1/config/settings":
+                return httpx.Response(
+                    200,
+                    json={"document": {"locale": "pt-BR", "timezone": "America/Sao_Paulo"}},
+                    request=request,
+                )
+            if path == "/v1/config/diffs":
+                return httpx.Response(201, json={"diff_id": "d"}, request=request)
+            return httpx.Response(200 if path.endswith("/approve") else 201, json={}, request=request)
+
+    cell = typed_ab.Cell.__new__(typed_ab.Cell)
+    cell.document = {"project_id": "p", "space_id": "pt-sandbox"}
+    cell.spaces = {"pt": typed_ab.Space("pt", "pt-sandbox", {})}
+    cell.control = Control()  # type: ignore[assignment]
+    space = await cell._english_space()
+    assert (space.language, space.space_id) == ("en", "en-sandbox")
+    assert ("POST", "/v1/projects", {**typed_ab.ENGLISH_PROJECT, "region": "us-east-2"}) in calls
+    created = [body for method, path, body in calls if (method, path) == ("POST", "/v1/sources")]
+    assert [c["name"] for c in created] == ["whatsapp", "voice", "billing"]
+    assert all(c["space_id"] == "en-sandbox" and c["verification_ceiling"] == "V3" for c in created)
+    [settings] = [body for method, path, body in calls if (method, path) == ("POST", "/v1/config/diffs")]
+    assert settings["type"] == "settings" and settings["document"]["locale"] == "en-US"
+    assert settings["document"]["timezone"] == "America/Sao_Paulo"
+
+
+def test_the_english_space_declares_each_field_by_its_english_label() -> None:
+    document = json.loads(typed_ab.TYPES_FILE.read_text())
+    plan = next(t for t in typed_ab.declared_types(document, "en") if t["type"] == "health_plan")
+    assert plan["fields"]["copay"]["label"] == "copay"
+    assert next(t for t in typed_ab.declared_types(document, "pt") if t["type"] == "health_plan") == next(
+        t for t in document["types"] if t["type"] == "health_plan"
+    )

@@ -819,12 +819,14 @@ answer depends on those blocks, one agent per sector, synthetic data only:
 | `deadline_revision` | legal | the court's calendar moved a deadline the agent had already given | the revised deadline |
 | `not_checked` | legal | nobody checked whether a notice is addressed to the client | not checked: never "no" |
 | `changes_since_seen` | health plan sales | a plan's price moved after the customer was shown it | the new price |
-| `hard_constraint` | health plan sales | the customer set a required filter in another agent's simulator | the option that meets it |
+| `hard_constraint` | health plan sales | another agent's quote tool showed two plans, and the customer set a required filter in its simulator | the option that meets it |
 | `effect_once` | retail | the closing agent already sent the farewell with the survey | already sent, not again |
 
 Each case is a script of writes (conversations, system events about objects of the types in
-`config/typed.object-types.json`, an agent's turn record with a tool's observation, an exposure or a
-preference, a platform push, a coordination effect) and one question. The object types follow the server's
+`config/typed.object-types.json`, an agent's turn record with a tool's observations and the list it showed,
+or a preference, a platform push, a coordination effect) and one question. Since `typed-2`, the hard
+constraint cases also record the two plans the agent offered as the list its quote tool showed, as an
+integration that shows options through a tool does; `typed-1` had them only in the conversation's words. The object types follow the server's
 sector templates, cut to the fields the cases write. Every case carries one value of a `pii` field
 (`sensitive`) that no read at V0 may hand the agent. The ground truth is checked twice: by the judge, with the
 case's own rule next to the reference answer (`TYPED_JUDGE_PROMPT` in `agent.py`), and by an exact check with
@@ -847,16 +849,16 @@ uv run bench typed --api http://127.0.0.1:20309 --control http://127.0.0.1:20300
 ```
 
 Each probe proves its identity before it reads, in the probe's own conversation, at V1 unless
-`--verify-level <sector>=<level>` names another. A read hands its blocks the pack's verification gate: while
-the pack holds an item back for a higher level, the state block leaves out what changed since seen and the
-constraints block says nothing of the subject. The starter policy files a health plan conversation under
-`health` (V3), so the health plan sales cases read empty blocks at V1; `--verify-level
-health_plan_sales=V3` measures what the blocks do once that level is proved, and a run without it measures
-what a V1 agent gets.
+`--verify-level <sector>=<level>` names another. A read hands its blocks the pack's gate, item by item: each
+object, interest and constraint goes only where the pack's policy lets an item of its type go at the level
+proved (niadra-back from #96; before it, any item the pack held back for a higher level emptied both blocks).
 
 It turns on the agent features and declares the typed set's types in the sandbox space with the bootstrap's
-admin account (the space keeps its language and time zone, as for dataset v2), seeds every case with a new
-customer, waits until each case's objects hold what its question is about and no customer's context moves,
+admin account (the space keeps its language and time zone, as for dataset v2). The English cases go to a
+sandbox space of their own, whose settings say `en-US`: a project of the same tenant (`typed-set-en`) that the
+harness creates once, with the bootstrap space's three sources, so the pack, the blocks and the slots of an
+English case are written in English (before, the one Portuguese space wrote them in Portuguese). It seeds
+every case with a new customer, waits until each case's objects hold what its question is about and no customer's context moves,
 and then asks every question twice for the same customer: `without` (a plain read) and `with` (`include:
 ["state", "constraints"]`, which the SDK places in the turn block inside its `<niadra>` section). It reports,
 per side and category (`results/typed/<date>-<id>/typed.json` and `typed.md`, every answer and memory block in
@@ -868,8 +870,12 @@ per side and category (`results/typed/<date>-<id>/typed.json` and `typed.md`, ev
   intervals are narrower than new cases would give);
 - tokens per turn of the memory block, what the blocks add, and what the same data weighs as a tool's JSON
   result (what an agent without the blocks would fetch, in a round trip that sends the prompt again);
-- with `--v2-sample N`, N cases of dataset v2 read with no block in both views, against today's medians (voice
-  89, chat 98; a turn that asks for no block must stay within 5%);
+- with `--v2-sample N`, N cases of dataset v2 read with no block in both views; their customers are the same
+  bytes in every run (the tag comes from the cases), so with `--baseline` a run of the new code is compared
+  pair by pair with the baseline's run of the old code on the same subjects: each read's change in tokens,
+  the median change with its 95% interval (order statistics), for the v2 sample and for every typed case's
+  `without` read (by case and repetition). The criterion: a turn that asks for no block moves its median
+  by at most 5%;
 - the claim guard's verdicts and acts on every answer (the SDK's `guard_text`, a mutable chat output, with the
   sector's example contract from `spec/examples/claim-contract/`, the case's language first; on the `with` side
   the values the state and constraints blocks placed in the turn block are the turn's evidence, as `context()`

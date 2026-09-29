@@ -1,5 +1,6 @@
 {
-  "about": "The object types the typed-object set writes (dataset/typed), declared in the benchmark space's object-types document by `bench typed ab`. They follow the sector templates the server ships (retail, legal, health plan sales), cut to the fields the cases write, every source a push from the company's system (the sandbox's `billing` source) or a tool the agent called. Values here are the only settings the harness chooses for the typed set.",
+  "about": "The object types the typed-object set writes (dataset/typed), declared in the benchmark space's object-types document by `bench typed ab`. They follow the sector templates the server ships (retail, legal, health plan sales), cut to the fields the cases write, every source a push from the company's system (the sandbox's `billing` source) or a tool the agent called. Values here are the only settings the harness chooses for the typed set. `labels` gives fields their label in the English cases' space, which declares the same types.",
+  "labels": {"en": {"health_plan.monthly_price": "monthly price", "health_plan.copay": "copay", "health_plan.hospital": "network hospital"}},
   "types": [
     {
       "type": "cart",

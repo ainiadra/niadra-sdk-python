@@ -13,7 +13,7 @@ English, with synthetic data only:
 | `deadline_revision` | legal | the court's calendar moved a deadline after the agent had given it | the revised deadline |
 | `not_checked` | legal | nobody has checked whether a notice is addressed to the client | not checked, never "no" |
 | `changes_since_seen` | health plan sales | a plan's price moved after the customer was shown it | the new price |
-| `hard_constraint` | health plan sales | the customer set a filter in the simulator of another agent | the option that respects it |
+| `hard_constraint` | health plan sales | another agent's quote tool showed two plans, and the customer set a filter in its simulator | the option that respects it |
 | `effect_once` | retail | the closing agent already sent the farewell with the survey | already sent, not again |
 
 A case is a script of writes (`Step`) before one question. Times are minutes before the question and dates
@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import unicodedata
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Literal
@@ -38,7 +39,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from niadra_bench.dataset.model import Channel, Expectation, Level
 
-GENERATOR_VERSION = "typed-1"
+GENERATOR_VERSION = "typed-2"
 TypedCategory = Literal[
     "price_freshness",
     "quote_expiry",
@@ -79,6 +80,13 @@ class Ref(_Model):
     id: str = Field(description="Carries `{tag}`, filled per run and repetition.")
 
 
+class Item(_Model):
+    """One object an agent's tool saw and showed, with the fields shown."""
+
+    ref: Ref
+    fields: dict[str, Any] = Field(default_factory=dict)
+
+
 class Message(_Model):
     role: Literal["customer", "agent"]
     text: str
@@ -98,8 +106,8 @@ class Step(_Model):
 
     - `conversation`: messages on a channel, then the conversation's end;
     - `record`: a system event about `ref` from the company's system, with `fields`;
-    - `present`: an agent's turn in `conversation` whose tool (`tool`) saw `fields` of a shared `ref` and
-      showed them to the customer;
+    - `present`: an agent's turn in `conversation` whose tool (`tool`) saw the shared objects of `items`
+      and showed them to the customer, in that order, as one list;
     - `preference`: an agent's turn in `conversation` whose tool's arguments carry the customer's filter;
     - `push`: the platform pushes `fields` of `ref` at `version`: a shared object's new values, or a
       customer's derived object bound to the objects its `inputs` are fields of;
@@ -114,6 +122,7 @@ class Step(_Model):
     messages: list[Message] = Field(default_factory=list)
     ref: Ref | None = None
     fields: dict[str, Any] = Field(default_factory=dict)
+    items: list[Item] = Field(default_factory=list)
     version: int | None = None
     inputs: dict[str, str] | None = None
     tool: str | None = None
@@ -230,8 +239,13 @@ def render_history(case: TypedCase, today: date, tag: str) -> str:
             case "record":
                 lines.append(f"[{when}, company system] {ref}: {values}")
             case "present":
+                shown = "; ".join(
+                    f"{item.ref.type} {fill(item.ref.id, case.language, today, tag)} "
+                    + json.dumps(fill_value(item.fields, case.language, today, tag), ensure_ascii=False)
+                    for item in step.items
+                )
                 lines.append(
-                    f"[{when}, tool {step.tool} of the {step.agent} agent] shown to the customer: {ref} {values}"
+                    f"[{when}, tool {step.tool} of the {step.agent} agent] shown to the customer: {shown}"
                 )
             case "preference":
                 assert step.preference is not None
@@ -525,8 +539,8 @@ def _changes_since_seen(lang: str, n: int) -> dict[str, Any]:
         "steps": [
             Step(kind="record", minutes_ago=200, ref=proposal, fields={"plan_code": plan_id, "health_declaration": declaration}),
             Step(kind="conversation", minutes_ago=180, conversation="c1", agent="sales", messages=conversation),
-            Step(kind="present", minutes_ago=179, conversation="c1", agent="sales", tool="quote", ref=ref,
-                 fields={"monthly_price": _number(shown)}),
+            Step(kind="present", minutes_ago=179, conversation="c1", agent="sales", tool="quote",
+                 items=[Item(ref=ref, fields={"monthly_price": _number(shown)})]),
             Step(kind="push", minutes_ago=30, ref=ref, version=2, fields={"monthly_price": _number(now)}),
         ],
         "probe": TypedProbe(channel="voice", agent="voice_sales",
@@ -557,6 +571,11 @@ def _hard_constraint(lang: str, n: int) -> dict[str, Any]:
              "o Clássico, que inclui o Hospital Santa Clara, por R$ 610", "o Essencial, sem o Hospital Santa Clara, por R$ 520"),
         ][n]  # fmt: skip
         right_name, wrong_name = [("Pleno", "Essencial"), ("Pleno", "Premium"), ("Clássico", "Essencial")][n]
+        right_fields, wrong_fields = [
+            ({"monthly_price": 690.0, "copay": False}, {"monthly_price": 480.0, "copay": True}),
+            ({"monthly_price": 690.0}, {"monthly_price": 820.0}),
+            ({"monthly_price": 610.0, "hospital": "Hospital Santa Clara"}, {"monthly_price": 520.0, "hospital": "Hospital São Lucas"}),
+        ][n]  # fmt: skip
     else:
         preference, right, wrong = [
             (Preference(attr="health_plan.copay", op="eq", values=[False], said="filter: plan with no copay, required"),
@@ -568,6 +587,20 @@ def _hard_constraint(lang: str, n: int) -> dict[str, Any]:
              "the Classic plan, which includes Santa Clara Hospital, at $610", "the Essential plan, without Santa Clara Hospital, at $520"),
         ][n]  # fmt: skip
         right_name, wrong_name = [("Full", "Essential"), ("Full", "Premium"), ("Classic", "Essential")][n]
+        right_fields, wrong_fields = [
+            ({"monthly_price": 690.0, "copay": False}, {"monthly_price": 480.0, "copay": True}),
+            ({"monthly_price": 690.0}, {"monthly_price": 820.0}),
+            ({"monthly_price": 610.0, "hospital": "Santa Clara Hospital"}, {"monthly_price": 520.0, "hospital": "St. Luke's Hospital"}),
+        ][n]  # fmt: skip
+    # The options the other agent's quote tool showed, as the objects the filter applies to. A shared object is
+    # one for every customer of a run, so each case's plans have ids of their own.
+    options = [
+        Item(
+            ref=Ref(type="health_plan", namespace="operadora", id=f"{_slug(name)}-{n + 1}-{lang}-{{tag}}"),
+            fields=fields,
+        )
+        for name, fields in ((wrong_name, wrong_fields), (right_name, right_fields))
+    ]
     proposal = Ref(type="proposal", namespace="crm", id=f"p-{n + 11}-{{tag}}")
     declaration = _DECLARATIONS[lang][n + 3]
     conversation = [
@@ -581,6 +614,7 @@ def _hard_constraint(lang: str, n: int) -> dict[str, Any]:
         "steps": [
             Step(kind="record", minutes_ago=200, ref=proposal, fields={"plan_code": "draft", "health_declaration": declaration}),
             Step(kind="conversation", minutes_ago=180, conversation="c1", agent="sales", messages=conversation),
+            Step(kind="present", minutes_ago=179.5, conversation="c1", agent="sales", tool="quote", items=options),
             Step(kind="preference", minutes_ago=179, conversation="c1", agent="sales", tool="plan_simulator", preference=preference),
         ],
         "probe": TypedProbe(channel="voice", agent="voice_sales",
@@ -596,6 +630,12 @@ def _hard_constraint(lang: str, n: int) -> dict[str, Any]:
         f"{wrong_name}, both, or saying it cannot tell, is incorrect.",
         "sensitive": declaration,
     }  # fmt: skip
+
+
+def _slug(name: str) -> str:
+    """A plan's name as its id in the carrier's system: `Clássico` is `classico`."""
+    folded = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    return folded.lower().replace(" ", "-")
 
 
 def _effect_once(lang: str, n: int) -> dict[str, Any]:
