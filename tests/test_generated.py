@@ -153,7 +153,14 @@ def test_path_and_query_parameters(respx_mock: respx.MockRouter) -> None:
         200, json={"items": []}
     )
     report = respx_mock.get(url__startswith=f"{BASE}/v1/measure/attribution").respond(
-        200, json={"since": "2026-09-01", "until": "2026-09-28", "rows": []}
+        200,
+        json={
+            "since": "2026-09-01",
+            "until": "2026-09-28",
+            "rows": [],
+            "totals": [],
+            "identity": {"agreeing": 0, "compared": 0},
+        },
     )
     deleted = respx_mock.delete(f"{BASE}/v1/profiles/p_1/inferences/k%3A1").respond(204)
     client = Niadra(KEY)

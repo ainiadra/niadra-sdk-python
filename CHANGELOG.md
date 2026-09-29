@@ -57,7 +57,8 @@ built on them.
 - Replay inside your boundary: `niadra.replay.Replayer` (and `AsyncReplayer`) runs the turns of a scenario N
   times with the build you pin, answers your tools from the record (`@niadra.tool(dry_run=True)` lets one run
   for real when the record has no answer), keeps everything the agent sends from leaving, evaluates the
-  assertions and reports the run, and Niadra answers with the statistical verdict.
+  assertions and reports the run, and Niadra answers with the statistical verdict. The agent's working state
+  starts empty in a replay and its writes stay there.
 - The `niadra` command: `niadra replay` for your CI (exit 1 on a regression) and `niadra resolver-worker`,
   which serves the space's refresh requests with your resolvers and pushes what they read.
 - LangChain: `NiadraCallbackHandler(conversation, turns=True)` records each top-level run as a turn, with

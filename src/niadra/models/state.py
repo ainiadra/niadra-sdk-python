@@ -287,10 +287,19 @@ class StateRef(Model):
 
 class ObjectPush(Model):
     fields: dict[str, Any] = Field(max_length=200)
+    inputs: Annotated[dict[ShortStr, ShortStr], Field(max_length=20)] | None = Field(
+        default=None,
+        description=(
+            "For a customer's derived object (a quote): the objects its inputs are fields of, by the "
+            'name its type gives them, as `type:namespace:id` (`{"lead": "lead:crm:L-9"}`). When a '
+            "field of one of them changes, the object expires, naming the input."
+        ),
+    )
     provenance: Provenance
     ref: StateRef
     version: int = Field(
         ge=0,
+        le=9007199254740991,
         description=(
             "The source's version of the object. A field moves only when this is greater than the "
             "version that last wrote it; a source never reuses a version for other content."
@@ -352,6 +361,13 @@ class TimerState(ResponseModel):
     fired_at: datetime | None = None
     name: ShortStr
     state: Literal["armed", "fired", "cancelled"]
+    supersedes_firing_id: IdStr | None = Field(
+        default=None,
+        description=(
+            "The firing this one replaces: a timer that already fired fires again once the value that "
+            "armed it is revised."
+        ),
+    )
 
 
 class ValueState(ResponseModel):
@@ -378,6 +394,14 @@ class ObjectRead(ResponseModel):
     """
 
     as_of: datetime | None = None
+    axes: dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "Each time axis of the type whose value is known: a date as `YYYY-MM-DD`, an instant in "
+            "UTC. The platform keeps `known_at` (when the producer first knew of the object) and the "
+            "time its content last changed."
+        ),
+    )
     blocked: dict[ShortStr, list[str]] = Field(
         default_factory=dict,
         description=(
@@ -406,15 +430,13 @@ class ObjectRead(ResponseModel):
     )
 
 
-class ObjectSnapshotRequest(Model):
-    """Reconciliation from an NDJSON file uploaded through the file path that exists (`/v1/ingest`)."""
-
-    type: TypeName
-    upload_ref: IdStr
-
-
 class ObjectSnapshotResponse(ResponseModel):
+    """A snapshot taken in: its lines are applied as pushes of provenance `snapshot`, which never sustain a
+    claim, by the same version rule.
+    """
+
     import_id: IdStr
+    objects: int = Field(description="The lines taken in.")
 
 
 class RefreshRequest(ResponseModel):
