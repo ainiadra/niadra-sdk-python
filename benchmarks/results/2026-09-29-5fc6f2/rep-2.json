@@ -1,0 +1,831 @@
+{
+  "repetition": 2,
+  "tag": "40cdd3r1",
+  "seed": {
+    "niadra": {
+      "seconds": 1389.6,
+      "failures": [],
+      "refused_actions": [],
+      "declared_operations": [
+        "credit",
+        "redeliver",
+        "refund",
+        "refund_fee",
+        "reimburse"
+      ]
+    }
+  },
+  "settle": {
+    "no_memory": {},
+    "full_history": {},
+    "niadra": {
+      "settled": true,
+      "seconds": 99.2,
+      "rounds": 8
+    }
+  },
+  "exclusions": {
+    "recorded": 0,
+    "rows": 712,
+    "missing": 712,
+    "unavailable": "receipts search answered 401"
+  },
+  "validity": {
+    "valid": 339,
+    "excluded": [
+      "en-075",
+      "en-080",
+      "en-147",
+      "en-149",
+      "en-155",
+      "en-157",
+      "en-158",
+      "en-162",
+      "en-164",
+      "en-170",
+      "en-175",
+      "pt-075",
+      "pt-080",
+      "pt-082",
+      "pt-085",
+      "pt-087",
+      "pt-096"
+    ]
+  },
+  "accuracy": [
+    {
+      "system": "full_history",
+      "scenario": null,
+      "cases": 339,
+      "deterministic": 0.9971,
+      "judge": 1.0,
+      "context_has_answer": 1.0,
+      "context_has_answer_loose": 0.8831,
+      "by_category": {
+        "continuity": {
+          "cases": 40,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "identity": {
+          "cases": 40,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "recurrence": {
+          "cases": 32,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "order_time": {
+          "cases": 32,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "promise_action": {
+          "cases": 25,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "privacy": {
+          "cases": 31,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "contradiction": {
+          "cases": 32,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "paraphrase": {
+          "cases": 32,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "long_history": {
+          "cases": 20,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "unanswerable": {
+          "cases": 26,
+          "deterministic": 0.9615,
+          "judge": 1.0
+        },
+        "recurrence_topic": {
+          "cases": 29,
+          "deterministic": 1.0,
+          "judge": 1.0
+        }
+      },
+      "tokens": {
+        "default": {
+          "median": 263.0,
+          "p95": 1309,
+          "mean": 348.0
+        }
+      },
+      "privacy": {
+        "cases": 32,
+        "leaks": 32,
+        "leak_rate": 1.0,
+        "verification": null
+      },
+      "retrieve_errors": 0,
+      "retrieve_ms_p50": 0.0
+    },
+    {
+      "system": "niadra",
+      "scenario": null,
+      "cases": 339,
+      "deterministic": 0.9882,
+      "judge": 0.9823,
+      "context_has_answer": 1.0,
+      "context_has_answer_loose": 1.0,
+      "by_category": {
+        "continuity": {
+          "cases": 40,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "identity": {
+          "cases": 40,
+          "deterministic": 0.975,
+          "judge": 0.975
+        },
+        "recurrence": {
+          "cases": 32,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "order_time": {
+          "cases": 32,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "promise_action": {
+          "cases": 25,
+          "deterministic": 1.0,
+          "judge": 0.96
+        },
+        "privacy": {
+          "cases": 31,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "contradiction": {
+          "cases": 32,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "paraphrase": {
+          "cases": 32,
+          "deterministic": 0.9062,
+          "judge": 0.9062
+        },
+        "long_history": {
+          "cases": 20,
+          "deterministic": 1.0,
+          "judge": 1.0
+        },
+        "unanswerable": {
+          "cases": 26,
+          "deterministic": 1.0,
+          "judge": 0.9615
+        },
+        "recurrence_topic": {
+          "cases": 29,
+          "deterministic": 1.0,
+          "judge": 1.0
+        }
+      },
+      "tokens": {
+        "chat": {
+          "median": 105.0,
+          "p95": 198,
+          "mean": 109.4
+        },
+        "voice": {
+          "median": 92.0,
+          "p95": 151,
+          "mean": 92.8
+        }
+      },
+      "privacy": {
+        "cases": 32,
+        "leaks": 0,
+        "leak_rate": 0.0,
+        "verification": "per conversation"
+      },
+      "retrieve_errors": 0,
+      "retrieve_ms_p50": 25.56
+    },
+    {
+      "system": "no_memory",
+      "scenario": null,
+      "cases": 339,
+      "deterministic": 0.0914,
+      "judge": 0.0767,
+      "context_has_answer": 0.0,
+      "context_has_answer_loose": 0.0,
+      "by_category": {
+        "continuity": {
+          "cases": 40,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "identity": {
+          "cases": 40,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "recurrence": {
+          "cases": 32,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "order_time": {
+          "cases": 32,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "promise_action": {
+          "cases": 25,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "privacy": {
+          "cases": 31,
+          "deterministic": 1.0,
+          "judge": 0.8387
+        },
+        "contradiction": {
+          "cases": 32,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "paraphrase": {
+          "cases": 32,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "long_history": {
+          "cases": 20,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "unanswerable": {
+          "cases": 26,
+          "deterministic": 0.0,
+          "judge": 0.0
+        },
+        "recurrence_topic": {
+          "cases": 29,
+          "deterministic": 0.0,
+          "judge": 0.0
+        }
+      },
+      "tokens": {
+        "default": {
+          "median": 0.0,
+          "p95": 0,
+          "mean": 0.0
+        }
+      },
+      "privacy": {
+        "cases": 32,
+        "leaks": 0,
+        "leak_rate": 0.0,
+        "verification": null
+      },
+      "retrieve_errors": 0,
+      "retrieve_ms_p50": 0.0
+    }
+  ],
+  "backing": [
+    {
+      "system": "full_history",
+      "scenario": null,
+      "answers": 356,
+      "values_checked": 316,
+      "unbacked": 0,
+      "answers_with_unbacked": 0,
+      "per_1000_answers": 0.0,
+      "by_kind": {},
+      "by_category": {
+        "continuity": {
+          "answers": 40,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "contradiction": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "identity": {
+          "answers": 40,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "long_history": {
+          "answers": 20,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "order_time": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "paraphrase": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "privacy": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "promise_action": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "recurrence": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "recurrence_topic": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "unanswerable": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        }
+      }
+    },
+    {
+      "system": "niadra",
+      "scenario": null,
+      "answers": 356,
+      "values_checked": 274,
+      "unbacked": 0,
+      "answers_with_unbacked": 0,
+      "per_1000_answers": 0.0,
+      "by_kind": {},
+      "by_category": {
+        "continuity": {
+          "answers": 40,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "contradiction": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "identity": {
+          "answers": 40,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "long_history": {
+          "answers": 20,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "order_time": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "paraphrase": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "privacy": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "promise_action": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "recurrence": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "recurrence_topic": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "unanswerable": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        }
+      }
+    },
+    {
+      "system": "no_memory",
+      "scenario": null,
+      "answers": 356,
+      "values_checked": 0,
+      "unbacked": 0,
+      "answers_with_unbacked": 0,
+      "per_1000_answers": 0.0,
+      "by_kind": {},
+      "by_category": {
+        "continuity": {
+          "answers": 40,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "contradiction": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "identity": {
+          "answers": 40,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "long_history": {
+          "answers": 20,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "order_time": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "paraphrase": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "privacy": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "promise_action": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "recurrence": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "recurrence_topic": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "unanswerable": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        }
+      }
+    }
+  ],
+  "cost": [
+    {
+      "system": "niadra",
+      "variant": "price_low",
+      "memory_usd_per_1000": 5.0,
+      "agent_prompt_usd_per_1000": 0.105,
+      "basis": "public price, models included"
+    },
+    {
+      "system": "niadra",
+      "variant": "price_high",
+      "memory_usd_per_1000": 15.0,
+      "agent_prompt_usd_per_1000": 0.105,
+      "basis": "public price, models included"
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "hobby",
+      "memory_usd_per_1000": 0.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 0.0,
+      "conversations_per_month": 100
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "starter",
+      "memory_usd_per_1000": 38.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 19.0,
+      "conversations_per_month": 500
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "pro",
+      "memory_usd_per_1000": 49.8,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 249.0,
+      "conversations_per_month": 5000
+    }
+  ],
+  "latency": [
+    {
+      "system": "niadra",
+      "path": "edge",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 11.4,
+      "p90": 14.5,
+      "p95": 16.7,
+      "p99": 29.4,
+      "max": 33.9,
+      "sent": 300,
+      "errors": {}
+    },
+    {
+      "system": "niadra",
+      "path": "edge",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 11.3,
+      "p90": 14.9,
+      "p95": 17.1,
+      "p99": 32.9,
+      "max": 120.1,
+      "sent": 750,
+      "errors": {}
+    },
+    {
+      "system": "niadra",
+      "path": "vpc",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 11.4,
+      "p90": 15.7,
+      "p95": 18.3,
+      "p99": 28.9,
+      "max": 39.1,
+      "sent": 300,
+      "errors": {}
+    },
+    {
+      "system": "niadra",
+      "path": "vpc",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 11.2,
+      "p90": 14.4,
+      "p95": 16.6,
+      "p99": 45.8,
+      "max": 119.3,
+      "sent": 750,
+      "errors": {}
+    }
+  ],
+  "freshness": [
+    {
+      "system": "niadra",
+      "trials": 20,
+      "timeouts": 0,
+      "timeout_s": 30.0,
+      "n": 20,
+      "p50": 64.7,
+      "p90": 121.6,
+      "p95": 123.4,
+      "p99": 195.0,
+      "max": 195.0
+    }
+  ],
+  "resilience": [
+    {
+      "system": "niadra",
+      "fault": "delay_2000ms",
+      "trials": 20,
+      "memory_stage_ms": {
+        "n": 20,
+        "p50": 201.3,
+        "p90": 201.6,
+        "p95": 202.1,
+        "p99": 202.7,
+        "max": 202.7
+      },
+      "within_budget_rate": 1.0,
+      "raised_rate": 0.0,
+      "empty_rate": 1.0,
+      "turn_budget_ms": 1000
+    },
+    {
+      "system": "niadra",
+      "fault": "http_503",
+      "trials": 20,
+      "memory_stage_ms": {
+        "n": 20,
+        "p50": 144.9,
+        "p90": 195.9,
+        "p95": 197.0,
+        "p99": 199.5,
+        "max": 199.5
+      },
+      "within_budget_rate": 1.0,
+      "raised_rate": 0.0,
+      "empty_rate": 1.0,
+      "turn_budget_ms": 1000
+    }
+  ],
+  "history": [
+    {
+      "system": "niadra",
+      "path": "edge",
+      "operation": "search",
+      "call": "POST /v1/history/search",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 29.0,
+      "p90": 33.0,
+      "p95": 36.6,
+      "p99": 46.2,
+      "max": 53.4,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0,
+      "server_timing": {
+        "app": {
+          "n": 320,
+          "p50": 25.5,
+          "p90": 35.0,
+          "p95": 44.0,
+          "p99": 52.4,
+          "max": 61.7
+        }
+      }
+    },
+    {
+      "system": "niadra",
+      "path": "vpc",
+      "operation": "search",
+      "call": "POST /v1/history/search",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 29.0,
+      "p90": 34.4,
+      "p95": 40.1,
+      "p99": 61.7,
+      "max": 75.1,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0,
+      "server_timing": {
+        "app": {
+          "n": 320,
+          "p50": 25.7,
+          "p90": 36.9,
+          "p95": 48.9,
+          "p99": 62.2,
+          "max": 69.1
+        }
+      }
+    },
+    {
+      "system": "niadra",
+      "path": "edge",
+      "operation": "open",
+      "call": "POST /v1/history/open",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 11.3,
+      "p90": 14.3,
+      "p95": 17.4,
+      "p99": 26.5,
+      "max": 48.6,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "niadra",
+      "path": "vpc",
+      "operation": "open",
+      "call": "POST /v1/history/open",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 11.3,
+      "p90": 16.8,
+      "p95": 19.7,
+      "p99": 42.5,
+      "max": 60.5,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "embedder",
+      "path": "host",
+      "operation": "encode",
+      "call": "POST /v1/embed",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 15.0,
+      "p90": 15.4,
+      "p95": 15.6,
+      "p99": 18.9,
+      "max": 20.4,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "embedder",
+      "path": "host",
+      "operation": "encode",
+      "call": "POST /v1/embed",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 14.9,
+      "p90": 15.3,
+      "p95": 15.6,
+      "p99": 18.4,
+      "max": 60.0,
+      "sent": 750,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    }
+  ],
+  "ingest": [
+    {
+      "system": "niadra",
+      "path": "edge",
+      "operation": "batch",
+      "call": "POST /v1/batch",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 9.7,
+      "p90": 12.9,
+      "p95": 14.8,
+      "p99": 50.5,
+      "max": 76.3,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "niadra",
+      "path": "vpc",
+      "operation": "batch",
+      "call": "POST /v1/batch",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 9.9,
+      "p90": 19.3,
+      "p95": 25.4,
+      "p99": 42.5,
+      "max": 50.4,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    }
+  ],
+  "stacked_from": {
+    "run_id": "20260929T054940Z-40cdd3",
+    "repetition": 1
+  }
+}

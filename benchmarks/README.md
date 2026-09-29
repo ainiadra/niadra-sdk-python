@@ -626,6 +626,25 @@ uv run bench combine --references results/partial/2026-09-27-aaf0dd results/2026
   results/2026-09-27-a1ff8a results/2026-09-27-4cb045 results/2026-09-27-aa9155
 ```
 
+The combine of 29/09/2026, later in the day (`results/2026-09-29-74cec8`): the same measurement on the images
+production runs after the W6 performance wave (server `src-43f620128f97d891`: niadra-back 212559e,
+niadra-infra cc5e1e0), on a new temporary cell of the same classes, harness 093d82f, the same configuration
+and dataset hashes. Three runs of one repetition (`2026-09-29-9d0229`, `2026-09-29-40cdd3`,
+`2026-09-29-ba953f`, each with its `cell-cost.json`), stacked into `2026-09-29-5fc6f2`; then the eleven runs of
+27/09, with the same references. The competitors were not measured again. The first run's timed-loop
+sessions were extracted after its drain, when their idle time ran out, inside the second run's window: the
+second run's `cell-cost.json` finds them by session, leaves them out of its `models_only` line and gives
+the figure as read beside it. `2026-09-29-34b061` is Niadra's `host` path from the cell's own machine,
+not combined:
+
+```bash
+uv run bench stack results/2026-09-29-9d0229 results/2026-09-29-40cdd3 results/2026-09-29-ba953f
+uv run bench combine --references results/partial/2026-09-27-aaf0dd results/2026-09-29-5fc6f2 \
+  results/2026-09-27-9e1e99 results/2026-09-27-1f0e6a results/2026-09-27-eed88a results/2026-09-27-d03ae2 \
+  results/2026-09-27-64b5ae results/2026-09-27-320e9d results/2026-09-27-385a79 results/2026-09-27-63d738 \
+  results/2026-09-27-a1ff8a results/2026-09-27-4cb045 results/2026-09-27-aa9155
+```
+
 Expected duration per repetition of dataset v2 (356 cases, about 2,330 conversations), not yet measured:
 Niadra's seeding at the production cap about 23 minutes, then its settle; Mem0 about 1 h 15 (seeding both
 scenarios, the accuracy pass, the timed loops); each added system from an hour to many hours (Graphiti,
