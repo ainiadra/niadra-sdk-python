@@ -708,6 +708,19 @@
           "title": "Ask",
           "type": "array"
         },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The block as lines for a model, in the space's language, each field by its label and each operator in words; the SDK places it beside the state view's text. Not part of `version`.",
+          "title": "Text"
+        },
         "rendered": {
           "anyOf": [
             {
