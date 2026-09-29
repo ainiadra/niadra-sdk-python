@@ -65,11 +65,14 @@
       "fields": {
         "monthly_price": {
           "type": "money",
+          "label": "mensalidade",
           "role": "price_full",
           "claim": {"allowed": true, "class": "money", "nature": "observed"},
           "freshness": {"class": "price", "max_age": "30d", "claim_max_age": "30d"},
           "track_changes": true
-        }
+        },
+        "copay": {"type": "bool", "label": "coparticipação"},
+        "hospital": {"type": "string", "label": "hospital da rede"}
       },
       "sources": {
         "billing": {"kind": "push", "precedence": 1},
