@@ -29,6 +29,15 @@ built on them.
   space's content mode, with the values in your own bucket in `pointer` mode (`turns.store()`). Capture
   costs a tool call 0.05 ms at the 95th percentile for a 25 KB result. `niadra.turns.otel` puts the turn
   on your OpenTelemetry spans (`pip install 'niadra[otel]'`).
+- The warm cache for when Niadra is down: `client.profile()` keeps the SDK profile (features, claim
+  contract, type registry); `context(include=["constraints", "state"])` reads the constraints block and the
+  state view with the pack, and a failed read serves the last good ones, `degraded`; `may_contact()` checks
+  an outbound contact against the local copy of the suppression list, which keeps applying with Niadra out
+  of reach.
+- The claim contract in count mode: what the agent says inside a turn is checked against what its tools
+  returned, and each claim goes to the turn record with its verdict; `conversation.claims.check()` runs the
+  check on demand. Count mode never changes an output.
+- `niadra-mock` serves the SDK profile, the constraints and state blocks, and the suppression list.
 - The conformance vectors of the open specifications, run by `tests/test_vectors.py`, and the design of
   the turn capture (`docs/design/turn-capture.md`).
 - `niadra.claims`: the claim contract's checker, pure and without a model: the number and role parser,

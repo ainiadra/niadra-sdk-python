@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import functools
+import json
 import logging
 import threading
 import time
@@ -363,13 +364,13 @@ class TurnFrame:
         agent: str | None = None,
     ) -> None:
         """Something the turn emitted: `event_key` names the event `track()` sent for it (the text itself is
-        never repeated in the record), and the text is kept for the claim check when a contract applies."""
+        never repeated in the record), and the text is kept for the claim check the sender runs."""
         with self._lock:
             if self.closed:
                 return
             if event_key is not None:
                 self.event_keys.append(event_key)
-            if self._recorder is not None and self._recorder.checks_claims:
+            if self._recorder is not None:
                 self.said.append(Said(text, context, immutable, agent or self.agent))
 
     def flag(self, name: Flag) -> None:
@@ -425,6 +426,25 @@ class TurnFrame:
         self.close(exc)
 
     # For the queue and the sender
+
+    def calls_snapshot(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return [dict(entry) for entry in self.calls]
+
+    def value_of(self, key: str | None) -> Any:
+        """The value of a blob the frame still holds, read back from its copy; None otherwise."""
+        blob = self.blobs.get(key) if key else None
+        data = blob.data if blob is not None else None
+        if data is None:
+            return None
+        try:
+            return json.loads(data, parse_constant=lambda _: None)
+        except ValueError:
+            return None
+
+    def add_claims(self, records: Iterable[dict[str, Any]]) -> None:
+        with self._lock:
+            self.claims.extend(records)
 
     @property
     def flagged(self) -> bool:

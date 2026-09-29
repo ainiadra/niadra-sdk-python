@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 MAX_TURN = 2000
 # A partial transcript shorter than this says nothing the server can use yet.
@@ -43,3 +43,24 @@ class PrefetchSupport:
         """The server has no prefetch route: stop sending for `PREFETCH_RECHECK_AFTER` seconds."""
         with self._lock:
             self._prefetch_at = self._clock() + PREFETCH_RECHECK_AFTER
+
+
+class BlockSupport:
+    """Which blocks of `include` this client's space serves: a block it refused is not asked for a while,
+    and the read goes on without it."""
+
+    def __init__(self, clock: Callable[[], float] = time.monotonic) -> None:
+        self._clock = clock
+        self._lock = threading.Lock()
+        self._refused: dict[str, float] = {}
+
+    def wanted(self, names: Iterable[str]) -> list[str]:
+        """`names`, in order and once each, without those refused less than `PREFETCH_RECHECK_AFTER` ago."""
+        now = self._clock()
+        with self._lock:
+            return [n for n in dict.fromkeys(names) if self._refused.get(n, 0.0) <= now]
+
+    def refused(self, names: Iterable[str]) -> None:
+        with self._lock:
+            for name in names:
+                self._refused[name] = self._clock() + PREFETCH_RECHECK_AFTER

@@ -20,9 +20,9 @@ from niadra._cache import ContextCache
 from niadra._ids import new_key
 from niadra._queue import EventBuffer, serialize
 from niadra._transport import Request
-from niadra._turns import MIN_PREFETCH, NO_PREFETCH, PrefetchSupport, turn_text
+from niadra._turns import MIN_PREFETCH, NO_PREFETCH, BlockSupport, PrefetchSupport, turn_text
 from niadra._voice import rtt_warnings
-from niadra.errors import APIError, ConfigurationError
+from niadra.errors import APIError, ConfigurationError, NotAvailableError, NotFoundError
 from niadra.keys import ApiKey
 from niadra.models.agent_memory import AgentMemory, AgentMemorySearchRequest, CreateAgentNoteRequest, Evidence
 from niadra.models.common import Handle, ObjectRef
@@ -207,6 +207,7 @@ class ClientCore:
         self.enabled = False
         self.agent_memory_cache = AgentMemoryCache(self.cache_options)
         self.turns = PrefetchSupport()
+        self.blocks = BlockSupport()
 
         raw = api_key if api_key is not None else os.environ.get("NIADRA_API_KEY", "")
         base_url = base_url or os.environ.get("NIADRA_BASE_URL") or None
@@ -257,9 +258,11 @@ class ClientCore:
         target: TargetLike | None,
         format: Literal["text", "json"] = "text",
         explain: bool = False,
+        include: Sequence[str] | None = None,
     ) -> ContextRequest:
         if explain and format != "json":
             raise ValueError('explain requires format="json"')
+        blocks = self.blocks.wanted(include or ())
         return ContextRequest(
             subject=as_handle(subject) if subject is not None else None,
             object=as_object(object) if object is not None else None,
@@ -273,6 +276,7 @@ class ClientCore:
             target=as_target(target) if target is not None else None,
             format="json" if format == "json" else None,
             explain=True if explain else None,
+            include=blocks or None,
         )
 
     @staticmethod
@@ -394,6 +398,14 @@ class ClientCore:
             mode="json", exclude_none=True
         )
         return Request("POST", "/v1/context", json=body, timeout=budget, budget=budget)
+
+    def refused_blocks(self, request: ContextRequest, error: Exception) -> ContextRequest | None:
+        """The read again without its blocks, when the space answered that it serves none of them (404 for
+        a feature it left off, 501 for one not built): nothing else of the read is lost. None otherwise."""
+        if not request.include or not isinstance(error, (NotFoundError, NotAvailableError)):
+            return None
+        self.blocks.refused(request.include)
+        return request.model_copy(update={"include": None})
 
     @staticmethod
     def parse_context(data: Any, started: float) -> Context:

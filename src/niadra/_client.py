@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import atexit
+import contextlib
 import logging
 import threading
 import time
@@ -28,16 +29,19 @@ from niadra._base import (
     StampLike,
     TargetLike,
     VerificationLike,
+    as_handle,
     error_code,
     logger,
 )
 from niadra._cache import ContextCache, cache_key
+from niadra._profile import ProfileCache
 from niadra._queue import SyncFlusher, is_retryable
 from niadra._transport import SyncTransport
 from niadra._voice import TurnRead, VoiceLine, VoiceLines, compose, words_of
 from niadra.api import Api
 from niadra.conversation import Conversation, Task
-from niadra.errors import APITimeoutError
+from niadra.coordination.suppression import FAIL_OPEN, MAX_PAGES, SuppressionCopy
+from niadra.errors import APITimeoutError, NotFoundError
 from niadra.models.admin import IngestStatus, KeyIdentity
 from niadra.models.agent_memory import (
     AgentMemory,
@@ -58,10 +62,13 @@ from niadra.models.events import (
 )
 from niadra.models.objects import ObjectTimeline
 from niadra.models.results import Context, MediaUpload, SearchResult, TimelinePage
+from niadra.models.state import ClaimContractSummary, SdkProfile
 from niadra.models.tokens import SubjectToken
 from niadra.models.turns import TurnPins
 from niadra.options import CacheOptions, QueueOptions, Timeouts, TurnOptions, VoiceOptions
 from niadra.tools import ToolKit, definitions
+from niadra.turns.capture import TurnFrame
+from niadra.turns.claims import check_turn
 from niadra.turns.recorder import TurnRecorder
 from niadra.turns.sender import SyncTurnSender
 from niadra.turns.tool import Provenance, tool
@@ -132,12 +139,20 @@ class Niadra:
         """The routes of turn records, typed state, signals and coordination, one method each. They raise."""
         self.turns = TurnRecorder(turns or TurnOptions(), enabled=self._core.enabled)
         """Turn records: `conversation.turn()` opens one, and a background sender posts the closed ones."""
+        self._profile = ProfileCache()
+        self._suppressions = SuppressionCopy()
+        self._suppressions_lock = threading.Lock()
+        self._suppressions_reading = False
+        self.turns.features = lambda: self._profile.features
+        self.turns.recording_mode = self._profile.recording_mode
+        self.turns.claims = self._claims_of
         self.turns.sender = SyncTurnSender(
             self.turns,
             self.turns.queue,
             self.turns.interval,
             self._transport.request,
             self._core.timeouts.write,
+            refresh=self._refresh_profile,
         )
         self._flusher = SyncFlusher(self._core.buffer, self._send_batch, self._core.queue_options)
         self._refresher: ThreadPoolExecutor | None = None
@@ -185,6 +200,95 @@ class Niadra:
         the tool runs untouched. See `niadra.turns.tool`."""
         return tool(name, provenance=provenance, ui=ui, exclude=exclude)
 
+    def profile(self, *, timeout: float | None = None) -> SdkProfile | None:
+        """The SDK profile of this key's space: the features it turned on, the claim contract and the
+        summarized type registry, from the local cache, read again once `valid_for_s` has passed. When
+        Niadra does not answer, the last profile read stays in use; None when there is none yet, or the
+        space serves none (then the SDK asks again in 10 minutes). Never raises unless `strict`."""
+        if self._core.enabled and self._profile.due():
+            budget = timeout if timeout is not None else self._core.timeouts.navigation
+            try:
+                self._profile.absorb(self._transport.request(self._profile.request(budget)))
+            except Exception as exc:
+                self._profile.failed(exc)
+                if not isinstance(exc, NotFoundError):
+                    self._core.fail("profile", exc, None)
+        return self._profile.profile
+
+    def use_claim_contract(self, contract: ClaimContractSummary | Mapping[str, Any] | None) -> None:
+        """Checks outputs against this claim contract instead of the one the profile serves (a company's
+        own copy, in CI or a local run); None goes back to the profile's."""
+        self._profile.claim_contract = (
+            None if contract is None else ClaimContractSummary.model_validate(contract)
+        )
+
+    def _claims_of(self, frame: TurnFrame) -> list[dict[str, Any]]:
+        contract = self._profile.contract()
+        return check_turn(frame, contract) if contract is not None else []
+
+    def _refresh_profile(self) -> None:
+        with contextlib.suppress(Exception):
+            self.profile()
+
+    def may_contact(
+        self,
+        handle: HandleLike,
+        purpose: str,
+        *,
+        channel: str | None = None,
+        fail_open: bool | None = None,
+    ) -> bool:
+        """Whether an outbound contact of `purpose` (`marketing`, `service`...) to `handle` may go, by the
+        local copy of the space's suppression list: the opt-out holds with Niadra down, from the last copy
+        read. Only messages the agent starts need it; an answer to the customer is never suppressed.
+
+        The copy is read on the first call (within `Timeouts.navigation`) and again in the background once a
+        minute. With no copy and Niadra out of reach, the purpose decides: `transactional` and `service`
+        go, every other purpose waits; `fail_open` overrides that. A space without a list suppresses
+        nothing. Never raises unless `strict`."""
+        try:
+            target = as_handle(handle).model_dump(mode="json")
+        except (TypeError, ValueError) as exc:
+            return self._core.fail(
+                "may_contact", exc, fail_open if fail_open is not None else purpose in FAIL_OPEN
+            )
+        if self._core.enabled and self._suppressions.due():
+            if self._suppressions.held:
+                self._read_suppressions_later()
+            else:
+                self._read_suppressions(self._core.timeouts.navigation)
+        return self._suppressions.may_contact(target, purpose, channel=channel, fail_open=fail_open)
+
+    def _read_suppressions(self, budget: float) -> None:
+        copy, deadline = self._suppressions, time.monotonic() + budget
+        try:
+            for _ in range(MAX_PAGES):
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    return
+                if copy.needs_salt():
+                    copy.take_salt(self._transport.request(copy.salt_request(left)))
+                    continue
+                if not copy.apply(self._transport.request(copy.page_request(left))):
+                    return
+        except Exception as exc:
+            copy.failed(exc)
+
+    def _read_suppressions_later(self) -> None:
+        with self._suppressions_lock:
+            if self._suppressions_reading:
+                return
+            self._suppressions_reading = True
+
+        def read() -> None:
+            try:
+                self._read_suppressions(self._core.timeouts.write)
+            finally:
+                with self._suppressions_lock:
+                    self._suppressions_reading = False
+
+        threading.Thread(target=read, name="niadra-suppressions", daemon=True).start()
+
     @property
     def enabled(self) -> bool:
         """False when the client has no usable key and every call is a no-op."""
@@ -217,6 +321,7 @@ class Niadra:
         format: Literal["text", "json"] = "text",
         turn: str | None = None,
         explain: bool = False,
+        include: Sequence[str] | None = None,
     ) -> Context:
         """The context pack for a subject (a person, account or partner) or a business object.
 
@@ -240,6 +345,11 @@ class Niadra:
         version and, for a derived line, the rule behind it. It changes nothing else: the pinned
         text, the slots chosen and the receipt are the same.
 
+        `include` adds blocks read in the same round trip: `["constraints"]` returns the subject's
+        constraints block in `constraints`, `["state"]` their typed objects in `state`. A block the space
+        does not serve is left out (and not asked for again for 10 minutes); the rest of the read is the
+        same. The blocks are cached with the pack, so a read that fails serves the last good ones too.
+
         Never raises (unless `strict`): on failure it returns the last good pack for the same
         key or an empty one. A 401 or 403 also wipes what the cache held for that key.
         """
@@ -259,6 +369,7 @@ class Niadra:
                 target,
                 format,
                 explain,
+                include,
             )
         except (TypeError, ValueError) as exc:
             return self._core.fail(
@@ -990,7 +1101,14 @@ class Niadra:
 
     def _fetch_context(self, request: ContextRequest, budget: float, known_etag: str | None) -> Context:
         started = time.monotonic()
-        data = self._transport.request(self._core.context_http(request, budget, known_etag))
+        try:
+            data = self._transport.request(self._core.context_http(request, budget, known_etag))
+        except Exception as exc:
+            plain = self._core.refused_blocks(request, exc)
+            left = budget - (time.monotonic() - started)
+            if plain is None or left <= 0:
+                raise
+            data = self._transport.request(self._core.context_http(plain, left, known_etag))
         return self._core.parse_context(data, started)
 
     def _pinned_context(

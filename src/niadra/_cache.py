@@ -154,7 +154,7 @@ class ContextCache:
                 self._pend(entry, response)
                 self._entries.move_to_end(key)
                 fallback = entry.context.model_copy(
-                    update={"origin": "last_good", "elapsed_ms": response.elapsed_ms}
+                    update={"origin": "last_good", "elapsed_ms": response.elapsed_ms, "degraded": True}
                 )
                 return self._deliver(entry, fallback, deliver)
             if response.not_modified or response.degraded:
@@ -188,7 +188,7 @@ class ContextCache:
             entry = self._live(key)
             if entry is None:
                 return None
-            return entry.hand_out(entry.context.model_copy(update={"origin": "last_good"}))
+            return entry.hand_out(entry.context.model_copy(update={"origin": "last_good", "degraded": True}))
 
     def drop_on_auth_error(self, key: str, error: Exception) -> bool:
         """401 and 403 are not outages: what was cached under that access goes with it.

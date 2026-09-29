@@ -79,6 +79,9 @@ STRING_ALIASES = {
     (None, None, r"^[a-z][a-z0-9_]{0,39}$"): "TypeName",
 }
 SHARED_ALIASES = {"ShortStr", "IdStr"}
+# Schemas the server's OpenAPI document publishes under a framework's default name, and the name the server's
+# code gives them: a body declared as an annotated union is published as `Body`.
+RENAMES = {"Body": "DeclareRequest"}
 # Wire names that are not Python names, named as the server's models name them.
 FIELD_NAMES = {"in": "input", "out": "output"}
 # Words that name how the server was planned and built, never what it does: a public SDK carries none.
@@ -127,6 +130,11 @@ def cut(document: dict[str, Any]) -> dict[str, Any]:
     for methods in paths.values():
         for op in methods.values():
             _hoist_body(op, schemas)
+    for old, new in RENAMES.items():
+        if old in schemas:
+            schemas[new] = schemas.pop(old)
+            paths = _renamed(paths, old, new)
+            schemas = _renamed(schemas, old, new)
     return _published(
         {
             "openapi": document["openapi"],
@@ -136,6 +144,17 @@ def cut(document: dict[str, Any]) -> dict[str, Any]:
         },
         "",
     )
+
+
+def _renamed(node: Any, old: str, new: str) -> Any:
+    if isinstance(node, list):
+        return [_renamed(v, old, new) for v in node]
+    if not isinstance(node, dict):
+        return node
+    out = {k: _renamed(v, old, new) for k, v in node.items()}
+    if out.get("$ref") == f"#/components/schemas/{old}":
+        out["$ref"] = f"#/components/schemas/{new}"
+    return out
 
 
 def _hoist_body(op: dict[str, Any], schemas: dict[str, Any]) -> None:
@@ -214,6 +233,8 @@ class Operation:
     path: str
     body: str | None
     response: str | None
+    optional: bool
+    """A success answer may come without a body (`response | None`)."""
     path_params: list[str]
     query: list[tuple[str, dict[str, Any], bool]]
     idempotent: bool
@@ -229,8 +250,11 @@ def operations(document: dict[str, Any]) -> list[Operation]:
                 raise ValueError(f"{op['operationId']}: not named the way FastAPI names operations")
             params = op.get("parameters", [])
             body = op.get("requestBody", {}).get("content", {}).get("application/json", {}).get("schema")
-            answer = next(op["responses"][s] for s in SUCCESS if s in op["responses"])
-            schema = answer.get("content", {}).get("application/json", {}).get("schema")
+            answers = [op["responses"][s] for s in SUCCESS if s in op["responses"]]
+            schemas = [a.get("content", {}).get("application/json", {}).get("schema") for a in answers]
+            schema = next((x for x in schemas if x), None)
+            if len({json.dumps(x, sort_keys=True) for x in schemas if x}) > 1:
+                raise ValueError(f"{op['operationId']}: success answers of different shapes")
             found.append(
                 Operation(
                     name=op["operationId"].removesuffix(suffix),
@@ -239,6 +263,7 @@ def operations(document: dict[str, Any]) -> list[Operation]:
                     path=path,
                     body=_name(body["$ref"]) if body else None,
                     response=_name(schema["$ref"]) if schema else None,
+                    optional=schema is not None and None in schemas,
                     path_params=[p["name"] for p in params if p["in"] == "path"],
                     query=[
                         (p["name"], p["schema"], p.get("required", False))
@@ -581,6 +606,12 @@ def _param_type(schema: dict[str, Any]) -> str:
     return types[schema["type"]]
 
 
+def _sender(op: Operation) -> str:
+    if op.response is None:
+        return "_send"
+    return "_call_optional" if op.optional else "_call"
+
+
 class ApiWriter:
     """`Api` and `AsyncApi`: one method per operation, named as the server names the operation."""
 
@@ -639,11 +670,11 @@ class ApiWriter:
         if op.idempotent:
             call.append(f"key=idempotency_key or {self.imports.add('niadra._ids', 'new_key')}()")
         doc = f"`{op.method} {op.path}`." + (f" {op.description}" if op.description else "")
-        returns = op.response or "None"
+        returns = f"{op.response} | None" if op.optional else op.response or "None"
         return (
             f"    {'async def' if is_async else 'def'} {op.name}({', '.join(args)}) -> {returns}:\n"
             + _docstring(doc, "        ")
-            + f"        return {'await ' if is_async else ''}self.{'_call' if op.response else '_send'}"
+            + f"        return {'await ' if is_async else ''}self.{_sender(op)}"
             + f"({', '.join(call)})\n"
         )
 

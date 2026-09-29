@@ -81,6 +81,7 @@ from niadra.models.objects import ObjectTimeline
 from niadra.models.tokens import SubjectToken, SubjectTokenRequest
 from niadra.vocabulary import DeliveryPath, EventKind, Speaker, Verification, Visibility
 from niadra_mock.agent_memory import AgentMemoryStore
+from niadra_mock.features import FeatureStore
 from niadra_mock.turns import TurnStore
 from niadra_mock.when import read_when
 
@@ -247,8 +248,11 @@ class MockCell:
     """The agent features the space turned on; a route of one that is off answers 404."""
     turns: TurnStore = field(default_factory=TurnStore)
     """The turn records this space kept (`POST /v1/turns`)."""
+    agent_features: FeatureStore = field(init=False)
+    """The SDK profile, the blocks of `include` and the suppression list, behind `features`."""
 
     def __post_init__(self) -> None:
+        self.agent_features = FeatureStore(self.features)
         # The notes check against every id this cell has seen as a handle: none may land in a note.
         self.agent_memory = AgentMemoryStore(
             clock=self.clock, known_values=lambda: [k[2] for k in self._parent]

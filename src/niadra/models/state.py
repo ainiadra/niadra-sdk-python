@@ -371,6 +371,14 @@ class ObjectRead(ResponseModel):
     """
 
     as_of: datetime | None = None
+    blocked: dict[ShortStr, list[str]] = Field(
+        default_factory=dict,
+        description=(
+            "What the fields whose value is not known block, as the type declares it "
+            "(`unobserved_blocks`): each activity (`model_read`, `derive`, `claim`, or a task of the "
+            "company such as `decide:close`) with the fields that block it. Nothing else is blocked."
+        ),
+    )
     declared_gaps: list[str] = Field(default_factory=list)
     derived_status: Literal["current", "expired_by_input"] | None = None
     expired_by: list[str] = Field(default_factory=list, description="The inputs whose change expired it.")
@@ -467,10 +475,12 @@ class StateVerifyResponse(ResponseModel):
 
 
 class StateView(ResponseModel):
+    """The state of one subject: their objects of the declared types, each as a `display` read serves it."""
+
     changes_since_seen: list[dict[str, Any]] = Field(default_factory=list)
     degraded: bool = False
     interests: list[dict[str, Any]] = Field(default_factory=list)
-    objects: list[dict[str, Any]] = Field(default_factory=list)
+    objects: list[ObjectRead] = Field(default_factory=list)
 
 
 class StateViewRequest(Model):

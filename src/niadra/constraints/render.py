@@ -20,12 +20,12 @@ of what was sent the results honored. The server runs the same rules for `POST /
 
 from __future__ import annotations
 
-import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Any, Literal
 
+from niadra.claims.text import fold
 from niadra.models.signals import ConstraintsBlock, HardConstraint
 
 SAID = frozenset({"stated", "tool_args", "correction"})
@@ -197,24 +197,12 @@ def _key(value: Any) -> Any:
         try:
             return Decimal(value)
         except InvalidOperation:
-            return _fold(value).strip()
+            return fold(value).strip()
     if isinstance(value, bool):
         return value
     if isinstance(value, int | float):
         return Decimal(str(value))
     return value
-
-
-def _fold(text: str) -> str:
-    """Lower case without accents, one character for each character, as the claim contract folds text: a
-    character that folds to more than one (`ß`) becomes `?`."""
-    if text.isascii():
-        return text.lower()
-    out = []
-    for ch in text:
-        plain = "".join(c for c in unicodedata.normalize("NFKD", ch) if not unicodedata.combining(c)).lower()
-        out.append(plain if len(plain) == 1 else "?")
-    return "".join(out)
 
 
 def _as_list(value: Any) -> list[Any]:

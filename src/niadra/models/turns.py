@@ -113,7 +113,14 @@ class ClaimValue(Model):
 class ClaimRecord(Model):
     """One claim the SDK found in an output, as the turn record carries it: kinds, spans and verdicts."""
 
-    action: Literal["none", "block", "warn", "count", "rewrite", "discard_anchor"]
+    action: Literal["none", "block", "warn", "count", "rewrite", "discard_anchor"] = Field(
+        description=(
+            "What was done, which the contract's configured action decides: `rewrite_if_unequivocal` is"
+            " `rewrite` when the rewrite is unequivocal and `warn` otherwise, "
+            "`discard_anchor_and_count` is `discard_anchor`, and a claim that stands (`matched`, "
+            "`quoted_found`, `anchored`) is `none`."
+        )
+    )
     category: TypeName
     class_: Literal["money", "percent", "date", "duration", "quantity", "count", "dosage"] | None = Field(
         default=None, alias="class"

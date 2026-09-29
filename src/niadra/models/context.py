@@ -9,6 +9,8 @@ from pydantic import Field, StringConstraints, model_validator
 
 from niadra.models._base import IdStr, Model, ResponseModel, ShortStr
 from niadra.models.common import Handle, ObjectRef, SourceCoverage
+from niadra.models.signals import ConstraintsBlock
+from niadra.models.state import StateView
 from niadra.vocabulary import DeliveryPath, EventKind, Verification
 
 VIEW_PATTERN = r"^(voice|chat|brief|full|custom|account|partner|task:[a-z0-9_]{1,40})$"
@@ -17,6 +19,9 @@ View = Annotated[str, StringConstraints(pattern=VIEW_PATTERN)]
 # What navigation returns. A system event is never an item: it changes its object, so search `object`.
 HistoryItemKind = Literal["episode", "fact", "open_item", "action", "object", "trait"]
 HISTORY_ITEM_KINDS: tuple[str, ...] = get_args(HistoryItemKind)
+
+# Blocks a read may add in the same round trip (Context Pack v2, section 10); each needs its feature on.
+Include = Literal["state", "constraints", "coordination", "budget"]
 
 
 class TargetModel(Model):
@@ -57,6 +62,12 @@ class ContextRequest(Model):
         "it was chosen (its position in each retrieval channel, each channel's weighted share of the fused "
         "score, the weights version, the rule of a derived line). It changes nothing else: the pinned text, "
         "the slots chosen and the receipt are the same bytes with or without it.",
+    )
+    # Sent only when asked for: without it the answer is exactly a Context Pack v1 answer.
+    include: list[Include] | None = Field(
+        default=None,
+        max_length=4,
+        description="Blocks read in the same round trip, each returned in the answer's field of that name.",
     )
 
     @model_validator(mode="after")
@@ -261,6 +272,16 @@ class ContextResponse(ResponseModel):
     path: DeliveryPath | str
     degraded: bool = False
     pack: ContextPack | None = None
+    constraints: ConstraintsBlock | None = Field(
+        default=None,
+        description='With `include: ["constraints"]`: what the subject wants, refuses and is, for the tools '
+        "of this turn.",
+    )
+    state: StateView | None = Field(
+        default=None,
+        description='With `include: ["state"]`: the subject\'s objects of the declared types, each as a '
+        "`display` read serves it.",
+    )
 
 
 class PrefetchRequest(Model):
