@@ -252,6 +252,125 @@
         "title": "AnchorEvidence",
         "type": "object"
       },
+      "AssertionOutcome": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "id": {
+            "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "tool_called",
+              "tool_not_called",
+              "hard_respected",
+              "no_denial_with_results",
+              "claims_traced",
+              "claims_match_state",
+              "no_promise_without_action",
+              "expected_in_topk",
+              "handoff_when",
+              "effect_once",
+              "budget",
+              "lexicon",
+              "tools_offered_match"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "pass",
+              "fail",
+              "not_checked"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "outcome"
+        ],
+        "title": "AssertionOutcome",
+        "type": "object"
+      },
+      "AssertionStats": {
+        "additionalProperties": false,
+        "description": "One assertion over the run's completed executions, against its baseline. `p_value` is the one-sided\nFisher exact test that the run passes less often than the baseline, rounded to 6 decimals.",
+        "properties": {
+          "baseline_failed": {
+            "title": "Baseline Failed",
+            "type": "integer"
+          },
+          "baseline_passed": {
+            "title": "Baseline Passed",
+            "type": "integer"
+          },
+          "drop": {
+            "description": "The baseline's pass rate minus the run's.",
+            "title": "Drop",
+            "type": "number"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "flaky": {
+            "title": "Flaky",
+            "type": "boolean"
+          },
+          "id": {
+            "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "not_checked": {
+            "title": "Not Checked",
+            "type": "integer"
+          },
+          "p_value": {
+            "title": "P Value",
+            "type": "number"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "integer"
+          },
+          "regression": {
+            "title": "Regression",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "passed",
+          "failed",
+          "not_checked",
+          "baseline_passed",
+          "baseline_failed",
+          "drop",
+          "p_value",
+          "regression",
+          "flaky"
+        ],
+        "title": "AssertionStats",
+        "type": "object"
+      },
       "Attribute": {
         "additionalProperties": false,
         "description": "What the person is: a size, a preferred network, a diet. Said here; the lifecycle's outcomes (bought,\nkept, returned for size) derive the rest on the server, never an agent.",
@@ -746,7 +865,7 @@
       },
       "Change": {
         "additionalProperties": false,
-        "description": "One entry of the change log the bisection walks.",
+        "description": "One entry of the change log a bisection walks: a pin that changed between two builds of an agent, in\nthe order the builds were first seen.",
         "properties": {
           "after": {
             "anyOf": [
@@ -799,6 +918,20 @@
             ],
             "title": "Kind",
             "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The prompt or the tool, for those kinds.",
+            "title": "Name"
           }
         },
         "required": [
@@ -4338,20 +4471,147 @@
       },
       "InterleavingReport": {
         "additionalProperties": false,
+        "description": "Interleaved lists of a tool's two rankings (team draft, seeded by the turn): which ranking the\nperson's engagement credited, impression by impression, by day and over the period.",
         "properties": {
           "rows": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/InterleavingRow"
             },
             "title": "Rows",
             "type": "array"
+          },
+          "since": {
+            "format": "date",
+            "title": "Since",
+            "type": "string"
+          },
+          "totals": {
+            "items": {
+              "$ref": "#/components/schemas/InterleavingTotal"
+            },
+            "title": "Totals",
+            "type": "array"
+          },
+          "until": {
+            "format": "date",
+            "title": "Until",
+            "type": "string"
           }
         },
         "required": [
-          "rows"
+          "since",
+          "until",
+          "rows",
+          "totals"
         ],
         "title": "InterleavingReport",
+        "type": "object"
+      },
+      "InterleavingRow": {
+        "additionalProperties": false,
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "experiment": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Experiment",
+            "type": "string"
+          },
+          "impressions": {
+            "title": "Impressions",
+            "type": "integer"
+          },
+          "ties": {
+            "description": "Impressions engaged with equally, or not at all.",
+            "title": "Ties",
+            "type": "integer"
+          },
+          "tool": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Tool",
+            "type": "string"
+          },
+          "wins_a": {
+            "description": "Impressions whose engagement went to the items ranking `a` contributed.",
+            "title": "Wins A",
+            "type": "integer"
+          },
+          "wins_b": {
+            "title": "Wins B",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "experiment",
+          "tool",
+          "impressions",
+          "wins_a",
+          "wins_b",
+          "ties"
+        ],
+        "title": "InterleavingRow",
+        "type": "object"
+      },
+      "InterleavingTotal": {
+        "additionalProperties": false,
+        "properties": {
+          "experiment": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Experiment",
+            "type": "string"
+          },
+          "impressions": {
+            "title": "Impressions",
+            "type": "integer"
+          },
+          "p_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The two-sided sign test on the decided impressions; absent before any was decided.",
+            "title": "P Value"
+          },
+          "ties": {
+            "title": "Ties",
+            "type": "integer"
+          },
+          "tool": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Tool",
+            "type": "string"
+          },
+          "wins_a": {
+            "title": "Wins A",
+            "type": "integer"
+          },
+          "wins_b": {
+            "title": "Wins B",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "experiment",
+          "tool",
+          "impressions",
+          "wins_a",
+          "wins_b",
+          "ties",
+          "p_value"
+        ],
+        "title": "InterleavingTotal",
         "type": "object"
       },
       "InternalText": {
@@ -6552,14 +6812,107 @@
         "title": "Rendered",
         "type": "object"
       },
+      "ReplayAssertion": {
+        "additionalProperties": false,
+        "description": "A structural check on the replayed turn's record, evaluated by the runner. The replay spec fixes each\nkind's `args` and how it is evaluated; a kind the runner cannot evaluate yields `not_checked`.",
+        "properties": {
+          "args": {
+            "additionalProperties": true,
+            "maxProperties": 20,
+            "propertyNames": {
+              "maxLength": 256,
+              "minLength": 1
+            },
+            "title": "Args",
+            "type": "object"
+          },
+          "id": {
+            "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "tool_called",
+              "tool_not_called",
+              "hard_respected",
+              "no_denial_with_results",
+              "claims_traced",
+              "claims_match_state",
+              "no_promise_without_action",
+              "expected_in_topk",
+              "handoff_when",
+              "effect_once",
+              "budget",
+              "lexicon",
+              "tools_offered_match"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "suggested": {
+            "default": false,
+            "description": "Suggested by rule from the recorded turn.",
+            "title": "Suggested",
+            "type": "boolean"
+          },
+          "turn_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The one turn of the scenario it applies to; every turn when absent.",
+            "title": "Turn Id"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "title": "ReplayAssertion",
+        "type": "object"
+      },
+      "ReplayBlocker": {
+        "additionalProperties": false,
+        "description": "Why a turn cannot be run again: `content_mode` (`hash_only` keeps no value), `fidelity` (only a gold\nrecord can be replayed), `completeness` (only a complete one) or `missing_pin` (the pin the recording\nrequires and the record lacks).",
+        "properties": {
+          "reason": {
+            "enum": [
+              "content_mode",
+              "fidelity",
+              "completeness",
+              "missing_pin"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "value": {
+            "description": "E.g. `hash_only`, `bronze`, `partial` or the pin's name, `model`.",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "value"
+        ],
+        "title": "ReplayBlocker",
+        "type": "object"
+      },
       "ReplayCase": {
         "additionalProperties": false,
-        "description": "What the SDK's replay runner needs to run the turn again inside the customer's boundary: the frame,\npointers and hashes, pins, the pack and view of the time, the masked history up to the turn and the\nsuggested assertions. A pin that does not match stops the case with `pin_mismatch`.",
+        "description": "What the replay runner needs to run a turn again inside the company's boundary: the record, with the\nkept values in `stored` mode and the pointers and digests otherwise; the pins; the conversation's masked\nhistory up to the turn, ending with the turn's own input; and the assertions. The pack of the time is\nthe blob of the record's `pack` read.",
         "properties": {
           "assertions": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/ReplayAssertion"
             },
             "title": "Assertions",
             "type": "array"
@@ -6571,18 +6924,20 @@
             "type": "string"
           },
           "expires_at": {
-            "description": "After it, the case answers 410 `replay_expired`.",
+            "description": "When the turn leaves storage; after it, `replay_expired`.",
             "format": "date-time",
             "title": "Expires At",
             "type": "string"
           },
           "history": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/ReplayHistoryEntry"
             },
             "title": "History",
             "type": "array"
+          },
+          "input": {
+            "$ref": "#/components/schemas/ReplayInput"
           },
           "mode": {
             "enum": [
@@ -6595,12 +6950,61 @@
           },
           "record": {
             "$ref": "#/components/schemas/TurnRecord"
+          },
+          "required_pins": {
+            "items": {
+              "enum": [
+                "prompts",
+                "corpus_digest",
+                "model",
+                "assembler",
+                "tool_schemas"
+              ],
+              "type": "string"
+            },
+            "title": "Required Pins",
+            "type": "array"
+          },
+          "scenario_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Id"
+          },
+          "turn_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+            "title": "Turn Id",
+            "type": "string"
+          },
+          "vary": {
+            "items": {
+              "enum": [
+                "prompts",
+                "corpus_digest",
+                "model",
+                "assembler",
+                "tool_schemas"
+              ],
+              "type": "string"
+            },
+            "title": "Vary",
+            "type": "array"
           }
         },
         "required": [
           "case_id",
+          "turn_id",
           "mode",
           "record",
+          "required_pins",
+          "input",
           "expires_at"
         ],
         "title": "ReplayCase",
@@ -6608,7 +7012,11 @@
       },
       "ReplayCaseRequest": {
         "additionalProperties": false,
+        "description": "A case for one turn, alone or as part of a scenario. `build` is the build the runner will run; every\npin the recording requires must match the recorded one, except the pins in `vary`, which the run changes\non purpose.",
         "properties": {
+          "build": {
+            "$ref": "#/components/schemas/TurnBuild"
+          },
           "mode": {
             "default": "hermetic_turn",
             "enum": [
@@ -6619,6 +7027,197 @@
             "title": "Mode",
             "type": "string"
           },
+          "scenario_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Id"
+          },
+          "turn_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+            "title": "Turn Id",
+            "type": "string"
+          },
+          "vary": {
+            "items": {
+              "enum": [
+                "prompts",
+                "corpus_digest",
+                "model",
+                "assembler",
+                "tool_schemas"
+              ],
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Vary",
+            "type": "array"
+          }
+        },
+        "required": [
+          "turn_id",
+          "build"
+        ],
+        "title": "ReplayCaseRequest",
+        "type": "object"
+      },
+      "ReplayHistoryEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "customer",
+              "agent",
+              "human"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "role",
+          "at"
+        ],
+        "title": "ReplayHistoryEntry",
+        "type": "object"
+      },
+      "ReplayInput": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "message",
+              "action",
+              "event",
+              "timer"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The customer's message that opened the turn, masked.",
+            "title": "Text"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "ReplayInput",
+        "type": "object"
+      },
+      "ReplayResult": {
+        "additionalProperties": false,
+        "description": "One execution of one case. `infrastructure_error` (the agent raised, a blob could not be fetched or\ndid not match its digest, a timeout) is counted apart and never fails an assertion; `pin_mismatch` is a\ncase the runner stopped at its pin check.",
+        "properties": {
+          "assertions": {
+            "items": {
+              "$ref": "#/components/schemas/AssertionOutcome"
+            },
+            "maxItems": 50,
+            "title": "Assertions",
+            "type": "array"
+          },
+          "case_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "divergent_calls": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Divergent Calls",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          },
+          "paraphrase": {
+            "default": false,
+            "description": "The run's input was a paraphrase of the recorded one.",
+            "title": "Paraphrase",
+            "type": "boolean"
+          },
+          "run": {
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Run",
+            "type": "integer"
+          },
+          "scenario_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Scenario Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "pin_mismatch",
+              "infrastructure_error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
           "turn_id": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
             "title": "Turn Id",
@@ -6626,9 +7225,12 @@
           }
         },
         "required": [
-          "turn_id"
+          "scenario_id",
+          "turn_id",
+          "run",
+          "status"
         ],
-        "title": "ReplayCaseRequest",
+        "title": "ReplayResult",
         "type": "object"
       },
       "ReviewRequest": {
@@ -6833,8 +7435,7 @@
         "properties": {
           "assertions": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/ReplayAssertion"
             },
             "title": "Assertions",
             "type": "array"
@@ -6878,7 +7479,13 @@
             "title": "Turn Ids",
             "type": "array"
           },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
           "version": {
+            "description": "Grows with every change of the name, the assertions or the status.",
             "title": "Version",
             "type": "integer"
           }
@@ -6891,18 +7498,19 @@
           "assertions",
           "status",
           "version",
-          "created_at"
+          "created_at",
+          "updated_at"
         ],
         "title": "Scenario",
         "type": "object"
       },
       "ScenarioCreate": {
         "additionalProperties": false,
+        "description": "Turns kept as a scenario, with the assertions they must keep passing; without assertions, the ones\nsuggested by rule from the turns.",
         "properties": {
           "assertions": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/ReplayAssertion"
             },
             "maxItems": 50,
             "title": "Assertions",
@@ -6934,7 +7542,7 @@
       },
       "ScenarioFromReport": {
         "additionalProperties": false,
-        "description": "A bug report becomes a scenario: its turns are promoted and assertions suggested by rule.",
+        "description": "A bug report becomes a scenario: its turns are kept and assertions suggested by rule, from the turns\nand from words of the description. The description is read, never stored.",
         "properties": {
           "conversation_id": {
             "anyOf": [
@@ -6960,6 +7568,19 @@
               }
             ],
             "title": "Description"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           },
           "turn_ids": {
             "items": {
@@ -7005,6 +7626,23 @@
       "ScenarioRun": {
         "additionalProperties": false,
         "properties": {
+          "build": {
+            "$ref": "#/components/schemas/TurnBuild"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "hermetic_turn",
+              "hermetic_conversation",
+              "era_memory"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
           "run_id": {
             "maxLength": 512,
             "minLength": 1,
@@ -7020,18 +7658,31 @@
             "type": "string"
           },
           "summary": {
-            "additionalProperties": true,
-            "title": "Summary",
-            "type": "object"
+            "$ref": "#/components/schemas/ScenarioRunSummary"
+          },
+          "vary": {
+            "items": {
+              "enum": [
+                "prompts",
+                "corpus_digest",
+                "model",
+                "assembler",
+                "tool_schemas"
+              ],
+              "type": "string"
+            },
+            "title": "Vary",
+            "type": "array"
           },
           "verdict": {
             "anyOf": [
               {
                 "enum": [
                   "pass",
-                  "regression",
                   "flaky",
-                  "infrastructure_error"
+                  "infrastructure_error",
+                  "pin_mismatch",
+                  "regression"
                 ],
                 "type": "string"
               },
@@ -7039,32 +7690,59 @@
                 "type": "null"
               }
             ],
+            "description": "The worst of the scenarios' verdicts.",
             "title": "Verdict"
           }
         },
         "required": [
           "run_id",
-          "status"
+          "status",
+          "mode",
+          "build",
+          "summary",
+          "created_at"
         ],
         "title": "ScenarioRun",
         "type": "object"
       },
       "ScenarioRunCreate": {
         "additionalProperties": false,
-        "description": "The customer's CI reports N executions of the scenarios; the statistics stay with Niadra.",
+        "description": "What the company's CI reports after running the scenarios N times: the statistics stay with Niadra.\nEvery pin the recording requires must match each scenario's recorded build, except those in `vary`.",
         "properties": {
           "build": {
             "$ref": "#/components/schemas/TurnBuild"
           },
+          "mode": {
+            "default": "hermetic_turn",
+            "enum": [
+              "hermetic_turn",
+              "hermetic_conversation",
+              "era_memory"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
           "results": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/ReplayResult"
             },
             "maxItems": 5000,
             "minItems": 1,
             "title": "Results",
             "type": "array"
+          },
+          "runs": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runs"
           },
           "scenario_ids": {
             "items": {
@@ -7076,6 +7754,21 @@
             "minItems": 1,
             "title": "Scenario Ids",
             "type": "array"
+          },
+          "vary": {
+            "items": {
+              "enum": [
+                "prompts",
+                "corpus_digest",
+                "model",
+                "assembler",
+                "tool_schemas"
+              ],
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Vary",
+            "type": "array"
           }
         },
         "required": [
@@ -7086,6 +7779,20 @@
         "title": "ScenarioRunCreate",
         "type": "object"
       },
+      "ScenarioRunSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "scenarios": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioVerdict"
+            },
+            "title": "Scenarios",
+            "type": "array"
+          }
+        },
+        "title": "ScenarioRunSummary",
+        "type": "object"
+      },
       "ScenarioUpdate": {
         "additionalProperties": false,
         "properties": {
@@ -7093,8 +7800,7 @@
             "anyOf": [
               {
                 "items": {
-                  "additionalProperties": true,
-                  "type": "object"
+                  "$ref": "#/components/schemas/ReplayAssertion"
                 },
                 "maxItems": 50,
                 "type": "array"
@@ -7137,6 +7843,77 @@
         "title": "ScenarioUpdate",
         "type": "object"
       },
+      "ScenarioVerdict": {
+        "additionalProperties": false,
+        "properties": {
+          "assertions": {
+            "items": {
+              "$ref": "#/components/schemas/AssertionStats"
+            },
+            "title": "Assertions",
+            "type": "array"
+          },
+          "baseline_run_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The earlier run compared against; none when it was the recording.",
+            "title": "Baseline Run Id"
+          },
+          "completed": {
+            "title": "Completed",
+            "type": "integer"
+          },
+          "infrastructure_errors": {
+            "title": "Infrastructure Errors",
+            "type": "integer"
+          },
+          "needs_paraphrase": {
+            "description": "An assertion passed and failed across the runs: its next run must include paraphrases.",
+            "title": "Needs Paraphrase",
+            "type": "boolean"
+          },
+          "pin_mismatches": {
+            "title": "Pin Mismatches",
+            "type": "integer"
+          },
+          "scenario_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Scenario Id",
+            "type": "string"
+          },
+          "verdict": {
+            "enum": [
+              "pass",
+              "flaky",
+              "infrastructure_error",
+              "pin_mismatch",
+              "regression"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario_id",
+          "verdict",
+          "completed",
+          "infrastructure_errors",
+          "pin_mismatches",
+          "needs_paraphrase",
+          "assertions"
+        ],
+        "title": "ScenarioVerdict",
+        "type": "object"
+      },
       "SdkProfile": {
         "additionalProperties": false,
         "description": "What the SDK keeps in its local cache: the features on, the source's tool bindings, the summarized\ntype registry, the claim contract and turn recording.",
@@ -7161,14 +7938,13 @@
           "recording": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/TurnRecordingSummary"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Recording"
+            "description": "How this source records turns, once the space records them."
           },
           "tool_bindings": {
             "items": {
@@ -9127,6 +9903,43 @@
         "title": "TurnRecord",
         "type": "object"
       },
+      "TurnRecordingSummary": {
+        "additionalProperties": false,
+        "description": "How the calling source records turns, for the SDK's capture: where the values may live, and the pins\na turn needs to be replayable.",
+        "properties": {
+          "content_mode": {
+            "description": "`stored`, `pointer` or `hash_only`; a turn may keep less, never more.",
+            "enum": [
+              "stored",
+              "pointer",
+              "hash_only"
+            ],
+            "title": "Content Mode",
+            "type": "string"
+          },
+          "required_pins": {
+            "description": "Without one of these, a turn is kept not replayable.",
+            "items": {
+              "enum": [
+                "prompts",
+                "corpus_digest",
+                "model",
+                "assembler",
+                "tool_schemas"
+              ],
+              "type": "string"
+            },
+            "title": "Required Pins",
+            "type": "array"
+          }
+        },
+        "required": [
+          "content_mode",
+          "required_pins"
+        ],
+        "title": "TurnRecordingSummary",
+        "type": "object"
+      },
       "TurnSearchRequest": {
         "additionalProperties": false,
         "description": "A search over the kept tier. The conversation id travels in the body, never in the URL.",
@@ -9388,6 +10201,14 @@
           },
           "record": {
             "$ref": "#/components/schemas/TurnRecord"
+          },
+          "replay_blockers": {
+            "description": "Why the turn cannot be run again; empty when it can.",
+            "items": {
+              "$ref": "#/components/schemas/ReplayBlocker"
+            },
+            "title": "Replay Blockers",
+            "type": "array"
           },
           "replayable": {
             "description": "Every pin the recording requires is there.",
@@ -10041,8 +10862,26 @@
     },
     "/v1/changes": {
       "get": {
+        "description": "What changed between consecutive builds of each agent, newest first.",
         "operationId": "changes_v1_changes_get",
         "parameters": [
+          {
+            "in": "query",
+            "name": "agent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent"
+            }
+          },
           {
             "in": "query",
             "name": "cursor",
@@ -11212,7 +12051,30 @@
     },
     "/v1/measure/interleaving": {
       "get": {
+        "description": "Interleaved lists of a tool's two rankings: which one engagement credited, with the sign test.",
         "operationId": "interleaving_v1_measure_interleaving_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "since",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Since",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Until",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -11223,6 +12085,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not match the contract."
           }
         },
         "summary": "Interleaving",
@@ -11867,6 +12739,7 @@
     },
     "/v1/replay/cases": {
       "post": {
+        "description": "One turn with what a runner needs to run it again, once the running build shares its pins.",
         "operationId": "replay_case_v1_replay_cases_post",
         "requestBody": {
           "content": {
@@ -11888,6 +12761,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "410": {
+            "description": "`replay_expired`: the scenario's turn left storage."
           },
           "422": {
             "content": {
@@ -12023,6 +12899,7 @@
     },
     "/v1/scenario-runs": {
       "post": {
+        "description": "The executions the company's CI ran; the answer carries the verdict already decided.",
         "operationId": "create_scenario_run_v1_scenario_runs_post",
         "parameters": [
           {
@@ -12119,8 +12996,42 @@
     },
     "/v1/scenarios": {
       "get": {
+        "description": "A status's scenarios, newest first; or the ones named by `ids`, whatever their status.",
         "operationId": "list_scenarios_v1_scenarios_get",
         "parameters": [
+          {
+            "description": "Up to 50 ids, comma-separated.",
+            "in": "query",
+            "name": "ids",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2000,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Up to 50 ids, comma-separated.",
+              "title": "Ids"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "active",
+              "enum": [
+                "active",
+                "retired"
+              ],
+              "title": "Status",
+              "type": "string"
+            }
+          },
           {
             "in": "query",
             "name": "cursor",
@@ -12179,6 +13090,7 @@
         ]
       },
       "post": {
+        "description": "Keeps the turns as a scenario; without assertions, the ones suggested by rule.",
         "operationId": "create_scenario_v1_scenarios_post",
         "parameters": [
           {
@@ -12286,6 +13198,46 @@
       }
     },
     "/v1/scenarios/{scenario_id}": {
+      "get": {
+        "operationId": "read_scenario_v1_scenarios__scenario_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scenario_id",
+            "required": true,
+            "schema": {
+              "title": "Scenario Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Scenario"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not match the contract."
+          }
+        },
+        "summary": "Read Scenario",
+        "tags": [
+          "turns"
+        ]
+      },
       "patch": {
         "operationId": "update_scenario_v1_scenarios__scenario_id__patch",
         "parameters": [

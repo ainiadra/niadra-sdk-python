@@ -88,7 +88,7 @@ def test_a_scenario_replayed_five_times_passes_and_its_tools_never_run(app: Mock
     (summary,) = run.scenarios
     assert summary["completed"] == 5 and summary["assertions"][0]["passed"] == 5
     assert calls == []  # every call answered from the record
-    assert seen[0].text == "Quanto sai o plano ouro?" and [g.run for g in seen] == [0, 1, 2, 3, 4]
+    assert seen[0].text == "Quanto sai o plano ouro?" and [g.run for g in seen] == [1, 2, 3, 4, 5]
 
 
 def test_an_agent_that_stops_calling_the_tool_regresses(app: MockApp, niadra: Niadra) -> None:

@@ -214,6 +214,8 @@ class ReplayStore:
                 if pins:
                     raise ReplayError(422, "pin_mismatch", pins=pins)
         results = list(body["results"])
+        if any(not 1 <= int(r.get("run", 0)) <= 100 for r in results):
+            raise ReplayError(422, "invalid_input")  # runs are numbered 1 to 100
         scenarios = []
         for scenario_id in scenario_ids:
             executions = [_execution(r) for r in results if r.get("scenario_id") == scenario_id]

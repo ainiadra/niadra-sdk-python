@@ -273,8 +273,37 @@ class InferencePage(ResponseModel):
     next_cursor: str | None = None
 
 
+class InterleavingRow(ResponseModel):
+    day: date
+    experiment: ShortStr
+    impressions: int
+    ties: int = Field(description="Impressions engaged with equally, or not at all.")
+    tool: ShortStr
+    wins_a: int = Field(description="Impressions whose engagement went to the items ranking `a` contributed.")
+    wins_b: int
+
+
+class InterleavingTotal(ResponseModel):
+    experiment: ShortStr
+    impressions: int
+    p_value: float | None = Field(
+        description="The two-sided sign test on the decided impressions; absent before any was decided."
+    )
+    ties: int
+    tool: ShortStr
+    wins_a: int
+    wins_b: int
+
+
 class InterleavingReport(ResponseModel):
-    rows: list[dict[str, Any]]
+    """Interleaved lists of a tool's two rankings (team draft, seeded by the turn): which ranking the person's
+    engagement credited, impression by impression, by day and over the period.
+    """
+
+    rows: list[InterleavingRow]
+    since: date
+    totals: list[InterleavingTotal]
+    until: date
 
 
 class LegalHold(ResponseModel):

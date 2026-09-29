@@ -452,6 +452,19 @@ class RefreshRequestPage(ResponseModel):
     items: list[RefreshRequest]
 
 
+class TurnRecordingSummary(ResponseModel):
+    """How the calling source records turns, for the SDK's capture: where the values may live, and the pins a
+    turn needs to be replayable.
+    """
+
+    content_mode: Literal["stored", "pointer", "hash_only"] = Field(
+        description="`stored`, `pointer` or `hash_only`; a turn may keep less, never more."
+    )
+    required_pins: list[Literal["prompts", "corpus_digest", "model", "assembler", "tool_schemas"]] = Field(
+        description="Without one of these, a turn is kept not replayable."
+    )
+
+
 class SdkProfile(ResponseModel):
     """What the SDK keeps in its local cache: the features on, the source's tool bindings, the summarized type
     registry, the claim contract and turn recording.
@@ -459,7 +472,9 @@ class SdkProfile(ResponseModel):
 
     claim_contract: ClaimContractSummary | None = None
     features: list[Feature]
-    recording: dict[str, Any] | None = None
+    recording: TurnRecordingSummary | None = Field(
+        default=None, description="How this source records turns, once the space records them."
+    )
     tool_bindings: list[dict[str, Any]] = Field(default_factory=list)
     types: list[dict[str, Any]] = Field(default_factory=list)
     valid_for_s: int

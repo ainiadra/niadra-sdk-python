@@ -169,6 +169,7 @@ class Niadra:
         """The company's content resolver, for content kept by pointer: `content.register(fetch)`."""
         self.turns.features = lambda: self._profile.features
         self.turns.recording_mode = self._profile.recording_mode
+        self.turns.required_pins = self._profile.required_pins
         self.turns.claims = self._claims_of
         self.turns.sender = SyncTurnSender(
             self.turns,

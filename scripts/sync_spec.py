@@ -127,15 +127,50 @@ def cut(document: dict[str, Any]) -> dict[str, Any]:
     for methods in paths.values():
         for op in methods.values():
             _hoist_body(op, schemas)
+    reached = {name: schemas[name] for name in _reach(paths, schemas)}
+    renamed = _split_names(reached)
     return _published(
-        {
-            "openapi": document["openapi"],
-            "info": document["info"],
-            "paths": paths,
-            "components": {"schemas": {name: schemas[name] for name in sorted(_reach(paths, schemas))}},
-        },
+        _renamed(
+            {
+                "openapi": document["openapi"],
+                "info": document["info"],
+                "paths": paths,
+                "components": {"schemas": {renamed.get(n, n): reached[n] for n in sorted(reached)}},
+            },
+            renamed,
+        ),
         "",
     )
+
+
+def _split_names(schemas: dict[str, Any]) -> dict[str, str]:
+    """Names for the halves of a model the server documents twice, as it validates it and as it serializes
+    it (`Name-Input`, `Name-Output`): the model's own name for one of them, and `NameOutput` when both are
+    reached."""
+    renamed: dict[str, str] = {}
+    for name in schemas:
+        base, _, half = name.rpartition("-")
+        if half not in ("Input", "Output") or not base:
+            continue
+        both = f"{base}-Input" in schemas and f"{base}-Output" in schemas
+        target = f"{base}Output" if both and half == "Output" else base
+        if target in schemas:
+            raise ValueError(f"{name}: the name {target} is taken")
+        renamed[name] = target
+    return renamed
+
+
+def _renamed(node: Any, renamed: dict[str, str]) -> Any:
+    """`node` with every reference to a renamed schema following it."""
+    if isinstance(node, list):
+        return [_renamed(v, renamed) for v in node]
+    if not isinstance(node, dict):
+        return node
+    out = {k: _renamed(v, renamed) for k, v in node.items()}
+    ref = out.get("$ref")
+    if isinstance(ref, str) and _name(ref) in renamed:
+        out["$ref"] = f"#/components/schemas/{renamed[_name(ref)]}"
+    return out
 
 
 def _hoist_body(op: dict[str, Any], schemas: dict[str, Any]) -> None:

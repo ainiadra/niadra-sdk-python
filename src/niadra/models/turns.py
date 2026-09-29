@@ -21,6 +21,44 @@ TypeName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}$")]
 Version = Annotated[str, StringConstraints(min_length=1, max_length=128)]
 
 
+class AssertionOutcome(Model):
+    detail: Annotated[str, StringConstraints(max_length=500)] | None = None
+    id: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9_.-]{0,63}$")]
+    kind: Literal[
+        "tool_called",
+        "tool_not_called",
+        "hard_respected",
+        "no_denial_with_results",
+        "claims_traced",
+        "claims_match_state",
+        "no_promise_without_action",
+        "expected_in_topk",
+        "handoff_when",
+        "effect_once",
+        "budget",
+        "lexicon",
+        "tools_offered_match",
+    ]
+    outcome: Literal["pass", "fail", "not_checked"]
+
+
+class AssertionStats(ResponseModel):
+    """One assertion over the run's completed executions, against its baseline. `p_value` is the one-sided
+    Fisher exact test that the run passes less often than the baseline, rounded to 6 decimals.
+    """
+
+    baseline_failed: int
+    baseline_passed: int
+    drop: float = Field(description="The baseline's pass rate minus the run's.")
+    failed: int
+    flaky: bool
+    id: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9_.-]{0,63}$")]
+    not_checked: int
+    p_value: float
+    passed: int
+    regression: bool
+
+
 class Attribute(Model):
     """What the person is: a size, a preferred network, a diet. Said here; the lifecycle's outcomes (bought,
     kept, returned for size) derive the rest on the server, never an agent.
@@ -38,13 +76,16 @@ class Attribute(Model):
 
 
 class Change(ResponseModel):
-    """One entry of the change log the bisection walks."""
+    """One entry of the change log a bisection walks: a pin that changed between two builds of an agent, in
+    the order the builds were first seen.
+    """
 
     after: str | None = None
     agent: ShortStr | None = None
     at: datetime
     before: str | None = None
     kind: Literal["prompt", "model", "code", "data", "config", "compiler"]
+    name: ShortStr | None = Field(default=None, description="The prompt or the tool, for those kinds.")
 
 
 class ChangePage(ResponseModel):
@@ -293,6 +334,55 @@ class PromoteResponse(ResponseModel):
     promoted: int
 
 
+class ReplayAssertion(Model):
+    """A structural check on the replayed turn's record, evaluated by the runner. The replay spec fixes each
+    kind's `args` and how it is evaluated; a kind the runner cannot evaluate yields `not_checked`.
+    """
+
+    args: dict[ShortStr, Any] = Field(default_factory=dict, max_length=20)
+    id: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9_.-]{0,63}$")]
+    kind: Literal[
+        "tool_called",
+        "tool_not_called",
+        "hard_respected",
+        "no_denial_with_results",
+        "claims_traced",
+        "claims_match_state",
+        "no_promise_without_action",
+        "expected_in_topk",
+        "handoff_when",
+        "effect_once",
+        "budget",
+        "lexicon",
+        "tools_offered_match",
+    ]
+    suggested: bool = Field(default=False, description="Suggested by rule from the recorded turn.")
+    turn_id: TurnId | None = Field(
+        default=None, description="The one turn of the scenario it applies to; every turn when absent."
+    )
+
+
+class ReplayBlocker(ResponseModel):
+    """Why a turn cannot be run again: `content_mode` (`hash_only` keeps no value), `fidelity` (only a gold
+    record can be replayed), `completeness` (only a complete one) or `missing_pin` (the pin the recording
+    requires and the record lacks).
+    """
+
+    reason: Literal["content_mode", "fidelity", "completeness", "missing_pin"]
+    value: ShortStr = Field(description="E.g. `hash_only`, `bronze`, `partial` or the pin's name, `model`.")
+
+
+class ReplayHistoryEntry(ResponseModel):
+    at: datetime
+    role: Literal["customer", "agent", "human"]
+    text: str | None = None
+
+
+class ReplayInput(ResponseModel):
+    kind: Literal["message", "action", "event", "timer"]
+    text: str | None = Field(default=None, description="The customer's message that opened the turn, masked.")
+
+
 class Seen(Model):
     """A ping of the list component: how far the person saw."""
 
@@ -530,46 +620,92 @@ class TurnRecord(Model):
 
 
 class ReplayCase(ResponseModel):
-    """What the SDK's replay runner needs to run the turn again inside the customer's boundary: the frame,
-    pointers and hashes, pins, the pack and view of the time, the masked history up to the turn and the
-    suggested assertions. A pin that does not match stops the case with `pin_mismatch`.
+    """What the replay runner needs to run a turn again inside the company's boundary: the record, with the
+    kept values in `stored` mode and the pointers and digests otherwise; the pins; the conversation's
+    masked history up to the turn, ending with the turn's own input; and the assertions. The pack of the
+    time is the blob of the record's `pack` read.
     """
 
-    assertions: list[dict[str, Any]] = Field(default_factory=list)
+    assertions: list[ReplayAssertion] = Field(default_factory=list)
     case_id: IdStr
-    expires_at: datetime = Field(description="After it, the case answers 410 `replay_expired`.")
-    history: list[dict[str, Any]] = Field(default_factory=list)
+    expires_at: datetime = Field(description="When the turn leaves storage; after it, `replay_expired`.")
+    history: list[ReplayHistoryEntry] = Field(default_factory=list)
+    input: ReplayInput
     mode: Literal["hermetic_turn", "hermetic_conversation", "era_memory"]
     record: TurnRecord
+    required_pins: list[Literal["prompts", "corpus_digest", "model", "assembler", "tool_schemas"]]
+    scenario_id: IdStr | None = None
+    turn_id: TurnId
+    vary: list[Literal["prompts", "corpus_digest", "model", "assembler", "tool_schemas"]] = Field(
+        default_factory=list
+    )
 
 
 class ReplayCaseRequest(Model):
+    """A case for one turn, alone or as part of a scenario. `build` is the build the runner will run; every
+    pin the recording requires must match the recorded one, except the pins in `vary`, which the run
+    changes on purpose.
+    """
+
+    build: TurnBuild
     mode: Literal["hermetic_turn", "hermetic_conversation", "era_memory"] = "hermetic_turn"
+    scenario_id: IdStr | None = None
+    turn_id: TurnId
+    vary: list[Literal["prompts", "corpus_digest", "model", "assembler", "tool_schemas"]] = Field(
+        default_factory=list, max_length=5
+    )
+
+
+class ReplayResult(Model):
+    """One execution of one case. `infrastructure_error` (the agent raised, a blob could not be fetched or did
+    not match its digest, a timeout) is counted apart and never fails an assertion; `pin_mismatch` is a
+    case the runner stopped at its pin check.
+    """
+
+    assertions: list[AssertionOutcome] = Field(default_factory=list, max_length=50)
+    case_id: IdStr | None = None
+    divergent_calls: int = Field(default=0, ge=0)
+    error: Annotated[str, StringConstraints(max_length=500)] | None = None
+    latency_ms: Annotated[int, Field(ge=0)] | None = None
+    paraphrase: bool = Field(
+        default=False, description="The run's input was a paraphrase of the recorded one."
+    )
+    run: int = Field(ge=1, le=100)
+    scenario_id: IdStr
+    status: Literal["completed", "pin_mismatch", "infrastructure_error"]
     turn_id: TurnId
 
 
 class Scenario(ResponseModel):
-    assertions: list[dict[str, Any]]
+    assertions: list[ReplayAssertion]
     created_at: datetime
     name: str
     origin: Literal["manual", "report"]
     scenario_id: IdStr
     status: Literal["active", "retired"]
     turn_ids: list[TurnId]
-    version: int
+    updated_at: datetime
+    version: int = Field(description="Grows with every change of the name, the assertions or the status.")
 
 
 class ScenarioCreate(Model):
-    assertions: list[dict[str, Any]] = Field(default_factory=list, max_length=50)
+    """Turns kept as a scenario, with the assertions they must keep passing; without assertions, the ones
+    suggested by rule from the turns.
+    """
+
+    assertions: list[ReplayAssertion] = Field(default_factory=list, max_length=50)
     name: ShortStr
     turn_ids: list[TurnId] = Field(min_length=1, max_length=50)
 
 
 class ScenarioFromReport(Model):
-    """A bug report becomes a scenario: its turns are promoted and assertions suggested by rule."""
+    """A bug report becomes a scenario: its turns are kept and assertions suggested by rule, from the turns
+    and from words of the description. The description is read, never stored.
+    """
 
     conversation_id: IdStr | None = None
     description: Annotated[str, StringConstraints(max_length=2000)] | None = None
+    name: ShortStr | None = None
     turn_ids: list[TurnId] = Field(default_factory=list, max_length=50)
 
 
@@ -578,23 +714,57 @@ class ScenarioPage(ResponseModel):
     next_cursor: str | None = None
 
 
+class ScenarioVerdict(ResponseModel):
+    assertions: list[AssertionStats]
+    baseline_run_id: IdStr | None = Field(
+        default=None, description="The earlier run compared against; none when it was the recording."
+    )
+    completed: int
+    infrastructure_errors: int
+    needs_paraphrase: bool = Field(
+        description="An assertion passed and failed across the runs: its next run must include paraphrases."
+    )
+    pin_mismatches: int
+    scenario_id: IdStr
+    verdict: Literal["pass", "flaky", "infrastructure_error", "pin_mismatch", "regression"]
+
+
+class ScenarioRunSummary(ResponseModel):
+    scenarios: list[ScenarioVerdict] = Field(default_factory=list)
+
+
 class ScenarioRun(ResponseModel):
+    build: TurnBuild
+    created_at: datetime
+    mode: Literal["hermetic_turn", "hermetic_conversation", "era_memory"]
     run_id: IdStr
     status: Literal["pending", "done"]
-    summary: dict[str, Any] = Field(default_factory=dict)
-    verdict: Literal["pass", "regression", "flaky", "infrastructure_error"] | None = None
+    summary: ScenarioRunSummary
+    vary: list[Literal["prompts", "corpus_digest", "model", "assembler", "tool_schemas"]] = Field(
+        default_factory=list
+    )
+    verdict: Literal["pass", "flaky", "infrastructure_error", "pin_mismatch", "regression"] | None = Field(
+        default=None, description="The worst of the scenarios' verdicts."
+    )
 
 
 class ScenarioRunCreate(Model):
-    """The customer's CI reports N executions of the scenarios; the statistics stay with Niadra."""
+    """What the company's CI reports after running the scenarios N times: the statistics stay with Niadra.
+    Every pin the recording requires must match each scenario's recorded build, except those in `vary`.
+    """
 
     build: TurnBuild
-    results: list[dict[str, Any]] = Field(min_length=1, max_length=5000)
+    mode: Literal["hermetic_turn", "hermetic_conversation", "era_memory"] = "hermetic_turn"
+    results: list[ReplayResult] = Field(min_length=1, max_length=5000)
+    runs: Annotated[int, Field(ge=1, le=100)] | None = None
     scenario_ids: list[IdStr] = Field(min_length=1, max_length=200)
+    vary: list[Literal["prompts", "corpus_digest", "model", "assembler", "tool_schemas"]] = Field(
+        default_factory=list, max_length=5
+    )
 
 
 class ScenarioUpdate(Model):
-    assertions: Annotated[list[dict[str, Any]], Field(max_length=50)] | None = None
+    assertions: Annotated[list[ReplayAssertion], Field(max_length=50)] | None = None
     name: ShortStr | None = None
     status: Literal["active", "retired"] | None = None
 
@@ -657,6 +827,9 @@ class TurnView(ResponseModel):
 
     kept_until: datetime | None = None
     record: TurnRecord
+    replay_blockers: list[ReplayBlocker] = Field(
+        default_factory=list, description="Why the turn cannot be run again; empty when it can."
+    )
     replayable: bool = Field(description="Every pin the recording requires is there.")
     tier: Literal["short", "kept"]
 
