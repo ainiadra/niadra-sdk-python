@@ -68,6 +68,22 @@ Rules:
 
 Reply with JSON only: {{"correct": true or false, "reason": "one short sentence"}}"""
 
+# The typed-object set (`dataset/typed`): what makes an answer right depends on what a company's system says
+# about an object now (a price too old to affirm, a quote an input change expired, a revised deadline, a check
+# nobody made), so each case carries its own rule beside the reference answer.
+TYPED_JUDGE_PROMPT = """You grade the answer a company's agent gave to a customer.
+
+Customer's message: {question}
+Reference answer: {reference}
+What makes an answer correct: {rule}
+Agent's answer: {answer}
+
+Rules:
+- Apply the rule above strictly. Language, wording and extra polite text do not matter.
+- An answer that hedges between a right and a wrong value is incorrect.
+
+Reply with JSON only: {{"correct": true or false, "reason": "one short sentence"}}"""
+
 
 @dataclass
 class ChatClient:

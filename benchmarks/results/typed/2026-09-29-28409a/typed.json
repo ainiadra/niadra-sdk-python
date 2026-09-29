@@ -1,0 +1,1308 @@
+{
+  "schema": "niadra-bench.typed.v1",
+  "run_id": "2026-09-29-28409a",
+  "environment": "local-cell",
+  "started_at": "2026-09-29T17:12:04.656710+00:00",
+  "ended_at": "2026-09-29T17:30:28.097086+00:00",
+  "dataset": {
+    "name": "typed",
+    "sha256": "82873e6cfd92b8ab6f7610a5d7ecd79dcd87bba8475072c54e179c35ad99ef30",
+    "cases": 42,
+    "generator_version": "typed-1"
+  },
+  "config": {
+    "arms": {
+      "without": null,
+      "with": [
+        "state",
+        "constraints"
+      ]
+    },
+    "agent": {
+      "model": "openai/gpt-6-luna",
+      "max_tokens": 2000,
+      "temperature": null,
+      "reasoning_effort": "low",
+      "seed": 20260924
+    },
+    "judge": {
+      "model": "openai/gpt-6-luna",
+      "max_tokens": 2000,
+      "temperature": null,
+      "reasoning_effort": "low",
+      "seed": 20260924
+    },
+    "agent_mode": "llm",
+    "cell_models": [
+      "openai/gpt-6-luna",
+      "typesafe/jev-1.13"
+    ],
+    "object_types_sha256": "88c4ac7df684cc3bedce9788a0a570f5947c16d3b71b7e4309b2fed32408f1f3",
+    "tokens": "o200k_base",
+    "repetitions": 2
+  },
+  "versions": {
+    "niadra_sdk": "0.6.1",
+    "niadra_sdk_commit": "d10af9c"
+  },
+  "setup": {
+    "features": [
+      "claims",
+      "coordination",
+      "legal_holds",
+      "measurement",
+      "notifications",
+      "signals",
+      "state",
+      "turns"
+    ],
+    "types": [
+      "cart",
+      "cart_quote",
+      "health_plan",
+      "intimacao_com_prazo",
+      "proposal"
+    ],
+    "scoped_keys": [
+      "billing",
+      "whatsapp"
+    ]
+  },
+  "settle": [
+    {
+      "repetition": 1,
+      "settled": false,
+      "seconds": 304.6,
+      "rounds": 60,
+      "not_ready": [
+        "typed-en-007",
+        "typed-en-008",
+        "typed-pt-007",
+        "typed-pt-008"
+      ],
+      "seed_failed": {}
+    },
+    {
+      "repetition": 2,
+      "settled": false,
+      "seconds": 303.8,
+      "rounds": 59,
+      "not_ready": [
+        "typed-en-007",
+        "typed-en-008",
+        "typed-pt-007",
+        "typed-pt-008"
+      ],
+      "seed_failed": {}
+    }
+  ],
+  "metrics": {
+    "accuracy": {
+      "all": {
+        "price_freshness": {
+          "without": {
+            "judge": {
+              "n": 12,
+              "correct": 4,
+              "share": 0.3333
+            },
+            "exact": {
+              "n": 12,
+              "correct": 10,
+              "share": 0.8333
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 12,
+              "correct": 10,
+              "share": 0.8333
+            },
+            "exact": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 12,
+              "correct": 6,
+              "share": 0.5
+            },
+            "exact": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 12,
+              "correct": 7,
+              "share": 0.5833
+            },
+            "exact": {
+              "n": 12,
+              "correct": 11,
+              "share": 0.9167
+            }
+          }
+        },
+        "quote_expiry": {
+          "without": {
+            "judge": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 12,
+              "correct": 11,
+              "share": 0.9167
+            },
+            "exact": {
+              "n": 12,
+              "correct": 10,
+              "share": 0.8333
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 12,
+              "correct": 3,
+              "share": 0.25
+            },
+            "exact": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            }
+          }
+        },
+        "deadline_revision": {
+          "without": {
+            "judge": {
+              "n": 12,
+              "correct": 10,
+              "share": 0.8333
+            },
+            "exact": {
+              "n": 12,
+              "correct": 10,
+              "share": 0.8333
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 12,
+              "correct": 11,
+              "share": 0.9167
+            },
+            "exact": {
+              "n": 12,
+              "correct": 11,
+              "share": 0.9167
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            }
+          }
+        },
+        "not_checked": {
+          "without": {
+            "judge": {
+              "n": 12,
+              "correct": 9,
+              "share": 0.75
+            },
+            "exact": {
+              "n": 12,
+              "correct": 10,
+              "share": 0.8333
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 12,
+              "correct": 10,
+              "share": 0.8333
+            },
+            "exact": {
+              "n": 12,
+              "correct": 11,
+              "share": 0.9167
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 9,
+              "share": 0.75
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 12,
+              "correct": 11,
+              "share": 0.9167
+            },
+            "exact": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            }
+          }
+        },
+        "changes_since_seen": {
+          "without": {
+            "judge": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 12,
+              "correct": 1,
+              "share": 0.0833
+            },
+            "exact": {
+              "n": 12,
+              "correct": 1,
+              "share": 0.0833
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 10,
+              "share": 0.8333
+            }
+          }
+        },
+        "hard_constraint": {
+          "without": {
+            "judge": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 6,
+              "share": 0.5
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 12,
+              "correct": 3,
+              "share": 0.25
+            },
+            "exact": {
+              "n": 12,
+              "correct": 6,
+              "share": 0.5
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            }
+          }
+        },
+        "effect_once": {
+          "without": {
+            "judge": {
+              "n": 12,
+              "correct": 4,
+              "share": 0.3333
+            },
+            "exact": {
+              "n": 12,
+              "correct": 2,
+              "share": 0.1667
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 12,
+              "correct": 7,
+              "share": 0.5833
+            },
+            "exact": {
+              "n": 12,
+              "correct": 4,
+              "share": 0.3333
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 7,
+              "share": 0.5833
+            }
+          }
+        },
+        "all": {
+          "without": {
+            "judge": {
+              "n": 84,
+              "correct": 27,
+              "share": 0.3214
+            },
+            "exact": {
+              "n": 84,
+              "correct": 38,
+              "share": 0.4524
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 84,
+              "correct": 53,
+              "share": 0.631
+            },
+            "exact": {
+              "n": 84,
+              "correct": 55,
+              "share": 0.6548
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 84,
+              "correct": 18,
+              "share": 0.2143
+            },
+            "exact": {
+              "n": 84,
+              "correct": 21,
+              "share": 0.25
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 84,
+              "correct": 69,
+              "share": 0.8214
+            },
+            "exact": {
+              "n": 84,
+              "correct": 64,
+              "share": 0.7619
+            }
+          }
+        }
+      },
+      "valid": {
+        "price_freshness": {
+          "without": {
+            "judge": {
+              "n": 2,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 2,
+              "correct": 1,
+              "share": 0.5
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 2,
+              "correct": 2,
+              "share": 1.0
+            },
+            "exact": {
+              "n": 2,
+              "correct": 2,
+              "share": 1.0
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 2,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 2,
+              "correct": 2,
+              "share": 1.0
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 2,
+              "correct": 2,
+              "share": 1.0
+            },
+            "exact": {
+              "n": 2,
+              "correct": 2,
+              "share": 1.0
+            }
+          }
+        },
+        "quote_expiry": {
+          "without": {
+            "judge": {
+              "n": 3,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 3,
+              "correct": 0,
+              "share": 0.0
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 3,
+              "correct": 3,
+              "share": 1.0
+            },
+            "exact": {
+              "n": 3,
+              "correct": 3,
+              "share": 1.0
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 3,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 3,
+              "correct": 0,
+              "share": 0.0
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 3,
+              "correct": 3,
+              "share": 1.0
+            },
+            "exact": {
+              "n": 3,
+              "correct": 0,
+              "share": 0.0
+            }
+          }
+        },
+        "deadline_revision": {
+          "without": {
+            "judge": {
+              "n": 12,
+              "correct": 10,
+              "share": 0.8333
+            },
+            "exact": {
+              "n": 12,
+              "correct": 10,
+              "share": 0.8333
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 12,
+              "correct": 11,
+              "share": 0.9167
+            },
+            "exact": {
+              "n": 12,
+              "correct": 11,
+              "share": 0.9167
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            }
+          }
+        },
+        "not_checked": {
+          "without": {
+            "judge": {
+              "n": 0,
+              "correct": 0,
+              "share": null
+            },
+            "exact": {
+              "n": 0,
+              "correct": 0,
+              "share": null
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 0,
+              "correct": 0,
+              "share": null
+            },
+            "exact": {
+              "n": 0,
+              "correct": 0,
+              "share": null
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 0,
+              "correct": 0,
+              "share": null
+            },
+            "exact": {
+              "n": 0,
+              "correct": 0,
+              "share": null
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 0,
+              "correct": 0,
+              "share": null
+            },
+            "exact": {
+              "n": 0,
+              "correct": 0,
+              "share": null
+            }
+          }
+        },
+        "changes_since_seen": {
+          "without": {
+            "judge": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 12,
+              "correct": 1,
+              "share": 0.0833
+            },
+            "exact": {
+              "n": 12,
+              "correct": 1,
+              "share": 0.0833
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 10,
+              "share": 0.8333
+            }
+          }
+        },
+        "hard_constraint": {
+          "without": {
+            "judge": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 6,
+              "share": 0.5
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 12,
+              "correct": 3,
+              "share": 0.25
+            },
+            "exact": {
+              "n": 12,
+              "correct": 6,
+              "share": 0.5
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            }
+          }
+        },
+        "effect_once": {
+          "without": {
+            "judge": {
+              "n": 12,
+              "correct": 4,
+              "share": 0.3333
+            },
+            "exact": {
+              "n": 12,
+              "correct": 2,
+              "share": 0.1667
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 12,
+              "correct": 7,
+              "share": 0.5833
+            },
+            "exact": {
+              "n": 12,
+              "correct": 4,
+              "share": 0.3333
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 0,
+              "share": 0.0
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 12,
+              "correct": 12,
+              "share": 1.0
+            },
+            "exact": {
+              "n": 12,
+              "correct": 7,
+              "share": 0.5833
+            }
+          }
+        },
+        "all": {
+          "without": {
+            "judge": {
+              "n": 53,
+              "correct": 14,
+              "share": 0.2642
+            },
+            "exact": {
+              "n": 53,
+              "correct": 19,
+              "share": 0.3585
+            }
+          },
+          "with": {
+            "judge": {
+              "n": 53,
+              "correct": 27,
+              "share": 0.5094
+            },
+            "exact": {
+              "n": 53,
+              "correct": 27,
+              "share": 0.5094
+            }
+          },
+          "no_memory": {
+            "judge": {
+              "n": 53,
+              "correct": 0,
+              "share": 0.0
+            },
+            "exact": {
+              "n": 53,
+              "correct": 2,
+              "share": 0.0377
+            }
+          },
+          "full_history": {
+            "judge": {
+              "n": 53,
+              "correct": 53,
+              "share": 1.0
+            },
+            "exact": {
+              "n": 53,
+              "correct": 43,
+              "share": 0.8113
+            }
+          }
+        }
+      }
+    },
+    "tokens": {
+      "voice": {
+        "cases": 24,
+        "without": {
+          "median": 88.5,
+          "p95": 133
+        },
+        "with": {
+          "median": 141.5,
+          "p95": 166
+        },
+        "added": {
+          "median": 43.0,
+          "p95": 56,
+          "max": 85
+        },
+        "section": {
+          "median": 43.0,
+          "p95": 56
+        },
+        "tool_json": {
+          "median": 645.0,
+          "p95": 827
+        },
+        "no_section": 0
+      },
+      "chat": {
+        "cases": 60,
+        "without": {
+          "median": 157.0,
+          "p95": 185
+        },
+        "with": {
+          "median": 198.0,
+          "p95": 343
+        },
+        "added": {
+          "median": 50.0,
+          "p95": 165,
+          "max": 169
+        },
+        "section": {
+          "median": 50.0,
+          "p95": 165
+        },
+        "tool_json": {
+          "median": 779.5,
+          "p95": 802
+        },
+        "no_section": 12
+      },
+      "added_by_category": {
+        "price_freshness": 40.0,
+        "quote_expiry": 50.0,
+        "deadline_revision": 148.0,
+        "not_checked": 158.0,
+        "changes_since_seen": 52.5,
+        "hard_constraint": 33.0,
+        "effect_once": 0.0,
+        "all": 50.0
+      }
+    },
+    "guard": {
+      "without": {
+        "claims": 41,
+        "verdicts": {
+          "unsupported": 41
+        },
+        "actions": {
+          "block": 14,
+          "warn": 27
+        },
+        "by_category": {
+          "deadline|unsupported": 1,
+          "price|unsupported": 40
+        },
+        "answers_acted_on": 31,
+        "acted_on_correct": 5,
+        "answers_changed": 8
+      },
+      "with": {
+        "claims": 41,
+        "verdicts": {
+          "no_evidence": 10,
+          "stale": 10,
+          "unsupported": 21
+        },
+        "actions": {
+          "block": 21,
+          "warn": 20
+        },
+        "by_category": {
+          "deadline|unsupported": 6,
+          "price|no_evidence": 10,
+          "price|stale": 10,
+          "price|unsupported": 15
+        },
+        "answers_acted_on": 34,
+        "acted_on_correct": 27,
+        "answers_changed": 14
+      }
+    },
+    "v0": {
+      "without": {
+        "reads": 84,
+        "effective_v0": 84,
+        "sensitive_in_block": 0,
+        "sensitive_in_block_v1": 42
+      },
+      "with": {
+        "reads": 84,
+        "effective_v0": 84,
+        "sensitive_in_block": 0,
+        "sensitive_in_block_v1": 42
+      }
+    },
+    "flips": [
+      {
+        "case_id": "typed-pt-003",
+        "category": "price_freshness",
+        "without": false,
+        "with": true,
+        "valid": false
+      },
+      {
+        "case_id": "typed-pt-004",
+        "category": "quote_expiry",
+        "without": false,
+        "with": true,
+        "valid": true
+      },
+      {
+        "case_id": "typed-pt-005",
+        "category": "quote_expiry",
+        "without": false,
+        "with": true,
+        "valid": false
+      },
+      {
+        "case_id": "typed-pt-010",
+        "category": "not_checked",
+        "without": false,
+        "with": true,
+        "valid": false
+      },
+      {
+        "case_id": "typed-pt-011",
+        "category": "not_checked",
+        "without": false,
+        "with": true,
+        "valid": false
+      },
+      {
+        "case_id": "typed-pt-017",
+        "category": "hard_constraint",
+        "without": false,
+        "with": true,
+        "valid": true
+      },
+      {
+        "case_id": "typed-pt-019",
+        "category": "effect_once",
+        "without": false,
+        "with": true,
+        "valid": true
+      },
+      {
+        "case_id": "typed-pt-021",
+        "category": "effect_once",
+        "without": false,
+        "with": true,
+        "valid": true
+      },
+      {
+        "case_id": "typed-en-002",
+        "category": "price_freshness",
+        "without": false,
+        "with": true,
+        "valid": true
+      },
+      {
+        "case_id": "typed-en-003",
+        "category": "price_freshness",
+        "without": false,
+        "with": true,
+        "valid": false
+      },
+      {
+        "case_id": "typed-en-004",
+        "category": "quote_expiry",
+        "without": false,
+        "with": true,
+        "valid": false
+      },
+      {
+        "case_id": "typed-en-005",
+        "category": "quote_expiry",
+        "without": false,
+        "with": true,
+        "valid": false
+      },
+      {
+        "case_id": "typed-en-006",
+        "category": "quote_expiry",
+        "without": false,
+        "with": true,
+        "valid": false
+      },
+      {
+        "case_id": "typed-en-008",
+        "category": "deadline_revision",
+        "without": false,
+        "with": true,
+        "valid": true
+      },
+      {
+        "case_id": "typed-en-011",
+        "category": "not_checked",
+        "without": true,
+        "with": false,
+        "valid": false
+      },
+      {
+        "case_id": "typed-en-019",
+        "category": "effect_once",
+        "without": false,
+        "with": true,
+        "valid": true
+      },
+      {
+        "case_id": "typed-pt-004",
+        "category": "quote_expiry",
+        "without": false,
+        "with": true,
+        "valid": false
+      },
+      {
+        "case_id": "typed-pt-005",
+        "category": "quote_expiry",
+        "without": false,
+        "with": true,
+        "valid": true
+      },
+      {
+        "case_id": "typed-pt-006",
+        "category": "quote_expiry",
+        "without": false,
+        "with": true,
+        "valid": false
+      },
+      {
+        "case_id": "typed-pt-015",
+        "category": "changes_since_seen",
+        "without": false,
+        "with": true,
+        "valid": true
+      },
+      {
+        "case_id": "typed-pt-017",
+        "category": "hard_constraint",
+        "without": false,
+        "with": true,
+        "valid": true
+      },
+      {
+        "case_id": "typed-en-001",
+        "category": "price_freshness",
+        "without": false,
+        "with": true,
+        "valid": false
+      },
+      {
+        "case_id": "typed-en-002",
+        "category": "price_freshness",
+        "without": false,
+        "with": true,
+        "valid": false
+      },
+      {
+        "case_id": "typed-en-003",
+        "category": "price_freshness",
+        "without": false,
+        "with": true,
+        "valid": true
+      },
+      {
+        "case_id": "typed-en-004",
+        "category": "quote_expiry",
+        "without": false,
+        "with": true,
+        "valid": false
+      },
+      {
+        "case_id": "typed-en-005",
+        "category": "quote_expiry",
+        "without": false,
+        "with": true,
+        "valid": true
+      },
+      {
+        "case_id": "typed-en-006",
+        "category": "quote_expiry",
+        "without": false,
+        "with": true,
+        "valid": false
+      },
+      {
+        "case_id": "typed-en-017",
+        "category": "hard_constraint",
+        "without": false,
+        "with": true,
+        "valid": true
+      }
+    ],
+    "validity": {
+      "cases": 84,
+      "valid": 53,
+      "invalid": [
+        "typed-en-001",
+        "typed-en-001",
+        "typed-en-002",
+        "typed-en-003",
+        "typed-en-004",
+        "typed-en-004",
+        "typed-en-005",
+        "typed-en-006",
+        "typed-en-006",
+        "typed-en-010",
+        "typed-en-010",
+        "typed-en-011",
+        "typed-en-011",
+        "typed-en-012",
+        "typed-en-012",
+        "typed-pt-001",
+        "typed-pt-001",
+        "typed-pt-002",
+        "typed-pt-002",
+        "typed-pt-003",
+        "typed-pt-003",
+        "typed-pt-004",
+        "typed-pt-005",
+        "typed-pt-006",
+        "typed-pt-006",
+        "typed-pt-010",
+        "typed-pt-010",
+        "typed-pt-011",
+        "typed-pt-011",
+        "typed-pt-012",
+        "typed-pt-012"
+      ]
+    },
+    "probe_errors": {},
+    "coordination": {
+      "checks": 12,
+      "refused_as_done": 12
+    }
+  },
+  "tokens_without_blocks_v2": {
+    "cases": 20,
+    "settle": {
+      "settled": true,
+      "seconds": 133.2,
+      "rounds": 27
+    },
+    "voice": {
+      "median": 92.0,
+      "p95": 136,
+      "today": 89,
+      "within_5pct": true
+    },
+    "chat": {
+      "median": 94.5,
+      "p95": 162,
+      "today": 98,
+      "within_5pct": true
+    }
+  },
+  "cost": {
+    "agent_and_judge": {
+      "calls": 672,
+      "input_tokens": 168225,
+      "output_tokens": 28688,
+      "cost_usd": 0.031166
+    },
+    "cell": {
+      "ledger_usd": 0.019784,
+      "by_purpose": {
+        "extraction": {
+          "usd": 0.019784,
+          "calls": 236
+        }
+      },
+      "extraction_runs": {
+        "runs": 296,
+        "with_a_model_call": 157,
+        "input_tokens": 198962,
+        "cached_input_tokens": 179632,
+        "output_tokens": 19361,
+        "usd": 0.013875
+      }
+    }
+  }
+}

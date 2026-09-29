@@ -1,0 +1,90 @@
+{
+  "about": "The object types the typed-object set writes (dataset/typed), declared in the benchmark space's object-types document by `bench typed ab`. They follow the sector templates the server ships (retail, legal, health plan sales), cut to the fields the cases write, every source a push from the company's system (the sandbox's `billing` source) or a tool the agent called. Values here are the only settings the harness chooses for the typed set.",
+  "types": [
+    {
+      "type": "cart",
+      "ownership": "subject",
+      "mirror_of": {"system": "plataforma_de_ecommerce"},
+      "fields": {
+        "postal_code": {"type": "string"},
+        "delivery_address": {"type": "string", "pii": true}
+      },
+      "sources": {"billing": {"kind": "push", "precedence": 1}}
+    },
+    {
+      "type": "cart_quote",
+      "ownership": "subject",
+      "nature": "derived",
+      "mirror_of": {"system": "plataforma_de_ecommerce"},
+      "inputs": ["cart.postal_code"],
+      "fields": {
+        "shipping_price": {
+          "type": "money",
+          "role": "shipping_price",
+          "claim": {"allowed": true, "class": "money", "nature": "computed"},
+          "freshness": {"class": "price", "max_age": "24h", "claim_max_age": "15s"}
+        },
+        "total": {
+          "type": "money",
+          "role": "cart_total",
+          "claim": {"allowed": true, "class": "money", "nature": "computed"},
+          "freshness": {"class": "price", "max_age": "24h", "claim_max_age": "15s"}
+        }
+      },
+      "sources": {"billing": {"kind": "push", "precedence": 1}},
+      "purposes": {"claim": {"prohibitions": ["affirm_price"]}}
+    },
+    {
+      "type": "intimacao_com_prazo",
+      "ownership": "subject",
+      "mirror_of": {"system": "tribunal"},
+      "content": {"mode": "full", "scan": "rules", "fields": ["content"]},
+      "fields": {
+        "content": {"type": "text"},
+        "addressee_is_client": {
+          "type": "bool",
+          "logic": "tri",
+          "observers": [{"who": "machine", "validity": "24h"}]
+        },
+        "client_tax_id": {"type": "string", "pii": true}
+      },
+      "values": {"due_date": {"rule": "prazo_forense@v9", "absent_as": "sem_prazo", "gap_effect": "errs_early"}},
+      "sources": {"billing": {"kind": "push", "precedence": 1}},
+      "states": ["open", "fulfilled"],
+      "lifecycle": {
+        "transitions": [{"from": "open", "to": "fulfilled", "by": ["source"]}],
+        "outcome": {"final": ["fulfilled"]}
+      },
+      "timers": {"prazo_final": {"due": "due_date", "on_fire": ["notify"]}}
+    },
+    {
+      "type": "health_plan",
+      "ownership": "shared",
+      "mirror_of": {"system": "api_da_operadora"},
+      "working_set": {"enter_on": ["presented", "engaged"], "leave_after": "30d"},
+      "fields": {
+        "monthly_price": {
+          "type": "money",
+          "role": "price_full",
+          "claim": {"allowed": true, "class": "money", "nature": "observed"},
+          "freshness": {"class": "price", "max_age": "30d", "claim_max_age": "30d"},
+          "track_changes": true
+        }
+      },
+      "sources": {
+        "billing": {"kind": "push", "precedence": 1},
+        "quote": {"kind": "tool_observation", "precedence": 2}
+      }
+    },
+    {
+      "type": "proposal",
+      "ownership": "subject",
+      "mirror_of": {"system": "crm"},
+      "fields": {
+        "plan_code": {"type": "string"},
+        "health_declaration": {"type": "text", "sensitivity": "health", "pii": true}
+      },
+      "sources": {"billing": {"kind": "push", "precedence": 1}}
+    }
+  ]
+}

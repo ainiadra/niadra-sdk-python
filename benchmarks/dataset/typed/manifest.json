@@ -1,0 +1,25 @@
+{
+  "cases": 42,
+  "counts": {
+    "en": {
+      "changes_since_seen": 3,
+      "deadline_revision": 3,
+      "effect_once": 3,
+      "hard_constraint": 3,
+      "not_checked": 3,
+      "price_freshness": 3,
+      "quote_expiry": 3
+    },
+    "pt": {
+      "changes_since_seen": 3,
+      "deadline_revision": 3,
+      "effect_once": 3,
+      "hard_constraint": 3,
+      "not_checked": 3,
+      "price_freshness": 3,
+      "quote_expiry": 3
+    }
+  },
+  "generator_version": "typed-1",
+  "sha256": "82873e6cfd92b8ab6f7610a5d7ecd79dcd87bba8475072c54e179c35ad99ef30"
+}

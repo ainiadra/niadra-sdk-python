@@ -6,6 +6,8 @@ bench run [options]              seed, measure and write results/<date>-<id>/ (-
 bench report <results dir>       rebuild summary.json and summary.md from the repetitions of a run
 bench ab [options]               a baseline and a candidate on the same cases, and the delta
                                  (--candidate-env KEY=VALUE, --same, --local-cell <niadra-back>)
+bench typed [options]            the typed-object set on a running cell, with and without the blocks a
+                                 read asks for (`include`); needs this repository's SDK (PYTHONPATH=../src)
 bench combine <dir> <dir> ...    one results folder from runs of different systems (the temporary host
                                  runs one system at a time); the first folder's references decide validity
 bench systems [--compose]        the systems added through adapters and their deploy/systems directory
@@ -27,14 +29,21 @@ from typing import Any
 
 from niadra_bench import config as bench_config
 from niadra_bench.dataset import generate
+from niadra_bench.dataset.typed import TYPED_CATEGORIES
 from niadra_bench.dataset.validate import structural_problems
 from niadra_bench.runner import METRICS, SYSTEMS, Options, Run, aggregate, load_cases
 
 
 def _prepare(args: argparse.Namespace) -> int:
     config = bench_config.load()
-    versions = bench_config.DATASET_VERSIONS if args.dataset == "all" else (args.dataset,)
-    status = 0
+    versions: tuple[str, ...] = (
+        bench_config.DATASET_VERSIONS
+        if args.dataset == "all"
+        else ()
+        if args.dataset == "typed"
+        else (args.dataset,)
+    )
+    status = _prepare_typed(args.check) if args.dataset in ("all", "typed") else 0
     for version in versions:
         settings = bench_config.dataset_settings(config, version)
         directory = bench_config.dataset_dir(version)
@@ -75,6 +84,68 @@ async def until_stopped[T](work: Coroutine[Any, Any, T]) -> T:
         for sig in (signal.SIGTERM, signal.SIGHUP):
             with contextlib.suppress(NotImplementedError, RuntimeError, ValueError):
                 loop.remove_signal_handler(sig)
+
+
+def _prepare_typed(check: bool) -> int:
+    """The typed-object set (`dataset/typed/`): written from its templates, or checked against them."""
+    from niadra_bench.dataset import typed
+
+    directory = bench_config.DATASET_DIR / "typed"
+    cases = typed.generate()
+    name = directory.relative_to(bench_config.ROOT)
+    if not check:
+        print(json.dumps({"dataset": "typed", **typed.write(cases, directory)}, indent=2))
+        return 0
+    path = directory / "cases.jsonl"
+    fresh = "\n".join(case.model_dump_json() for case in cases) + "\n"
+    if not path.exists() or path.read_text() != fresh:
+        print(
+            f"{name}/cases.jsonl differs from what the generator makes; run `bench prepare --dataset typed`"
+        )
+        return 1
+    problems = {c.id: p for c in typed.load(directory) if (p := typed.problems(c))}
+    if problems:
+        print(json.dumps(problems, indent=2))
+        return 1
+    print(f"{name} (typed) ok: {len(cases)} cases, every one passes the structural validity rule")
+    return 0
+
+
+def _typed(args: argparse.Namespace) -> int:
+    from niadra_bench import typed_ab
+
+    try:
+        bootstrap = Path(args.bootstrap) if args.bootstrap else typed_ab.env_bootstrap(args.cell_dir)
+        options = typed_ab.TypedOptions(
+            api=args.api,
+            control=args.control,
+            bootstrap=bootstrap,
+            output=Path(args.output) if args.output else None,
+            limit=args.limit,
+            languages=tuple(lang for lang in ("pt", "en") if lang in _csv(args.languages, ("pt", "en"))),
+            categories=tuple(c for c in TYPED_CATEGORIES if c in _csv(args.categories, TYPED_CATEGORIES)),
+            repetitions=args.repetitions,
+            v2_sample=args.v2_sample,
+            cell_pg=args.cell_pg,
+            agent=args.agent,
+        )
+        if args.agent == "llm":
+            from niadra_bench import ab
+
+            ab.bench_key()
+        cases = typed_ab.select(
+            typed_ab.load_cases(),
+            limit=args.limit,
+            languages=options.languages,
+            categories=options.categories,
+        )
+        out = typed_ab.run(cases, options)
+    except (typed_ab.TypedError, ValueError) as exc:
+        print(f"bench typed: {exc}", file=sys.stderr)
+        return 2
+    print((out / "typed.md").read_text())
+    print(f"results in {out}")
+    return 0
 
 
 def _csv(value: str, allowed: tuple[str, ...]) -> set[str]:
@@ -256,9 +327,31 @@ def main(argv: list[str] | None = None) -> None:
         "--check", action="store_true", help="fail if the committed dataset is stale or invalid"
     )
     prepare.add_argument(
-        "--dataset", choices=[*bench_config.DATASET_VERSIONS, "all"], default="all", help="default: all"
+        "--dataset",
+        choices=[*bench_config.DATASET_VERSIONS, "typed", "all"],
+        default="all",
+        help="default: all",
     )
     prepare.set_defaults(func=_prepare)
+
+    typed_run = sub.add_parser(
+        "typed", help="the typed-object set on a running cell, with and without the blocks of `include`"
+    )
+    typed_run.add_argument("--api", required=True, help="the cell's data API (local-e2e: 127.0.0.1:<port+9>)")
+    typed_run.add_argument("--control", required=True, help="the control plane (local-e2e: 127.0.0.1:<port>)")
+    typed_run.add_argument(
+        "--bootstrap", help="the sandbox's bootstrap.json (default: <--cell-dir>/bootstrap.json)"
+    )
+    typed_run.add_argument("--cell-dir", help="the local cell's LOCAL_E2E_DIR (default: $LOCAL_E2E_DIR)")
+    typed_run.add_argument("--cell-pg", help="libpq settings of the cell's PostgreSQL, for its model spend")
+    typed_run.add_argument("--limit", type=int, help="cases spread over the set")
+    typed_run.add_argument("--languages", default="pt,en")
+    typed_run.add_argument("--categories", default=",".join(TYPED_CATEGORIES))
+    typed_run.add_argument("--repetitions", type=int, default=1)
+    typed_run.add_argument("--v2-sample", type=int, default=0, help="dataset v2 cases read with no block")
+    typed_run.add_argument("--agent", choices=["llm", "context"], default="llm")
+    typed_run.add_argument("--output", help="default: results/typed/<date>-<id>")
+    typed_run.set_defaults(func=_typed)
 
     run = sub.add_parser("run", help="seed every system and measure")
     run.add_argument("--systems", default="niadra,mem0_oss", help=f"comma list of {', '.join(SYSTEMS)}")
