@@ -13,7 +13,8 @@ number is hedged when:
    words;
 4. its clause follows one that is only an opener ("Antes, ele estava em R$ 1.240,00");
 5. its clause holds a past word ("foi", "was", "on file"), and a later clause of its sentence holds a denial
-   followed by a word of continuity ("mas não consigo confirmar se esse total continua igual").
+   followed by a word of continuity ("mas não consigo confirmar se esse total continua igual");
+6. a negation stands right before it ("$689.00 per month, not $612.00").
 
 A hedge that governs something else leaves the number asserted: "O total é R$ 500, mas não consigo confirmar o
 prazo" states R$ 500. The words match whole words of the folded text, in sequence, with both apostrophes
@@ -52,14 +53,15 @@ DENIALS = (
 """Before a number, to the end of its clause: the output says it cannot confirm what follows, or asks it."""
 
 PAST_MARKERS = (
-    "valor anterior", "preco anterior", "total anterior", "o anterior", "a anterior", "os anteriores",
-    "anteriormente", "quando visto", "quando vista", "quando voce viu", "antes era", "era antes",
+    "valor anterior", "preco anterior", "total anterior", "valor antigo", "preco antigo", "o anterior",
+    "a anterior", "os anteriores", "anteriormente", "quando visto", "quando vista", "quando voce viu",
+    "antes era", "era antes",
     "previous price", "previous total", "previous value", "earlier price", "earlier total", "earlier value",
-    "old price", "was the earlier", "was previously", "were previously", "previously listed",
-    "previously quoted", "previously shown", "previously priced", "seen previously", "shown previously",
-    "quoted previously", "listed previously", "last shown", "last quoted", "last listed", "when seen",
-    "when you saw it",
-    "precio anterior", "el anterior", "la anterior", "cuando lo vio", "cuando lo viste",
+    "old price", "previous amount", "earlier amount", "old amount", "was the earlier", "was previously",
+    "were previously", "previously listed", "previously quoted", "previously shown", "previously priced",
+    "seen previously", "shown previously", "quoted previously", "listed previously", "last shown",
+    "last quoted", "last listed", "when seen", "when you saw it",
+    "precio anterior", "precio antiguo", "el anterior", "la anterior", "cuando lo vio", "cuando lo viste",
 )  # fmt: skip
 """Beside a number: a value that no longer holds, as the one seen before."""
 
@@ -104,6 +106,14 @@ CONTINUITY = (
 )  # fmt: skip
 """After a denial: what it denies is that the value still holds."""
 
+NEGATIONS = (
+    "nao", "em vez de", "ao inves de",
+    "not", "instead of", "rather than",
+    "en vez de", "en lugar de",
+)  # fmt: skip
+"""Right before a number: the output says it is not that. Not the Spanish "no": it is also the Portuguese "no"
+("no dia 20")."""
+
 PRESENT = (
     "agora", "hoje", "atual", "atualmente", "novo", "nova", "para",
     "now", "today", "current", "currently", "new", "to",
@@ -145,6 +155,7 @@ _LISTS = {
     "openers": _phrases(OPENERS),
     "past_words": _phrases(PAST_WORDS),
     "continuity": _phrases(CONTINUITY),
+    "negations": _phrases(NEGATIONS),
     "present": _phrases(PRESENT),
     "clause": _phrases(CLAUSE_WORDS),
 }
@@ -242,4 +253,8 @@ def hedged(text: str, numbers: Sequence[Mention]) -> frozenset[Mention]:
                 if any(within(c, limit) for c in continuity):
                     out.add(m)
                     break
+
+    # 6. A negation right before the number.
+    for hit in hits("negations"):
+        out.update(m for m, span in zip(numbers, indexes, strict=True) if span and span[0] == hit.past)
     return frozenset(out)
