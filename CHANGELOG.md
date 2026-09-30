@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [0.7.0] - Unreleased
+## [0.7.0] - 2026-09-30
 
 The agent core. Every turn an agent takes is recorded in its own process; what it says is checked against
 what its tools returned; agents, people and systems coordinate before they contact a customer or act; the
