@@ -33,7 +33,7 @@ def _context(**fields: Any) -> Context:
 
 
 def test_a_read_without_blocks_keeps_its_turn_block_byte_for_byte() -> None:
-    example = Context.model_validate(json.loads((SPEC / "context-pack-v1-turn-as-data.json").read_text()))
+    example = Context.model_validate(json.loads((SPEC / "context-pack" / "turn-as-data.json").read_text()))
     before = "\n\n".join(p for p in (render_live(example), example.slots or "", example.delta or "") if p)
     assert example.turn_block == before
     assert _context().turn_block == "<turno>\n[Guarda] x\n</turno>"

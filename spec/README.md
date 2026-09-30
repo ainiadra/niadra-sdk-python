@@ -10,14 +10,11 @@ uv run python scripts/sync_spec.py --server ../niadra-back --spec ../niadra-spec
 ## Context Pack schema
 
 `context-pack.v1.json` is a copy of the Context Pack schema of the Niadra open specifications
-(JSON Schema 2020-12), and `examples/context-pack-v1-turn-as-data.json` its example of the answer to
-a turn, with the turn's slots, as data. `tests/test_spec.py` keeps the SDK's `ContextPack`,
-`PackSection`, `PackStamp`, `PackSlot` and `PackGuard` equal to the schema, field by field, and reads
-the example. `--spec` refreshes both schema copies.
-
-`context-pack.v2.json` is the version that adds the blocks a read asks for by `include` (constraints,
-state, coordination and budget); `tests/test_spec.py` keeps `ContextResponse` and each block's model equal
-to its fields.
+(JSON Schema 2020-12): the answer to a read, with the pack as data and the blocks a read asks for by
+`include` (constraints, state, coordination and budget). `examples/context-pack/turn-as-data.json` is its
+example of the answer to a turn, with the turn's slots, as data. `tests/test_spec.py` keeps `ContextResponse`,
+each block's model and the pack models (`ContextPack`, `PackSection`, `PackStamp`, `PackSlot`, `PackGuard`)
+equal to the schema, field by field, and reads the example.
 
 ## The routes of turn records, typed state, signals and coordination
 
