@@ -4212,6 +4212,43 @@
         "title": "DeclareResult",
         "type": "object"
       },
+      "DerivedState": {
+        "additionalProperties": false,
+        "description": "A field the type derives from the related objects of one relation (a look's pieces), computed at this\nread and never stored. A related object whose data is not known leaves it `unobserved`, unless the answer\nis already decided.",
+        "properties": {
+          "logic": {
+            "enum": [
+              "yes",
+              "no",
+              "unobserved"
+            ],
+            "title": "Logic",
+            "type": "string"
+          },
+          "over": {
+            "description": "The related objects it was computed over.",
+            "minimum": 0.0,
+            "title": "Over",
+            "type": "integer"
+          },
+          "unknown": {
+            "description": "How many of them were not known: out of the working set, not an exact match (`status_field`), or with the data the condition reads not observed.",
+            "minimum": 0.0,
+            "title": "Unknown",
+            "type": "integer"
+          },
+          "v": {
+            "title": "V"
+          }
+        },
+        "required": [
+          "logic",
+          "over",
+          "unknown"
+        ],
+        "title": "DerivedState",
+        "type": "object"
+      },
       "Detect": {
         "additionalProperties": false,
         "description": "How a category finds its claims in the text, without a model: numbers of these classes, the words\naround them that give their role, terms of the trade, named patterns, or sections of a document.",
@@ -6605,7 +6642,7 @@
                 "type": "null"
               }
             ],
-            "description": "For a customer's derived object (a quote): the objects its inputs are fields of, by the name its type gives them, as `type:namespace:id` (`{\"lead\": \"lead:crm:L-9\"}`). When a field of one of them changes, the object expires, naming the input.",
+            "description": "For a derived object (a customer's quote, a shared best offer): the objects its inputs are fields of, by the name its type gives them, as `type:namespace:id` (`{\"lead\": \"lead:crm:L-9\"}`). When a field of one of them changes, the object expires, naming the input. A shared object's inputs are shared objects: a customer's object is never one.",
             "title": "Inputs"
           },
           "provenance": {
@@ -6739,6 +6776,14 @@
             },
             "title": "Declared Gaps",
             "type": "array"
+          },
+          "derived": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DerivedState"
+            },
+            "description": "The type's derived fields, from the related objects.",
+            "title": "Derived",
+            "type": "object"
           },
           "derived_status": {
             "anyOf": [

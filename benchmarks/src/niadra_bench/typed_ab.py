@@ -146,6 +146,9 @@ class TypedOptions:
     #: verification gate: while the pack holds an item back for a higher level, the state block leaves out
     #: what changed since seen and the constraints block says nothing of the subject.
     levels: dict[str, str] = field(default_factory=dict)
+    #: The object-types document's `derived_fields_in_text`: whether the state block's lines say a
+    #: composite's derived fields (a look's `all_pieces_available`). Off, as a space starts.
+    derived_text: bool = False
 
 
 @dataclass
@@ -296,13 +299,22 @@ class Cell:
                 await self.approve("features", wanted, "benchmark: typed set", space.space_id)
             registry = await self.document_of("object-types", space.space_id)
             current = registry.get("types") or []
-            if not all(t in current for t in declared):
+            in_text = bool(registry.get("derived_fields_in_text"))
+            if not all(t in current for t in declared) or in_text != self.options.derived_text:
                 kept = [t for t in current if t.get("type") not in names]
-                types = {**registry, "types": [*kept, *declared]}
+                types = {
+                    **registry,
+                    "types": [*kept, *declared],
+                    "derived_fields_in_text": self.options.derived_text,
+                }
                 await self.approve("object-types", types, "benchmark: typed set", space.space_id)
             await self._keys(space)
             await self._until_types_served(names, lang)
-            out["spaces"][lang] = {"space_id": space.space_id, "features": sorted(enabled | set(FEATURES))}
+            out["spaces"][lang] = {
+                "space_id": space.space_id,
+                "features": sorted(enabled | set(FEATURES)),
+                "derived_fields_in_text": self.options.derived_text,
+            }
         return out
 
     async def _keys(self, space: Space) -> None:
@@ -610,6 +622,15 @@ def state_ready(case: TypedCase, view: dict[str, Any], constraints: dict[str, An
             return bool(view.get("changes_since_seen"))
         case "hard_constraint":
             return bool(constraints.get("hard"))
+        case "composite":
+            # Every piece's last availability reached the look's derived field.
+            pushed = [s.fields["available"] for s in case.steps if "available" in s.fields]
+            for interest in view.get("interests") or []:
+                look = interest.get("object") or {}
+                derived = (look.get("derived") or {}).get("all_pieces_available") or {}
+                if derived.get("logic") in ("yes", "no") and derived.get("v") is all(pushed):
+                    return True
+            return False
     return True
 
 
@@ -1198,6 +1219,7 @@ class TypedAb:
                 "tokens": self.config.tokens.encoding,
                 "repetitions": options.repetitions,
                 "levels": {sector: options.levels.get(sector, "V1") for sector in SECTOR_CONTRACT},
+                "derived_fields_in_text": options.derived_text,
             },
             "versions": {
                 "niadra_sdk": niadra.__version__,
@@ -1268,7 +1290,8 @@ def report(document: dict[str, Any]) -> str:
         f"{document['config']['repetitions']} repetition(s); SDK {document['versions']['niadra_sdk']} "
         f"(source {document['versions'].get('niadra_sdk_commit') or 'release'}).",
         '- `without`: a read with no `include`; `with`: `include: ["state", "constraints"]`, the same '
-        "customer.",
+        "customer. The state lines say derived fields: "
+        f"{'yes' if document['config'].get('derived_fields_in_text') else 'no'}.",
         "- Validity rule (right with the whole history, wrong with no memory): "
         f"{metrics['validity']['valid']} of {metrics['validity']['cases']} cases.",
         "- Brackets: the 95% Wilson interval, in percent. The repetitions of a case are not independent "

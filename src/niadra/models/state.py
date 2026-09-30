@@ -269,6 +269,24 @@ class ContentReleaseResult(ResponseModel):
     released: bool
 
 
+class DerivedState(ResponseModel):
+    """A field the type derives from the related objects of one relation (a look's pieces), computed at this
+    read and never stored. A related object whose data is not known leaves it `unobserved`, unless the
+    answer is already decided.
+    """
+
+    logic: Literal["yes", "no", "unobserved"]
+    over: int = Field(ge=0, description="The related objects it was computed over.")
+    unknown: int = Field(
+        ge=0,
+        description=(
+            "How many of them were not known: out of the working set, not an exact match "
+            "(`status_field`), or with the data the condition reads not observed."
+        ),
+    )
+    v: Any = None
+
+
 class DriftChanges(Model):
     """What changed between the declaration and the type the schema proposes now, as counts: never a new name,
     a value or a definition (object-type spec, 8.8.2).
@@ -436,6 +454,9 @@ class ObjectRead(ResponseModel):
         ),
     )
     declared_gaps: list[str] = Field(default_factory=list)
+    derived: dict[str, DerivedState] = Field(
+        default_factory=dict, description="The type's derived fields, from the related objects."
+    )
     derived_status: Literal["current", "expired_by_input"] | None = None
     expired_by: list[str] = Field(default_factory=list, description="The inputs whose change expired it.")
     fields: dict[str, FieldState] = Field(default_factory=dict)
@@ -496,9 +517,10 @@ class ObjectPush(Model):
     inputs: Annotated[dict[ShortStr, ShortStr], Field(max_length=20)] | None = Field(
         default=None,
         description=(
-            "For a customer's derived object (a quote): the objects its inputs are fields of, by the "
-            'name its type gives them, as `type:namespace:id` (`{"lead": "lead:crm:L-9"}`). When a '
-            "field of one of them changes, the object expires, naming the input."
+            "For a derived object (a customer's quote, a shared best offer): the objects its inputs are"
+            ' fields of, by the name its type gives them, as `type:namespace:id` (`{"lead": '
+            '"lead:crm:L-9"}`). When a field of one of them changes, the object expires, naming the '
+            "input. A shared object's inputs are shared objects: a customer's object is never one."
         ),
     )
     provenance: Provenance

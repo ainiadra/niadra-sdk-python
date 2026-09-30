@@ -130,6 +130,7 @@ def _typed(args: argparse.Namespace) -> int:
             agent=args.agent,
             baseline=Path(args.baseline) if args.baseline else None,
             levels=_levels(args.verify_level),
+            derived_text=args.derived_text,
         )
         if args.agent == "llm":
             from niadra_bench import ab
@@ -370,6 +371,11 @@ def main(argv: list[str] | None = None) -> None:
     typed_run.add_argument("--agent", choices=["llm", "context"], default="llm")
     typed_run.add_argument("--output", help="default: results/typed/<date>-<id>")
     typed_run.add_argument("--baseline", help="a former run's results folder, to report the delta against")
+    typed_run.add_argument(
+        "--derived-text",
+        action="store_true",
+        help="turn on the object-types document's derived_fields_in_text: the state lines say derived fields",
+    )
     typed_run.add_argument(
         "--verify-level",
         action="append",

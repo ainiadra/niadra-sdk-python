@@ -1,5 +1,5 @@
 {
-  "about": "The object types the typed-object set writes (dataset/typed), declared in the benchmark space's object-types document by `bench typed ab`. They follow the sector templates the server ships (retail, legal, health plan sales), cut to the fields the cases write, every source a push from the company's system (the sandbox's `billing` source) or a tool the agent called. Values here are the only settings the harness chooses for the typed set. `labels` gives fields their label in the English cases' space, which declares the same types.",
+  "about": "The object types the typed-object set writes (dataset/typed), declared in the benchmark space's object-types document by `bench typed ab`. They follow the sector templates the server ships (retail, legal, health plan sales), cut to the fields the cases write, every source a push from the company's system (the sandbox's `billing` source) or a tool the agent called. Values here are the only settings the harness chooses for the typed set. `labels` gives fields their label in the English cases' space, which declares the same types. The look's derived fields over its pieces follow the retail template; the server computes them at the read, and `bench typed --derived-text` turns on the state lines that say them.",
   "labels": {"en": {"health_plan.monthly_price": "monthly price", "health_plan.copay": "copay", "health_plan.hospital": "network hospital"}},
   "types": [
     {
@@ -89,6 +89,38 @@
         "health_declaration": {"type": "text", "sensitivity": "health", "pii": true}
       },
       "sources": {"billing": {"kind": "push", "precedence": 1}}
+    },
+    {
+      "type": "item_variant",
+      "ownership": "shared",
+      "mirror_of": {"system": "plataforma_de_ecommerce"},
+      "working_set": {"enter_on": ["presented", "related"], "leave_after": "30d"},
+      "fields": {
+        "name": {"type": "string"},
+        "available": {"type": "bool"}
+      },
+      "sources": {"billing": {"kind": "push", "precedence": 1}}
+    },
+    {
+      "type": "look",
+      "ownership": "shared",
+      "mirror_of": {"system": "plataforma_de_ecommerce"},
+      "working_set": {"enter_on": ["presented", "engaged"], "leave_after": "30d"},
+      "relations": {
+        "pieces": {
+          "type": "item_variant", "via": "pieces[*].variant_id", "many": true,
+          "status_field": "status", "required_field": "required"
+        }
+      },
+      "fields": {"name": {"type": "string"}, "pieces": {"type": "list"}},
+      "derived_fields": {
+        "all_pieces_available": {"agg": "all", "over": "pieces", "where": "available == yes"},
+        "pieces_count": {"agg": "count", "over": "pieces"}
+      },
+      "sources": {
+        "billing": {"kind": "push", "precedence": 1},
+        "shop_the_look": {"kind": "tool_observation", "precedence": 2}
+      }
     }
   ]
 }
