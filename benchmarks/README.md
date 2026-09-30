@@ -1039,6 +1039,38 @@ dfb7f8c installed over the pinned 0.7.0, every sector at V1, three repetitions, 
 - **Privacy:** no read at V0 and no answered read at V1 held a case's sensitive value.
 - **Cost:** US$ 0.046 for the agent and the judge (1008 calls) and US$ 0.026 for the cell's models.
 
+**A composite's derived fields in the state lines (`typed-3`, 30/09/2026).** The `composite` category (retail,
+3 cases per language) asks whether every piece of a look the stylist showed is available now; since then the
+platform marked 1 of its 3 pieces unavailable, 2 of them, or none. The look's derived fields
+(`all_pieces_available`, `pieces_count`) are served in every state read; `bench typed --derived-text` turns on
+the object-types document's `derived_fields_in_text`, so the state block's lines say them too. Both runs on the
+same local cell of `local-e2e.sh` (niadra-back f9906d5, merged as #103), every sector at V1, three repetitions,
+the `composite` cases only: `results/typed/2026-09-30-a782ab` with the lines off (as a space starts) and
+`results/typed/2026-09-30-3ea01b` with them on, against it.
+
+| | lines off | lines on | on minus off (points) |
+|---|---|---|---|
+| Judge, `with` side | 0.0% (0/18) [0, 18] | 66.7% (12/18) [44, 84] | +66.7 [+37.8, +83.7] |
+| Exact check, `with` side | 55.6% [34, 75] | 88.9% [67, 97] | +33.3 [+3.9, +56.6] |
+| Judge, `without` side | 0.0% [0, 18] | 0.0% [0, 18] | +0.0 [-17.6, +17.6] |
+
+- **With the lines off, no answer was right:** the look is an interest with nothing changed since seen, so the
+  state block says nothing of it, and the agent either repeats the earlier "every piece was available" or says
+  it cannot confirm.
+- **With them on,** the line reads `- look loja:look-1-pt-...: all_pieces_available não; pieces_count 3`. The
+  look with every piece available was right 6 of 6; the looks with 1 or 2 pieces out, 6 of 12: the other 6
+  answers hedge ("I don't have the availability details for every piece", "não consigo confirmar que todas
+  estejam disponíveis"), reading a `não` for "all" as a missing confirmation. The field does not say which
+  piece is out, so no answer named it.
+- **Tokens:** the line adds a median of 46 tokens to a chat turn when a look is an interest (p95 47), against
+  896 for the same data as a tool's JSON; a turn with no look reads the same bytes either way, and the paired
+  `without` reads moved +1.6% [-3.9, +7.6].
+- **Privacy:** no read at V0 held a case's sensitive value.
+- **Cost:** US$ 0.012 for the agent and the judge (288 calls over both runs) and US$ 0.005 for the cell's models.
+- **Decision:** it helps on this category beyond its interval, so the flag stays available per space; it stays
+  off by default, as every agent feature does, and the other categories are unaffected by construction (their
+  types declare no derived field).
+
 ## Ranking gate
 
 No change to how the memory picks and orders what a pack and its slots carry enters niadra-back's `main` without its

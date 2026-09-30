@@ -1,0 +1,24 @@
+{
+  "what": "The cell's own model spend over the run (its extraction model and its decision model, which the ledger books under extraction), read from the local cell's PostgreSQL: the spend ledger before and after the run, and the extraction runs created during it. On this cell the models run on the benchmark's OpenRouter key.",
+  "snapshots": [
+    "2026-09-30T10:04:10.330080+00:00",
+    "2026-09-30T10:08:48.648119+00:00"
+  ],
+  "run": {
+    "ledger_usd": 0.00255,
+    "by_purpose": {
+      "extraction": {
+        "usd": 0.00255,
+        "calls": 36
+      }
+    },
+    "extraction_runs": {
+      "cached_input_tokens": 31093,
+      "input_tokens": 35262,
+      "output_tokens": 2220,
+      "runs": 19,
+      "with_a_model_call": 18,
+      "usd": 0.001938
+    }
+  }
+}
