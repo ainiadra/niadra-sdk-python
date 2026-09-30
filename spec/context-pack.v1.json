@@ -950,6 +950,44 @@
       "title": "DeliveryPath",
       "type": "string"
     },
+    "DerivedState": {
+      "additionalProperties": false,
+      "description": "A field the type derives from the related objects of one relation (a look's pieces), computed at this read and never stored. A related object whose data is not known leaves it `unobserved`, unless the answer is already decided.",
+      "properties": {
+        "v": {
+          "default": null,
+          "title": "V"
+        },
+        "logic": {
+          "enum": [
+            "yes",
+            "no",
+            "unobserved"
+          ],
+          "title": "Logic",
+          "type": "string"
+        },
+        "over": {
+          "description": "The related objects it was computed over.",
+          "minimum": 0,
+          "title": "Over",
+          "type": "integer"
+        },
+        "unknown": {
+          "description": "How many of them were not known: out of the working set, not an exact match (`status_field`), or with the data the condition reads not observed.",
+          "minimum": 0,
+          "title": "Unknown",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "logic",
+        "over",
+        "unknown"
+      ],
+      "title": "DerivedState",
+      "type": "object"
+    },
     "EventKind": {
       "enum": [
         "message",
@@ -1450,6 +1488,14 @@
             "$ref": "#/$defs/ValueState"
           },
           "title": "Values",
+          "type": "object"
+        },
+        "derived": {
+          "additionalProperties": {
+            "$ref": "#/$defs/DerivedState"
+          },
+          "description": "The type's derived fields, from the related objects.",
+          "title": "Derived",
           "type": "object"
         },
         "timers": {
