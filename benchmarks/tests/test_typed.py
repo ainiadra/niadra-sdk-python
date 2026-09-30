@@ -28,7 +28,7 @@ def test_the_committed_set_is_what_the_generator_makes_and_every_case_is_sound(
     cases: list[TypedCase],
 ) -> None:
     assert [c.model_dump() for c in cases] == [c.model_dump() for c in typed.generate()]
-    assert len({c.id for c in cases}) == len(cases) == 42
+    assert len({c.id for c in cases}) == len(cases) == 48
     for lang in ("pt", "en"):
         for category in TYPED_CATEGORIES:
             assert sum(1 for c in cases if (c.language, c.category) == (lang, category)) == typed.VARIANTS

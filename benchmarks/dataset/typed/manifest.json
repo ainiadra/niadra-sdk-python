@@ -1,8 +1,9 @@
 {
-  "cases": 42,
+  "cases": 48,
   "counts": {
     "en": {
       "changes_since_seen": 3,
+      "composite": 3,
       "deadline_revision": 3,
       "effect_once": 3,
       "hard_constraint": 3,
@@ -12,6 +13,7 @@
     },
     "pt": {
       "changes_since_seen": 3,
+      "composite": 3,
       "deadline_revision": 3,
       "effect_once": 3,
       "hard_constraint": 3,
@@ -20,6 +22,6 @@
       "quote_expiry": 3
     }
   },
-  "generator_version": "typed-2",
-  "sha256": "41b647bcfb6b7c43597e91a1ad2cc426ed778376c2ab30f58d4c2f7477806fcc"
+  "generator_version": "typed-3",
+  "sha256": "c7a8a1904ef9e6e9c2b82275159026b5bcf42cd27e02e98da4eeadfeb5fa9470"
 }

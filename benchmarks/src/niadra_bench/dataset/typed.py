@@ -15,6 +15,7 @@ English, with synthetic data only:
 | `changes_since_seen` | health plan sales | a plan's price moved after the customer was shown it | the new price |
 | `hard_constraint` | health plan sales | another agent's quote tool showed two plans, and the customer set a filter in its simulator | the option that respects it |
 | `effect_once` | retail | the closing agent already sent the farewell with the survey | already sent, not again |
+| `composite` | retail | the stylist showed a look; since then the platform marked some of its pieces unavailable, or none | whether every piece is available now |
 
 A case is a script of writes (`Step`) before one question. Times are minutes before the question and dates
 are days after it (`{date:N}`), so every run seeds a history that ends just before it asks. Object ids carry
@@ -39,7 +40,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from niadra_bench.dataset.model import Channel, Expectation, Level
 
-GENERATOR_VERSION = "typed-2"
+GENERATOR_VERSION = "typed-3"
 TypedCategory = Literal[
     "price_freshness",
     "quote_expiry",
@@ -48,6 +49,7 @@ TypedCategory = Literal[
     "changes_since_seen",
     "hard_constraint",
     "effect_once",
+    "composite",
 ]
 TYPED_CATEGORIES: tuple[TypedCategory, ...] = (
     "price_freshness",
@@ -57,6 +59,7 @@ TYPED_CATEGORIES: tuple[TypedCategory, ...] = (
     "changes_since_seen",
     "hard_constraint",
     "effect_once",
+    "composite",
 )
 Sector = Literal["retail", "legal", "health_plan_sales"]
 VERIFY_METHOD = {"voice": "network_attestation", "whatsapp": "otp_whatsapp"}
@@ -288,6 +291,7 @@ _SECTOR: dict[TypedCategory, Sector] = {
     "changes_since_seen": "health_plan_sales",
     "hard_constraint": "health_plan_sales",
     "effect_once": "retail",
+    "composite": "retail",
 }
 _RECHECK = {
     "pt": ["confirmar", "confirmo", "confirmando", "confirme", "verificar", "verifico", "verificando", "conferir",
@@ -683,6 +687,89 @@ def _effect_once(lang: str, n: int) -> dict[str, Any]:
     }  # fmt: skip
 
 
+_LOOKS = {
+    "pt": [
+        ("Linho de Verão", ["vestido midi de linho", "sandália de couro", "bolsa de palha"], [1]),
+        ("Alfaiataria Leve", ["blazer de linho", "calça pantalona", "camisa de seda"], [1, 2]),
+        ("Fim de Semana", ["camiseta de algodão", "bermuda de sarja", "tênis branco"], []),
+    ],
+    "en": [
+        ("Summer Linen", ["linen midi dress", "leather sandals", "straw bag"], [1]),
+        ("Light Tailoring", ["linen blazer", "wide-leg trousers", "silk shirt"], [1, 2]),
+        ("Weekend", ["cotton tee", "twill shorts", "white sneakers"], []),
+    ],
+}
+_NOT_ALL = {
+    "pt": ["nao", "nem", "indisponivel", "indisponiveis", "esgotado", "esgotada", "esgotados", "esgotadas",
+           "falta", "faltam", "sem estoque"],
+    "en": ["not", "no", "unavailable", "sold out", "out of stock", "missing"],
+}  # fmt: skip
+_ALL = {
+    "pt": ["sim", "todas", "disponiveis", "disponivel"],
+    "en": ["yes", "all", "available"],
+}
+
+
+def _composite(lang: str, n: int) -> dict[str, Any]:
+    look, pieces, out = _LOOKS[lang][n]
+    name, address = [
+        ("Nara", "Rua dos Pinheiros, 410, apto 7"), ("Otávio", "Rua Augusta, 1500, sala 3"),
+        ("Paula", "Alameda Santos, 45"),
+    ][n] if lang == "pt" else [
+        ("Nora", "410 Pine Street, Apt 7"), ("Otto", "1500 Market Street, Suite 3"), ("Paula", "45 Elm Avenue"),
+    ][n]  # fmt: skip
+    cart = Ref(type="cart", namespace="loja", id=f"cart-{n + 31}-{{tag}}")
+    ref = Ref(type="look", namespace="loja", id=f"look-{n + 1}-{lang}-{{tag}}")
+    variants = [
+        Ref(type="item_variant", namespace="loja", id=f"v-{n + 1}{i}-{lang}-{{tag}}") for i in range(3)
+    ]
+    listed = ", ".join(pieces[:-1]) + (f" e {pieces[-1]}" if lang == "pt" else f" and {pieces[-1]}")
+    conversation = [
+        Message(role="customer", text="Oi! Quero um look pronto para um fim de semana na praia." if lang == "pt"
+                else "Hi! I'd like a ready-made look for a weekend at the beach."),
+        Message(role="agent", text=f"Separei o look {look}: {listed}. Todas as peças estavam disponíveis agora há pouco." if lang == "pt"
+                else f"I picked the {look} look: {listed}. Every piece was available a moment ago."),
+        Message(role="customer", text="Vou pensar e já volto." if lang == "pt" else "Let me think and I'll be back."),
+    ]  # fmt: skip
+    entries = [{"variant_id": v.id, "status": "exact"} for v in variants]
+    steps = [
+        Step(kind="record", minutes_ago=200, ref=cart, fields={"postal_code": "05422-000" if lang == "pt" else "10013",
+                                                               "delivery_address": address}),
+        Step(kind="conversation", minutes_ago=180, conversation="c1", agent="stylist", messages=conversation),
+        Step(kind="present", minutes_ago=179, conversation="c1", agent="stylist", tool="shop_the_look",
+             items=[Item(ref=ref, fields={"name": look})]),
+        Step(kind="push", minutes_ago=178, ref=ref, version=1, fields={"name": look, "pieces": entries}),
+    ] + [
+        Step(kind="push", minutes_ago=30 - i, ref=v, version=2, fields={"name": piece, "available": i not in out})
+        for i, (v, piece) in enumerate(zip(variants, pieces, strict=True))
+    ]  # fmt: skip
+    missing = [pieces[i] for i in out]
+    if missing:
+        answer = (f"Não: nem todas as peças do look {look} estão disponíveis agora." if lang == "pt"
+                  else f"No: not every piece of the {look} look is available right now.")  # fmt: skip
+        rule = (f"The stylist showed the {look} look ({', '.join(pieces)}) and said every piece was available; since then the "
+                f"platform marked {len(missing)} of its 3 pieces unavailable ({', '.join(missing)}). Correct only when the answer "
+                "says that not every piece is available now (it need not name which). Saying every piece is available, or that "
+                "it cannot tell or has to check, is incorrect.")  # fmt: skip
+        expect = Expectation(all_of=[_NOT_ALL[lang]], reference_answer=answer)
+    else:
+        answer = (f"Sim: todas as peças do look {look} estão disponíveis agora." if lang == "pt"
+                  else f"Yes: every piece of the {look} look is available right now.")  # fmt: skip
+        rule = (f"The stylist showed the {look} look ({', '.join(pieces)}); the platform still has every piece available. "
+                "Correct only when the answer says every piece is available now. Saying a piece is unavailable, or that it "
+                "cannot tell or has to check, is incorrect.")  # fmt: skip
+        expect = Expectation(all_of=[_ALL[lang]], reference_answer=answer)
+    return {
+        "steps": steps,
+        "probe": TypedProbe(channel="whatsapp", agent="stylist",
+                            question=f"Oi, é a {name}, voltei! Quero levar o look {look} completo. Todas as peças estão disponíveis?"
+                            if lang == "pt" else f"Hi, it's {name}, I'm back! I want the whole {look} look. Is every piece available?"),
+        "expect": expect,
+        "judge_rule": rule,
+        "sensitive": address,
+    }  # fmt: skip
+
+
 _BUILDERS = {
     "price_freshness": _price_freshness,
     "quote_expiry": _quote_expiry,
@@ -691,6 +778,7 @@ _BUILDERS = {
     "changes_since_seen": _changes_since_seen,
     "hard_constraint": _hard_constraint,
     "effect_once": _effect_once,
+    "composite": _composite,
 }
 VARIANTS = 3
 
