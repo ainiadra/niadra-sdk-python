@@ -844,7 +844,7 @@ LOCAL_E2E_PORT=20300 LOCAL_E2E_DIR=$TMPDIR/niadra-local-e2e-bench \
     ../../niadra-infra/scripts/local-e2e.sh ../../wt/niadra-back-main --keep
 uv run bench typed --api http://127.0.0.1:20309 --control http://127.0.0.1:20300 \
     --cell-dir $TMPDIR/niadra-local-e2e-bench --cell-pg "host=127.0.0.1 port=20310 user=postgres" \
-    --repetitions 3 --v2-sample 20 --baseline results/typed/2026-09-30-b59a5d [--limit 5]
+    --repetitions 3 --v2-sample 20 --baseline results/typed/2026-09-30-1a9766 [--limit 5]
 ```
 
 Each probe proves its identity before it reads, in the probe's own conversation, at V1 unless
@@ -999,6 +999,26 @@ after, 296660c (`results/typed/2026-09-30-b59a5d`, whose `typed.md` has the delt
 - **Privacy:** no read at V0 and no answered read at V1 held a case's sensitive value.
 - **Cost:** per run, US$ 0.046 for the agent and the judge and US$ 0.025 for the cell's models, before and after
   alike. Both runs used the SDK source at 8583af4, so their claim guard counts predate the guard fixes above.
+
+The offers a read served as the guard's evidence (niadra-back #100: the constraints block's
+`already_presented[].values`, the numbers each object was last shown with, with their role and whether they
+may be claimed now; the SDK's `block_values` takes them as it takes a state field), measured on
+`results/typed/2026-09-30-1a9766` (niadra-back 1f727fd on a local cell of `local-e2e.sh`, the SDK source at
+dfb7f8c installed over the pinned 0.7.0, every sector at V1, three repetitions, against b59a5d):
+
+- **Claim guard, `with` side:** 32 claims, 30 `matched` and 2 `no_evidence`; it acted on 2 answers, none of
+  them correct: 0 of 105 correct answers ([0, 3.5]), against 8 of 94 ([4.4, 15.9]) in 569224, where 7 of the
+  8 were an offer's price only the conversation stated. The offer the pack only wrote in its text now backs
+  the price ("o plano Pleno sem coparticipação, por R$ 690" is `matched` on the offer shown), and the two
+  `no_evidence` are wrong answers that repeat a cart total as the last one known. Without the blocks it acted
+  on 21 answers, 6 of them correct: nothing served, so a price is `unsupported`.
+- **Judge, every case:** 36.5% [29, 45] without, 83.3% [76, 89] with; against b59a5d, +0.0 [-11.7, +11.7]
+  and -1.6 [-10.7, +7.5] points, no change. Valid cases (88 of 126): 23.9% [16, 34] and 88.6% [80, 94].
+- **Tokens of a turn that asks for no block, paired:** the dataset v2 sample moved -0.4% in voice
+  ([-5.8, +0.0]) and -0.5% in chat ([-6.2, +2.0]); the typed cases' `without` reads +1.3% and +0.8%, within 5%.
+  The offers' numbers are in the block's JSON, never in its text: the `<niadra>` section is the same bytes.
+- **Privacy:** no read at V0 and no answered read at V1 held a case's sensitive value.
+- **Cost:** US$ 0.046 for the agent and the judge (1008 calls) and US$ 0.026 for the cell's models.
 
 ## Ranking gate
 
