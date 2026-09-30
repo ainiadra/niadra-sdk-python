@@ -7,7 +7,7 @@ bench report <results dir>       rebuild summary.json and summary.md from the re
 bench ab [options]               a baseline and a candidate on the same cases, and the delta
                                  (--candidate-env KEY=VALUE, --same, --local-cell <niadra-back>)
 bench typed [options]            the typed-object set on a running cell, with and without the blocks a
-                                 read asks for (`include`); needs this repository's SDK (PYTHONPATH=../src)
+                                 read asks for (`include`)
 bench combine <dir> <dir> ...    one results folder from runs of different systems (the temporary host
                                  runs one system at a time); the first folder's references decide validity
 bench systems [--compose]        the systems added through adapters and their deploy/systems directory

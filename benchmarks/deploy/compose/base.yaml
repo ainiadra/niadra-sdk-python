@@ -54,5 +54,5 @@ services:
       MEMOBASE_ACCESS_TOKEN: ${MEMOBASE_ACCESS_TOKEN:-bench-local-only}
       COGNEE_DEFAULT_USER_PASSWORD: ${COGNEE_DEFAULT_USER_PASSWORD:-bench-local-only}
     volumes:
-      - ${BENCH_RESULTS_DIR:-../local/results}:/repo/benchmarks/results
+      - ${BENCH_RESULTS_DIR:-../local/results}:/app/results
       - ${BENCH_SECRETS_DIR:-../local/secrets}:/secrets:ro
