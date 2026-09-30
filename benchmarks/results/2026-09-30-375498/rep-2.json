@@ -1,0 +1,120 @@
+{
+  "repetition": 2,
+  "tag": "375498r2",
+  "seed": {
+    "niadra": {
+      "seconds": 105.1,
+      "failures": [],
+      "refused_actions": [],
+      "declared_operations": [
+        "credit",
+        "refund_fee"
+      ]
+    }
+  },
+  "settle": {
+    "niadra": {
+      "settled": true,
+      "seconds": 2.2,
+      "rounds": 1
+    }
+  },
+  "latency": [
+    {
+      "system": "niadra",
+      "path": "host",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 65.3,
+      "p90": 122.0,
+      "p95": 156.2,
+      "p99": 224.2,
+      "max": 295.1,
+      "sent": 300,
+      "errors": {}
+    },
+    {
+      "system": "niadra",
+      "path": "host",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 81.6,
+      "p90": 183.9,
+      "p95": 235.0,
+      "p99": 458.0,
+      "max": 553.7,
+      "sent": 750,
+      "errors": {}
+    }
+  ],
+  "history": [
+    {
+      "system": "niadra",
+      "path": "host",
+      "operation": "search",
+      "call": "POST /v1/history/search",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 54.4,
+      "p90": 168.4,
+      "p95": 437.7,
+      "p99": 1246.7,
+      "max": 2400.4,
+      "sent": 300,
+      "errors": {},
+      "empty": 30,
+      "degraded": 11,
+      "server_timing": {
+        "app": {
+          "n": 320,
+          "p50": 51.0,
+          "p90": 142.0,
+          "p95": 249.5,
+          "p99": 929.9,
+          "max": 1900.7
+        }
+      }
+    },
+    {
+      "system": "niadra",
+      "path": "host",
+      "operation": "open",
+      "call": "POST /v1/history/open",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 10.9,
+      "p90": 26.8,
+      "p95": 49.1,
+      "p99": 93.7,
+      "max": 181.0,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    }
+  ],
+  "ingest": [
+    {
+      "system": "niadra",
+      "path": "host",
+      "operation": "batch",
+      "call": "POST /v1/batch",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 10.7,
+      "p90": 47.6,
+      "p95": 74.1,
+      "p99": 141.5,
+      "max": 369.4,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    }
+  ]
+}
