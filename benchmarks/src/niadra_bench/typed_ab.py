@@ -33,7 +33,6 @@ the site.
 from __future__ import annotations
 
 import asyncio
-import importlib
 import json
 import logging
 import os
@@ -54,6 +53,10 @@ import httpx
 import niadra
 from niadra import AsyncNiadra, CacheOptions, Content, EventItem, ObjectRef, Speaker, SpeakerRef, phone
 from niadra.models.events import ConversationEndedItem
+from niadra.models.state import ClaimContractSummary
+from niadra.turns.capture import TurnFrame
+from niadra.turns.claims import block_values
+from niadra.turns.guard import guard_text
 
 from niadra_bench import config as bench_config
 from niadra_bench.agent import AGENT_PROMPT, TYPED_JUDGE_PROMPT, ChatClient
@@ -94,21 +97,6 @@ log = logging.getLogger("niadra_bench")
 
 class TypedError(RuntimeError):
     """A typed A/B that cannot run as asked."""
-
-
-def _sdk(module: str) -> Any:
-    """An SDK module this mode needs, by name: the benchmark's pinned release predates the blocks, the claim
-    guard and the typed state, so the run imports them from the SDK it was started with."""
-    return importlib.import_module(module)
-
-
-def sdk_places_blocks() -> bool:
-    """Whether the installed SDK puts the blocks a read asks for in the turn block."""
-    try:
-        _sdk("niadra.constraints.text")
-    except ImportError:
-        return False
-    return True
 
 
 def load_cases(directory: Path = TYPED_DIR) -> list[TypedCase]:
@@ -200,13 +188,11 @@ def contract_for(case: TypedCase) -> dict[str, Any]:
 def guard_answer(case: TypedCase, answer: str, state: Any | None, constraints: Any | None) -> dict[str, Any]:
     """The SDK's claim guard on the answer, as a mutable chat output; the values the read's blocks placed in
     the turn block are the turn's evidence, as `context()` records them inside a turn."""
-    models, capture = _sdk("niadra.models.state"), _sdk("niadra.turns.capture")
-    claims_module, guard = _sdk("niadra.turns.claims"), _sdk("niadra.turns.guard")
-    contract = models.ClaimContractSummary.model_validate(contract_for(case))
-    frame = capture.TurnFrame(None, agent=case.probe.agent)
+    contract = ClaimContractSummary.model_validate(contract_for(case))
+    frame = TurnFrame(None, agent=case.probe.agent)
     if state is not None or constraints is not None:
-        frame.observe_state(claims_module.block_values(state, constraints))
-    guarded = guard.guard_text(contract, frame, answer, context="chat")
+        frame.observe_state(block_values(state, constraints))
+    guarded = guard_text(contract, frame, answer, context="chat")
     claims = [
         {"category": c.category, "verdict": str(c.verdict), "action": str(c.action)} for c in guarded.claims
     ]
@@ -1017,11 +1003,6 @@ class TypedAb:
         self.run_id = datetime.now(UTC).strftime("%Y-%m-%d") + "-" + uuid.uuid4().hex[:6]
 
     async def execute(self) -> Path:
-        if not sdk_places_blocks():
-            raise TypedError(
-                f"the SDK in use ({niadra.__version__}) does not place the blocks in the turn block: run "
-                "with this repository's source (PYTHONPATH=../src)"
-            )
         options = self.options
         baseline = load_baseline(options.baseline) if options.baseline else None
         count = _tokenizer(self.config.tokens.encoding)

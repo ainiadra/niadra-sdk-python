@@ -255,18 +255,13 @@ def _parse_arguments(arguments: Arguments) -> dict[str, Any]:
 
 
 def _filters(arguments: dict[str, Any]) -> HistoryFilters:
-    """The model's `filters` object, over the flat fields of 0.1 kits, which are still read."""
+    """The model's `filters` object."""
     nested = arguments.get("filters")
     if nested is not None and not isinstance(nested, Mapping):
         raise ValueError("filters must be an object")
-    merged = {k: arguments[k] for k in _FILTER_KEYS if arguments.get(k) is not None}
-    merged.update({k: v for k, v in (nested or {}).items() if k in _FILTER_KEYS and v is not None})
+    merged = {k: v for k, v in (nested or {}).items() if k in _FILTER_KEYS and v is not None}
     if isinstance(merged.get("when"), str):
         merged["when"] = merged["when"][:100]
-    kinds = merged.get("item_kinds")
-    if isinstance(kinds, list):
-        # A system event is never an item: it changes its object, so 0.1.1 kits asked for it by that name.
-        merged["item_kinds"] = list(dict.fromkeys("object" if k == "system_event" else k for k in kinds))
     return HistoryFilters.model_validate(merged)
 
 

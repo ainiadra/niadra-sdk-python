@@ -52,7 +52,7 @@ from niadra.vocabulary import Verification
 from niadra_mock.agent_memory import MOCK_SOURCE, PersonalDataError
 from niadra_mock.cell import ItemNotFoundError, MockCell, UploadRejectedError
 from niadra_mock.coordinate import CoordinationError
-from niadra_mock.features import FeatureOffError, NotBuiltError
+from niadra_mock.features import FeatureOffError
 from niadra_mock.replay import ReplayError
 from niadra_mock.state import StateError
 
@@ -85,7 +85,6 @@ _REASONS = {
     422: "Unprocessable Entity",
     429: "Too Many Requests",
     500: "Internal Server Error",
-    501: "Not Implemented",
     503: "Service Unavailable",
 }
 _CODES = {
@@ -197,8 +196,6 @@ class MockApp:
             return _coded(exc.status, exc.code, getattr(exc, "extra", {}))
         except (ItemNotFoundError, FeatureOffError):
             return _problem(404)
-        except NotBuiltError:
-            return _problem(501)
         except ValueError:
             return _problem(400, "malformed request")
 

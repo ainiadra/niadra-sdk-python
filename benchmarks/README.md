@@ -62,7 +62,7 @@ measures what each memory gave the agent, not an SDK; no system's agent runs it 
 (`metrics.backing`) gives the answers, the values they stated, the values without a source per thousand
 answers (median and range over the repetitions), by kind and by category. The accuracy, contradiction
 (`contradiction` category) and privacy figures are unchanged by it. The rule comes from the SDK the harness
-installs from PyPI (`niadra.backing`, from 0.5.0 on).
+runs (`niadra.backing`).
 
 Each privacy line says whether the system has a verification mechanism at all (`verification`:
 `per conversation` for Niadra, `none` for every other system). A system with none hands the block to
@@ -140,12 +140,9 @@ what a Niadra buyer buys.
   library with no server: it runs in a small service of the harness's (`deploy/systems/langmem/server.py`)
   that calls only its documented API. Honcho is AGPL: the harness runs its published image and calls its
   REST API, and no line of it is in this repository.
-- **Niadra as documented.** The SDK is the current release on PyPI (`niadra==0.6.1`, whose `track()` sends a
-  conversation turn at once where 0.5.0 waited up to 0.2 s, which the freshness metric counts; the first run
-  installed 0.1.5 and run 2026-09-25-6efee4 0.3.0, whose read path is the same for a read with its own
-  `query`). 0.4.0 is the first that puts the turn's `slots` in `turn_block` (0.3.0 drops the field), so
-  a run measures what an agent gets only from 0.4.0 on; its turn block is the live turns, the slots,
-  then the delta, where 0.3.0 put the delta first. Each exchange is a batch of `message` events with its
+- **Niadra as documented.** The SDK is this repository's source, at the commit the run names; each result
+  file records its version (`versions.niadra_sdk`). Its turn block is the live turns, the slots, then the
+  delta. Each exchange is a batch of `message` events with its
   `occurred_at` and a `conversation.ended`, system records are `system_event`s, the billing agent's
   records are `action`s, and every probe verifies the call or chat before `context()`, as the voice
   and WhatsApp guides show; the question goes in `query`, which picks the turn's slots and never changes
@@ -843,8 +840,7 @@ decides) and the benchmark's agent and judge:
 # Under the machine's e2e lock: a cell of niadra-back main, kept running.
 LOCAL_E2E_PORT=20300 LOCAL_E2E_DIR=$TMPDIR/niadra-local-e2e-bench \
     ../../niadra-infra/scripts/local-e2e.sh ../../wt/niadra-back-main --keep
-# The SDK must be this repository's source: the pinned release does not place the blocks in the turn block.
-PYTHONPATH=../src uv run bench typed --api http://127.0.0.1:20309 --control http://127.0.0.1:20300 \
+uv run bench typed --api http://127.0.0.1:20309 --control http://127.0.0.1:20300 \
     --cell-dir $TMPDIR/niadra-local-e2e-bench --cell-pg "host=127.0.0.1 port=20310 user=postgres" \
     --repetitions 3 --v2-sample 20 --verify-level health_plan_sales=V3 \
     --baseline results/typed/2026-09-29-28409a [--limit 5]

@@ -20,9 +20,9 @@ from niadra._cache import ContextCache
 from niadra._ids import new_key
 from niadra._queue import EventBuffer, serialize
 from niadra._transport import Request
-from niadra._turns import MIN_PREFETCH, NO_PREFETCH, BlockSupport, PrefetchSupport, turn_text
+from niadra._turns import MIN_PREFETCH, BlockSupport, turn_text
 from niadra._voice import rtt_warnings
-from niadra.errors import APIError, ConfigurationError, NotAvailableError, NotFoundError
+from niadra.errors import APIError, ConfigurationError, NotFoundError
 from niadra.keys import ApiKey
 from niadra.models.agent_memory import AgentMemory, AgentMemorySearchRequest, CreateAgentNoteRequest, Evidence
 from niadra.models.common import Handle, ObjectRef
@@ -206,7 +206,6 @@ class ClientCore:
         self.base_url = ""
         self.enabled = False
         self.agent_memory_cache = AgentMemoryCache(self.cache_options)
-        self.turns = PrefetchSupport()
         self.blocks = BlockSupport()
 
         raw = api_key if api_key is not None else os.environ.get("NIADRA_API_KEY", "")
@@ -315,7 +314,7 @@ class ClientCore:
     ) -> PrefetchRequest | None:
         """The body of a prefetch, or None when there is nothing worth sending."""
         query = turn_text(text)
-        if query is None or len(query) < MIN_PREFETCH or not self.turns.prefetch_wanted():
+        if query is None or len(query) < MIN_PREFETCH:
             return None
         return PrefetchRequest(
             subject=as_handle(subject) if subject is not None else None,
@@ -336,9 +335,7 @@ class ClientCore:
         )
 
     def prefetch_failed(self, error: BaseException) -> None:
-        """A prefetch never fails anything; a server without the route is not asked again for a while."""
-        if isinstance(error, APIError) and error.status_code in NO_PREFETCH:
-            self.turns.prefetch_refused()
+        """A prefetch never fails anything."""
         logger.debug("niadra: prefetch skipped (%s)", type(error).__name__)
 
     def cacheable(self, request: ContextRequest, use_cache: bool) -> bool:
@@ -401,8 +398,8 @@ class ClientCore:
 
     def refused_blocks(self, request: ContextRequest, error: Exception) -> ContextRequest | None:
         """The read again without its blocks, when the space answered that it serves none of them (404 for
-        a feature it left off, 501 for one not built): nothing else of the read is lost. None otherwise."""
-        if not request.include or not isinstance(error, (NotFoundError, NotAvailableError)):
+        a feature it left off): nothing else of the read is lost. None otherwise."""
+        if not request.include or not isinstance(error, NotFoundError):
             return None
         self.blocks.refused(request.include)
         return request.model_copy(update={"include": None})
@@ -787,12 +784,8 @@ class ClientCore:
         )
 
     def agent_memory_failed(self, key: str, error: BaseException) -> AgentMemory:
-        """A block that could not be read: `enabled=False` when the route is not there (501), else the
-        last good block within `max_stale`, else an empty one with the error's code."""
-        if isinstance(error, APIError) and error.status_code == 501:
-            disabled = AgentMemory.empty(enabled=False, error="not_implemented")
-            self.agent_memory_cache.put(key, disabled)
-            return disabled
+        """A block that could not be read: the last good block within `max_stale`, else an empty one with
+        the error's code."""
         fallback = self.agent_memory_cache.fallback(key)
         if fallback is not None and not self.strict:
             logger.warning("niadra: agent memory failed, serving the last good block (%s)", error_code(error))

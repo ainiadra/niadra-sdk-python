@@ -97,8 +97,8 @@ def test_open_keeps_the_conversation_id_out_of_the_url(respx_mock: respx.MockRou
     sent = route.calls.last.request
     assert str(sent.url) == f"{BASE}/v1/history/open"
     assert body(route) == {"item_id": "ep_1", "verification": "V2", "conversation_id": "+5511912345678"}
-    client.open("ep_1", subject=MARINA, task_id="t-1")
-    # The customer goes along when given; a task id never did reach this route on the server.
+    client.open("ep_1", subject=MARINA)
+    # The customer goes along when given.
     assert body(route) == {
         "item_id": "ep_1",
         "subject": MARINA.model_dump(mode="json", exclude_none=True),
@@ -181,7 +181,9 @@ def test_tools_bind_the_customer_outside_the_model(respx_mock: respx.MockRouter,
     assert all("subject" not in json.dumps(d["function"]["parameters"]) for d in kit.definitions)
     assert [t["name"] for t in kit.anthropic_definitions()] == kit.names
 
-    output = kit.call("search_customer_history", '{"query": "technician", "outcome": "resolved"}')
+    output = kit.call(
+        "search_customer_history", '{"query": "technician", "filters": {"outcome": "resolved"}}'
+    )
     sent = body(search)
     assert sent["subject"]["value"] == "+5511912345678"
     assert sent["filters"]["outcome"] == "resolved"
@@ -215,7 +217,7 @@ def test_tool_calls_never_raise_at_the_model(respx_mock: respx.MockRouter, lenie
     assert "unavailable" in kit.call("search_customer_history", {"query": "x"})
     assert "query is required" in kit.call("search_customer_history", {})
     assert "invalid arguments" in kit.call("search_customer_history", "{not json")
-    assert "invalid arguments" in kit.call("get_customer_timeline", {"since": "yesterday"})
+    assert "invalid arguments" in kit.call("get_customer_timeline", {"filters": {"since": "yesterday"}})
     assert "unknown tool" in kit.call("drop_tables", {})
     assert "id is required" in kit.call("open_history_item", None)
 

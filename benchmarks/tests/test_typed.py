@@ -1,7 +1,4 @@
 import json
-import os
-import subprocess
-import sys
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -16,7 +13,6 @@ from niadra_bench.dataset.typed import TYPED_CATEGORIES, TypedCase
 from niadra_bench.text import passes
 
 TODAY = date(2026, 9, 29)
-SDK_SOURCE = bench_config.ROOT.parent / "src"
 
 
 @pytest.fixture(scope="module")
@@ -316,24 +312,9 @@ async def test_seeding_sends_each_write_where_the_cell_takes_it(
     assert conversation[-1]["type"] == "conversation.ended"
 
 
-@pytest.mark.skipif(
-    not (SDK_SOURCE / "niadra" / "constraints" / "text.py").exists(), reason="no SDK source here"
-)
-def test_the_guard_runs_on_the_sdk_that_places_the_blocks() -> None:
-    """The SDK pinned by the benchmark predates the claim guard: the typed mode runs on this repository's
-    source, so the guard is exercised on it, in a process of its own."""
-    script = (
-        "import json, sys\n"
-        "from niadra_bench import typed_ab\n"
-        "from niadra_bench.dataset import typed\n"
-        "cases = typed.load(typed_ab.TYPED_DIR)\n"
-        "case = next(c for c in cases if c.category == 'price_freshness' and c.language == 'pt')\n"
-        "print(json.dumps([typed_ab.sdk_places_blocks(),\n"
-        "    typed_ab.guard_answer(case, 'Sim, o total continua R$ 412,70 com frete.', None, None)]))\n"
-    )
-    env = {**os.environ, "PYTHONPATH": str(SDK_SOURCE)}
-    out = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, env=env, check=True)
-    places, guarded = json.loads(out.stdout.strip().splitlines()[-1])
-    assert places is True
+def test_the_guard_runs_on_a_stale_price() -> None:
+    cases = typed.load(typed_ab.TYPED_DIR)
+    case = next(c for c in cases if c.category == "price_freshness" and c.language == "pt")
+    guarded = typed_ab.guard_answer(case, "Sim, o total continua R$ 412,70 com frete.", None, None)
     assert [c["category"] for c in guarded["claims"]] == ["price"]
     assert guarded["claims"][0]["verdict"] != "matched"

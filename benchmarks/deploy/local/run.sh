@@ -36,7 +36,7 @@ for systems in "${runs[@]}"; do
   limit 1800 "$DEPLOY/stack.sh" local "$systems" up -d --build --quiet-pull >/dev/null
   before="$(ls -1 "$DEPLOY/local/results" | sort)"
   if limit 3600 "$DEPLOY/stack.sh" local "$systems" run --rm harness run --dry-run --systems "$systems" \
-    --output /app/results "${args[@]}"; then
+    --output /repo/benchmarks/results "${args[@]}"; then
     new="$(comm -13 <(echo "$before") <(ls -1 "$DEPLOY/local/results" | sort) | tail -1)"
     [ -n "$new" ] && folders+=("$DEPLOY/local/results/$new")
   else

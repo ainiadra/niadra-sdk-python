@@ -1,4 +1,4 @@
-"""A turn leaves at once by default (0.6.1), and a burst still goes out as few batches.
+"""A turn leaves at once by default, and a burst still goes out as few batches.
 
 The only thing that coalesces turns is the one-batch-in-flight rule: what is queued while a batch
 is answered leaves together as the next one. So the request rate is bounded by the round trip,

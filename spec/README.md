@@ -24,8 +24,8 @@ to its fields.
 `openapi/cell.json` is the part of the server's OpenAPI document with these routes and every schema they
 reach. The script generates the models (`src/niadra/models/turns.py`, `state.py`, `signals.py`,
 `coordination.py`) and the route methods (`src/niadra/api.py`) from it, and `tests/test_generated.py`
-fails when a generated file differs from what the script writes. A route the server has not built yet
-answers 501.
+fails when a generated file differs from what the script writes. A route of a feature the space did not
+turn on answers 404.
 
 `examples/turn-record/` holds the Turn Record spec's examples; the tests read each through `TurnRecord`.
 

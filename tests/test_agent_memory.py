@@ -151,9 +151,6 @@ def test_off_down_or_missing_the_memory_is_empty_and_the_tools_say_so(
     kit = on_mock.tools(MARINA, conversation_id="c-1", agent_memory=True, write_agent_memory=True)
     assert json.loads(kit.call("search_agent_memory", {"query": "credit"})) == {"notes": []}
 
-    respx_mock.get(f"{BASE}/v1/agent-memory/block").respond(501)
-    missing = lenient.agent_memory()
-    assert (missing.enabled, missing.text, missing.error) == (False, "", "not_implemented")
     respx_mock.get(f"{BASE}/v1/agent-memory/block?max_tokens=100").respond(
         200, json={"text": "x", "etag": "e", "enabled": False}
     )
@@ -281,15 +278,11 @@ def test_time_words_expiry_and_versions(on_mock: Niadra) -> None:
     assert len(page.items) == 1 and page.window is not None
 
     kit = on_mock.tools(MARINA)
-    flat = json.loads(
-        kit.call("search_customer_history", {"query": "router", "since": "2000-01-01T00:00:00Z"})
-    )
+    everything = json.loads(kit.call("search_customer_history", {"query": "router"}))
     nested = json.loads(
         kit.call("search_customer_history", {"query": "router", "filters": {"when": "today"}})
     )
-    assert len(flat["items"]) == 2 and len(nested["items"]) == 1
-    legacy = json.loads(kit.call("get_customer_timeline", {"item_kinds": ["system_event"]}))
-    assert legacy["items"] == [], "0.1.1's system_event reads as object"
+    assert len(everything["items"]) == 2 and len(nested["items"]) == 1
 
     on_mock.track(
         {

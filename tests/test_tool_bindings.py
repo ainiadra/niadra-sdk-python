@@ -12,7 +12,6 @@ import pytest
 
 from niadra import Niadra, phone
 from niadra._profile import ProfileCache
-from niadra.errors import NotFoundError
 from niadra.options import CacheOptions, TurnOptions
 from niadra_mock import MOCK_KEY, MockApp
 
@@ -136,12 +135,10 @@ def test_the_served_capability_masks_the_output_unless_the_code_says(app: MockAp
     assert search_plain() == {"cards": CARDS}
 
 
-def test_the_cache_serves_each_tool_by_name_and_forgets_on_a_404() -> None:
+def test_the_cache_serves_each_tool_by_name() -> None:
     cache = ProfileCache()
     cache.absorb({"features": ["signals"], "tool_bindings": [SEARCH], "valid_for_s": 300})
     served = cache.tool_binding("search_products")
     assert served is not None and served["capabilities"]["mask_output"] is True
     assert served["results"][0]["id"] == "variant_id" and served["capabilities"]["overfetch"] is False
     assert cache.tool_binding("book_visit") is None
-    cache.failed(NotFoundError(404))
-    assert cache.tool_binding("search_products") is None

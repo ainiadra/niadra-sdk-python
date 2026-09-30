@@ -1,4 +1,4 @@
-"""Niadra through its published Python SDK (`niadra` on PyPI) and its HTTP API.
+"""Niadra through its Python SDK (this repository's `niadra`) and its HTTP API.
 
 Seeding posts each session to `POST /v1/batch` with the SDK's own item models, the same bytes
 `track()` sends, but synchronously, so a rejected event fails the run instead of being dropped by a
@@ -389,7 +389,7 @@ class NiadraTarget(Target):
                 "verification": context.verification.effective.value,
                 "view": view,
                 "conversation": conversation,
-                # Guard lines the read carried (the slots, in the turn block from SDK 0.4.0).
+                # Guard lines the read carried (the slots, in the turn block).
                 "guards": sum(
                     1 for line in (context.turn_block or "").splitlines() if GUARD_LINE.search(line)
                 ),

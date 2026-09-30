@@ -42,7 +42,7 @@ from niadra.conversation import AsyncConversation, AsyncTask
 from niadra.coordination.client import Coordinator
 from niadra.coordination.suppression import FAIL_OPEN, MAX_PAGES, SuppressionCopy
 from niadra.coordination.token import AsyncContactGateway, SeenTokens
-from niadra.errors import APITimeoutError, NotFoundError
+from niadra.errors import APITimeoutError
 from niadra.models.admin import IngestStatus, KeyIdentity
 from niadra.models.agent_memory import (
     AgentMemory,
@@ -200,16 +200,13 @@ class AsyncNiadra:
         """The SDK profile of this key's space: the features it turned on, the claim contract, the
         summarized type registry and this source's tool bindings, from the local cache, read again once
         `valid_for_s` has passed. When Niadra does not answer, the last profile read stays in use; None when
-        there is none yet, or the space serves none (then the SDK asks again in 10 minutes). Never raises
-        unless `strict`."""
+        there is none yet. Never raises unless `strict`."""
         if self._core.enabled and self._profile.due():
             budget = timeout if timeout is not None else self._core.timeouts.navigation
             try:
                 self._profile.absorb(await self._transport.request(self._profile.request(budget)))
             except Exception as exc:
-                self._profile.failed(exc)
-                if not isinstance(exc, NotFoundError):
-                    self._core.fail("profile", exc, None)
+                self._core.fail("profile", exc, None)
         return self._profile.profile
 
     def use_claim_contract(self, contract: ClaimContractSummary | Mapping[str, Any] | None) -> None:
@@ -489,7 +486,6 @@ class AsyncNiadra:
         *,
         verification: VerificationLike = Verification.V0,
         conversation_id: str | None = None,
-        task_id: str | None = None,  # noqa: ARG002 - kept for 0.1.4 callers; the server never read it here
         subject: HandleLike | None = None,
         voice: bool = False,
         timeout: float | None = None,
@@ -963,7 +959,7 @@ class AsyncNiadra:
                 except Exception as exc:
                     self._core.prefetch_failed(exc)
                 request = self._prefetching.pop(scope, None)
-                if request is not None and self._core.turns.prefetch_wanted():
+                if request is not None:
                     self._prefetching[scope] = None
                 else:
                     request = None

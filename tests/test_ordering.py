@@ -1,8 +1,8 @@
 """One batch in flight per client: `flush()` and `close()` never overtake the background sender.
 
-In 0.5.0 a `flush()` called while the background sender had a batch in flight sent the rest
-at once, so two `/v1/batch` requests overlapped and a `conversation.ended` could land before
-the turns queued ahead of it, which reopened the session on the server.
+A `flush()` that sent the rest at once while the background sender had a batch in flight would
+overlap two `/v1/batch` requests, and a `conversation.ended` could land before the turns queued
+ahead of it, which reopens the session on the server.
 """
 
 from __future__ import annotations
