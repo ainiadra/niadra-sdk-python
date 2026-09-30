@@ -709,17 +709,9 @@
           "type": "array"
         },
         "text": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "The block as lines for a model, in the space's language, each field by its label and each operator in words; the SDK places it beside the state view's text. Not part of `version`.",
-          "title": "Text"
+          "description": "The block as lines for a model, in the space's language, each field by its label and each operator in words; an empty string when the block has nothing to say. Not part of `version`.",
+          "title": "Text",
+          "type": "string"
         },
         "rendered": {
           "anyOf": [
@@ -734,7 +726,8 @@
         }
       },
       "required": [
-        "version"
+        "version",
+        "text"
       ],
       "title": "ConstraintsBlock",
       "type": "object"
@@ -831,7 +824,7 @@
         "spec": {
           "const": "context-pack.v1",
           "default": "context-pack.v1",
-          "description": "The shape's version. `context-pack.v1` adds `slots` to `v0` and changes nothing else.",
+          "description": "The shape's version.",
           "title": "Spec",
           "type": "string"
         },

@@ -46,7 +46,6 @@ from niadra.models.context import (
     HistoryItem,
     ItemVersion,
     LiveTurn,
-    ObjectState,
     OpenedItem,
     PackGuard,
     PackSection,
@@ -78,6 +77,7 @@ from niadra.models.events import (
     VerifyItem,
 )
 from niadra.models.objects import ObjectTimeline
+from niadra.models.state import FieldState, ObjectRead, StateRef
 from niadra.models.tokens import SubjectToken, SubjectTokenRequest
 from niadra.vocabulary import DeliveryPath, EventKind, Speaker, Verification, Visibility
 from niadra_mock.agent_memory import AgentMemoryStore, words
@@ -865,16 +865,23 @@ class MockCell:
             if key in map(_object_key, e.item.object_refs) and e.item.kind is not EventKind.MESSAGE
         ]
 
-    def object_state(self, ref: ObjectRef) -> ObjectState:
+    def object_state(self, ref: ObjectRef) -> ObjectRead:
+        """The object as a `display` read of a type with no rules serves it: every field its systems of
+        record reported, as observed, and none safe to claim."""
         with self._lock:
             events = self._object_events(ref)
-            state: dict[str, Any] = {}
+            fields: dict[str, FieldState] = {}
             # Only systems of record move the state; an agent's action is a declaration.
             for event in sorted(events, key=lambda e: e.item.occurred_at):
                 if event.item.kind is EventKind.SYSTEM_EVENT:
-                    state.update({**event.item.fields, "last_event_type": event.item.canonical_type})
+                    at = event.item.occurred_at
+                    for name, value in event.item.fields.items():
+                        fields[name] = FieldState(
+                            v=value, logic="yes", status="fresh", claim_safe=False, observed_at=at, src="mock"
+                        )
             as_of = max((e.item.occurred_at for e in events), default=self.clock())
-            return ObjectState(ref=ref, state=state, as_of=as_of, source_id="mock")
+            key = StateRef(type=ref.type, namespace=ref.namespace, id=ref.id)
+            return ObjectRead(ref=key, as_of=as_of, fields=fields)
 
     def object_timeline(self, ref: ObjectRef, cursor: str | None, limit: int) -> ObjectTimeline:
         with self._lock:

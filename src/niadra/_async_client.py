@@ -53,7 +53,7 @@ from niadra.models.agent_memory import (
     Evidence,
     RememberResult,
 )
-from niadra.models.context import ContextRequest, HistoryFilters, ObjectState, OpenedItem, PrefetchRequest
+from niadra.models.context import ContextRequest, HistoryFilters, OpenedItem, PrefetchRequest
 from niadra.models.events import (
     BatchResponse,
     FeedbackAction,
@@ -63,7 +63,7 @@ from niadra.models.events import (
 )
 from niadra.models.objects import ObjectTimeline
 from niadra.models.results import Context, MediaUpload, SearchResult, TimelinePage
-from niadra.models.state import ClaimContractSummary, SdkProfile, StateRef
+from niadra.models.state import ClaimContractSummary, ObjectRead, SdkProfile, StateRef
 from niadra.models.tokens import SubjectToken
 from niadra.models.turns import TurnPins
 from niadra.options import CacheOptions, QueueOptions, Timeouts, TurnOptions, VoiceOptions
@@ -502,13 +502,13 @@ class AsyncNiadra:
 
     async def object_state(
         self, object: ObjectLike, *, voice: bool = False, timeout: float | None = None
-    ) -> ObjectState | None:
-        """The derived state of a business object. See `Niadra.object_state`."""
+    ) -> ObjectRead | None:
+        """A business object as a state read serves it. See `Niadra.object_state`."""
         if not self._core.enabled:
             return None
         try:
             request = self._core.object_http(object, voice, timeout)
-            return ObjectState.model_validate(await self._transport.request(request))
+            return ObjectRead.model_validate(await self._transport.request(request))
         except Exception as exc:
             return self._core.fail("object_state", exc, None)
 

@@ -100,9 +100,11 @@ class FeatureStore:
             return {"drift": True, "issue_id": issue["issue_id"]}
 
     def constrain(self, handle: Handle, block: ConstraintsBlock | dict[str, Any]) -> None:
-        """The constraints block a read about `handle` returns with `include: ["constraints"]`."""
+        """The constraints block a read about `handle` returns with `include: ["constraints"]`. The emulator
+        renders no lines: a block given without `text` says nothing to the model."""
+        given = block.model_dump(mode="json", by_alias=True) if isinstance(block, ConstraintsBlock) else block
         with self._lock:
-            self.blocks[(handle.type, handle.value)] = ConstraintsBlock.model_validate(block)
+            self.blocks[(handle.type, handle.value)] = ConstraintsBlock.model_validate({"text": "", **given})
 
     def show(self, handle: Handle, view: StateView | dict[str, Any]) -> None:
         """The state view a read about `handle` returns with `include: ["state"]`."""
@@ -118,7 +120,7 @@ class FeatureStore:
             key = (subject.type, subject.value) if subject is not None else None
             with self._lock:
                 block = self.blocks.get(key) if key is not None else None
-            found["constraints"] = block or ConstraintsBlock(version="cv_" + "0" * 16)
+            found["constraints"] = block or ConstraintsBlock(version="cv_" + "0" * 16, text="")
         if "state" in include:
             key = (subject.type, subject.value) if subject is not None else None
             with self._lock:

@@ -59,7 +59,7 @@ from niadra.models.agent_memory import (
     Evidence,
     RememberResult,
 )
-from niadra.models.context import ContextRequest, HistoryFilters, ObjectState, OpenedItem, PrefetchRequest
+from niadra.models.context import ContextRequest, HistoryFilters, OpenedItem, PrefetchRequest
 from niadra.models.events import (
     BatchResponse,
     FeedbackAction,
@@ -69,7 +69,7 @@ from niadra.models.events import (
 )
 from niadra.models.objects import ObjectTimeline
 from niadra.models.results import Context, MediaUpload, SearchResult, TimelinePage
-from niadra.models.state import ClaimContractSummary, SdkProfile, StateRef
+from niadra.models.state import ClaimContractSummary, ObjectRead, SdkProfile, StateRef
 from niadra.models.tokens import SubjectToken
 from niadra.models.turns import TurnPins
 from niadra.options import CacheOptions, QueueOptions, Timeouts, TurnOptions, VoiceOptions
@@ -602,17 +602,17 @@ class Niadra:
 
     def object_state(
         self, object: ObjectLike, *, voice: bool = False, timeout: float | None = None
-    ) -> ObjectState | None:
-        """The derived state of a business object, e.g. `object_state("invoice:erp:0823")`.
-
-        What its systems of record reported last, `as_of` when, and its open items, under this
-        source's purpose. None when unavailable.
+    ) -> ObjectRead | None:
+        """A business object as a `display` state read serves it, e.g. `object_state("invoice:erp:0823")`:
+        each field its systems of record reported, with its logical value, stamps and freshness, under this
+        source's purpose (the object state spec). A type the space does not declare reads as one with no
+        rules. None when unavailable.
         """
         if not self._core.enabled:
             return None
         try:
             request = self._core.object_http(object, voice, timeout)
-            return ObjectState.model_validate(self._transport.request(request))
+            return ObjectRead.model_validate(self._transport.request(request))
         except Exception as exc:
             return self._core.fail("object_state", exc, None)
 
