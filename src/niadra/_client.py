@@ -328,6 +328,12 @@ class Niadra:
                 self._read_suppressions(self._core.timeouts.navigation)
         return self._suppressions.may_contact(target, purpose, channel=channel, fail_open=fail_open)
 
+    def _keep_suppressions(self) -> None:
+        """Reads the local copy of the suppression list in the background when it is due: a check that Niadra
+        does not answer falls back on it, so an opt-out holds through an outage."""
+        if self._core.enabled and self._suppressions.due():
+            self._read_suppressions_later()
+
     def _read_suppressions(self, budget: float) -> None:
         copy, deadline = self._suppressions, time.monotonic() + budget
         try:

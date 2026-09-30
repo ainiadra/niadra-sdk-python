@@ -1,6 +1,7 @@
 """The local copy of the suppression list (`spec/suppression-list.md`): the opt-out holds with Niadra down.
 
-The copy is read by cursor from `GET /v1/suppressions`, with this reader's salt from
+The copy is read by cursor from `GET /v1/suppressions` (a page shorter than the limit is the end of the
+changes for now, and its cursor is where the next read starts), with this reader's salt from
 `GET /v1/suppressions/salt`, and read again once it is `REFRESH` seconds old. Before an outbound contact the
 SDK computes the destination's key and looks it up here, in memory:
 
@@ -83,7 +84,8 @@ class SuppressionCopy:
             self._salt = salt
 
     def apply(self, data: Any) -> bool:
-        """Applies one page, in order. True when more pages follow."""
+        """Applies one page, in order. True when more pages follow: a full page. Every page carries the cursor
+        to read from next, the last one too, which the next read starts from."""
         page = SuppressionPage.model_validate(data)
         with self._lock:
             if self._salt is None or page.salt_id != self._salt.salt_id:
@@ -100,9 +102,10 @@ class SuppressionCopy:
                     self._entries[entry.id] = entry
             self._cursor = page.next_cursor or self._cursor
             self._absent = False
-            if not page.next_cursor:
+            more = bool(page.next_cursor) and len(page.items) >= PAGE
+            if not more:
                 self._read_at = self._clock()
-            return bool(page.next_cursor)
+            return more
 
     def failed(self, error: BaseException) -> None:
         """A 404: the space keeps no list. Anything else: the copy stays as it is."""

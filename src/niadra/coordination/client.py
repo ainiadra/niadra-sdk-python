@@ -12,7 +12,8 @@ decision comes from the purpose's direction (the coordination spec, 10; the law 
 way it fails):
 
 - a message the customer sent (`direction="inbound"`) is never held: `allow`, `unchecked`;
-- any purpose whose opt-out the local copy of the suppression list holds: `deny`, `suppressed`;
+- any purpose whose opt-out the local copy of the suppression list holds: `deny`, `suppressed` (each check
+  about an outbound contact keeps that copy, read in the background once a minute);
 - an effect with a key: `defer`, `unavailable`, and what may have gone out is never sent again on its own;
 - a purpose that fails closed (by default `marketing`, `retention` and `collection`, the ones a gateway
   refuses without a token): `defer`, `unavailable`;

@@ -63,6 +63,11 @@ class _Entry:
     scope: str
     deltas: list[str] = field(default_factory=list)
 
+    def aged(self, origin: str, **update: object) -> Context:
+        """The cached pack as served now: from `origin`, with its age."""
+        age_ms = round((time.monotonic() - self.stored_at) * 1000, 1)
+        return self.context.model_copy(update={"origin": origin, "age_ms": age_ms, **update})
+
     def hand_out(self, context: Context) -> Context:
         """`context` carrying the deltas not yet delivered, which then count as delivered."""
         delta = "\n\n".join(self.deltas) or None
@@ -102,9 +107,9 @@ class ContextCache:
             self._entries.move_to_end(key)
             age = time.monotonic() - entry.stored_at
             if age < self._options.ttl:
-                return Hit(entry.hand_out(entry.context.model_copy(update={"origin": "cache"})), "fresh")
+                return Hit(entry.hand_out(entry.aged("cache")), "fresh")
             if pinned or age < self._options.ttl + self._options.stale_while_revalidate:
-                return Hit(entry.hand_out(entry.context.model_copy(update={"origin": "stale"})), "stale")
+                return Hit(entry.hand_out(entry.aged("stale")), "stale")
             return Hit(entry.context, "expired")
 
     def has(self, key: str) -> bool:
@@ -155,13 +160,11 @@ class ContextCache:
                 entry.stored_at = now
                 self._pend(entry, response)
                 self._entries.move_to_end(key)
-                return self._deliver(entry, entry.context.model_copy(update={"origin": "cache"}), deliver)
+                return self._deliver(entry, entry.aged("cache"), deliver)
             if entry is not None and response.degraded:
                 self._pend(entry, response)
                 self._entries.move_to_end(key)
-                fallback = entry.context.model_copy(
-                    update={"origin": "last_good", "elapsed_ms": response.elapsed_ms, "degraded": True}
-                )
+                fallback = entry.aged("last_good", elapsed_ms=response.elapsed_ms, degraded=True)
                 return self._deliver(entry, fallback, deliver)
             if response.not_modified or response.degraded:
                 return response
@@ -194,7 +197,7 @@ class ContextCache:
             entry = self._live(key)
             if entry is None:
                 return None
-            return entry.hand_out(entry.context.model_copy(update={"origin": "last_good", "degraded": True}))
+            return entry.hand_out(entry.aged("last_good", degraded=True))
 
     def drop_on_auth_error(self, key: str, error: Exception) -> bool:
         """401 and 403 are not outages: what was cached under that access goes with it.

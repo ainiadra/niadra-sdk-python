@@ -300,6 +300,9 @@ Inside a conversation or task, packs are cached in memory:
 - when a request fails: the last good pack, if it is less than 30 minutes old;
 - at most 1,000 packs, the least recently used evicted first.
 
+`context.origin` says which of these served the read, and `context.age_ms` how long ago Niadra sent or
+confirmed that pack.
+
 Refreshes send the cached ETag, so an unchanged pack costs a `not_modified` answer instead of the
 full text, and only one background refresh per pack runs at a time. A 401 or 403 is not an
 outage: the cached packs go (all of them on 401, the one requested on 403), so cutting a vendor's
@@ -584,7 +587,8 @@ with niadra.conversation("thread-82", subject=phone("+5511912345678"), agent_id=
   block byte for byte. With Niadra down, the last good blocks serve, marked `degraded`.
 - **Coordination** decides by each purpose's direction when Niadra does not answer within 200 ms: a
   customer's message and service go, marketing, retention, collection and an effect with a key wait, and
-  the local copy of the opt-out list always holds.
+  the local copy of the opt-out list always holds. Every check about an outbound contact keeps that copy,
+  read again in the background once a minute.
 - **Tool bindings** live in the space's `tool-bindings` document and come in the SDK profile, never in code:
   a tool measures the constraints block through the one served for its name, the counterfactual runs through
   it, and its `capabilities.mask_output` decides the masking when the code leaves `mask_output` unset.
@@ -610,6 +614,12 @@ Niadra must never take your agent down.
   queued for the background sender. `track()` never waits. Adjust them with `Timeouts`.
 - **Retries:** 5xx, 429 and network errors are retried with backoff; 421 (the space is moving
   between cells) is retried at once on a fresh connection; other 4xx are final.
+- **With Niadra down,** a read serves the conversation's last good pack, `degraded`, with `age_ms` saying
+  how old it is; the opt-out holds by the local copy of the suppression list; turn records, events and
+  declarations wait in their queues and leave once Niadra answers again, each stored once. The pause
+  between attempts doubles while Niadra stays down, up to 30 s. `tests/test_chaos.py` kills Niadra's
+  process, silences its network, answers 503 and answers late in the middle of a conversation, and checks
+  all of it.
 - **Logs** carry method names, status codes, error codes and request ids, never handles or text.
 
 Pass `strict=True` to raise instead, which is what you want in tests.

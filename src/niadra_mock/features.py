@@ -170,7 +170,9 @@ class FeatureStore:
     def suppression_page(self) -> SuppressionPage:
         self.need("coordination")
         with self._lock:
-            return SuppressionPage(items=list(self.suppressions), salt_id=self._salt_id())
+            # As the server does: every page carries the cursor to read from next, the last page too.
+            cursor = f"c_{self._salt_id()}_{len(self.suppressions)}"
+            return SuppressionPage(items=list(self.suppressions), salt_id=self._salt_id(), next_cursor=cursor)
 
     def suppression_salt(self) -> SuppressionSalt:
         self.need("coordination")
