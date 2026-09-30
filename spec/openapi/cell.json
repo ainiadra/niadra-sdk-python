@@ -9944,6 +9944,14 @@
             "minimum": 1.0,
             "title": "Times",
             "type": "integer"
+          },
+          "values": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ShownValue"
+            },
+            "description": "The numbers the object was last shown with (a price, a total, a discount, an installment), by field: each field its type declares as `money`, `percent` or `number`. A claim check takes them as evidence for the offer an agent quotes back.",
+            "title": "Values",
+            "type": "object"
           }
         },
         "required": [
@@ -9951,6 +9959,41 @@
           "times"
         ],
         "title": "Shown",
+        "type": "object"
+      },
+      "ShownValue": {
+        "additionalProperties": false,
+        "description": "A number an object showed the subject, as they were shown it.",
+        "properties": {
+          "claim_safe": {
+            "description": "Whether it may be claimed now: its type allows claims of the field, and no more than the field's age for claims has passed since it was shown.",
+            "title": "Claim Safe",
+            "type": "boolean"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The field's role, for claims.",
+            "title": "Role"
+          },
+          "v": {
+            "title": "V",
+            "type": "number"
+          }
+        },
+        "required": [
+          "v",
+          "claim_safe"
+        ],
+        "title": "ShownValue",
         "type": "object"
       },
       "SoftConstraint": {

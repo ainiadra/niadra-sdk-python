@@ -1,0 +1,728 @@
+{
+  "vectors": "claim-evidence",
+  "version": "v0",
+  "spec": "spec/claim-contract.md",
+  "cases": [
+    {
+      "id": "offer.price_shown_matches",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Júlia, o plano Pleno sem coparticipação, por R$ 690, atende ao que você pediu.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "blocks": {
+        "constraints": {
+          "version": "cv_0123456789abcdef",
+          "hard": [
+            {
+              "id": "h1",
+              "attr": "health_plan.copay",
+              "op": "eq",
+              "values": [
+                false
+              ],
+              "source": "stated",
+              "scope": "persistent",
+              "relax": "never",
+              "origin": {
+                "kind": "stated"
+              }
+            }
+          ],
+          "already_presented": [
+            {
+              "ref": "health_plan:operadora:pleno-1",
+              "times": 1,
+              "last_at": "2026-09-30T11:00:00Z",
+              "values": {
+                "monthly_price": {
+                  "v": 690,
+                  "role": "price_full",
+                  "claim_safe": true
+                }
+              }
+            },
+            {
+              "ref": "health_plan:operadora:essencial-1",
+              "times": 1,
+              "last_at": "2026-09-30T11:00:00Z",
+              "values": {
+                "monthly_price": {
+                  "v": 480,
+                  "role": "price_full",
+                  "claim_safe": true
+                }
+              }
+            }
+          ],
+          "text": "<restrições>\n- exigido: sem coparticipação; das opções mostradas, atende: pleno-1; não atende: essencial-1\n</restrições>"
+        }
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              45,
+              51
+            ],
+            "text": "R$ 690",
+            "class": "money",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "amount": "690",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "ref": "health_plan:operadora:pleno-1",
+              "field": "monthly_price"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "offer.price_shown_matches_without_a_role_word",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "The Runner 3 comes to $129.90 and ships tomorrow.",
+        "lang": "en",
+        "context": "chat",
+        "immutable": false
+      },
+      "blocks": {
+        "constraints": {
+          "version": "cv_0123456789abcdef",
+          "already_presented": [
+            {
+              "ref": "item_variant:catalog:runner-3",
+              "times": 2,
+              "values": {
+                "total": {
+                  "v": 129.9,
+                  "claim_safe": true
+                }
+              }
+            }
+          ],
+          "text": ""
+        }
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              22,
+              29
+            ],
+            "text": "$129.90",
+            "class": "money",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "amount": "129.9"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "ref": "item_variant:catalog:runner-3",
+              "field": "total"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "offer.price_and_installment_by_role",
+      "contract": "examples/claim-contract/retail.json",
+      "output": {
+        "text": "O tênis sai por R$ 499,90, ou 10 vezes de R$ 49,99.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "blocks": {
+        "constraints": {
+          "version": "cv_0123456789abcdef",
+          "already_presented": [
+            {
+              "ref": "item_variant:catalog:tenis-7",
+              "times": 1,
+              "values": {
+                "price": {
+                  "v": 499.9,
+                  "role": "price_sale",
+                  "claim_safe": true
+                },
+                "installment_price": {
+                  "v": 49.99,
+                  "role": "installment",
+                  "claim_safe": true
+                },
+                "discount": {
+                  "v": 10,
+                  "claim_safe": true
+                }
+              }
+            }
+          ],
+          "text": ""
+        }
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              16,
+              25
+            ],
+            "text": "R$ 499,90",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_sale",
+            "value": {
+              "amount": "499.9",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "ref": "item_variant:catalog:tenis-7",
+              "field": "price"
+            }
+          },
+          {
+            "category": "price",
+            "span": [
+              42,
+              50
+            ],
+            "text": "R$ 49,99",
+            "class": "money",
+            "nature": "computed",
+            "role": "installment",
+            "value": {
+              "amount": "49.99",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "ref": "item_variant:catalog:tenis-7",
+              "field": "installment_price"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "offer.price_of_another_role_has_no_evidence",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "O Pleno com desconto sai por R$ 690.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "blocks": {
+        "constraints": {
+          "version": "cv_0123456789abcdef",
+          "hard": [
+            {
+              "id": "h1",
+              "attr": "health_plan.copay",
+              "op": "eq",
+              "values": [
+                false
+              ],
+              "source": "stated",
+              "scope": "persistent",
+              "relax": "never",
+              "origin": {
+                "kind": "stated"
+              }
+            }
+          ],
+          "already_presented": [
+            {
+              "ref": "health_plan:operadora:pleno-1",
+              "times": 1,
+              "last_at": "2026-09-30T11:00:00Z",
+              "values": {
+                "monthly_price": {
+                  "v": 690,
+                  "role": "price_full",
+                  "claim_safe": true
+                }
+              }
+            },
+            {
+              "ref": "health_plan:operadora:essencial-1",
+              "times": 1,
+              "last_at": "2026-09-30T11:00:00Z",
+              "values": {
+                "monthly_price": {
+                  "v": 480,
+                  "role": "price_full",
+                  "claim_safe": true
+                }
+              }
+            }
+          ],
+          "text": "<restrições>\n- exigido: sem coparticipação; das opções mostradas, atende: pleno-1; não atende: essencial-1\n</restrições>"
+        }
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              29,
+              35
+            ],
+            "text": "R$ 690",
+            "class": "money",
+            "nature": "computed",
+            "role": "price_discounted",
+            "value": {
+              "amount": "690",
+              "unit": "BRL"
+            },
+            "verdict": "no_evidence",
+            "action": "warn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "offer.price_never_shown_is_unsupported",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "O Pleno sai por R$ 650 por mês.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "blocks": {
+        "constraints": {
+          "version": "cv_0123456789abcdef",
+          "hard": [
+            {
+              "id": "h1",
+              "attr": "health_plan.copay",
+              "op": "eq",
+              "values": [
+                false
+              ],
+              "source": "stated",
+              "scope": "persistent",
+              "relax": "never",
+              "origin": {
+                "kind": "stated"
+              }
+            }
+          ],
+          "already_presented": [
+            {
+              "ref": "health_plan:operadora:pleno-1",
+              "times": 1,
+              "last_at": "2026-09-30T11:00:00Z",
+              "values": {
+                "monthly_price": {
+                  "v": 690,
+                  "role": "price_full",
+                  "claim_safe": true
+                }
+              }
+            },
+            {
+              "ref": "health_plan:operadora:essencial-1",
+              "times": 1,
+              "last_at": "2026-09-30T11:00:00Z",
+              "values": {
+                "monthly_price": {
+                  "v": 480,
+                  "role": "price_full",
+                  "claim_safe": true
+                }
+              }
+            }
+          ],
+          "text": "<restrições>\n- exigido: sem coparticipação; das opções mostradas, atende: pleno-1; não atende: essencial-1\n</restrições>"
+        }
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              16,
+              22
+            ],
+            "text": "R$ 650",
+            "class": "money",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "650",
+              "unit": "BRL"
+            },
+            "verdict": "unsupported",
+            "action": "block"
+          }
+        ]
+      }
+    },
+    {
+      "id": "offer.shown_too_long_ago_is_stale",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "O Pleno custa R$ 690.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "blocks": {
+        "constraints": {
+          "version": "cv_0123456789abcdef",
+          "hard": [
+            {
+              "id": "h1",
+              "attr": "health_plan.copay",
+              "op": "eq",
+              "values": [
+                false
+              ],
+              "source": "stated",
+              "scope": "persistent",
+              "relax": "never",
+              "origin": {
+                "kind": "stated"
+              }
+            }
+          ],
+          "already_presented": [
+            {
+              "ref": "health_plan:operadora:pleno-1",
+              "times": 1,
+              "last_at": "2026-09-30T11:00:00Z",
+              "values": {
+                "monthly_price": {
+                  "v": 690,
+                  "role": "price_full",
+                  "claim_safe": false
+                }
+              }
+            },
+            {
+              "ref": "health_plan:operadora:essencial-1",
+              "times": 1,
+              "last_at": "2026-09-30T11:00:00Z",
+              "values": {
+                "monthly_price": {
+                  "v": 480,
+                  "role": "price_full",
+                  "claim_safe": false
+                }
+              }
+            }
+          ],
+          "text": "<restrições>\n- exigido: sem coparticipação; das opções mostradas, atende: pleno-1; não atende: essencial-1\n</restrições>"
+        }
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              14,
+              20
+            ],
+            "text": "R$ 690",
+            "class": "money",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "amount": "690",
+              "unit": "BRL"
+            },
+            "verdict": "stale",
+            "action": "warn",
+            "evidence": {
+              "ref": "health_plan:operadora:pleno-1",
+              "field": "monthly_price"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "offer.prose_is_no_evidence",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "O Pleno custa R$ 690.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "blocks": {
+        "constraints": {
+          "version": "cv_0123456789abcdef",
+          "already_presented": [
+            {
+              "ref": "health_plan:operadora:pleno-1",
+              "times": 1
+            }
+          ],
+          "text": "<restrições>\n- mostrado: Pleno por R$ 690\n</restrições>"
+        },
+        "state": {
+          "objects": [],
+          "text": "Pleno: mensalidade R$ 690"
+        }
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              14,
+              20
+            ],
+            "text": "R$ 690",
+            "class": "money",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "690",
+              "unit": "BRL"
+            },
+            "verdict": "unsupported",
+            "action": "block"
+          }
+        ]
+      }
+    },
+    {
+      "id": "state.claim_safe_field_matches",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "A mensalidade do Pleno está em R$ 700,00.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "blocks": {
+        "state": {
+          "interests": [
+            {
+              "ref": {
+                "type": "health_plan",
+                "namespace": "operadora",
+                "id": "pleno-1"
+              },
+              "reason": "presented",
+              "at": "2026-09-30T11:00:00Z",
+              "object": {
+                "ref": {
+                  "type": "health_plan",
+                  "namespace": "operadora",
+                  "id": "pleno-1"
+                },
+                "fields": {
+                  "monthly_price": {
+                    "v": 700,
+                    "logic": "yes",
+                    "status": "fresh",
+                    "claim_safe": true,
+                    "role": "price_full"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              31,
+              40
+            ],
+            "text": "R$ 700,00",
+            "class": "money",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "amount": "700",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "ref": "health_plan:operadora:pleno-1",
+              "field": "monthly_price"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "state.change_without_its_object_is_stale",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "A mensalidade do Pleno agora é R$ 700,00.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "blocks": {
+        "state": {
+          "changes_since_seen": [
+            {
+              "ref": {
+                "type": "health_plan",
+                "namespace": "operadora",
+                "id": "pleno-1"
+              },
+              "field": "monthly_price",
+              "seen": 690,
+              "now": 700
+            }
+          ]
+        }
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              31,
+              40
+            ],
+            "text": "R$ 700,00",
+            "class": "money",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "amount": "700",
+              "unit": "BRL"
+            },
+            "verdict": "stale",
+            "action": "warn",
+            "evidence": {
+              "ref": "health_plan:operadora:pleno-1",
+              "field": "monthly_price"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "constraints.value_said_backs_and_a_lost_one_does_not",
+      "contract": "examples/claim-contract/health-plan-sales.json",
+      "output": {
+        "text": "Separei planos com mensalidade de até R$ 600. Nada passa de R$ 700.",
+        "lang": "pt",
+        "context": "chat",
+        "immutable": false
+      },
+      "blocks": {
+        "constraints": {
+          "version": "cv_0123456789abcdef",
+          "hard": [
+            {
+              "id": "h1",
+              "attr": "health_plan.monthly_price",
+              "op": "lte",
+              "values": [
+                700
+              ],
+              "source": "stated",
+              "scope": "persistent",
+              "relax": "never",
+              "origin": {
+                "kind": "stated"
+              }
+            },
+            {
+              "id": "h2",
+              "attr": "health_plan.monthly_price",
+              "op": "lte",
+              "values": [
+                600
+              ],
+              "source": "stated",
+              "scope": "persistent",
+              "relax": "never",
+              "origin": {
+                "kind": "stated"
+              }
+            }
+          ],
+          "conflicts": [
+            {
+              "ids": [
+                "h1",
+                "h2"
+              ],
+              "kept": "h2",
+              "by": "current_utterance"
+            }
+          ],
+          "text": ""
+        }
+      },
+      "expect": {
+        "findings": [
+          {
+            "category": "price",
+            "span": [
+              38,
+              44
+            ],
+            "text": "R$ 600",
+            "class": "money",
+            "nature": "computed",
+            "role": null,
+            "value": {
+              "amount": "600",
+              "unit": "BRL"
+            },
+            "verdict": "matched",
+            "action": "none",
+            "evidence": {
+              "field": "monthly_price"
+            }
+          },
+          {
+            "category": "price",
+            "span": [
+              60,
+              66
+            ],
+            "text": "R$ 700",
+            "class": "money",
+            "nature": "model",
+            "role": null,
+            "value": {
+              "amount": "700",
+              "unit": "BRL"
+            },
+            "verdict": "unsupported",
+            "action": "block"
+          }
+        ]
+      }
+    }
+  ]
+}

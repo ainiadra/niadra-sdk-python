@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- The claim guard takes the offers a context read served as evidence: each object in the constraints block's
+  `already_presented` carries the numbers it was last shown with (`values`: price, total, discount,
+  installment), each with its role and whether it may be claimed now, and `block_values()` turns them into values the
+  guard checks a number against, as it checks a tool's result. An offer shown too long ago to claim makes the
+  number `stale`, and a price only the pack's text states is still `unsupported`. The constraints block's
+  `Shown` model gains `values` (`ShownValue`).
+
 ## [0.7.0] - 2026-09-30
 
 The agent core. Every turn an agent takes is recorded in its own process; what it says is checked against
