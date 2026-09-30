@@ -179,8 +179,8 @@ source = "https://openrouter.ai/models"
 [prices.niadra]
 # USD per thousand conversations or tasks, https://niadra.com/preco. The models Niadra calls are included.
 source = "https://niadra.com/preco"
-low = 5.0
-high = 15.0
+low = 2.0
+high = 3.0
 
 [prices.mem0_platform]
 # Monthly plans, https://mem0.ai/pricing: [monthly USD, add() per month, search() per month].

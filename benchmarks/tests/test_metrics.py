@@ -71,7 +71,7 @@ def test_cost_of_platform_plans_follows_the_tighter_quota(config) -> None:
     assert pro["conversations_per_month"] == 5000 and pro["memory_usd_per_1000"] == 49.8
     low = next(r for r in rows if r["variant"] == "price_low")
     # 200 tokens x 10 turns x 1000 conversations at 0.10 USD per million input tokens (GPT-6 Luna).
-    assert low["memory_usd_per_1000"] == 5.0 and low["agent_prompt_usd_per_1000"] == 0.2
+    assert low["memory_usd_per_1000"] == 2.0 and low["agent_prompt_usd_per_1000"] == 0.2
 
 
 def test_mem0_model_spend_per_add_from_the_meter(config) -> None:
