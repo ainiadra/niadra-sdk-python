@@ -58,7 +58,7 @@ export BENCH_HARNESS_IMAGE="${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}"
 if [ "${1:-}" = build-harness ]; then
   docker build -q -f "$DEPLOY/Dockerfile" \
     --build-arg HARNESS_COMMIT="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)" \
-    -t "$BENCH_HARNESS_IMAGE" "$(dirname "$ROOT")" >/dev/null
+    -t "$BENCH_HARNESS_IMAGE" "$ROOT" >/dev/null
   echo "built $BENCH_HARNESS_IMAGE"
   exit 0
 fi

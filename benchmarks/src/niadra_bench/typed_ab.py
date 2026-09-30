@@ -28,9 +28,7 @@ The cell is a local one, `niadra-infra/scripts/local-e2e.sh <niadra-back checkou
 declares the typed set's object types (`config/typed.object-types.json`) and turns on the agent features in
 its sandbox space with the bootstrap's admin account. The English cases go to a sandbox space of their own
 whose language is English (a project the harness creates once, with the same three sources), so every
-text the cell writes for them (the pack, the blocks, the slots) is in the customer's language. The SDK must
-be one that places the blocks in the turn block (this repository's source: `PYTHONPATH=../src`); the
-benchmark's pinned release does not.
+text the cell writes for them (the pack, the blocks, the slots) is in the customer's language.
 Results go to `results/typed/<date>-<id>/`; the environment is `local-cell`, and nothing here is imported by
 the site.
 """
@@ -260,9 +258,8 @@ class Cell:
     def headers(self, source: str, lang: str = "pt") -> dict[str, str]:
         return {"authorization": f"Bearer {self.spaces[lang].keys[source]}"}
 
-    def client(self, channel: str, lang: str = "pt") -> Any:
-        """The SDK's async client of the channel's source in the language's space; `Any`, since its `include`
-        and blocks are newer than the benchmark's pinned release."""
+    def client(self, channel: str, lang: str = "pt") -> AsyncNiadra:
+        """The SDK's async client of the channel's source in the language's space."""
         space = self.spaces[lang]
         source = "voice" if channel == "voice" and "voice" in space.keys else "whatsapp"
         if source not in space.clients:
@@ -748,7 +745,10 @@ async def probe(cell: Cell, subject: Subject, grader: Grader, count: Callable[[s
     for arm, include in ARMS.items():
         conversation = subject.conversation(f"probe-{arm}")
         await client.verify(
-            case.probe.verify_method, subject.level, handle=handle, conversation_id=conversation
+            case.probe.verify_method,  # type: ignore[arg-type]
+            subject.level,
+            handle=handle,
+            conversation_id=conversation,
         )
         context = await client.context(
             handle,

@@ -140,8 +140,8 @@ what a Niadra buyer buys.
   library with no server: it runs in a small service of the harness's (`deploy/systems/langmem/server.py`)
   that calls only its documented API. Honcho is AGPL: the harness runs its published image and calls its
   REST API, and no line of it is in this repository.
-- **Niadra as documented.** The SDK is this repository's source, at the commit the run names; each result
-  file records its version (`versions.niadra_sdk`). Its turn block is the live turns, the slots, then the
+- **Niadra as documented.** The SDK is the current release on PyPI (`niadra==0.7.0`); each result file
+  records its version (`versions.niadra_sdk`). Its turn block is the live turns, the slots, then the
   delta. Each exchange is a batch of `message` events with its
   `occurred_at` and a `conversation.ended`, system records are `system_event`s, the billing agent's
   records are `action`s, and every probe verifies the call or chat before `context()`, as the voice

@@ -1005,58 +1005,14 @@ wheels = [
 [[package]]
 name = "niadra"
 version = "0.7.0"
-source = { editable = "../" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "ag2", marker = "extra == 'ag2'", specifier = ">=1.1,<2" },
-    { name = "agent-framework-core", marker = "extra == 'agent-framework'", specifier = ">=1.19,<2" },
-    { name = "agno", marker = "extra == 'agno'", specifier = ">=3.0.11,<4" },
-    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=1.8,<2" },
-    { name = "azure-ai-agents", marker = "extra == 'semantic-kernel'", specifier = ">=1.2.0b3" },
-    { name = "boto3", marker = "extra == 'bedrock'", specifier = ">=1.40,<2" },
-    { name = "camel-ai", marker = "extra == 'camel'", specifier = ">=0.2.90,<0.3" },
-    { name = "crewai", marker = "python_full_version >= '3.11' and python_full_version < '3.14' and extra == 'crewai'", specifier = ">=1.15,<2" },
-    { name = "cryptography", marker = "extra == 'gateway'", specifier = ">=42" },
-    { name = "dspy", marker = "extra == 'dspy'", specifier = ">=3.4,<4" },
-    { name = "google-adk", marker = "extra == 'google-adk'", specifier = ">=2.9,<3" },
-    { name = "google-genai", marker = "extra == 'google-genai'", specifier = ">=2.25,<3" },
-    { name = "haystack-ai", marker = "extra == 'haystack'", specifier = ">=3.2,<4" },
-    { name = "httpx", specifier = ">=0.27,<1" },
-    { name = "langchain", marker = "extra == 'langgraph'", specifier = ">=1.4,<2" },
-    { name = "langchain-core", marker = "extra == 'langchain'", specifier = ">=1.6,<2" },
-    { name = "langchain-core", marker = "extra == 'langgraph'", specifier = ">=1.6,<2" },
-    { name = "langgraph", marker = "extra == 'langgraph'", specifier = ">=1.2,<2" },
-    { name = "litellm", marker = "extra == 'litellm'", specifier = ">=1.102,<2" },
-    { name = "livekit-agents", marker = "extra == 'livekit'", specifier = ">=1.8.3,<2" },
-    { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.14.25,<0.15" },
-    { name = "openai", marker = "extra == 'openai'", specifier = ">=1.40,<4" },
-    { name = "openai-agents", marker = "extra == 'openai-agents'", specifier = ">=0.22.3,<1" },
-    { name = "opentelemetry-sdk", marker = "extra == 'otel'", specifier = ">=1.20,<2" },
-    { name = "pipecat-ai", marker = "python_full_version >= '3.11' and extra == 'pipecat'", specifier = ">=1.11.0,<2" },
-    { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.1,<4" },
-    { name = "pydantic", specifier = ">=2.6,<3" },
-    { name = "pydantic-ai-slim", marker = "extra == 'pydantic-ai'", specifier = ">=2.49,<3" },
-    { name = "semantic-kernel", marker = "extra == 'semantic-kernel'", specifier = ">=1.44.1,<2" },
-    { name = "strands-agents", marker = "extra == 'strands'", specifier = ">=1.57,<2" },
-]
-provides-extras = ["livekit", "pipecat", "elevenlabs", "vapi", "whatsapp", "twilio", "openai", "openai-agents", "langchain", "langgraph", "anthropic", "bedrock", "google-genai", "litellm", "google-adk", "strands", "pydantic-ai", "llamaindex", "crewai", "agno", "agent-framework", "retell", "semantic-kernel", "haystack", "camel", "dspy", "ag2", "otel", "gateway", "postgres"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "cryptography", specifier = ">=42" },
-    { name = "hypothesis", specifier = ">=6.100" },
-    { name = "mypy", specifier = ">=1.13" },
-    { name = "opentelemetry-sdk", specifier = ">=1.20,<2" },
-    { name = "psycopg", extras = ["binary"], specifier = ">=3.1,<4" },
-    { name = "pytest", specifier = ">=8.3" },
-    { name = "pytest-asyncio", specifier = ">=0.24" },
-    { name = "respx", specifier = ">=0.21" },
-    { name = "ruff", specifier = ">=0.8" },
+sdist = { url = "https://files.pythonhosted.org/packages/b5/83/d5753350a1c1f7715d28b104381b397173dd5c6d9a5f7299bf8628e0998e/niadra-0.7.0.tar.gz", hash = "sha256:06a64f6fdea56bd40a89487cfe3bc7df50e10dd053f589ad7c0c48b8cd34f413", size = 1339733, upload-time = "2026-09-30T02:13:25.305Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b0/c9/706470bfe2c4493bbf21e02a37495ee79d7a9b4f628520ea2c3e3f9ccea3/niadra-0.7.0-py3-none-any.whl", hash = "sha256:40d91a83dc821f13a72f23b3f123ea1c08823023b3504c13341b1803031fc1c3", size = 469907, upload-time = "2026-09-30T02:13:26.553Z" },
 ]
 
 [[package]]
@@ -1092,7 +1048,7 @@ requires-dist = [
     { name = "en-core-web-sm", marker = "extra == 'mem0'", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" },
     { name = "httpx", specifier = ">=0.27,<1" },
     { name = "mem0ai", extras = ["nlp"], marker = "extra == 'mem0'", specifier = "==2.2.0" },
-    { name = "niadra", editable = "../" },
+    { name = "niadra", specifier = "==0.7.0" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'mem0'", specifier = ">=3.2.8,<4" },
     { name = "psycopg-pool", marker = "extra == 'mem0'", specifier = ">=3.2.6,<4" },
     { name = "pydantic", specifier = ">=2.6,<3" },
