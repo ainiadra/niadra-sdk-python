@@ -340,7 +340,8 @@ metric 8 has a third line, `encode`: `POST /v1/embed` on `NIADRA_MODELS_URL` wit
 questions, at the same rates (system `embedder`, path `host`: the copy on the harness's host, not the
 cell's pod). Niadra's search line also keeps the steps its server names in `Server-Timing` (`server_timing`,
 p50 and p95 per step): today only `app`, the whole request; a step the server adds later, such as the
-encoding, shows there with no change here.
+encoding, shows there with no change here. Niadra's ingestion line keeps them too: `app` against the
+client's time tells what the path (network, TLS, the ingress) adds to what the server spent.
 
 Mem0's `add_infer` loop costs model spend (the extraction runs on every call) and leaves its server
 busy with the requests the client gave up on, so it runs last, after `add_raw`, with a pause of

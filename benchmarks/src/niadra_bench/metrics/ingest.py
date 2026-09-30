@@ -37,7 +37,7 @@ from niadra_bench.config import IngestSettings
 from niadra_bench.dataset.model import Case
 from niadra_bench.identity import Identities
 from niadra_bench.metrics import latency
-from niadra_bench.metrics.operations import Operation, measure, timed
+from niadra_bench.metrics.operations import Operation, measure, plain, recording, timed
 from niadra_bench.net import TransportFactory, niadra_routes
 from niadra_bench.targets.mem0 import Mem0RestTarget
 from niadra_bench.targets.niadra import NiadraTarget
@@ -101,14 +101,18 @@ def niadra_operation(
     prefix = f"bench-{tag}-ing-{path}"
     # One counter for the warm-ups and every rate: each call is a new exchange, `turns` per conversation.
     sequence = itertools.count()
+    # The server's own steps (`Server-Timing`), so the line tells the server's time from the path's.
+    timings: dict[str, list[float]] = {}
+    classify = recording(plain, timings)
 
     async def call(client: httpx.AsyncClient, _n: int) -> tuple[float, str]:
         seq = next(sequence)
         case, ids = pairs[(seq // turns) % len(pairs)]
         items = niadra_items(case, ids, f"{prefix}-conv-{seq // turns}", seq, prefix)
-        return await timed(client.post(url, json={"items": items}, headers=headers), 200)
+        return await timed(client.post(url, json={"items": items}, headers=headers), 200, classify)
 
-    return Operation(latency.Probe("niadra", path, call, transport), "batch", "POST /v1/batch")
+    probe = latency.Probe("niadra", path, call, transport)
+    return Operation(probe, "batch", "POST /v1/batch", timings=timings)
 
 
 def mem0_operation(
