@@ -57,7 +57,7 @@ BLOCK = {
 ran: list[dict[str, Any]] = []
 
 
-@tool("search_products", binding=SEARCH, dry_run=True)
+@tool("search_products", dry_run=True)
 def search_products(not_color: list[str] | str | None = None, color: str | None = None) -> dict[str, Any]:
     ran.append({"not_color": not_color, "color": color})
     refused = {not_color} if isinstance(not_color, str) else set(not_color or ())
@@ -75,6 +75,12 @@ def app() -> MockApp:
     app = MockApp()
     app.cell.features.update({"signals", "measurement"})
     app.cell.agent_features.constrain(CUSTOMER, BLOCK)
+    # The space binds each tool in its configuration; the SDK profile serves the bindings.
+    app.cell.agent_features.tool_bindings = [
+        SEARCH,
+        {**SEARCH, "tool": "reserve"},
+        {**SEARCH, "tool": "hold", "capabilities": {}},
+    ]
     return app
 
 
@@ -93,7 +99,9 @@ def niadra(app: MockApp) -> Iterator[Niadra]:
 
 
 def _recorded(niadra: Niadra, call: Any, *, engaged: str | None = None) -> str:
-    """A turn that read the block, searched with it rendered, and showed the result: the person engaged."""
+    """A turn that read the block, searched with it rendered, and showed the result: the person engaged. The
+    client read its SDK profile first, which serves the tool's binding the call is measured through."""
+    niadra.profile()
     build = niadra.build(prompts={"core": "v16"}, model="model-a")
     with niadra.conversation(f"c-{uuid4().hex[:6]}", subject=CUSTOMER, agent_id="stylist") as conversation:
         conversation.customer("Quero um vestido, mas não vermelho.")
@@ -151,22 +159,26 @@ def test_a_call_the_element_did_not_touch_is_no_case(app: MockApp, niadra: Niadr
 
 
 def test_a_tool_that_is_not_safe_runs_dry_or_not_at_all(app: MockApp, niadra: Niadra) -> None:
-    bound = tool("reserve", binding={**SEARCH, "tool": "reserve"})(reserve)
-    turn = _recorded(niadra, lambda: bound(not_color="red"))
+    turn = _recorded(niadra, lambda: tool("reserve")(reserve)(not_color="red"))
     ran.clear()
-    run = Counterfactual(
-        niadra, {"reserve": reserve}, bindings={"reserve": {**SEARCH, "tool": "reserve"}}
-    ).run([turn], tool="reserve", element="hard")
+    run = Counterfactual(niadra, {"reserve": reserve}).run([turn], tool="reserve", element="hard")
     assert run.cases[0]["dry_run"] is True
     assert all(r["dry_run"] for r in ran)
-    no_dry = {**SEARCH, "tool": "reserve", "capabilities": {}}
+    # The space binds `hold` with no dry run.
+    turn = _recorded(niadra, lambda: tool("hold")(reserve)(not_color="red"))
     ran.clear()
-    run = Counterfactual(niadra, {"reserve": reserve}, bindings={"reserve": no_dry}).run(
-        [turn], tool="reserve", element="hard"
-    )
+    run = Counterfactual(niadra, {"hold": reserve}).run([turn], tool="hold", element="hard")
     assert run.cases == [{"turn_id": turn, "call_id": "k1", "status": "no_dry_run", "dry_run": False}]
     assert ran == []
     assert run.report["skipped"] == {"no_dry_run": 1}
+
+
+def test_a_tool_the_space_does_not_bind_is_refused_before_any_call(app: MockApp, niadra: Niadra) -> None:
+    turn = _recorded(niadra, lambda: search_products(not_color=["red"]))
+    ran.clear()
+    with pytest.raises(NiadraError, match="binds no tool book_visit"):
+        Counterfactual(niadra, {"book_visit": search_products}).run([turn], tool="book_visit", element="hard")
+    assert ran == []
 
 
 def test_a_failing_tool_and_nothing_to_report(app: MockApp, niadra: Niadra) -> None:
@@ -175,9 +187,9 @@ def test_a_failing_tool_and_nothing_to_report(app: MockApp, niadra: Niadra) -> N
     def broken(**_: Any) -> dict[str, Any]:
         raise RuntimeError("down")
 
-    run = Counterfactual(
-        niadra, {"search_products": broken}, bindings={"search_products": SEARCH}, safe=["search_products"]
-    ).run([turn], tool="search_products", element="hard")
+    run = Counterfactual(niadra, {"search_products": broken}, safe=["search_products"]).run(
+        [turn], tool="search_products", element="hard"
+    )
     assert run.cases[0]["status"] == "tool_error"
     with pytest.raises(NiadraError):
         Counterfactual(niadra, {"search_products": search_products}).run(

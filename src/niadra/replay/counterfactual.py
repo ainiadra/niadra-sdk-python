@@ -20,9 +20,9 @@ only positions and overlaps to `POST /v1/measure/counterfactual-runs`, which ans
 limits.
 
 The records come through the replay case route, so only turns that can be replayed are read. The element is
-`constraints` (the whole block), `hard`, `size` (its attributes) or `exclude`. The binding comes from
-`bindings=`, the tool's `@niadra.tool(binding=...)` or the SDK profile; a result's objects are read with the
-binding's `results`, or else with the tool's `provenance`.
+`constraints` (the whole block), `hard`, `size` (its attributes) or `exclude`. The binding is the one the
+space's `tool-bindings` document gives the tool for this source, from the SDK profile; a result's objects are
+read with the binding's `results`, or else with the tool's `provenance`.
 """
 
 from __future__ import annotations
@@ -93,13 +93,11 @@ class _Runner:
         self,
         tools: Mapping[str, Tool],
         read: Callable[[str], bytes] | None,
-        bindings: Mapping[str, Mapping[str, Any]],
         safe: Iterable[str],
         profile: Callable[[], Any],
     ) -> None:
         self._tools = dict(tools)
         self._read = read
-        self._bindings = dict(bindings)
         self._safe = set(safe)
         self._profile = profile
 
@@ -115,6 +113,8 @@ class _Runner:
     ) -> CounterfactualRun:
         if tool not in self._tools:
             raise NiadraError(f"no function for the tool {tool}: pass it in tools")
+        if self._served(tool) is None:
+            raise NiadraError(f"the space binds no tool {tool} for this key's source: see its tool-bindings")
         if not 1 <= k <= MAX_K:
             raise ValueError(f"k must be 1 to {MAX_K}")
         ids = list(turn_ids)
@@ -156,16 +156,11 @@ class _Runner:
         base = {"turn_id": record["turn_id"], "call_id": call["call_id"]}
         fn = self._tools[tool]
         wrapped = recorded(fn)
-        raw = (
-            self._bindings.get(tool)
-            or (wrapped.binding if wrapped is not None else None)
-            or self._served(tool)
-        )
+        raw = self._served(tool)
+        assert raw is not None  # `run` refuses a tool the space does not bind
         try:
             block = ConstraintsBlock.model_validate(self._value(record, _block_blob(record, call)))
             args = dict(self._value(record, call.get("args")))
-            if raw is None:
-                raise BlobError("the tool has no binding")
         except (BlobError, ValueError, TypeError):
             return {**base, "status": "infrastructure_error", "dry_run": False}
         families = self._families()
@@ -254,8 +249,8 @@ class _Runner:
 class Counterfactual:
     """The tool counterfactual with the sync client. `tools` maps each tool's name to the company's function,
     called with the recorded arguments as keywords; `read(pointer)` reads values kept by pointer (by default
-    the client's content resolver); `bindings` gives a tool's binding; `safe` names tools that may run again
-    as they are."""
+    the client's content resolver); `safe` names tools that may run again as they are. Each tool's binding is
+    the one the SDK profile serves."""
 
     def __init__(
         self,
@@ -263,12 +258,11 @@ class Counterfactual:
         tools: Mapping[str, Tool],
         *,
         read: Callable[[str], bytes] | None = None,
-        bindings: Mapping[str, Mapping[str, Any]] | None = None,
         safe: Iterable[str] = (),
     ) -> None:
         self._niadra = niadra
         reader = read if read is not None else (niadra.content.read if niadra.content.registered else None)
-        self._runner = _Runner(tools, _strict(reader), bindings or {}, safe, lambda: niadra._profile.profile)
+        self._runner = _Runner(tools, _strict(reader), safe, lambda: niadra._profile.profile)
 
     def run(
         self,
@@ -300,12 +294,11 @@ class AsyncCounterfactual:
         tools: Mapping[str, Tool],
         *,
         read: Callable[[str], bytes] | None = None,
-        bindings: Mapping[str, Mapping[str, Any]] | None = None,
         safe: Iterable[str] = (),
     ) -> None:
         self._niadra = niadra
         reader = read if read is not None else (niadra.content.read if niadra.content.registered else None)
-        self._runner = _Runner(tools, _strict(reader), bindings or {}, safe, lambda: niadra._profile.profile)
+        self._runner = _Runner(tools, _strict(reader), safe, lambda: niadra._profile.profile)
 
     async def run(
         self,

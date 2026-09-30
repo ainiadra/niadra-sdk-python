@@ -134,6 +134,23 @@ def test_the_model_gets_the_proposal_as_the_key_may_read_it(app: MockApp) -> Non
 
 def test_the_counterfactual_of_the_hard_constraints(app: MockApp, niadra: Niadra) -> None:
     example = _example("tool_counterfactual")
+    # The binding the example's docstring shows, declared by the space and served in the SDK profile.
+    app.cell.agent_features.tool_bindings = [
+        {
+            "tool": "search_products",
+            "args": [{"attr": "item_variant.color", "param": "color", "negation": {"param": "not_color"}}],
+            "results": [
+                {
+                    "path": "cards[*]",
+                    "type": "item_variant",
+                    "namespace": "store",
+                    "id": "variant_id",
+                    "fields": {"color": "color"},
+                }
+            ],
+        }
+    ]
+    niadra.profile()
     app.cell.agent_features.constrain(
         CUSTOMER,
         {

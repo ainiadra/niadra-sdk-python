@@ -15,6 +15,12 @@ All notable changes to this project are documented here. The format follows
   number `stale`, and a price only the pack's text states is still `unsupported`. The constraints block's
   `Shown` model gains `values` (`ShownValue`).
 
+### Removed
+
+- `@niadra.tool(binding=...)`, `Counterfactual(bindings=...)` and `niadra counterfactual --bindings`: a tool's
+  binding comes only from the space's `tool-bindings` document, which the SDK profile serves. A counterfactual
+  for a tool the space does not bind stops before calling it.
+
 ## [0.7.0] - 2026-09-30
 
 The agent core. Every turn an agent takes is recorded in its own process; what it says is checked against
