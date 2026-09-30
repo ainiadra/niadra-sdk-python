@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- A route or field the API deprecates answers with the `Deprecation`, `Sunset` and `Link` headers; the
+  client logs one warning per deprecated route per process on the `niadra` logger, with the two dates and the
+  migration note, never the path.
+
 ## [0.9.0] - 2026-09-30
 
 ### Added

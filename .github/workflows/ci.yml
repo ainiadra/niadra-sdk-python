@@ -41,6 +41,18 @@ jobs:
       - name: The examples, the Langflow components and the Dify plugin compile
         run: uv run python -m compileall -q examples integrations-extras
 
+  # Known vulnerabilities in every version the two locks pin, extras and the benchmark harness included.
+  # The findings no release fixes yet are listed, each with its expiry date, in scripts/audit.py.
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv run scripts/audit.py uv.lock benchmarks/uv.lock
+
   # One job per framework extra, on the lowest and highest Python it supports: installs only that
   # framework, and fails if its tests were skipped (the framework did not import).
   integration:

@@ -18,6 +18,10 @@ The rules:
   on a worker thread in the sync transport, by cancellation in the async one. Batches of the
   background queue carry no budget and keep httpx's per-phase timeouts.
 
+A route or field the API deprecates answers with `Deprecation` (RFC 9745), `Sunset` (RFC 8594) and a
+`Link` to its migration note. The transport logs one warning per deprecated route per process, with the
+dates and the link, and never the path: a path can carry an id.
+
 Media bytes go to a pre-signed storage URL through `upload()`, under the same retry rules but
 without the source key: the URL itself is the credential, and the key must never leave for a
 host other than the API. The upload carries exactly the headers the reservation named, which
@@ -30,11 +34,15 @@ import asyncio
 import concurrent.futures
 import functools
 import json
+import logging
 import random
+import re
 import threading
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import httpx
@@ -48,6 +56,12 @@ USER_AGENT = f"niadra-python/{__version__}"
 # Threads that carry budgeted attempts in the sync transport. They start on demand, and an
 # attempt that outlives its budget holds one only until httpx's own phase timeouts end it.
 ATTEMPT_WORKERS = 64
+VERSIONING_DOCS = "https://docs.niadra.com/en/security/api-versioning"
+
+logger = logging.getLogger("niadra")
+_DEPRECATION_LINK = re.compile(r'<([^>]*)>[^,]*;\s*rel="?deprecation"?', re.IGNORECASE)
+_deprecations_seen: set[tuple[str, str]] = set()
+_deprecations_lock = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -154,6 +168,44 @@ def _problem(body: bytes) -> Problem | None:
         return None
 
 
+def warn_if_deprecated(method: str, path: str, headers: httpx.Headers) -> None:
+    """One warning per deprecated route per process. The API links each deprecated route to its own
+    migration note, so the note (the path, when the answer links none) tells the routes apart."""
+    since = headers.get("deprecation")
+    if since is None:
+        return
+    links = _DEPRECATION_LINK.findall(headers.get("link", ""))
+    key = (method, " ".join(links) or path)
+    with _deprecations_lock:
+        if key in _deprecations_seen:
+            return
+        _deprecations_seen.add(key)
+    sunset = headers.get("sunset")
+    logger.warning(
+        "niadra: the API deprecated a %s route this client calls, since %s; it stops answering on %s. See %s",
+        method,
+        _deprecated_since(since),
+        _sunset_day(sunset) if sunset else "a date not announced yet",
+        ", ".join(links) or VERSIONING_DOCS,
+    )
+
+
+def _deprecated_since(value: str) -> str:
+    """`@<unix time>` (RFC 9745) as a day; anything else as sent."""
+    try:
+        seconds = int(value.strip().removeprefix("@"))
+        return datetime.fromtimestamp(seconds, tz=timezone.utc).date().isoformat()
+    except (ValueError, OverflowError, OSError):
+        return value
+
+
+def _sunset_day(value: str) -> str:
+    try:
+        return parsedate_to_datetime(value).date().isoformat()
+    except (TypeError, ValueError):
+        return value
+
+
 def _decode(response: httpx.Response) -> Any:
     if not response.content:
         return None
@@ -217,6 +269,7 @@ class SyncTransport:
             except httpx.HTTPError as exc:
                 decision = state.on_exception(exc)
             else:
+                warn_if_deprecated(request.method, request.path, response.headers)
                 outcome = state.on_response(response.status_code, response.headers, response.content)
                 if outcome is None:
                     return _decode(response)
@@ -331,6 +384,7 @@ class AsyncTransport:
             except httpx.HTTPError as exc:
                 decision = state.on_exception(exc)
             else:
+                warn_if_deprecated(request.method, request.path, response.headers)
                 outcome = state.on_response(response.status_code, response.headers, response.content)
                 if outcome is None:
                     return _decode(response)

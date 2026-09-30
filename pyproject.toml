@@ -149,12 +149,17 @@ warn_unused_ignores = false
 disallow_untyped_decorators = false
 
 [tool.uv]
+# Floors for packages a framework extra pulls in, above the versions with known vulnerabilities
+# (scripts/audit.py).
+constraint-dependencies = ["litellm>=1.96.2"]
 # Frameworks that pin incompatible versions of a shared dependency. Each is tested in its own job.
 conflicts = [
   [{ extra = "pipecat" }, { extra = "crewai" }],
   [{ extra = "livekit" }, { extra = "openai-agents" }],
   [{ extra = "crewai" }, { extra = "openai-agents" }],
   [{ extra = "litellm" }, { extra = "openai-agents" }],
+  # DSPy runs on LiteLLM, and the LiteLLM floor below does not install next to the Agents SDK.
+  [{ extra = "dspy" }, { extra = "openai-agents" }],
   # CAMEL-AI pins pydantic 2.12.0 or older; these want a newer one.
   [{ extra = "camel" }, { extra = "google-genai" }],
   [{ extra = "camel" }, { extra = "google-adk" }],
