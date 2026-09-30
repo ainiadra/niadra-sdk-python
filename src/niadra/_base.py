@@ -407,7 +407,8 @@ class ClientCore:
     @staticmethod
     def parse_context(data: Any, started: float) -> Context:
         context = Context.model_validate(data)
-        return context.model_copy(update={"elapsed_ms": round((time.monotonic() - started) * 1000, 1)})
+        elapsed_ms = round((time.monotonic() - started) * 1000, 1)
+        return context.model_copy(update={"elapsed_ms": elapsed_ms, "age_ms": 0.0})
 
     def search_http(
         self,

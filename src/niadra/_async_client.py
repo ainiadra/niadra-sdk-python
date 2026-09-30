@@ -280,11 +280,18 @@ class AsyncNiadra:
             )
         if self._core.enabled and self._suppressions.due():
             if self._suppressions.held:
-                if self._suppressions_task is None or self._suppressions_task.done():
-                    self._suppressions_task = self._spawn(self._read_suppressions(self._core.timeouts.write))
+                self._keep_suppressions()
             else:
                 await self._read_suppressions(self._core.timeouts.navigation)
         return self._suppressions.may_contact(target, purpose, channel=channel, fail_open=fail_open)
+
+    def _keep_suppressions(self) -> None:
+        """Reads the local copy of the suppression list in the background when it is due: a check that Niadra
+        does not answer falls back on it, so an opt-out holds through an outage."""
+        if not self._core.enabled or not self._suppressions.due():
+            return
+        if self._suppressions_task is None or self._suppressions_task.done():
+            self._suppressions_task = self._spawn(self._read_suppressions(self._core.timeouts.write))
 
     async def _read_suppressions(self, budget: float) -> None:
         copy, deadline = self._suppressions, time.monotonic() + budget

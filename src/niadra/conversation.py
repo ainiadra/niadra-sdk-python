@@ -573,6 +573,8 @@ class _SyncSession(_Session):
             return played.checked(request)
         if not self._client.enabled:
             return coordinator.failed(request, self._checked, fail_open)
+        if direction == "outbound":
+            self._client._keep_suppressions()
         try:
             data = self._client._transport.request(coordinator.check_http(request, timeout or CHECK_BUDGET))
         except Exception as error:
@@ -765,6 +767,8 @@ class _AsyncSession(_Session):
             return played.checked(request)
         if not self._client.enabled:
             return coordinator.failed(request, self._checked, fail_open)
+        if direction == "outbound":
+            self._client._keep_suppressions()
         try:
             data = await self._client._transport.request(
                 coordinator.check_http(request, timeout or CHECK_BUDGET)

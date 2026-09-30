@@ -29,8 +29,11 @@ class Context(ContextResponse):
     - `network`: a fresh answer from the API.
     - `cache`: the conversation cache, still within its TTL (or revalidated with an ETag).
     - `stale`: past the TTL but within the stale window; a refresh is running in the background.
-    - `last_good`: the API failed and this is the last pack that worked for the same key.
+    - `last_good`: the API failed and this is the last pack that worked for the same key, `degraded`.
     - `empty`: nothing to serve. `error` says why, unless the subject is simply in a holdout group.
+
+    `age_ms` is how long ago Niadra sent or confirmed the pack served: 0 for an answer just received, growing
+    while a cached pack is served, and None when there is no pack.
 
     An empty pack is still a valid answer: inject nothing and carry on.
     """
@@ -44,6 +47,7 @@ class Context(ContextResponse):
     origin: Origin = "network"
     error: str | None = None
     elapsed_ms: float | None = None
+    age_ms: float | None = None
 
     @classmethod
     def empty(cls, *, requested: Verification = Verification.V0, error: str | None = None) -> Context:

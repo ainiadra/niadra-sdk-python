@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `Context.age_ms`: how long ago Niadra sent or confirmed the pack a read served. It is 0 for an answer just
+  received and grows while the cache serves the pack (`cache`, `stale`, or `last_good` with Niadra down).
+- The chaos test (`tests/test_chaos.py`): Niadra's process killed, its network gone silent, answering 503 and
+  answering past the deadline, in the middle of a conversation.
+
+### Fixed
+
+- A check about an outbound contact keeps the local copy of the suppression list, read in the background once
+  a minute. Before, only `may_contact()` read it, so an agent that only called `check()` had no copy when Niadra
+  went down, and a purpose that fails open (`service`, `transactional`) went out to a customer who had opted
+  out of it.
+
 ## [0.8.0] - 2026-09-30
 
 ### Added
