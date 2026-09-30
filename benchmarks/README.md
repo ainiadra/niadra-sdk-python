@@ -951,6 +951,22 @@ against the first run) read, per side, judge on every case with the 95% interval
 - **Noise:** 4 of the 18 pairs whose two sides read identical bytes (the effect cases) changed verdict.
 - **Cost:** US$ 0.046 for the agent and the judge (1008 calls) and US$ 0.025 for the cell's models.
 
+Two reruns after the claim guard fixes, both on a local cell of `local-e2e.sh` with three repetitions and the
+same levels, measure the guard; the answers change from run to run, so the counts are of each run's answers:
+
+- `results/typed/2026-09-29-b40bd1` (niadra-back 0f4d260, SDK 8add479): the guard takes every value the blocks
+  placed in the turn block as evidence (the interests' objects, what changed since seen, the constraints), and
+  reads a hedged number as no claim (the claim contract spec, 5.4). With the blocks it acted on 6 correct
+  answers, down from 46: 3 give an offer's price from the conversation, and 3 hedge in words the rule did not
+  know yet ("$689.00, not $612.00", "the previous amount").
+- `results/typed/2026-09-29-569224` (niadra-back 5bfb8e8, SDK ba187e8, with the negation rule): with the blocks
+  it acted on 8 correct answers, of 94. 7 give an offer's price ("o Pleno, por R$ 690") that only the
+  conversation states: the pack now carries the offers, so more answers name them (hard constraint 38.9% with
+  the blocks), and a price in the pack is no evidence for the guard, which reads only the blocks and the
+  tools. 1 hedges in words the rule does not know ("was what you saw earlier"). Without the blocks it acted on
+  3 correct answers. Judge on every case: 35.7% without, 74.6% [66, 81] with.
+- **Cost of both:** US$ 0.093 for the agent and the judge (2016 calls) and US$ 0.032 for the cell's models.
+
 ## Ranking gate
 
 No change to how the memory picks and orders what a pack and its slots carry enters niadra-back's `main` without its
