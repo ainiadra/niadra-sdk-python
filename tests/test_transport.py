@@ -156,3 +156,72 @@ async def test_async_transport_follows_the_same_rules(respx_mock: respx.MockRout
     assert await transport.request(post()) == {"ok": 1}
     assert route.call_count == 3
     await transport.aclose()
+
+
+DEPRECATED = {
+    "deprecation": "@1790812800",
+    "sunset": "Sat, 02 Oct 2027 00:00:00 GMT",
+    "link": '<https://docs.niadra.com/en/changelog#old-route>; rel="deprecation"',
+}
+
+
+@pytest.fixture
+def fresh_deprecations(monkeypatch: pytest.MonkeyPatch) -> None:
+    from niadra import _transport
+
+    monkeypatch.setattr(_transport, "_deprecations_seen", set())
+
+
+@pytest.mark.usefixtures("fresh_deprecations")
+def test_a_deprecated_route_warns_once_per_process_with_its_dates_and_link(
+    respx_mock: respx.MockRouter, transport: SyncTransport, caplog: pytest.LogCaptureFixture
+) -> None:
+    respx_mock.get(url__regex=rf"{BASE}/v1/old/.*").respond(200, json={}, headers=DEPRECATED)
+    respx_mock.get(f"{BASE}/v1/new").respond(200, json={})
+    with caplog.at_level("WARNING", logger="niadra"):
+        for item in ("a-customer-id", "another-id"):
+            transport.request(Request("GET", f"/v1/old/{item}"))
+        transport.request(Request("GET", "/v1/new"))
+    warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    assert warnings == [
+        "niadra: the API deprecated a GET route this client calls, since 2026-10-01; it stops answering"
+        " on 2027-10-02. See https://docs.niadra.com/en/changelog#old-route"
+    ]
+    assert "customer-id" not in warnings[0]
+
+
+@pytest.mark.usefixtures("fresh_deprecations")
+def test_each_deprecated_route_warns_on_its_own_even_on_an_error(
+    respx_mock: respx.MockRouter, transport: SyncTransport, caplog: pytest.LogCaptureFixture
+) -> None:
+    other = {**DEPRECATED, "link": '<https://docs.niadra.com/en/changelog#other>; rel="deprecation"'}
+    respx_mock.get(f"{BASE}/v1/old").respond(200, json={}, headers=DEPRECATED)
+    respx_mock.post(f"{BASE}/v1/other").respond(422, json=PROBLEM, headers=other)
+    with caplog.at_level("WARNING", logger="niadra"):
+        transport.request(Request("GET", "/v1/old"))
+        with pytest.raises(UnprocessableEntityError):
+            transport.request(Request("POST", "/v1/other", json={}))
+    links = [r.getMessage().rsplit(" ", 1)[-1] for r in caplog.records if r.levelname == "WARNING"]
+    assert links == [
+        "https://docs.niadra.com/en/changelog#old-route",
+        "https://docs.niadra.com/en/changelog#other",
+    ]
+
+
+@pytest.mark.usefixtures("fresh_deprecations")
+async def test_the_async_transport_warns_too(
+    respx_mock: respx.MockRouter, caplog: pytest.LogCaptureFixture
+) -> None:
+    from niadra._transport import AsyncTransport
+
+    respx_mock.get(f"{BASE}/v1/old").respond(200, json={}, headers={"deprecation": "@1790812800"})
+    transport = AsyncTransport(BASE, KEY)
+    with caplog.at_level("WARNING", logger="niadra"):
+        await transport.request(Request("GET", "/v1/old"))
+        await transport.request(Request("GET", "/v1/old"))
+    await transport.aclose()
+    warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    assert warnings == [
+        "niadra: the API deprecated a GET route this client calls, since 2026-10-01; it stops answering"
+        " on a date not announced yet. See https://docs.niadra.com/en/security/api-versioning"
+    ]
