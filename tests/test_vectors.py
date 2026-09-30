@@ -42,7 +42,7 @@ from niadra.coordination.token import ContactTokenError, verify_contact_token
 from niadra.exposure import ExposureTokenError, exposure_token, parse_exposure_token
 from niadra.introspect import DeriveError, changes, derive
 from niadra.models.signals import ConstraintsBlock
-from niadra.models.state import ClaimContractSummary
+from niadra.models.state import ClaimContractSummary, StateView
 from niadra.replay.counterfactual import overlap_at_k
 from niadra.state.expr import (
     Calendar,
@@ -60,6 +60,8 @@ from niadra.state.expr import (
     unknown,
 )
 from niadra.state.logic import Logic
+from niadra.turns.capture import TurnFrame
+from niadra.turns.claims import block_values, evidence
 from niadra.turns.digest import canonical, digest
 from niadra_mock.replay import scenario_verdict
 
@@ -346,6 +348,38 @@ def _claim_detect(case: dict[str, Any]) -> None:
     assert got == case["expect"]["findings"]
 
 
+def _claim_evidence(case: dict[str, Any]) -> None:
+    contract = ClaimContractSummary.model_validate(json.loads((SPEC / case["contract"]).read_text()))
+    out, blocks = case["output"], case["blocks"]
+    assert set(out) <= {"text", "lang", "context", "immutable", "agent"}, sorted(out)
+    assert set(blocks) <= {"state", "constraints"}, sorted(blocks)
+    state = StateView.model_validate(blocks["state"]) if "state" in blocks else None
+    constraints = ConstraintsBlock.model_validate(blocks["constraints"]) if "constraints" in blocks else None
+    frame = TurnFrame(None, agent=out.get("agent"))
+    frame.observe_state(block_values(state, constraints))
+    spoken = [m for m in mentions(out["text"], out["lang"]) if m.cls != "label"]
+    output = Output(out["text"], out["lang"], out["context"], out["immutable"], out.get("agent"))
+    got = []
+    for f in check(contract.categories, output, evidence(frame, contract, spoken, out["lang"])):
+        item: dict[str, Any] = {
+            "category": f.category,
+            "span": [f.start, f.end],
+            "text": out["text"][f.start : f.end],
+        }
+        if f.cls is not None:
+            item |= {
+                "class": f.cls,
+                "nature": f.nature,
+                "role": f.role,
+                "value": dict(f.value) if f.value else None,
+            }
+        item |= {"verdict": f.verdict, "action": f.action}
+        if isinstance(f.evidence, TurnValue):
+            item["evidence"] = {k: v for k, v in (("ref", f.evidence.ref), ("field", f.evidence.name)) if v}
+        got.append(item)
+    assert got == case["expect"]["findings"]
+
+
 def _claim_anchor(case: dict[str, Any]) -> None:
     expect = case["expect"]
     quote = normalize(case["quote"])
@@ -513,6 +547,9 @@ EXPECTED: dict[str, Expected] = {
     ),
     "claim-detect.v0": Expected(
         frozenset({"id", "contract", "output", "turn", "expect"}), frozenset({"findings"}), _claim_detect
+    ),
+    "claim-evidence.v0": Expected(
+        frozenset({"id", "contract", "output", "blocks", "expect"}), frozenset({"findings"}), _claim_evidence
     ),
     "claim-anchor.v0": Expected(
         frozenset({"id", "quote", "document", "expect"}),

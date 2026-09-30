@@ -208,10 +208,31 @@ class Rendered(ResponseModel):
     tool: ShortStr
 
 
+class ShownValue(ResponseModel):
+    """A number an object showed the subject, as they were shown it."""
+
+    claim_safe: bool = Field(
+        description=(
+            "Whether it may be claimed now: its type allows claims of the field, and no more than the "
+            "field's age for claims has passed since it was shown."
+        )
+    )
+    role: ShortStr | None = Field(default=None, description="The field's role, for claims.")
+    v: float
+
+
 class Shown(ResponseModel):
     last_at: datetime | None = None
     ref: ObjectKey
     times: int = Field(ge=1)
+    values: dict[str, ShownValue] = Field(
+        default_factory=dict,
+        description=(
+            "The numbers the object was last shown with (a price, a total, a discount, an installment),"
+            " by field: each field its type declares as `money`, `percent` or `number`. A claim check "
+            "takes them as evidence for the offer an agent quotes back."
+        ),
+    )
 
 
 class SoftConstraint(ResponseModel):

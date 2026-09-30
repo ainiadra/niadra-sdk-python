@@ -8,7 +8,7 @@ turn said that the guard did not see, and on demand (`conversation.claims.check(
 (`conversation.claims.guard()`, `niadra.turns.guard`) acts, and records the act it took.
 
 The evidence is what the turn's tools returned, in their results and in the objects they showed, and what the
-include blocks of its reads placed in the turn block (`block_values`):
+include blocks of its reads served (`block_values`), never the pack's text:
 
 - a field named like a role of a category is a value of that role and of that category's classes, so a
   number said with the role and a different value is a `mismatch`, and one with the same value `matched`;
@@ -244,16 +244,17 @@ async def _quietly(work: Awaitable[object]) -> object:
 
 
 def block_values(state: StateView | None, constraints: ConstraintsBlock | None) -> list[StateValue]:
-    """Every value a read's include blocks placed in the turn block, as the claim check's evidence: the fields
-    and computed values of the state view's objects and of the shared objects the subject showed interest in,
-    the new value of each field that changed since they saw it, and the values of the constraints block's
-    lines (what the subject requires, prefers and is).
+    """Every value a read's include blocks served, as the claim check's evidence (the claim contract spec,
+    4.3): the fields and computed values of the state view's objects and of the shared objects the subject
+    showed interest in, the new value of each field that changed since they saw it, the values of the
+    constraints block's lines (what the subject requires, prefers and is), and the numbers each object shown
+    was last shown with (an offer's price, total, discount or installment).
 
-    A value backs a claim only while it is claim-safe. A field that is not stays as a copy too old to back
-    one, so a claim that repeats it is `stale`; a computed value that is not backs nothing. A changed field's
-    new value is as claim-safe as the object's field, and not at all without the object; the value it was
-    seen at is not evidence. The subject's own constraints always back a claim, except one that lost a
-    conflict and was left out of the block. A masked or unknown value backs nothing."""
+    A value backs a claim only while it is claim-safe. A field or an offer's number that is not stays as a
+    copy too old to back one, so a claim that repeats it is `stale`; a computed value that is not backs
+    nothing. A changed field's new value is as claim-safe as the object's field, and not at all without the
+    object; the value it was seen at is not evidence. The subject's own constraints always back a claim,
+    except one that lost a conflict and was left out of the block. A masked or unknown value backs nothing."""
     out: list[StateValue] = []
     if state is not None:
         objects = [*state.objects, *(i.object for i in state.interests if i.object is not None)]
@@ -284,6 +285,8 @@ def block_values(state: StateView | None, constraints: ConstraintsBlock | None) 
         said += [(a.name, a.value) for a in constraints.attributes]
         # A constraint names a field of a type (`health_plan.monthly_price`), and backs a claim by the field.
         out += [StateValue(None, attr.rsplit(".", 1)[-1], value, True) for attr, value in said]
+        for shown in constraints.already_presented:
+            out += [StateValue(shown.ref, k, n.v, n.claim_safe, n.role) for k, n in shown.values.items()]
     return out
 
 

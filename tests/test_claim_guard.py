@@ -338,3 +338,35 @@ def test_a_constraint_the_block_placed_backs_the_claim_unless_it_lost_a_conflict
     assert [(c.verdict, c.action) for c in kept] == [("matched", "none")]
     assert kept[0].evidence is not None and kept[0].evidence.field == "monthly_price"
     assert [(c.verdict, c.action) for c in lost] == [("unsupported", "block")]
+
+
+def _offers(*, claim_safe: bool = True) -> ConstraintsBlock:
+    """The two plans another agent's quote tool showed, with the prices they were shown at."""
+
+    def shown(plan: str, price: float) -> dict[str, Any]:
+        values = {"monthly_price": {"v": price, "role": "price_full", "claim_safe": claim_safe}}
+        return {"ref": f"health_plan:operadora:{plan}", "times": 1, "values": values}
+
+    return ConstraintsBlock.model_validate(
+        {
+            "version": "cv_0123456789abcdef",
+            "already_presented": [shown("pleno-1", 690.0), shown("essencial-1", 480.0)],
+            "text": "",
+        }
+    )
+
+
+def test_the_price_an_offer_was_shown_at_backs_the_claim() -> None:
+    text = "Júlia, o plano Pleno sem coparticipação, por R$ 690, atende ao que você pediu."
+    guarded = guard_text(CONTRACT, _blocks(None, _offers()), text)
+    assert guarded.text == text
+    (claim,) = guarded.claims
+    assert (claim.verdict, claim.action) == ("matched", "none")
+    assert claim.evidence is not None and claim.evidence.ref == "health_plan:operadora:pleno-1"
+
+
+def test_an_offer_too_old_to_claim_warns_and_a_price_never_shown_is_blocked() -> None:
+    (old,) = guard_text(CONTRACT, _blocks(None, _offers(claim_safe=False)), "O Pleno custa R$ 690.").claims
+    assert (old.verdict, old.action) == ("stale", "warn")
+    (never,) = guard_text(CONTRACT, _blocks(None, _offers()), "O Pleno custa R$ 650.").claims
+    assert (never.verdict, never.action) == ("unsupported", "block")
