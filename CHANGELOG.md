@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-30
+
 ### Added
 
 - `Context.age_ms`: how long ago Niadra sent or confirmed the pack a read served. It is 0 for an answer just
