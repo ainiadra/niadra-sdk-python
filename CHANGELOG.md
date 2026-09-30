@@ -15,6 +15,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- The local copy of the suppression list is read to its end against the server: a page shorter than the limit
+  ends a read, and its cursor is where the next read starts. The server names the cursor on the last page
+  too, so the copy read 50 pages of nothing and was never held: `may_contact()` and a check that Niadra did not
+  answer fell back on the purpose's direction. The emulator answers as the server does.
 - A check about an outbound contact keeps the local copy of the suppression list, read in the background once
   a minute. Before, only `may_contact()` read it, so an agent that only called `check()` had no copy when Niadra
   went down, and a purpose that fails open (`service`, `transactional`) went out to a customer who had opted

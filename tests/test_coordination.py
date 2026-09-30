@@ -110,6 +110,23 @@ def test_with_niadra_down_the_local_opt_out_still_denies(app: MockApp, niadra: N
     assert (result.decision, result.reasons) == ("deny", ["suppressed"])
 
 
+def test_the_list_is_read_to_a_short_page_which_still_names_the_cursor_to_go_on_from(app: MockApp) -> None:
+    app.cell.agent_features.suppress(CUSTOMER, "service")
+    reads: list[str] = []
+
+    def app_with_reads(environ: dict[str, Any], start_response: Any) -> Any:
+        if environ["PATH_INFO"] == "/v1/suppressions":
+            reads.append(environ.get("QUERY_STRING", ""))
+        return app.wsgi(environ, start_response)
+
+    http = httpx.Client(transport=httpx.WSGITransport(app=app_with_reads))
+    niadra = Niadra(MOCK_KEY, base_url="http://mock", channel="whatsapp", http_client=http)
+    assert not niadra.may_contact(CUSTOMER, "service")
+    assert reads == ["limit=200"]
+    niadra.close()
+    http.close()
+
+
 def test_a_space_that_does_not_coordinate_holds_nothing_back(app: MockApp, niadra: Niadra) -> None:
     app.cell.features.discard("coordination")
     with niadra.conversation("c-4", subject=CUSTOMER) as conversation:

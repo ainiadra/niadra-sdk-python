@@ -205,7 +205,12 @@ class CellUpstream:
 
     def prepare(self, purposes: tuple[str, ...]) -> None:
         with httpx.Client(base_url=self.url, headers=_bearer(self.key), timeout=30) as api:
+            salt = _retried(lambda: api.get("/v1/suppressions/salt")).json()["salt"]
+            key = suppression_key(salt, canonical_destination(str(self.subject.type), self.subject.value))
+            listed = _suppressions(api)
             for purpose in purposes:
+                if any(e["key"] == key and e["purpose"] == purpose for e in listed):
+                    continue  # an earlier run's opt-out holds
                 body = {
                     "kind": "suppression.added",
                     "agent": "chaos-setup",
@@ -213,9 +218,7 @@ class CellUpstream:
                     "detail": {"purpose": purpose, "reason": "opt_out"},
                 }
                 headers = {"Idempotency-Key": f"chaos-{uuid.uuid4().hex}"}
-                api.post("/v1/coordination/declare", json=body, headers=headers).raise_for_status()
-            salt = api.get("/v1/suppressions/salt").raise_for_status().json()["salt"]
-            key = suppression_key(salt, canonical_destination(str(self.subject.type), self.subject.value))
+                _retried(lambda b=body, h=headers: api.post("/v1/coordination/declare", json=b, headers=h))
             deadline = time.monotonic() + 60
             while True:
                 listed = _suppressions(api)
@@ -229,16 +232,27 @@ class CellUpstream:
         pass
 
 
+def _retried(call: Any) -> httpx.Response:
+    """`call` again while the cell answers 429 or 503, after its `Retry-After`, for up to a minute."""
+    deadline = time.monotonic() + 60
+    while True:
+        response: httpx.Response = call()
+        if response.status_code not in (429, 503) or time.monotonic() > deadline:
+            return response.raise_for_status()
+        time.sleep(float(response.headers.get("retry-after", "1")))
+
+
 def _suppressions(api: httpx.Client) -> list[dict[str, Any]]:
-    items: list[dict[str, Any]] = []
+    """The list as it stands: pages until a short one (which still names the cursor to go on from)."""
+    items: dict[str, dict[str, Any]] = {}
     cursor: str | None = None
     while True:
-        page = api.get("/v1/suppressions", params={"limit": 200, **({"cursor": cursor} if cursor else {})})
-        body = page.raise_for_status().json()
-        items = [i for i in items if i["id"] not in {r["id"] for r in body["items"]}] + body["items"]
+        params = {"limit": 200, **({"cursor": cursor} if cursor else {})}
+        body = _retried(lambda p=params: api.get("/v1/suppressions", params=p)).json()
+        items.update({i["id"]: i for i in body["items"]})
         cursor = body.get("next_cursor")
-        if not cursor:
-            return [i for i in items if not i.get("removed")]
+        if not cursor or len(body["items"]) < 200:
+            return [i for i in items.values() if not i.get("removed")]
 
 
 def _bearer(key: str) -> dict[str, str]:
