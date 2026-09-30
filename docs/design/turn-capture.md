@@ -105,8 +105,6 @@ The SDK keeps, per client:
 How each part stays current:
 
 - **The profile** is read once at start. It is revalidated by ETag when `valid_for_s` runs out.
-- **An older server** answers the profile with 404. The SDK then turns the new features off for 10
-  minutes and asks again, as `PrefetchSupport` does for the prefetch route.
 - **The suppression list** is pulled by cursor (`GET /v1/suppressions?cursor=`) and kept in memory with
   its cursor.
 - **Memory is bounded** per kind, least recently used first, like `CacheOptions`.
@@ -124,12 +122,11 @@ As built:
 
 - `client.profile()` (`niadra._profile`) reads `GET /v1/sdk/profile` on first need, and again once
   `valid_for_s` has passed; the turn sender reads it before it builds a batch, so the agent's path rarely
-  waits for it. A failure keeps the last profile; a 404 counts every feature as off for 10 minutes. The
-  profile decides whether turns are kept, the content mode when the space names one, and the claim
-  contract (`use_claim_contract()` puts the company's own copy first, for CI).
+  waits for it. A failure keeps the last profile. The profile decides whether turns are kept, the content
+  mode when the space names one, and the claim contract (`use_claim_contract()` puts the company's own copy first, for CI).
 - `context(include=[...])` reads the constraints block and the state view in the same round trip. They are
   cached with the pack, so a read that fails serves the last good ones with `degraded: true`. A block the
-  space does not serve (404, 501) is dropped from the read, which goes on whole, and not asked for again
+  space does not serve (404) is dropped from the read, which goes on whole, and not asked for again
   for 10 minutes.
 - The claim contract runs in count mode: what the agent says in a turn is checked on the sender against
   the values its tools returned (a field named like a role is a value of that role), and each claim goes to

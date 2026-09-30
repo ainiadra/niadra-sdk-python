@@ -260,17 +260,6 @@ async def test_prefetch_never_holds_or_fails_a_turn(respx_mock: respx.MockRouter
     await niadra.close(timeout=0)
 
 
-async def test_a_server_without_prefetch_is_left_alone(respx_mock: respx.MockRouter) -> None:
-    route = respx_mock.post(f"{BASE}/v1/context/prefetch").respond(404)
-    niadra = AsyncNiadra("nia_sk_live_br1_acme_k1_s3cret", channel="voice", strict=True)
-    conversation = niadra.conversation("call-3", subject=MARINA, view="voice")
-    assert conversation.prefetch("the internet keeps dropping") is True
-    await until(lambda: not niadra._prefetching)
-    assert conversation.prefetch("the internet keeps dropping at night") is False
-    assert route.call_count == 1
-    await niadra.close(timeout=0)
-
-
 def test_prefetch_from_the_sync_client(mock_app: MockApp, on_mock: Niadra) -> None:
     with on_mock.conversation("call-4", subject=MARINA, view="voice") as call:
         assert call.prefetch("the bill came twice this month") is True

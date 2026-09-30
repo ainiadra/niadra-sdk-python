@@ -53,10 +53,9 @@ MODULE_DOCS = {
 API_DOC = """Every route of the turn record, typed state, subject signals and coordination, one method each,
 named as the server names the operation: `niadra.api` (sync) and `AsyncNiadra.api` (async).
 
-Unlike the rest of the SDK, these methods raise: an `APIError` subclass on an error answer, and
-`NotAvailableError` (501) while the server has not built the route. The calls built on them decide what
-fails open and what fails closed, per purpose. A route of a feature the space did not turn on answers
-`NotFoundError`, as a route that does not exist."""
+Unlike the rest of the SDK, these methods raise an `APIError` subclass on an error answer. The calls
+built on them decide what fails open and what fails closed, per purpose. A route of a feature the space did
+not turn on answers `NotFoundError`, as a route that does not exist."""
 # Schemas the SDK already mirrors by hand, and where they live.
 EXISTING = {
     "Handle": "niadra.models.common",

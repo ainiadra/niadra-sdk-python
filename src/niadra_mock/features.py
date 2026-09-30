@@ -2,10 +2,11 @@
 suppression list, each behind its feature as the server has them.
 
 - `GET /v1/sdk/profile` answers the features `MockCell.features` lists, with the claim contract set by
-  `FeatureStore.claim_contract`; with every feature off it answers 404, as the server does.
+  `FeatureStore.claim_contract`.
 - `include: ["constraints"]` needs `signals` and returns the block set for the subject by `constrain()`, or
-  an empty one; `include: ["state"]` needs `state` and returns the view set by `show()`, or an empty one. A
-  block of a feature that is off answers 404, and `coordination` and `budget` answer 501.
+  an empty one; `include: ["state"]` needs `state` and returns the view set by `show()`, or an empty one.
+  `coordination` needs `coordination` and `budget` needs `turns`, as on the server; the emulator computes
+  neither, so the answer leaves them out. A block of a feature that is off answers 404.
 - `GET /v1/suppressions` and `/v1/suppressions/salt` need `coordination`; `suppress()` adds an entry keyed
   with the reader's salt, as the server keys it.
 - `declare()` adds a type to the registry the profile serves (with the tool bindings of `tool_bindings`), and
@@ -29,7 +30,12 @@ from niadra.models.signals import ConstraintsBlock
 from niadra.models.state import ClaimContractSummary, SdkProfile, StateView
 from niadra_mock.state import StateError
 
-BLOCK_FEATURES = {"constraints": "signals", "state": "state"}
+BLOCK_FEATURES = {
+    "constraints": "signals",
+    "state": "state",
+    "coordination": "coordination",
+    "budget": "turns",
+}
 # The members of a type the profile serves, as the server summarizes the registry for the SDK.
 SUMMARY = (
     *("type", "version", "ownership", "nature", "key", "inputs", "fields", "values", "sources", "union"),
@@ -40,10 +46,6 @@ PROFILE_TTL_S = 300
 
 class FeatureOffError(Exception):
     """A block or route of a feature the space left off: 404."""
-
-
-class NotBuiltError(Exception):
-    """A block the emulator does not provide: 501."""
 
 
 @dataclass
@@ -61,8 +63,6 @@ class FeatureStore:
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def profile(self) -> SdkProfile:
-        if not self.features:
-            raise FeatureOffError
         return SdkProfile(
             features=sorted(self.features),
             claim_contract=self.claim_contract,
@@ -112,10 +112,7 @@ class FeatureStore:
     def blocks_for(self, include: list[str], subject: Handle | None) -> dict[str, Any]:
         found: dict[str, Any] = {}
         for name in include:
-            feature = BLOCK_FEATURES.get(name)
-            if feature is None:
-                raise NotBuiltError
-            if feature not in self.features:
+            if BLOCK_FEATURES[name] not in self.features:
                 raise FeatureOffError
         if "constraints" in include:
             key = (subject.type, subject.value) if subject is not None else None

@@ -179,7 +179,7 @@ async def test_turns_after_the_first_return_in_a_few_ms_with_the_right_body(
 
 
 async def test_without_the_voice_path_every_turn_pays_the_round_trip(region: Region) -> None:
-    """The same call on the path of 0.5.0 (`VoiceOptions(enabled=False)` and its 150 ms budget)."""
+    """The same call without the voice path (`VoiceOptions(enabled=False)` and a 150 ms budget)."""
     http = httpx.AsyncClient(transport=httpx.MockTransport(region.handle_async))
     niadra = AsyncNiadra(
         KEY,
@@ -204,8 +204,8 @@ async def test_without_the_voice_path_every_turn_pays_the_round_trip(region: Reg
     finally:
         await niadra.close(timeout=0)
         await http.aclose()
-    report("0.5.0 path, same turns (150-400 ms region)", turn_times)
-    print(f"0.5.0 path: {with_slots} of {len(TURNS)} turns got their slots")
+    report("without the voice path, same turns (150-400 ms region)", turn_times)
+    print(f"without the voice path: {with_slots} of {len(TURNS)} turns got their slots")
     assert min(turn_times) > 0.1, "each turn waited on the network"
 
 

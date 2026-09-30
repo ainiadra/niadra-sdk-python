@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import warnings
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Any, Literal, get_args
+from typing import Annotated, Any, Literal
 
 from pydantic import Field, StringConstraints, model_validator
 
@@ -52,11 +51,9 @@ class ContextRequest(Model):
     delta: bool = False
     target: TargetModel | None = None
     known_etag: str | None = None
-    # Sent only when asked for, so a cell that does not know the field yet still takes the request.
     format: Literal["text", "json"] | None = Field(
         default=None, description="`json` also returns `pack`: the pack as typed sections."
     )
-    # Sent only when asked for, so a cell that does not know the field yet still takes the request.
     explain: bool | None = Field(
         default=None,
         description='With `format: "json"` and `query`: each of `pack.slots` also says `why` '
@@ -64,7 +61,6 @@ class ContextRequest(Model):
         "score, the weights version, the rule of a derived line). It changes nothing else: the pinned text, "
         "the slots chosen and the receipt are the same bytes with or without it.",
     )
-    # Sent only when asked for: without it the answer is exactly a Context Pack v1 answer.
     include: list[Include] | None = Field(
         default=None,
         max_length=4,
@@ -510,9 +506,6 @@ class OpenedItem(ResponseModel):
     resolution: str | None = None
     derived: list[HistoryItem] = Field(default_factory=list)
     timeline: list[HistoryItem] = Field(default_factory=list)
-    excerpt: str | None = Field(
-        default=None, description="The server no longer sends a transcript excerpt; kept for code reading it."
-    )
     as_of: datetime | None = None
     versions: list[ItemVersion] = Field(default_factory=list)
 
@@ -531,20 +524,3 @@ class ToolDefinition(ResponseModel):
 
     type: Literal["function"] = "function"
     function: dict[str, Any]
-
-
-if TYPE_CHECKING:
-    HISTORY_ITEM_KINDS: tuple[str, ...]
-    """Deprecated since 0.7.0: use `typing.get_args(HistoryItemKind)`."""
-else:
-
-    def __getattr__(name: str) -> Any:
-        if name == "HISTORY_ITEM_KINDS":
-            warnings.warn(
-                "niadra.models.context.HISTORY_ITEM_KINDS is deprecated and will be removed in 0.8.0: use "
-                "typing.get_args(niadra.models.context.HistoryItemKind)",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return get_args(HistoryItemKind)
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

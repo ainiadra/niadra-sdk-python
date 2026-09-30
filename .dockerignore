@@ -1,0 +1,9 @@
+# The benchmark harness image (benchmarks/deploy/Dockerfile) builds from the repository's root.
+.git
+**/.venv
+**/__pycache__
+**/*_cache
+benchmarks/results
+benchmarks/deploy/local/secrets
+benchmarks/deploy/.stack
+benchmarks/deploy/temp-host/.state

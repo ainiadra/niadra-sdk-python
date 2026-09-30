@@ -7,9 +7,7 @@ accepted anywhere an enum member is.
 
 from __future__ import annotations
 
-import warnings
 from enum import Enum
-from typing import TYPE_CHECKING, Any
 
 
 class _StrEnum(str, Enum):
@@ -98,20 +96,3 @@ class DeliveryPath(_StrEnum):
     T4 = "t4"
     HOLDOUT = "holdout"
     NOT_MODIFIED = "not_modified"
-
-
-if TYPE_CHECKING:
-    VERIFY_METHODS: tuple[str, ...]
-    """Deprecated since 0.7.0: use `typing.get_args(niadra.models.events.VerifyMethod)`."""
-else:
-
-    def __getattr__(name: str) -> Any:
-        if name == "VERIFY_METHODS":
-            warnings.warn(
-                "niadra.vocabulary.VERIFY_METHODS is deprecated and will be removed in 0.8.0: use "
-                "typing.get_args(niadra.models.events.VerifyMethod)",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return ("otp_whatsapp", "otp_sms", "login", "kba", "network_attestation", "human_agent")
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

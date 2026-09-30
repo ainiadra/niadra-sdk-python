@@ -48,7 +48,7 @@ from niadra.conversation import Conversation, Task
 from niadra.coordination.client import Coordinator
 from niadra.coordination.suppression import FAIL_OPEN, MAX_PAGES, SuppressionCopy
 from niadra.coordination.token import ContactGateway, SeenTokens
-from niadra.errors import APITimeoutError, NotFoundError
+from niadra.errors import APITimeoutError
 from niadra.models.admin import IngestStatus, KeyIdentity
 from niadra.models.agent_memory import (
     AgentMemory,
@@ -232,16 +232,13 @@ class Niadra:
         """The SDK profile of this key's space: the features it turned on, the claim contract, the
         summarized type registry and this source's tool bindings, from the local cache, read again once
         `valid_for_s` has passed. When Niadra does not answer, the last profile read stays in use; None when
-        there is none yet, or the space serves none (then the SDK asks again in 10 minutes). Never raises
-        unless `strict`."""
+        there is none yet. Never raises unless `strict`."""
         if self._core.enabled and self._profile.due():
             budget = timeout if timeout is not None else self._core.timeouts.navigation
             try:
                 self._profile.absorb(self._transport.request(self._profile.request(budget)))
             except Exception as exc:
-                self._profile.failed(exc)
-                if not isinstance(exc, NotFoundError):
-                    self._core.fail("profile", exc, None)
+                self._core.fail("profile", exc, None)
         return self._profile.profile
 
     def use_claim_contract(self, contract: ClaimContractSummary | Mapping[str, Any] | None) -> None:
@@ -584,7 +581,6 @@ class Niadra:
         *,
         verification: VerificationLike = Verification.V0,
         conversation_id: str | None = None,
-        task_id: str | None = None,  # noqa: ARG002 - kept for 0.1.4 callers; the server never read it here
         subject: HandleLike | None = None,
         voice: bool = False,
         timeout: float | None = None,
@@ -593,8 +589,7 @@ class Niadra:
 
         Sent as `POST /v1/history/open`: the conversation id and `subject` go in the body, never in a
         URL. With `subject`, the server opens the item only when it belongs to that customer, which
-        is how `tools()` keeps the model on the bound customer. `task_id` is accepted for
-        compatibility; the server scopes opening by conversation only.
+        is how `tools()` keeps the model on the bound customer.
         """
         if not self._core.enabled:
             return None
@@ -1123,7 +1118,7 @@ class Niadra:
                 self._core.prefetch_failed(exc)
             with self._prefetch_lock:
                 request = self._prefetching.pop(scope, None)
-                if request is not None and self._core.turns.prefetch_wanted():
+                if request is not None:
                     self._prefetching[scope] = None
                 else:
                     request = None

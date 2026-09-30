@@ -16,7 +16,7 @@ import pydantic
 import pytest
 import respx
 
-from niadra import AsyncNiadra, Niadra, NotAvailableError, NotFoundError, ServerError, phone
+from niadra import AsyncNiadra, Niadra, NotFoundError, phone
 from niadra.errors import ConfigurationError
 from niadra.models.coordination import EffectReserve
 from niadra.models.state import SdkProfile, StateViewRequest
@@ -25,13 +25,6 @@ from tests.conftest import BASE, KEY, batch_ok
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = sorted((ROOT / "spec" / "examples" / "turn-record").glob("*.json"))
-NOT_BUILT = {
-    "type": "about:blank",
-    "title": "Not Implemented",
-    "status": 501,
-    "code": "not_implemented",
-    "detail": "this route is declared and not built yet",
-}
 
 
 def _sync_spec() -> ModuleType:
@@ -88,22 +81,18 @@ def test_what_the_sdk_sends_refuses_unknown_fields_and_what_it_receives_ignores_
     assert profile.features == ["turns"]
 
 
-def test_a_route_the_server_has_not_built_raises_not_available(respx_mock: respx.MockRouter) -> None:
-    respx_mock.post(f"{BASE}/v1/turns").respond(501, json=NOT_BUILT)
+def test_a_route_of_a_feature_that_is_off_raises_not_found(respx_mock: respx.MockRouter) -> None:
+    respx_mock.post(f"{BASE}/v1/turns").respond(404, json={"code": "not_found", "status": 404})
     lenient = Niadra(KEY)  # fail-open for the rest of the SDK; the routes still raise
-    with pytest.raises(NotAvailableError, match="not available on this server yet") as raised:
+    with pytest.raises(NotFoundError) as raised:
         lenient.api.record_turns(TurnsRequest(turns=[_record()]))
-    assert isinstance(raised.value, ServerError)
-    assert raised.value.code == "not_implemented"
-    assert respx_mock.calls.call_count == 1  # a 501 is final, never retried
+    assert raised.value.code == "not_found"
+    assert respx_mock.calls.call_count == 1  # a 404 is final, never retried
 
 
 async def test_the_async_routes_raise_the_same(respx_mock: respx.MockRouter) -> None:
-    respx_mock.get(f"{BASE}/v1/sdk/profile").respond(501, json=NOT_BUILT)
     respx_mock.post(f"{BASE}/v1/state/view").respond(404, json={"code": "not_found", "status": 404})
     async with AsyncNiadra(KEY) as client:
-        with pytest.raises(NotAvailableError):
-            await client.api.sdk_profile()
         # A feature the space did not turn on answers as a route that does not exist.
         with pytest.raises(NotFoundError):
             await client.api.state_view(StateViewRequest(subject=phone("+5511912345678")))

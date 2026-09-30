@@ -1,9 +1,8 @@
 """`client.turns`: opens turns, keeps the closed ones in the bounded queue, and holds what the sender needs.
 
 Recording is on as long as the client has a key and the space records turns: a `404` on `POST /v1/turns`
-means it does not, and the recorder then stops recording for 10 minutes before it tries again, the way
-`prefetch()` treats a server without its route. While it is off, a turn still opens and closes (the agent's
-code runs the same), and its record is not kept.
+means it does not, and the recorder then stops recording for 10 minutes before it tries again. While it is
+off, a turn still opens and closes (the agent's code runs the same), and its record is not kept.
 """
 
 from __future__ import annotations

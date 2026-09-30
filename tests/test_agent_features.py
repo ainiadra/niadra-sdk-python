@@ -94,13 +94,12 @@ def test_the_profile_is_read_once_and_kept(store: MockApp, niadra: Niadra) -> No
     assert store.cell.failures[0].remaining == 10  # still fresh: not asked again
 
 
-def test_a_space_without_a_profile_is_not_asked_again_for_a_while() -> None:
+def test_a_space_with_every_feature_off_records_no_turn() -> None:
     app = MockApp()
     app.cell.features.clear()
     client = _client(app)
-    assert client.profile() is None
-    app.cell.features.add("turns")
-    assert client.profile() is None
+    profile = client.profile()
+    assert profile is not None and profile.features == []
     assert not client.turns.recording
     client.close()
 
