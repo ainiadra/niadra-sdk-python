@@ -45,13 +45,15 @@ kubectl -n "$NS" run "$pod" --quiet --restart=Never --image=python:3.13-slim \
   --overrides='{"spec":{"activeDeadlineSeconds":7200,"containers":[{"name":"bench","image":"python:3.13-slim","command":["sleep","7200"]}]}}' >/dev/null
 trap 'kubectl -n "$NS" delete pod "$pod" --wait=false >/dev/null 2>&1 || true' EXIT
 kubectl -n "$NS" wait pod "$pod" --for=condition=Ready --timeout=300s >/dev/null
-# The harness at @REF@, installed from the public repository; the bootstrap keys read with the node's role.
+# The harness at @REF@, from the public repository, with the SDK it pins (the published `niadra` from
+# PyPI, the same as the harness image); the bootstrap keys read with the node's role.
 kubectl -n "$NS" exec "$pod" -- sh -c '
 set -e
 cd /tmp
 python -c "import urllib.request; urllib.request.urlretrieve(\"https://codeload.github.com/ainiadra/niadra-sdk-python/tar.gz/@REF@\", \"src.tgz\")"
 mkdir src && tar -xzf src.tgz -C src --strip-components 1
 pip install --quiet --root-user-action=ignore ./src/benchmarks boto3 >/dev/null
+python -c "import importlib.metadata as m; print(\"niadra SDK\", m.version(\"niadra\"))"
 python -c "import boto3; open(\"/tmp/bootstrap.json\", \"w\").write(boto3.client(\"secretsmanager\", region_name=\"@REGION@\").get_secret_value(SecretId=\"niadra/tenant/bootstrap\")[\"SecretString\"])"
 chmod 0400 /tmp/bootstrap.json
 '
