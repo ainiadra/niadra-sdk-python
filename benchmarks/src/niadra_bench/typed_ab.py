@@ -20,12 +20,17 @@ What it reports, per side and category (`typed.json`, `typed.md`):
   its extraction runs, read from the cell's PostgreSQL with `--cell-pg`, as `cell-cost.json`).
 
 With `--v2-sample N`, N cases of dataset v2 are seeded too and read without `include` in both views: the
-tokens of a turn that asks for no block, against the figures of today's published run.
+tokens of a turn that asks for no block. Their customers are the same bytes in every run, so with
+`--baseline` (a run of the old code) the token check is paired: each case read by the new code against the
+same case read by the old one, and each typed case's plain read against its own in the baseline.
 
 The cell is a local one, `niadra-infra/scripts/local-e2e.sh <niadra-back checkout> --keep`: the harness
 declares the typed set's object types (`config/typed.object-types.json`) and turns on the agent features in
-its sandbox space with the bootstrap's admin account. The SDK must be one that places the blocks in the
-turn block (this repository's source: `PYTHONPATH=../src`); the benchmark's pinned release does not.
+its sandbox space with the bootstrap's admin account. The English cases go to a sandbox space of their own
+whose language is English (a project the harness creates once, with the same three sources), so every
+text the cell writes for them (the pack, the blocks, the slots) is in the customer's language. The SDK must
+be one that places the blocks in the turn block (this repository's source: `PYTHONPATH=../src`); the
+benchmark's pinned release does not.
 Results go to `results/typed/<date>-<id>/`; the environment is `local-cell`, and nothing here is imported by
 the site.
 """
@@ -33,6 +38,7 @@ the site.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -64,11 +70,11 @@ from niadra_bench.config import BenchConfig, ModelCall
 from niadra_bench.dataset import generate as generate_v2
 from niadra_bench.dataset import typed
 from niadra_bench.dataset.model import Case, Expectation
-from niadra_bench.dataset.typed import Step, TypedCase
+from niadra_bench.dataset.typed import Item, Step, TypedCase
 from niadra_bench.identity import Identities, _subscriber
 from niadra_bench.runner import _tokenizer
 from niadra_bench.sources import ControlPlane, wait_until_served
-from niadra_bench.stats import share_difference, wilson
+from niadra_bench.stats import median_interval, share_difference, wilson
 from niadra_bench.targets.niadra import Keys, NiadraTarget
 from niadra_bench.text import contains, passes
 
@@ -82,13 +88,20 @@ SECTOR_CONTRACT = {"retail": "retail", "legal": "legal", "health_plan_sales": "h
 FEATURES = ("turns", "signals", "state", "claims", "coordination")
 INCLUDE = ("state", "constraints")
 ARMS: dict[str, tuple[str, ...] | None] = {"without": None, "with": INCLUDE}
-#: Today's median tokens per turn of a read with no block (region run 2026-09-29-5fc6f2, dataset v2): the
-#: token criterion is that a turn which asks for no block stays within 5% of these.
-TODAY_TOKENS = {"voice": 89, "chat": 98}
+#: The token criterion: a turn that asks for no block reads within 5% of what the old code read for it.
 TOKEN_TOLERANCE = 0.05
 SPACE_TIMEZONE = "America/Sao_Paulo"
 READ_TIMEOUT_S = 5.0
-KEY_SCOPES = {"billing": ("track", "context", "state:push"), "whatsapp": ("track", "context", "coordinate")}
+KEY_SCOPES: dict[str, tuple[str, ...] | None] = {
+    "billing": ("track", "context", "state:push"),
+    "whatsapp": ("track", "context", "coordinate"),
+    "voice": None,
+}
+"""The scopes of each source's key; None is the audience's defaults (the bootstrap's own voice key)."""
+#: The English cases' space: a project of the sandbox tenant, created once, in the bootstrap's region.
+ENGLISH_PROJECT = {"name": "Typed set, English", "slug": "typed-set-en"}
+ENGLISH_SETTINGS = {"locale": "en-US"}
+SOURCE_FIELDS = ("name", "audience", "channel", "purposes", "verification_ceiling", "trusted_action_ops")
 ACTED = frozenset({"block", "rewrite", "warn"})
 LEVELS = ("V1", "V2", "V3")
 
@@ -158,9 +171,9 @@ class Subject:
         assert step.ref is not None
         return {"type": step.ref.type, "namespace": step.ref.namespace, "id": self.fill(step.ref.id)}
 
-    def ref_text(self, step: Step) -> str:
-        found = self.ref(step)
-        return f"{found['type']}:{found['namespace']}:{found['id']}"
+    def item_ref(self, item: Item) -> str:
+        """An item's compact ref (`type:namespace:id`), its id filled."""
+        return f"{item.ref.type}:{item.ref.namespace}:{self.fill(item.ref.id)}"
 
     def fill(self, text: str) -> str:
         return typed.fill(text, self.case.language, self.today, self.tag)
@@ -206,8 +219,35 @@ def niadra_section(turn_block: str | None) -> str:
     return text[start : end + len("</niadra>")] if start >= 0 and end > start else ""
 
 
+@dataclass
+class Space:
+    """One sandbox space of the cell, in one language, with a key per source."""
+
+    language: str
+    space_id: str
+    keys: dict[str, str]
+    clients: dict[str, AsyncNiadra] = field(default_factory=dict)
+
+
+def declared_types(document: dict[str, Any], lang: str) -> list[dict[str, Any]]:
+    """The typed set's object types as a space of `lang` declares them: each field by the label the config
+    gives it in that language (`labels`), else as written."""
+    labels = (document.get("labels") or {}).get(lang) or {}
+    types = []
+    for declared in document["types"]:
+        fields = {
+            name: {**spec, "label": labels[f"{declared['type']}.{name}"]}
+            if f"{declared['type']}.{name}" in labels
+            else spec
+            for name, spec in declared["fields"].items()
+        }
+        types.append({**declared, "fields": fields})
+    return types
+
+
 class Cell:
-    """The running cell's data API and control plane, as the sandbox's sources and its admin."""
+    """The running cell's data API and control plane, as the sandbox's sources and its admin: the
+    bootstrap's space for the Portuguese cases, and an English one for the English cases."""
 
     def __init__(self, options: TypedOptions) -> None:
         self.options = options
@@ -215,75 +255,108 @@ class Cell:
         self.keys = {str(k): str(v) for k, v in self.document["keys"].items()}
         self.http = httpx.AsyncClient(base_url=options.api, timeout=30.0)
         self.control = ControlPlane(options.control, self.document, httpx.AsyncClient(timeout=30.0))
-        self.scoped: dict[str, str] = {}
-        self._clients: dict[str, AsyncNiadra] = {}
+        self.spaces: dict[str, Space] = {"pt": Space("pt", str(self.document["space_id"]), dict(self.keys))}
 
-    def headers(self, source: str) -> dict[str, str]:
-        return {"authorization": f"Bearer {self.scoped.get(source) or self.keys[source]}"}
+    def headers(self, source: str, lang: str = "pt") -> dict[str, str]:
+        return {"authorization": f"Bearer {self.spaces[lang].keys[source]}"}
 
-    def client(self, channel: str) -> Any:
-        """The SDK's async client of the channel's source; `Any`, since its `include` and blocks are newer
-        than the benchmark's pinned release."""
-        source = "voice" if channel == "voice" and "voice" in self.keys else "whatsapp"
-        if source not in self._clients:
-            self._clients[source] = AsyncNiadra(
-                self.keys[source],
+    def client(self, channel: str, lang: str = "pt") -> Any:
+        """The SDK's async client of the channel's source in the language's space; `Any`, since its `include`
+        and blocks are newer than the benchmark's pinned release."""
+        space = self.spaces[lang]
+        source = "voice" if channel == "voice" and "voice" in space.keys else "whatsapp"
+        if source not in space.clients:
+            space.clients[source] = AsyncNiadra(
+                space.keys[source],
                 base_url=self.options.api,
                 channel=channel,
                 cache=CacheOptions(enabled=False),
             )
-        return self._clients[source]
+        return space.clients[source]
 
-    async def document_of(self, kind: str) -> dict[str, Any]:
-        params = {"space_id": self.document["space_id"]}
-        response = await self.control._call("GET", f"/v1/config/{kind}", params=params)
+    async def document_of(self, kind: str, space_id: str) -> dict[str, Any]:
+        response = await self.control._call("GET", f"/v1/config/{kind}", params={"space_id": space_id})
         return dict(_ok(response, 200)["document"])
 
-    async def approve(self, kind: str, document: dict[str, Any], reason: str) -> None:
-        body = {"space_id": self.document["space_id"], "type": kind, "document": document, "reason": reason}
+    async def approve(self, kind: str, document: dict[str, Any], reason: str, space_id: str) -> None:
+        body = {"space_id": space_id, "type": kind, "document": document, "reason": reason}
         created = _ok(await self.control._call("POST", "/v1/config/diffs", json=body), 201)
         _ok(await self.control._call("POST", f"/v1/config/diffs/{created['diff_id']}/approve"), 200)
 
-    async def setup(self) -> dict[str, Any]:
-        """The agent features on, the typed set's object types declared, and a key per source with the scopes
-        its writes need; then waits until the cell serves all of it."""
-        features = await self.document_of("features")
-        enabled = set(features.get("enabled") or ())
-        if not set(FEATURES) <= enabled:
-            await self.approve(
-                "features", {"enabled": sorted(enabled | set(FEATURES))}, "benchmark: typed set"
-            )
-        declared = json.loads(TYPES_FILE.read_text())["types"]
-        registry = await self.document_of("object-types")
-        names = {t["type"] for t in declared}
-        current = registry.get("types") or []
-        if not all(t in current for t in declared):
-            kept = [t for t in current if t.get("type") not in names]
-            await self.approve(
-                "object-types", {**registry, "types": [*kept, *declared]}, "benchmark: typed set"
-            )
-        space = self.document["space_id"]
-        listed = _ok(await self.control._call("GET", "/v1/sources", params={"space_id": space}), 200)
-        for name, scopes in KEY_SCOPES.items():
-            source_id = next(s["source_id"] for s in listed if s["name"] == name)
-            issued = await self.control._call(
-                "POST", f"/v1/sources/{source_id}/keys", json={"scopes": list(scopes)}
-            )
-            self.scoped[name] = str(_ok(issued, 201)["secret"])
-        for key in self.scoped.values():
-            await wait_until_served(self.http, self.options.api, key)
-        await self._until_types_served(names)
-        return {
-            "features": sorted(enabled | set(FEATURES)),
-            "types": sorted(names),
-            "scoped_keys": sorted(self.scoped),
-        }
+    async def setup(self, languages: Sequence[str]) -> dict[str, Any]:
+        """For each language's space: the agent features on, the typed set's object types declared, and a
+        key per source with the scopes its writes need; then waits until the cell serves all of it."""
+        document = json.loads(TYPES_FILE.read_text())
+        names = {t["type"] for t in document["types"]}
+        out: dict[str, Any] = {"types": sorted(names), "spaces": {}}
+        for lang in languages:
+            space = self.spaces.get(lang) or await self._english_space()
+            declared = declared_types(document, lang)
+            features = await self.document_of("features", space.space_id)
+            enabled = set(features.get("enabled") or ())
+            if not set(FEATURES) <= enabled:
+                wanted = {"enabled": sorted(enabled | set(FEATURES))}
+                await self.approve("features", wanted, "benchmark: typed set", space.space_id)
+            registry = await self.document_of("object-types", space.space_id)
+            current = registry.get("types") or []
+            if not all(t in current for t in declared):
+                kept = [t for t in current if t.get("type") not in names]
+                types = {**registry, "types": [*kept, *declared]}
+                await self.approve("object-types", types, "benchmark: typed set", space.space_id)
+            await self._keys(space)
+            await self._until_types_served(names, lang)
+            out["spaces"][lang] = {"space_id": space.space_id, "features": sorted(enabled | set(FEATURES))}
+        return out
 
-    async def _until_types_served(self, names: set[str], timeout_s: float = 180.0) -> None:
+    async def _keys(self, space: Space) -> None:
+        """A key per source of the space with the scopes its writes need, served before it is used."""
+        listed = _ok(await self.control._call("GET", "/v1/sources", params={"space_id": space.space_id}), 200)
+        for name, scopes in KEY_SCOPES.items():
+            if scopes is None and name in space.keys:
+                continue
+            source_id = next(s["source_id"] for s in listed if s["name"] == name)
+            body = {"scopes": list(scopes)} if scopes is not None else {}
+            issued = await self.control._call("POST", f"/v1/sources/{source_id}/keys", json=body)
+            space.keys[name] = str(_ok(issued, 201)["secret"])
+        for key in space.keys.values():
+            await wait_until_served(self.http, self.options.api, key)
+
+    async def _english_space(self) -> Space:
+        """The English cases' sandbox space: created once, with the bootstrap space's sources and English as
+        its language (the time zone stays, so dates read as in the Portuguese space)."""
+        projects = _ok(await self.control._call("GET", "/v1/projects"), 200)
+        found = next((p for p in projects if p["slug"] == ENGLISH_PROJECT["slug"]), None)
+        if found is None:
+            region = next(p["region"] for p in projects if p["project_id"] == self.document["project_id"])
+            body = {**ENGLISH_PROJECT, "region": region}
+            found = _ok(await self.control._call("POST", "/v1/projects", json=body), 201)
+        space_id = str(next(s["space_id"] for s in found["spaces"] if s["environment"] == "sandbox"))
+        await self._same_sources(space_id)
+        settings = await self.document_of("settings", space_id)
+        if any(settings.get(k) != v for k, v in ENGLISH_SETTINGS.items()):
+            await self.approve("settings", {**settings, **ENGLISH_SETTINGS}, "benchmark: typed set", space_id)
+        space = Space("en", space_id, {})
+        self.spaces["en"] = space
+        return space
+
+    async def _same_sources(self, space_id: str) -> None:
+        """The bootstrap space's sources of `KEY_SCOPES`, as they are there, in `space_id`."""
+        mine = {
+            s["name"]
+            for s in _ok(await self.control._call("GET", "/v1/sources", params={"space_id": space_id}), 200)
+        }
+        params = {"space_id": self.spaces["pt"].space_id}
+        for source in _ok(await self.control._call("GET", "/v1/sources", params=params), 200):
+            if source["name"] not in KEY_SCOPES or source["name"] in mine:
+                continue
+            copied = {k: source[k] for k in SOURCE_FIELDS}
+            _ok(await self.control._call("POST", "/v1/sources", json={**copied, "space_id": space_id}), 201)
+
+    async def _until_types_served(self, names: set[str], lang: str, timeout_s: float = 180.0) -> None:
         """A declaration reaches the cell with the next snapshot: the SDK profile lists it then."""
         deadline = time.monotonic() + timeout_s
         while True:
-            response = await self.http.get("/v1/sdk/profile", headers=self.headers("voice"))
+            response = await self.http.get("/v1/sdk/profile", headers=self.headers("voice", lang))
             if response.status_code == 200:
                 served = {t.get("type") for t in response.json().get("types") or ()}
                 if names <= served:
@@ -293,8 +366,9 @@ class Cell:
             await asyncio.sleep(3)
 
     async def close(self) -> None:
-        for client in self._clients.values():
-            await client.close(timeout=2.0)
+        for space in self.spaces.values():
+            for client in space.clients.values():
+                await client.close(timeout=2.0)
         await self.http.aclose()
         await self.control.http.aclose()
 
@@ -304,14 +378,17 @@ async def _post(
     path: str,
     body: dict[str, Any],
     source: str,
+    lang: str,
     *,
     timeout_s: float = 120.0,
     headers: dict[str, str] | None = None,
 ) -> dict[str, Any]:
-    """A write, again while the cell answers 404 (a feature not there yet), 429 or 503."""
+    """A write in the language's space, again while the cell answers 404 (a feature not there yet), 429 or
+    503."""
     deadline = time.monotonic() + timeout_s
+    auth = cell.headers(source, lang)
     while True:
-        response = await cell.http.post(path, json=body, headers={**cell.headers(source), **(headers or {})})
+        response = await cell.http.post(path, json=body, headers={**auth, **(headers or {})})
         if response.status_code in (200, 201, 207):
             return dict(response.json()) if response.content else {}
         if response.status_code not in (404, 429, 503) or time.monotonic() > deadline:
@@ -340,7 +417,7 @@ async def seed(cell: Cell, subject: Subject, now: datetime) -> None:
                     fields=subject.values(step.fields),
                     occurred_at=at,
                 ).model_dump(mode="json", exclude_none=True)
-                body = await _post(cell, "/v1/batch", {"items": [event]}, "billing")
+                body = await _post(cell, "/v1/batch", {"items": [event]}, "billing", case.language)
                 if body.get("errors"):
                     raise TypedError(f"{case.id}: record refused: {body['errors'][:2]}")
             case "present" | "preference":
@@ -351,8 +428,10 @@ async def seed(cell: Cell, subject: Subject, now: datetime) -> None:
                 await _effect(cell, subject, step, key)
 
 
-async def _state_read(cell: Cell, ref: dict[str, str]) -> dict[str, Any]:
-    response = await cell.http.post("/v1/state/read", json={"refs": [ref]}, headers=cell.headers("voice"))
+async def _state_read(cell: Cell, ref: dict[str, str], lang: str) -> dict[str, Any]:
+    response = await cell.http.post(
+        "/v1/state/read", json={"refs": [ref]}, headers=cell.headers("voice", lang)
+    )
     objects = response.json().get("objects") if response.status_code == 200 else None
     return dict(objects[0]) if objects else {}
 
@@ -373,7 +452,7 @@ async def _push(cell: Cell, subject: Subject, step: Step, at: datetime, timeout_
         item["inputs"] = {name: subject.fill(value) for name, value in step.inputs.items()}
     deadline = time.monotonic() + timeout_s
     while True:
-        answer = await _post(cell, "/v1/objects/push", {"objects": [item]}, "billing")
+        answer = await _post(cell, "/v1/objects/push", {"objects": [item]}, "billing", subject.case.language)
         if answer.get("applied") or answer.get("recorded"):
             break
         if time.monotonic() > deadline:
@@ -381,7 +460,7 @@ async def _push(cell: Cell, subject: Subject, step: Step, at: datetime, timeout_
         await asyncio.sleep(3)
     # The recorded push is applied by the workers, after the record that tied the object to the customer: its
     # observation time moves the object's `as_of`, and only then may a change of an input expire it.
-    while step.inputs and not _as_of_reached(await _state_read(cell, ref), at):
+    while step.inputs and not _as_of_reached(await _state_read(cell, ref, subject.case.language), at):
         if time.monotonic() > deadline:
             raise TypedError(f"{subject.case.id}: the derived object was never bound to its inputs")
         await asyncio.sleep(3)
@@ -421,7 +500,7 @@ async def _conversation(cell: Cell, subject: Subject, step: Step, at: datetime, 
     )
     items.append(ended.model_dump(mode="json", exclude_none=True))
     source = "voice" if step.channel == "voice" else "whatsapp"
-    body = await _post(cell, "/v1/batch", {"items": items}, source)
+    body = await _post(cell, "/v1/batch", {"items": items}, source, subject.case.language)
     if body.get("errors"):
         raise TypedError(f"{subject.case.id}: conversation refused: {body['errors'][:2]}")
 
@@ -433,18 +512,21 @@ async def _turn(cell: Cell, subject: Subject, step: Step, at: datetime, key: str
     call: dict[str, Any] = {"call_id": "c1", "kind": "tool", "name": step.tool}
     interactions: list[dict[str, Any]] = []
     if step.kind == "present":
-        ref = subject.ref_text(step)
-        fields = subject.values(step.fields)
+        shown = [(subject.item_ref(item), subject.values(item.fields)) for item in step.items]
         call["observations"] = [
             {"ref": ref, "fields": fields, "provenance": {"source": "live", "source_observed_at": stamp}}
+            for ref, fields in shown
         ]
         interactions.append(
             {
                 "kind": "presented",
                 "exposure_id": str(uuid.uuid4()),
                 "list_id": "results",
-                "visible_k": 1,
-                "items": [{"pos": 1, "ref": ref, "shown": fields}],
+                "visible_k": len(shown),
+                "items": [
+                    {"pos": pos, "ref": ref, "shown": fields}
+                    for pos, (ref, fields) in enumerate(shown, start=1)
+                ],
                 "delivered_at": stamp,
             }
         )
@@ -470,7 +552,7 @@ async def _turn(cell: Cell, subject: Subject, step: Step, at: datetime, key: str
         "calls": [call],
         "interactions": interactions,
     }
-    body = await _post(cell, "/v1/turns", {"turns": [turn]}, "whatsapp")
+    body = await _post(cell, "/v1/turns", {"turns": [turn]}, "whatsapp", subject.case.language)
     if body.get("accepted", 0) + body.get("duplicates", 0) != 1:
         raise TypedError(f"{subject.case.id}: turn not taken: {body}")
 
@@ -490,7 +572,8 @@ def _effect_check(subject: Subject, step: Step) -> dict[str, Any]:
 async def _effect(cell: Cell, subject: Subject, step: Step, key: str) -> None:
     """The agent checks the effect, carries it out and settles it `done`."""
     check = _effect_check(subject, step)
-    first = await _post(cell, "/v1/coordination/check", check, "whatsapp")
+    lang = subject.case.language
+    first = await _post(cell, "/v1/coordination/check", check, "whatsapp", lang)
     if first.get("decision") != "allow":
         raise TypedError(f"{subject.case.id}: the first attempt was not allowed: {first}")
     body = {
@@ -500,7 +583,7 @@ async def _effect(cell: Cell, subject: Subject, step: Step, key: str) -> None:
         "detail": {"effect_key": check["effect_key"], "state": "done", "attempt": 1},
     }
     await _post(
-        cell, "/v1/coordination/declare", body, "whatsapp", headers={"idempotency-key": f"{key}-done"}
+        cell, "/v1/coordination/declare", body, "whatsapp", lang, headers={"idempotency-key": f"{key}-done"}
     )
 
 
@@ -544,19 +627,19 @@ async def settle(cell: Cell, subjects: list[Subject], quiet_s: float, timeout_s:
 
     async def one(subject: Subject) -> tuple[str, str]:
         async with limit:
+            lang = subject.case.language
             if not ready.get(subject.case.id):
-                view = await cell.http.post(
-                    "/v1/state/view", json={"subject": subject.handle}, headers=cell.headers("voice")
-                )
+                auth = cell.headers("voice", lang)
+                view = await cell.http.post("/v1/state/view", json={"subject": subject.handle}, headers=auth)
                 constraints: dict[str, Any] = {}
                 if subject.case.category == "hard_constraint":
                     asked = await cell.http.post(
-                        "/v1/constraints", json={"subject": subject.handle}, headers=cell.headers("voice")
+                        "/v1/constraints", json={"subject": subject.handle}, headers=auth
                     )
                     constraints = asked.json() if asked.status_code == 200 else {}
                 body = view.json() if view.status_code == 200 else {}
                 ready[subject.case.id] = state_ready(subject.case, body, constraints, subject.today)
-            context = await cell.client("voice").context(
+            context = await cell.client("voice", lang).context(
                 phone(subject.phone), verification=subject.level, timeout=READ_TIMEOUT_S, use_cache=False
             )
             return context.version, context.etag
@@ -648,7 +731,7 @@ async def probe(cell: Cell, subject: Subject, grader: Grader, count: Callable[[s
     question = subject.fill(case.probe.question)
     expect = typed.expectation(case, subject.today, subject.tag)
     rule = subject.fill(case.judge_rule)
-    client = cell.client(case.probe.channel)
+    client = cell.client(case.probe.channel, case.language)
     handle = phone(subject.phone)
     view = "voice" if case.probe.channel == "voice" else "chat"
     row: dict[str, Any] = {
@@ -738,13 +821,16 @@ async def probe(cell: Cell, subject: Subject, grader: Grader, count: Callable[[s
         }
     effects = [s for s in case.steps if s.kind == "effect"]
     if effects:
-        again = await _post(cell, "/v1/coordination/check", _effect_check(subject, effects[0]), "whatsapp")
+        check = _effect_check(subject, effects[0])
+        again = await _post(cell, "/v1/coordination/check", check, "whatsapp", case.language)
         row["coordination"] = {"decision": again.get("decision"), "reasons": again.get("reasons") or []}
     return row
 
 
 async def v2_tokens(cell: Cell, sample: int, now: datetime, count: Callable[[str], int]) -> dict[str, Any]:
-    """Dataset v2 cases read with no block, in both views: a turn that asks for none."""
+    """Dataset v2 cases read with no block, in both views: a turn that asks for none. The customers are the
+    same bytes in every run of the same sample (their tag comes from the cases), so a run of the old code
+    and one of the new read the same subjects, case by case."""
     cases: list[Case] = generate_v2.load(bench_config.dataset_dir("v2"))
     chosen = cases[:: max(1, len(cases) // sample)][:sample]
     target = NiadraTarget(
@@ -755,7 +841,7 @@ async def v2_tokens(cell: Cell, sample: int, now: datetime, count: Callable[[str
         settle_timeout_s=900.0,
         concurrency=4,
     )
-    tag = f"tv2{uuid.uuid4().hex[:5]}"
+    tag = "tv2" + hashlib.sha256(",".join(c.id for c in chosen).encode()).hexdigest()[:5]
     pairs = [(c, Identities.for_case(c, tag)) for c in chosen]
     await target.start()
     try:
@@ -767,29 +853,63 @@ async def v2_tokens(cell: Cell, sample: int, now: datetime, count: Callable[[str
 
         await asyncio.gather(*(one(c, i) for c, i in pairs))
         settled = await target.settle(pairs)
-        tokens: dict[str, list[int]] = {"voice": [], "chat": []}
+        reads: dict[str, dict[str, int]] = {"voice": {}, "chat": {}}
         for case, ids in pairs:
             for view in ("voice", "chat"):
                 got = await target.retrieve(case, ids, view=view)
-                tokens[view].append(count(got.text))
+                reads[view][case.id] = count(got.text)
     finally:
         await target.close()
-    out: dict[str, Any] = {"cases": len(chosen), "settle": settled}
-    for view, values in tokens.items():
-        median = statistics.median(values) if values else None
-        out[view] = {
-            "median": median,
-            "p95": _p95(values),
-            "today": TODAY_TOKENS[view],
-            "within_5pct": median is not None
-            and abs(median - TODAY_TOKENS[view]) <= TOKEN_TOLERANCE * TODAY_TOKENS[view],
-        }
+    out: dict[str, Any] = {"cases": len(chosen), "tag": tag, "settle": settled, "reads": reads}
+    for view, found in reads.items():
+        values = list(found.values())
+        out[view] = {"median": statistics.median(values) if values else None, "p95": _p95(values)}
     return out
 
 
-def cell_spend(conninfo: str | None, space_id: str, since: datetime | None = None) -> dict[str, Any] | None:
-    """The cell's own model spend, from its PostgreSQL: the ledger (every purpose, per day) and, with
-    `since`, the extraction runs created after it. None without `--cell-pg` or `psql`."""
+def paired(now: dict[str, int], before: dict[str, int]) -> dict[str, Any] | None:
+    """The same reads by the new code and by the old: each pair's relative change, its median with the
+    median's 95% interval, and whether that median stays within `TOKEN_TOLERANCE`."""
+    keys = sorted(k for k in set(now) & set(before) if before[k])
+    if not keys:
+        return None
+    changes = [now[k] / before[k] - 1 for k in keys]
+    median = statistics.median(changes)
+    interval = median_interval(changes)
+    return {
+        "pairs": len(keys),
+        "before_median": statistics.median(before[k] for k in keys),
+        "now_median": statistics.median(now[k] for k in keys),
+        "median_change": round(median, 4),
+        "ci95": [round(b, 4) for b in interval] if interval else None,
+        "changed": sum(1 for k in keys if now[k] != before[k]),
+        "within_5pct": abs(median) <= TOKEN_TOLERANCE,
+    }
+
+
+def paired_tokens(document: dict[str, Any], baseline: dict[str, Any]) -> dict[str, Any]:
+    """A turn that asks for no block, new code against old on the same subjects, per view: the dataset v2
+    sample case by case, and each typed case's plain read by case and repetition."""
+    out: dict[str, Any] = {}
+    sources = {
+        "v2_sample": ((document.get("tokens_without_blocks_v2") or {}).get("reads"),
+                      (baseline.get("tokens_without_blocks_v2") or {}).get("reads")),
+        "typed_without": (document["metrics"]["tokens"].get("without_reads"),
+                          baseline["metrics"].get("tokens", {}).get("without_reads")),
+    }  # fmt: skip
+    for name, (now, before) in sources.items():
+        for view in ("voice", "chat"):
+            found = paired((now or {}).get(view) or {}, (before or {}).get(view) or {})
+            if found is not None:
+                out.setdefault(name, {})[view] = found
+    return out
+
+
+def cell_spend(
+    conninfo: str | None, space_ids: Sequence[str], since: datetime | None = None
+) -> dict[str, Any] | None:
+    """The cell's own model spend over the run's spaces, from its PostgreSQL: the ledger (every purpose, per
+    day) and, with `since`, the extraction runs created after it. None without `--cell-pg` or `psql`."""
     psql = shutil.which("psql") or next(
         (str(p) for p in Path("/opt/homebrew/opt/postgresql@17/bin").glob("psql")), None
     )
@@ -808,30 +928,38 @@ def cell_spend(conninfo: str | None, space_id: str, since: datetime | None = Non
             raise TypedError(f"psql: {out.stderr.strip()[:200]}")
         return [line.split("\t") for line in out.stdout.splitlines() if line.strip()]
 
-    [[db]] = query("niadra_cell", f"SELECT db_name FROM space_databases WHERE space_id = '{space_id}'")  # noqa: S608 - the bootstrap's id
-    ledger = {
-        purpose: {"usd": int(micros) / 1e6, "calls": int(calls)}
+    ledger: dict[str, dict[str, Any]] = {}
+    runs = Counter[str]()
+    for space_id in space_ids:
+        [[db]] = query("niadra_cell", f"SELECT db_name FROM space_databases WHERE space_id = '{space_id}'")  # noqa: S608 - the control plane's id
         for purpose, micros, calls in query(
             db, "SELECT purpose, sum(cost_micros), sum(calls) FROM llm_spend GROUP BY purpose"
-        )
-    }
+        ):
+            found = ledger.setdefault(purpose, {"usd": 0.0, "calls": 0})
+            found["usd"] += int(micros) / 1e6
+            found["calls"] += int(calls)
+        if since is not None:
+            # The only value in the statement is a timestamp this process made.
+            runs_sql = (
+                "SELECT count(*), count(*) FILTER (WHERE input_tokens > 0), coalesce(sum(input_tokens), 0), "  # noqa: S608
+                "coalesce(sum(cached_tokens), 0), coalesce(sum(output_tokens), 0), "
+                "coalesce(sum(cost_micros), 0) FROM extraction_runs "
+                "WHERE created_at >= '" + since.isoformat() + "'"
+            )
+            [row] = query(db, runs_sql)
+            names = (
+                "runs",
+                "with_a_model_call",
+                "input_tokens",
+                "cached_input_tokens",
+                "output_tokens",
+                "micros",
+            )
+            runs.update({name: int(value) for name, value in zip(names, row, strict=True)})
     out: dict[str, Any] = {"at": datetime.now(UTC).isoformat(), "ledger": ledger}
     if since is not None:
-        # The only value in the statement is a timestamp this process made.
-        runs_sql = (
-            "SELECT count(*), count(*) FILTER (WHERE input_tokens > 0), coalesce(sum(input_tokens), 0), "
-            "coalesce(sum(cached_tokens), 0), coalesce(sum(output_tokens), 0), coalesce(sum(cost_micros), 0) "
-            "FROM extraction_runs WHERE created_at >= '" + since.isoformat() + "'"
-        )
-        [[runs, model_runs, tokens_in, cached, tokens_out, micros]] = query(db, runs_sql)
-        out["extraction_runs"] = {
-            "runs": int(runs),
-            "with_a_model_call": int(model_runs),
-            "input_tokens": int(tokens_in),
-            "cached_input_tokens": int(cached),
-            "output_tokens": int(tokens_out),
-            "usd": int(micros) / 1e6,
-        }
+        spent = runs.pop("micros", 0)
+        out["extraction_runs"] = {**{k: runs[k] for k in sorted(runs)}, "usd": spent / 1e6}
     return out
 
 
@@ -901,6 +1029,9 @@ def summarize(answered: list[dict[str, Any]]) -> dict[str, Any]:
         added = [r["arms"]["with"]["tokens"] - r["arms"]["without"]["tokens"] for r in chosen]
         section = [r["arms"]["with"]["tokens_section"] for r in chosen]
         tool = [r["arms"]["with"]["tokens_tool_json"] or 0 for r in chosen]
+        out["tokens"].setdefault("without_reads", {})[view] = {
+            f"{r['case_id']}#{r['repetition']}": r["arms"]["without"]["tokens"] for r in chosen
+        }
         out["tokens"][view] = {
             "cases": len(chosen),
             "without": {"median": statistics.median(without), "p95": _p95(without)},
@@ -1009,11 +1140,13 @@ class TypedAb:
         cell = Cell(options)
         grader = Grader(self.config, self.chat, options.agent)
         started = datetime.now(UTC)
-        spend_before = cell_spend(options.cell_pg, cell.document["space_id"])
+        languages = sorted({c.language for c in self.cases})
         rows: list[dict[str, Any]] = []
         settles: list[dict[str, Any]] = []
         try:
-            setup = await cell.setup()
+            setup = await cell.setup(languages)
+            space_ids = [cell.spaces[lang].space_id for lang in languages]
+            spend_before = cell_spend(options.cell_pg, space_ids)
             for repetition in range(1, options.repetitions + 1):
                 tag = f"{self.run_id[-6:]}r{repetition}"
                 now = datetime.now(UTC)
@@ -1042,7 +1175,7 @@ class TypedAb:
         finally:
             await cell.close()
             await self.chat.close()
-        spend_after = cell_spend(options.cell_pg, cell.document["space_id"], since=started)
+        spend_after = cell_spend(options.cell_pg, space_ids, since=started)
         document: dict[str, Any] = {
             "schema": SCHEMA,
             "run_id": self.run_id,
@@ -1082,6 +1215,7 @@ class TypedAb:
                 "versions": baseline.get("versions"),
                 "repetitions": baseline["config"]["repetitions"],
                 "delta": compare(document["metrics"], baseline["metrics"]),
+                "tokens": paired_tokens(document, baseline),
             }
         output = options.output or RESULTS / self.run_id
         output.mkdir(parents=True, exist_ok=True)
@@ -1178,18 +1312,16 @@ def report(document: dict[str, Any]) -> str:
     sample = document.get("tokens_without_blocks_v2")
     if sample:
         lines += [
-            "## A turn that asks for no block (dataset v2 sample)",
+            f"## A turn that asks for no block (dataset v2 sample, {sample['cases']} cases)",
             "",
-            "| View | median | p95 | today | within 5% |",
-            "|---|---|---|---|---|",
+            "| View | median | p95 |",
+            "|---|---|---|",
         ]
-        for view in ("voice", "chat"):
-            s = sample[view]
-            lines.append(
-                f"| {view} | {s['median']} | {s['p95']} | {s['today']} | "
-                f"{'yes' if s['within_5pct'] else 'no'} |"
-            )
+        lines += [
+            f"| {view} | {sample[view]['median']} | {sample[view]['p95']} |" for view in ("voice", "chat")
+        ]
         lines.append("")
+    lines += _paired_lines((document.get("baseline") or {}).get("tokens"))
     lines += [
         "## Claim guard",
         "",
@@ -1295,6 +1427,32 @@ def _baseline_lines(baseline: dict[str, Any] | None) -> list[str]:
                     )
             lines.append(f"| {category} | {cells[0]} | {cells[1]} | {cells[2]} | {cells[3]} |")
     return lines
+
+
+def _paired_lines(tokens: dict[str, Any] | None) -> list[str]:
+    """A turn that asks for no block, this run's code against the baseline's on the same subjects."""
+    if not tokens:
+        return []
+    lines = [
+        "## A turn that asks for no block, against the baseline's code (paired)",
+        "",
+        "The same subjects read by both: each pair's change in tokens, the median change with its 95% "
+        f"interval. The criterion: the median within {100 * TOKEN_TOLERANCE:.0f}%.",
+        "",
+        "| Reads | View | pairs | baseline, median | now, median | pairs that changed | median change "
+        "| within |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    names = {"v2_sample": "dataset v2 sample", "typed_without": "typed cases, `without`"}
+    for name, views in tokens.items():
+        for view, t in views.items():
+            interval = f" [{_points(t['ci95'][0])}, {_points(t['ci95'][1])}]" if t["ci95"] else ""
+            within = "yes" if t["within_5pct"] else "no"
+            lines.append(
+                f"| {names[name]} | {view} | {t['pairs']} | {t['before_median']} | {t['now_median']} | "
+                f"{t['changed']} | {_points(t['median_change'])}%{interval} | {within} |"
+            )
+    return [*lines, ""]
 
 
 def _counts(counts: dict[str, int]) -> str:

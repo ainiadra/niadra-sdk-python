@@ -1,5 +1,5 @@
 """Percentiles, the summary across repetitions (median, and the smallest and largest run), and the 95%
-intervals of a share and of the difference between two shares."""
+intervals of a share, of the difference between two shares and of a median."""
 
 from __future__ import annotations
 
@@ -56,6 +56,19 @@ def wilson(correct: int, n: int, z: float = Z95) -> tuple[float, float] | None:
     centre = (p + z * z / (2 * n)) / (1 + z * z / n)
     half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n)
     return max(0.0, centre - half), min(1.0, centre + half)
+
+
+def median_interval(values: Sequence[float], z: float = Z95) -> tuple[float, float] | None:
+    """The distribution-free interval of a median, from the order statistics the binomial places around it
+    (rank n/2 -/+ z*sqrt(n)/2); None under six values, where it would span them all."""
+    n = len(values)
+    if n < 6:
+        return None
+    ordered = sorted(values)
+    half = z * math.sqrt(n) / 2
+    low = max(0, math.floor(n / 2 - half) - 1)
+    high = min(n - 1, math.ceil(n / 2 + half))
+    return ordered[low], ordered[high]
 
 
 def share_difference(

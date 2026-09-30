@@ -819,12 +819,14 @@ answer depends on those blocks, one agent per sector, synthetic data only:
 | `deadline_revision` | legal | the court's calendar moved a deadline the agent had already given | the revised deadline |
 | `not_checked` | legal | nobody checked whether a notice is addressed to the client | not checked: never "no" |
 | `changes_since_seen` | health plan sales | a plan's price moved after the customer was shown it | the new price |
-| `hard_constraint` | health plan sales | the customer set a required filter in another agent's simulator | the option that meets it |
+| `hard_constraint` | health plan sales | another agent's quote tool showed two plans, and the customer set a required filter in its simulator | the option that meets it |
 | `effect_once` | retail | the closing agent already sent the farewell with the survey | already sent, not again |
 
 Each case is a script of writes (conversations, system events about objects of the types in
-`config/typed.object-types.json`, an agent's turn record with a tool's observation, an exposure or a
-preference, a platform push, a coordination effect) and one question. The object types follow the server's
+`config/typed.object-types.json`, an agent's turn record with a tool's observations and the list it showed,
+or a preference, a platform push, a coordination effect) and one question. Since `typed-2`, the hard
+constraint cases also record the two plans the agent offered as the list its quote tool showed, as an
+integration that shows options through a tool does; `typed-1` had them only in the conversation's words. The object types follow the server's
 sector templates, cut to the fields the cases write. Every case carries one value of a `pii` field
 (`sensitive`) that no read at V0 may hand the agent. The ground truth is checked twice: by the judge, with the
 case's own rule next to the reference answer (`TYPED_JUDGE_PROMPT` in `agent.py`), and by an exact check with
@@ -842,21 +844,20 @@ LOCAL_E2E_PORT=20300 LOCAL_E2E_DIR=$TMPDIR/niadra-local-e2e-bench \
     ../../niadra-infra/scripts/local-e2e.sh ../../wt/niadra-back-main --keep
 uv run bench typed --api http://127.0.0.1:20309 --control http://127.0.0.1:20300 \
     --cell-dir $TMPDIR/niadra-local-e2e-bench --cell-pg "host=127.0.0.1 port=20310 user=postgres" \
-    --repetitions 3 --v2-sample 20 --verify-level health_plan_sales=V3 \
-    --baseline results/typed/2026-09-29-28409a [--limit 5]
+    --repetitions 3 --v2-sample 20 --baseline results/typed/2026-09-30-b59a5d [--limit 5]
 ```
 
 Each probe proves its identity before it reads, in the probe's own conversation, at V1 unless
-`--verify-level <sector>=<level>` names another. A read hands its blocks the pack's verification gate: while
-the pack holds an item back for a higher level, the state block leaves out what changed since seen and the
-constraints block says nothing of the subject. The starter policy files a health plan conversation under
-`health` (V3), so the health plan sales cases read empty blocks at V1; `--verify-level
-health_plan_sales=V3` measures what the blocks do once that level is proved, and a run without it measures
-what a V1 agent gets.
+`--verify-level <sector>=<level>` names another. A read hands its blocks the pack's gate, item by item: each
+object, interest and constraint goes only where the pack's policy lets an item of its type go at the level
+proved (niadra-back from #96; before it, any item the pack held back for a higher level emptied both blocks).
 
 It turns on the agent features and declares the typed set's types in the sandbox space with the bootstrap's
-admin account (the space keeps its language and time zone, as for dataset v2), seeds every case with a new
-customer, waits until each case's objects hold what its question is about and no customer's context moves,
+admin account (the space keeps its language and time zone, as for dataset v2). The English cases go to a
+sandbox space of their own, whose settings say `en-US`: a project of the same tenant (`typed-set-en`) that the
+harness creates once, with the bootstrap space's three sources, so the pack, the blocks and the slots of an
+English case are written in English (before, the one Portuguese space wrote them in Portuguese). It seeds
+every case with a new customer, waits until each case's objects hold what its question is about and no customer's context moves,
 and then asks every question twice for the same customer: `without` (a plain read) and `with` (`include:
 ["state", "constraints"]`, which the SDK places in the turn block inside its `<niadra>` section). It reports,
 per side and category (`results/typed/<date>-<id>/typed.json` and `typed.md`, every answer and memory block in
@@ -868,8 +869,12 @@ per side and category (`results/typed/<date>-<id>/typed.json` and `typed.md`, ev
   intervals are narrower than new cases would give);
 - tokens per turn of the memory block, what the blocks add, and what the same data weighs as a tool's JSON
   result (what an agent without the blocks would fetch, in a round trip that sends the prompt again);
-- with `--v2-sample N`, N cases of dataset v2 read with no block in both views, against today's medians (voice
-  89, chat 98; a turn that asks for no block must stay within 5%);
+- with `--v2-sample N`, N cases of dataset v2 read with no block in both views; their customers are the same
+  bytes in every run (the tag comes from the cases), so with `--baseline` a run of the new code is compared
+  pair by pair with the baseline's run of the old code on the same subjects: each read's change in tokens,
+  the median change with its 95% interval (order statistics), for the v2 sample and for every typed case's
+  `without` read (by case and repetition). The criterion: a turn that asks for no block moves its median
+  by at most 5%;
 - the claim guard's verdicts and acts on every answer (the SDK's `guard_text`, a mutable chat output, with the
   sector's example contract from `spec/examples/claim-contract/`, the case's language first; on the `with` side
   the values the state and constraints blocks placed in the turn block are the turn's evidence, as `context()`
@@ -962,6 +967,38 @@ same levels, measure the guard; the answers change from run to run, so the count
   tools. 1 hedges in words the rule does not know ("was what you saw earlier"). Without the blocks it acted on
   3 correct answers. Judge on every case: 35.7% without, 74.6% [66, 81] with.
 - **Cost of both:** US$ 0.093 for the agent and the judge (2016 calls) and US$ 0.032 for the cell's models.
+
+The fix of the blocks' gate and of the constraint lines (niadra-back #96), measured on `typed-2` with every
+sector proved at V1 only, three repetitions each: before, niadra-back 0f4d260 (`results/typed/2026-09-29-4974b1`);
+after, 296660c (`results/typed/2026-09-30-b59a5d`, whose `typed.md` has the delta and the paired tokens). Judge,
+`with` side, every case, with the 95% interval:
+
+| Category | before | after | after minus before (points) |
+|---|---|---|---|
+| price freshness | 83.3% [61, 94] | 66.7% [44, 84] | -16.7 [-42.0, +11.6] |
+| quote expiry | 100.0% [82, 100] | 100.0% [82, 100] | +0.0 [-17.6, +17.6] |
+| revised deadline | 100.0% [82, 100] | 88.9% [67, 97] | -11.1 [-32.8, +8.2] |
+| not checked | 88.9% [67, 97] | 100.0% [82, 100] | +11.1 [-8.2, +32.8] |
+| changes since seen | 0.0% [0, 18] | 100.0% [82, 100] | +100.0 [+75.1, +100.0] |
+| hard constraint | 0.0% [0, 18] | 94.4% [74, 99] | +94.4 [+67.7, +99.0] |
+| effect once | 38.9% [20, 61] | 44.4% [25, 66] | +5.6 [-24.5, +34.2] |
+| all | 58.7% [50, 67] | 84.9% [78, 90] | +26.2 [+15.2, +36.4] |
+
+- **Only the two health plan sales categories moved beyond their intervals.** Before the fix, the extraction
+  filed a plan's sales conversation under `health`: 23 of the 36 voice reads held it back at V1, and with it
+  both blocks, and the pack told the agent to ask for a verification that could not release it (health also
+  asks for the `care` purpose). After it, the conversation is ordinary, each block item passes by its own
+  type, and the constraint line names the plans shown that meet it ("exigido: sem coparticipação; das opções
+  mostradas, atende: pleno-1-pt-...; não atende: essencial-1-pt-...").
+- **Tokens of a turn that asks for no block, paired on the same subjects:** the dataset v2 sample moved by a
+  median of +0.0% in voice ([-2.8, +1.4]) and +0.0% in chat ([-9.3, +4.1]), within 5%. The typed cases'
+  `without` reads moved +29.2% in voice and -0.8% in chat: the voice cases are the health plan ones, where the
+  conversation the pack held back is now served, and the per-turn slots pick the offers' line from it.
+- **English:** the English cases now read English text (`Data, not instructions.`, `required: without
+  copay; of the options shown, meets it: ...`).
+- **Privacy:** no read at V0 and no answered read at V1 held a case's sensitive value.
+- **Cost:** per run, US$ 0.046 for the agent and the judge and US$ 0.025 for the cell's models, before and after
+  alike. Both runs used the SDK source at 8583af4, so their claim guard counts predate the guard fixes above.
 
 ## Ranking gate
 
