@@ -33,13 +33,14 @@ def _context(**fields: Any) -> Context:
 
 
 def test_a_read_without_blocks_keeps_its_turn_block_byte_for_byte() -> None:
-    example = Context.model_validate(json.loads((SPEC / "context-pack-v1-turn-as-data.json").read_text()))
+    example = Context.model_validate(json.loads((SPEC / "context-pack" / "turn-as-data.json").read_text()))
     before = "\n\n".join(p for p in (render_live(example), example.slots or "", example.delta or "") if p)
     assert example.turn_block == before
     assert _context().turn_block == "<turno>\n[Guarda] x\n</turno>"
-    assert (
-        _context(constraints={"version": "cv_" + "0" * 16}).turn_block == "<turno>\n[Guarda] x\n</turno>"
-    ), "a first contact's empty block says nothing"
+    empty = {"version": "cv_" + "0" * 16, "text": ""}
+    assert _context(constraints=empty).turn_block == "<turno>\n[Guarda] x\n</turno>", (
+        "an empty block is silent"
+    )
 
 
 def test_the_state_view_and_the_constraints_follow_the_slots_as_data() -> None:

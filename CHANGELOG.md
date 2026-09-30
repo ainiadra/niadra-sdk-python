@@ -20,7 +20,8 @@ carries over, and none of their names, options or fallbacks is kept.
   function-calling tools bound to one customer, with `subject_token()` and `mcp_url` for MCP.
 - `track()` with a bounded local queue, one batch in flight per client, and a conversation turn sent at once;
   `conversation()` and `task()`; `identify()`, `verify()`, `feedback()`, `feedback_batch()`, `upload_media()`,
-  `ingest_status()`, `whoami()`, `object_state()` and `object_timeline()`.
+  `ingest_status()`, `whoami()`, `object_state()` (the object as a state read serves it, `ObjectRead`) and
+  `object_timeline()`.
 - Agent memory (`agent_memory()`, `search_agent_memory()`, `remember()`), backed answers (`niadra.backing`)
   and the guard lines a read carries; `niadra.admin` for a key with the `admin` scope.
 - `wrap()` for OpenAI-shaped clients and the adapters under `niadra.integrations`, each an optional extra;

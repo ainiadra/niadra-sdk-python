@@ -28,7 +28,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: color diferente de Preto\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -108,7 +109,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: color diferente de Preto\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -193,7 +195,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: color diferente de preto\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -273,7 +276,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: color diferente de Preto\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -357,7 +361,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: color diferente de Preto\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -469,7 +474,8 @@
             "kept": "h2",
             "by": "current_utterance"
           }
-        ]
+        ],
+        "text": "<restrições>\n- exigido: color igual a Preto\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -569,7 +575,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: color diferente de Preto\n- exigido: color diferente de marrom\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -660,7 +667,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: color sendo um de: bege, off-white\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -739,7 +747,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: price sale de no máximo 300\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -821,7 +830,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: price sale de no mínimo 100\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -897,7 +907,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: material diferente de couro\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -975,7 +986,8 @@
         "attributes": [],
         "exclude": [
           "item_variant:loja:991"
-        ]
+        ],
+        "text": "<restrições>\n- exigido: material diferente de couro\n- não mostrar: item_variant:loja:991\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -1056,7 +1068,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: size label igual a 38 (em calca)\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -1131,7 +1144,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: size label igual a 38 (em calca)\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -1207,7 +1221,8 @@
             "apply": "when_asked"
           }
         ],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- pants: 38\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -1275,7 +1290,8 @@
             "apply": "when_asked"
           }
         ],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- pants: 38\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -1347,7 +1363,8 @@
             "apply": "always"
           }
         ],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- pants: 40\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -1427,7 +1444,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: color diferente de Preto\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -1505,7 +1523,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: color diferente de Preto\n</restrições>"
       },
       "binding": {
         "tool": "search_products",
@@ -1603,7 +1622,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: network diferente de rede-x\n</restrições>"
       },
       "binding": {
         "tool": "quote_plans",
@@ -1679,7 +1699,8 @@
           }
         ],
         "attributes": [],
-        "exclude": []
+        "exclude": [],
+        "text": "<restrições>\n- exigido: price full entre 300 e 500\n</restrições>"
       },
       "binding": {
         "tool": "quote_plans",

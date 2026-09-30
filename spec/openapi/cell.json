@@ -2946,16 +2946,9 @@
             "$ref": "#/components/schemas/BlockSubject"
           },
           "text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "The block as lines for a model, in the space's language, each field by its label and each operator in words; the SDK places it beside the state view's text. Not part of `version`.",
-            "title": "Text"
+            "description": "The block as lines for a model, in the space's language, each field by its label and each operator in words; an empty string when the block has nothing to say. Not part of `version`.",
+            "title": "Text",
+            "type": "string"
           },
           "version": {
             "description": "A digest of the block, which the turn record cites.",
@@ -2965,7 +2958,8 @@
           }
         },
         "required": [
-          "version"
+          "version",
+          "text"
         ],
         "title": "ConstraintsBlock",
         "type": "object"

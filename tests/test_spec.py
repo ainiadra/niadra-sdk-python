@@ -70,7 +70,7 @@ def test_section_names_are_the_ones_the_specification_fixes() -> None:
 
 
 def test_the_specifications_example_reads_without_loss() -> None:
-    example = json.loads((SPEC / "examples" / "context-pack-v1-turn-as-data.json").read_text())
+    example = json.loads((SPEC / "examples" / "context-pack" / "turn-as-data.json").read_text())
     answer = Context.model_validate(example)
     assert answer.pack is not None
     assert answer.pack.model_dump(mode="json") == example["pack"]
@@ -87,12 +87,8 @@ def test_the_specifications_example_reads_without_loss() -> None:
     assert block.endswith(example["slots"]), "the slots close the block when there is no delta"
 
 
-V2 = json.loads((SPEC / "context-pack.v2.json").read_text())
-
-
-def test_the_answer_has_the_blocks_of_the_context_pack_v2() -> None:
-    assert V2["$id"] == "https://specs.niadra.com/schemas/context-pack.v2.json"
-    assert set(V2["properties"]) == set(ContextResponse.model_fields)
+def test_the_answer_has_the_blocks_of_the_schema() -> None:
+    assert set(SCHEMA["properties"]) == set(ContextResponse.model_fields)
     for name, model in (
         ("ConstraintsBlock", ConstraintsBlock),
         ("StateView", StateView),
@@ -102,6 +98,6 @@ def test_the_answer_has_the_blocks_of_the_context_pack_v2() -> None:
         ("BudgetUse", BudgetUse),
         ("BudgetCut", BudgetCut),
     ):
-        assert set(V2["$defs"][name]["properties"]) == {
+        assert set(DEFS[name]["properties"]) == {
             field.alias or key for key, field in model.model_fields.items()
         }, name

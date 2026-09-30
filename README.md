@@ -466,7 +466,7 @@ A response without usage is left out, and the turn is recorded either way.
 ## Business objects
 
 ```python
-invoice = niadra.object_state("invoice:erp:0823")  # state, as_of, open items
+invoice = niadra.object_state("invoice:erp:0823")  # each field with its logical value and freshness
 page = niadra.object_timeline("invoice:erp:0823", limit=20)
 ```
 

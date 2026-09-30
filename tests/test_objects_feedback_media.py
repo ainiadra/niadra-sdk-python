@@ -17,13 +17,14 @@ from tests.conftest import BASE, KEY
 MARINA = phone("+5511912345678")
 STATE = {
     "ref": {"type": "invoice", "namespace": "erp", "id": "0823"},
-    "state": {"status": "credited", "amount": "40.00"},
     "as_of": "2026-09-22T14:06:00Z",
-    "source_id": "erp",
-    "open_items": [],
+    "fields": {
+        "status": {"v": "credited", "logic": "yes", "status": "fresh", "claim_safe": False, "src": "erp"},
+        "amount": {"v": "40.00", "logic": "yes", "status": "fresh", "claim_safe": False, "src": "erp"},
+    },
 }
 TIMELINE = {
-    "ref": STATE["ref"],
+    "ref": {"type": "invoice", "namespace": "erp", "id": "0823"},
     "items": [{"id": "ev_2", "kind": "action", "text": "credit R$ 40", "at": "2026-09-22T14:06:00Z"}],
     "next_cursor": "c2",
 }
@@ -43,7 +44,7 @@ def reserved(url: str = UPLOAD_URL, headers: dict[str, str] | None = None) -> di
 def test_object_state_reads_the_object_path(respx_mock: respx.MockRouter, client: Niadra) -> None:
     route = respx_mock.get(f"{BASE}/v1/objects/invoice/erp/0823").respond(200, json=STATE)
     state = client.object_state("invoice:erp:0823")
-    assert state is not None and state.state["status"] == "credited"
+    assert state is not None and state.fields["status"].v == "credited"
     assert route.calls.last.request.headers["authorization"] == f"Bearer {KEY}"
 
 
@@ -182,7 +183,8 @@ def test_objects_feedback_and_media_on_the_emulator(on_mock: Niadra, mock_app: A
 
     state = on_mock.object_state("invoice:erp:0823")
     assert state is not None
-    assert state.state == {"status": "credited", "last_event_type": "invoice.credited"}
+    assert {name: f.v for name, f in state.fields.items()} == {"status": "credited"}
+    assert not any(f.claim_safe for f in state.fields.values()), "a type with no rules backs no claim"
     page = on_mock.object_timeline("invoice:erp:0823", limit=1)
     assert page is not None and len(page.items) == 1 and page.next_cursor == "1"
     assert page.items[0].kind == "action"

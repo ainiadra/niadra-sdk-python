@@ -5,11 +5,11 @@
 
 `--server` cuts the routes tagged in `TAGS` out of the server's OpenAPI document (`openapi/cell.json`) into
 `spec/openapi/cell.json`, with every schema they reach and its text as a public SDK may carry it. `--spec`
-copies the Context Pack schemas the SDK reads (`schemas/context-pack.v1.json` and `v2`), the conformance
-vectors (`vectors/*.json`) and the claim contract and turn record examples. Every run then writes the models
-of those routes (`src/niadra/models/<module>.py`) and their methods (`src/niadra/api.py`) from
-`spec/openapi/cell.json`, formatted by ruff. `tests/test_generated.py` fails when
-a generated file differs from what this script writes, so regenerating is this one command.
+copies the Context Pack schema the SDK reads (`schemas/context-pack.v1.json`), the conformance vectors
+(`vectors/*.json`) and the Context Pack, claim contract and turn record examples. Every run then writes the
+models of those routes (`src/niadra/models/<module>.py`) and their methods (`src/niadra/api.py`) from
+`spec/openapi/cell.json`, formatted by ruff. `tests/test_generated.py` fails when a generated file differs
+from what this script writes, so regenerating is this one command.
 """
 
 from __future__ import annotations
@@ -107,10 +107,14 @@ def main() -> None:
 
 
 def copy_vectors(spec: Path) -> None:
-    for name in ("context-pack.v1.json", "context-pack.v2.json"):
-        shutil.copyfile(spec / "schemas" / name, ROOT / "spec" / name)
-        print(f"copied schemas/{name}")
-    for pattern in ("vectors/*.json", "examples/claim-contract/*.json", "examples/turn-record/*.json"):
+    shutil.copyfile(spec / "schemas" / "context-pack.v1.json", ROOT / "spec" / "context-pack.v1.json")
+    print("copied schemas/context-pack.v1.json")
+    for pattern in (
+        "vectors/*.json",
+        "examples/context-pack/turn-as-data.json",
+        "examples/claim-contract/*.json",
+        "examples/turn-record/*.json",
+    ):
         for source in sorted(spec.glob(pattern)):
             relative = source.relative_to(spec)
             destination = ROOT / "spec" / relative

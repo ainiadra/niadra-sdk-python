@@ -328,6 +328,7 @@ def test_a_constraint_the_block_placed_backs_the_claim_unless_it_lost_a_conflict
             "version": "cv_0123456789abcdef",
             "hard": [hard("h1", 700), hard("h2", 650)],
             "conflicts": [{"by": "current_utterance", "ids": ["h1", "h2"], "kept": "h1"}],
+            "text": "<restrições>\n- exigido: mensalidade de no máximo 700\n</restrições>",
         }
     )
     kept, lost = (

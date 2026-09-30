@@ -510,15 +510,6 @@ class OpenedItem(ResponseModel):
     versions: list[ItemVersion] = Field(default_factory=list)
 
 
-class ObjectState(ResponseModel):
-    ref: ObjectRef
-    state: dict[str, Any]
-    as_of: datetime
-    source_id: str
-    record_ref: str | None = None
-    open_items: list[HistoryItem] = Field(default_factory=list)
-
-
 class ToolDefinition(ResponseModel):
     """A function-calling tool definition in the most common JSON Schema shape."""
 
