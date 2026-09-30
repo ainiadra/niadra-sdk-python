@@ -8,7 +8,14 @@ never the items. From the company's CI:
     niadra counterfactual --tools examples.tool_counterfactual:TOOLS --tool search_products \\
         --element hard --turn <turn id> --turn <turn id> --label "$GIT_SHA"
 
-Needs the space's `turns`, `signals` and `measurement` features, and a key with the `replay` scope.
+Needs the space's `turns`, `signals` and `measurement` features, a key with the `replay` scope, and the tool
+bound in the space's `tool-bindings` document, which the SDK profile serves: how its arguments carry a
+constraint and how its result shows the items, for example
+
+    {"tool": "search_products",
+     "args": [{"attr": "item_variant.color", "param": "color", "negation": {"param": "not_color"}}],
+     "results": [{"path": "cards[*]", "type": "item_variant", "namespace": "store", "id": "variant_id",
+                  "fields": {"color": "color"}}]}
 """
 
 from __future__ import annotations
@@ -19,21 +26,6 @@ from typing import Any
 from niadra import Niadra
 from niadra.replay import Counterfactual
 
-SEARCH = {
-    "tool": "search_products",
-    "args": [{"attr": "item_variant.color", "param": "color", "negation": {"param": "not_color"}}],
-    "results": [
-        {
-            "path": "cards[*]",
-            "type": "item_variant",
-            "namespace": "store",
-            "id": "variant_id",
-            "fields": {"color": "color"},
-        }
-    ],
-    "capabilities": {"overfetch": False},
-}
-"""How the tool's arguments carry a constraint and how its result shows the items (`tool-bindings`)."""
 CATALOG = [
     {"variant_id": str(n), "color": color, "price": price}
     for n, (color, price) in enumerate(
@@ -42,7 +34,7 @@ CATALOG = [
 ]
 
 
-@Niadra.tool("search_products", binding=SEARCH, dry_run=True)
+@Niadra.tool("search_products", dry_run=True)
 def search_products(not_color: list[str] | None = None, color: str | None = None) -> dict[str, Any]:
     """A read-only search, cheapest first: safe to run again."""
     refused = set(not_color or ())

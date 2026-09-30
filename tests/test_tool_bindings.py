@@ -1,6 +1,6 @@
-"""The tool bindings the SDK profile serves: a tool without a binding in code measures the constraints block
-through the one the space binds for its name, a binding in code wins, and the served capability masks a
-tool's output unless the code says otherwise."""
+"""The tool bindings the SDK profile serves: a tool measures the constraints block through the one the space
+binds for its name, and nothing else, and the served capability masks a tool's output unless the code says
+otherwise."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ import pytest
 from niadra import Niadra, phone
 from niadra._profile import ProfileCache
 from niadra.options import CacheOptions, TurnOptions
+from niadra.turns import tool
 from niadra_mock import MOCK_KEY, MockApp
 
 CUSTOMER = phone("+5511912345678")
@@ -95,9 +96,7 @@ def _applied(app: MockApp, niadra: Niadra, search: Any) -> dict[str, Any]:
     return stored.record["calls"][0].get("applied") or {}
 
 
-def test_a_tool_without_a_binding_in_code_measures_through_the_served_one(
-    app: MockApp, niadra: Niadra
-) -> None:
+def test_a_tool_measures_through_the_served_binding(app: MockApp, niadra: Niadra) -> None:
     @niadra.tool("search_products")
     def search(not_color: list[str] | None = None) -> dict[str, Any]:
         return {"cards": [dict(c) for c in CARDS]}
@@ -106,17 +105,19 @@ def test_a_tool_without_a_binding_in_code_measures_through_the_served_one(
     assert applied["hard_sent"] == ["h1"] and applied["results_checked"] == 2 and applied["violations"] == 0
 
 
-def test_a_binding_in_code_wins_over_the_served_one(app: MockApp, niadra: Niadra) -> None:
-    own = {
-        **SEARCH,
-        "args": [{"attr": "item_variant.color", "param": "colour", "negation": {"param": "not_colour"}}],
-    }
+def test_a_tool_the_space_does_not_bind_measures_nothing(app: MockApp, niadra: Niadra) -> None:
+    app.cell.agent_features.tool_bindings = []
 
-    @niadra.tool("search_products", binding=own)
+    @niadra.tool("search_products")
     def search(not_color: list[str] | None = None) -> dict[str, Any]:
         return {"cards": [dict(c) for c in CARDS]}
 
-    assert _applied(app, niadra, search)["hard_sent"] == [], "the code's binding names other arguments"
+    assert _applied(app, niadra, search) == {}
+
+
+def test_a_binding_is_never_given_in_code() -> None:
+    with pytest.raises(TypeError):
+        tool("search_products", binding=SEARCH)  # type: ignore[call-arg]
 
 
 def test_the_served_capability_masks_the_output_unless_the_code_says(app: MockApp, niadra: Niadra) -> None:

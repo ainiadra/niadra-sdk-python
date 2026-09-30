@@ -14,11 +14,11 @@ marks the turn incomplete, and the tool's own result and exceptions pass through
 
 A generator tool is recorded piece by piece, and its result is the list of pieces once it is consumed.
 
-With a binding (the tool's binding, as `niadra.constraints.binding` reads it: `binding=`, else the one the SDK
-profile serves for the tool's name), a call in a turn that read the constraints block records what it did with
-the block: the hard constraints its arguments sent, and over the
-objects its result shows, how many were checked, broke one, or lacked the field (the constraints spec, 7). It
-is what the day's conformance counts and what the tool counterfactual starts from. Nothing is changed.
+When the space binds the tool (its `tool-bindings` document, which the SDK profile serves this source by the
+tool's name), a call in a turn that read the constraints block records what it did with the block: the hard
+constraints its arguments sent, and over the objects its result shows, how many were checked, broke one, or
+lacked the field (the constraints spec, 7). It is what the day's conformance counts and what the tool
+counterfactual starts from. Nothing is changed. A binding lives in the space's configuration, never in code.
 
 In a replay (`niadra.replay`) the call answers from the record when its arguments match a recorded call of the
 tool; otherwise it runs only when `dry_run=True` says running it again is safe, and answers `None` (a
@@ -53,7 +53,6 @@ def tool(
     ui: Callable[[Any], Any] | None = None,
     exclude: Iterable[str] = (),
     dry_run: bool = False,
-    binding: Mapping[str, Any] | None = None,
     mask_output: bool | None = None,
     on_unknown: OnUnknown = "pass",
     access: Access | None = None,
@@ -61,12 +60,12 @@ def tool(
 ) -> Callable[[F], F]:
     """Records the decorated tool's calls in the current turn. `name` defaults to the function's name;
     `exclude` names parameters left out of the recorded arguments (a framework's context object);
-    `dry_run=True` says a replay may run it again for real when the record has no answer; `binding` is the
-    tool's binding, to measure the constraints block against its calls, and wins over the one the SDK profile
-    serves. `mask_output=True` keeps the fields the key may not read from the model (`niadra.turns.mask`),
-    with `on_unknown` for when no profile was ever read; left unset, the served binding's
-    `capabilities.mask_output` decides. `access` gives the fields each type hides and `served` the bindings by
-    tool name, both by default from the SDK profile of the turn's client."""
+    `dry_run=True` says a replay may run it again for real when the record has no answer. The constraints
+    block is measured against its calls through the binding the SDK profile serves for its name.
+    `mask_output=True` keeps the fields the key may not read from the model (`niadra.turns.mask`), with
+    `on_unknown` for when no profile was ever read; left unset, the served binding's
+    `capabilities.mask_output` decides. `access` gives the fields each type hides and `served` the bindings
+    by tool name, both by default from the SDK profile of the turn's client."""
 
     def decorate(fn: F) -> F:
         signature = inspect.signature(fn)
@@ -74,7 +73,7 @@ def tool(
         called = name or fn.__name__
 
         def mark(wrapper: Any) -> F:
-            wrapper.__niadra_tool__ = Recorded(called, dry_run, provenance, binding)
+            wrapper.__niadra_tool__ = Recorded(called, dry_run, provenance)
             return wrapper  # type: ignore[no-any-return]
 
         def begin(args: tuple[Any, ...], kwargs: dict[str, Any]) -> CallCapture | None:
@@ -87,7 +86,7 @@ def tool(
             except TypeError:
                 arguments = {"args": list(args), **kwargs}
             call = frame.adopt(called, arguments) or frame.tool_call(called, arguments)
-            raw = _binding(frame, called, binding, served)
+            raw = _binding(frame, called, served)
             if raw is not None and frame.constraints is not None:
                 call.measure = _measure(frame, raw, arguments)
             if frame.playback is not None:
@@ -97,7 +96,7 @@ def tool(
         def shield(result: Any) -> Any:
             """The result as the model may get it."""
             frame = current_turn()
-            if not _masks(frame, called, binding, served, mask_output):
+            if not _masks(frame, called, served, mask_output):
                 return result
             source = access or (
                 frame._recorder.field_access if frame is not None and frame._recorder else None
@@ -233,7 +232,6 @@ class Recorded:
     name: str
     dry_run: bool
     provenance: Provenance | None
-    binding: Mapping[str, Any] | None
 
 
 def recorded(fn: Any) -> Recorded | None:
@@ -245,12 +243,9 @@ def recorded(fn: Any) -> Recorded | None:
 def _binding(
     frame: TurnFrame | None,
     tool: str,
-    given: Mapping[str, Any] | None,
     served: Callable[[str], Mapping[str, Any] | None] | None,
 ) -> Mapping[str, Any] | None:
-    """The tool's binding: the one the code gives, else the one the SDK profile serves for its name."""
-    if given is not None:
-        return given
+    """The binding the SDK profile serves for the tool's name."""
     if served is not None:
         return served(tool)
     return frame._recorder.bindings(tool) if frame is not None and frame._recorder is not None else None
@@ -259,14 +254,13 @@ def _binding(
 def _masks(
     frame: TurnFrame | None,
     tool: str,
-    given: Mapping[str, Any] | None,
     served: Callable[[str], Mapping[str, Any] | None] | None,
     mask_output: bool | None,
 ) -> bool:
     """Whether the tool's output is masked: `mask_output` when the code says it, else the binding's."""
     if mask_output is not None:
         return mask_output
-    raw = _binding(frame, tool, given, served)
+    raw = _binding(frame, tool, served)
     return bool(((raw or {}).get("capabilities") or {}).get("mask_output"))
 
 
