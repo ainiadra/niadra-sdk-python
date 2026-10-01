@@ -32,6 +32,7 @@ import json
 import os
 import time
 import tomllib
+import uuid
 from typing import Any
 
 import httpx
@@ -160,6 +161,8 @@ class AgentCoreProxy:
     async def create_memory(self, spec: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         """CreateMemory, then GetMemory until the resource and its strategies are ACTIVE."""
         request = {
+            # The idempotency token the AWS SDKs fill in by themselves; the API refuses a call without it.
+            "clientToken": uuid.uuid4().hex,
             "name": spec["name"],
             "description": "Temporary: Niadra's public benchmark (niadra-sdk-python, benchmarks/).",
             "eventExpiryDuration": int(spec.get("event_expiry_days", 365)),

@@ -12,7 +12,8 @@ container to run, so the harness reaches it through a small signing service of i
   Episodic is not on (config/agentcore.toml says why).
 - Writes: each exchange of a conversation (the customer's message and the agent's answer) is one
   CreateEvent with both messages as `conversational` payload (`USER`, `ASSISTANT`), the customer's
-  `actorId`, one `sessionId` per conversation and the time it happened as `eventTimestamp`. A CRM or ERP
+  `actorId`, one `sessionId` per conversation, the time it happened as `eventTimestamp` and a new
+  `clientToken` (the idempotency token the AWS SDKs add by themselves). A CRM or ERP
   record is no conversation: it goes through IngestData as a `json` payload, the route the guide gives
   for system events, with its time.
 - Identity: AgentCore keys memory by `actorId` and resolves no identity. It runs in both scenarios, as
@@ -198,6 +199,7 @@ class AgentCoreMemory(HttpSystem):
                     "record": ids.fill(session.record.text, case.customer.name),
                 }
                 body = {
+                    "clientToken": uuid.uuid4().hex,
                     "actorId": actor,
                     "sessionId": sid,
                     "contentTimestamp": start.timestamp(),
@@ -206,7 +208,13 @@ class AgentCoreMemory(HttpSystem):
                 calls.append(Call("POST", self._path("/ingest"), json=body))
                 self._writes += 1
             for at, payload in exchange_events(session, start):
-                event = {"actorId": actor, "sessionId": sid, "eventTimestamp": at, "payload": payload}
+                event = {
+                    "clientToken": uuid.uuid4().hex,
+                    "actorId": actor,
+                    "sessionId": sid,
+                    "eventTimestamp": at,
+                    "payload": payload,
+                }
                 calls.append(Call("POST", self._path("/events"), json=event))
                 self._writes += 1
         return calls
@@ -244,6 +252,7 @@ class AgentCoreMemory(HttpSystem):
         if agent:
             payload.append({"conversational": {"role": "ASSISTANT", "content": {"text": agent}}})
         body = {
+            "clientToken": uuid.uuid4().hex,
             "actorId": actor,
             "sessionId": sid,
             "eventTimestamp": datetime.now(UTC).timestamp(),
