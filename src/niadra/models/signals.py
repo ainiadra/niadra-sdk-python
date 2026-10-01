@@ -585,10 +585,22 @@ class OutcomeLink(ResponseModel):
     object: ObjectKey
     outcome: ShortStr = Field(description="The outcome definition of the `measurement` document.")
     position: int | None = None
+    purchase: ObjectKey | None = Field(
+        default=None,
+        description=(
+            "The purchase it counts in, when the revenue definition counts a split purchase's parts as "
+            "one order."
+        ),
+    )
     state: ShortStr = Field(description="The state the object or its line is in.")
     turn_id: IdStr | None = None
     valid_at: datetime = Field(description="When the outcome first counted.")
-    value_minor: int | None = Field(default=None, description="In the currency's minor units; absent: none.")
+    value_minor: int | None = Field(
+        default=None,
+        description=(
+            "In the currency's minor units, as the signed revenue definition counts it; absent: none."
+        ),
+    )
 
 
 class OutcomePage(ResponseModel):

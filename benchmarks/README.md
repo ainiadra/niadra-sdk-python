@@ -1072,6 +1072,29 @@ the `composite` cases only: `results/typed/2026-09-30-a782ab` with the lines off
   off by default, as every agent feature does, and the other categories are unaffected by construction (their
   types declare no derived field).
 
+**The pieces out, named (`typed-4`, 01/10/2026).** The same six `composite` cases after the derived field names
+the pieces that kept it from `yes` (`pieces_out`, niadra-back #110): the line reads `- look loja:look-1-pt-...:
+all_pieces_available não (fora: item_variant loja:v-11-pt-...); pieces_count 3`. One run on a local cell of
+`local-e2e.sh` (niadra-back 51484da), every sector at V1, three repetitions, lines on:
+`results/typed/2026-10-01-b95193`, against `2026-09-30-3ea01b`.
+
+| | before (3ea01b) | pieces named (b95193) | difference (points) |
+|---|---|---|---|
+| Judge, `with` side, every case | 66.7% (12/18) [44, 84] | 94.4% (17/18) [74, 99] | +27.8 [+1.3, +51.1] |
+| Judge, `with` side, the looks with a piece out | 50.0% (6/12) [25, 75] | 91.7% (11/12) [65, 98] | +41.7 [+5.1, +67.2] |
+| Exact check, `with` side | 88.9% [67, 97] | 94.4% [74, 99] | +5.6 [-16.2, +27.7] |
+| Judge, `without` side | 0.0% [0, 18] | 0.0% [0, 18] | +0.0 [-17.6, +17.6] |
+
+- **The hedging is gone but for one answer:** of the 12 answers about a look with a piece out, 11 say how many
+  pieces are out (two of them after a hedge: "I don't have the full availability details, but one piece ... is
+  marked as unavailable"); the one left ("I don't have the availability details for the whole Light Tailoring
+  look") read a line that named two pieces out. The ids are the catalog's, so no answer names a piece by name.
+  The look with every piece available stays 6 of 6.
+- **Tokens:** the line adds a median of 60.5 tokens to a chat turn when a look is an interest (p95 76), 14.5
+  more than without the names, against 904.5 for the same data as a tool's JSON.
+- **Privacy:** no read at V0 held a case's sensitive value.
+- **Cost:** US$ 0.0061 for the agent and the judge (144 calls) and US$ 0.0023 for the cell's models.
+
 ## Ranking gate
 
 No change to how the memory picks and orders what a pack and its slots carry enters niadra-back's `main` without its
