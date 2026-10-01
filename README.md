@@ -78,6 +78,43 @@ with its extra, such as `pip install 'niadra[livekit]'`.
 | `object_state()`, `object_timeline()` | a business object (an order, an invoice, a ticket) as the systems of record reported it |
 | `feedback()` | a correction of what Niadra derived, audited like any other event |
 
+## Benchmark
+
+Niadra and nine other memory systems for agents (twelve configurations) were measured on the same dataset, in the same AWS region
+(us-east-2), with the same agent and the same judge for every system. The script, the dataset and every
+result file are in this repository, under [`benchmarks/`](https://github.com/ainiadra/niadra-sdk-python/tree/main/benchmarks),
+so anyone can run it again. The full page, with every metric and where Niadra does not lead, is at
+[niadra.com/benchmark](https://niadra.com/benchmark).
+
+Run of 30/09/2026 ([`2026-09-30-6e6d07`](https://github.com/ainiadra/niadra-sdk-python/tree/main/benchmarks/results/2026-09-30-6e6d07)),
+cross-channel accuracy on the same 165 valid cases, judged by the same model:
+
+| System | Accuracy | Model spend per 1,000 conversations |
+|---|---|---|
+| **Niadra** (3 repetitions) | **98.7%** | **US$ 0.36** |
+| Hindsight | 86.7% | US$ 6.10 |
+| Honcho (dialectic) | 79.4% | US$ 6.92 |
+| Mem0 open source (3 repetitions) | 77.6% | US$ 1.88 |
+| Memobase | 77% | US$ 4.13 |
+| Supermemory local | 71.6% | US$ 5.78 |
+| Cognee | 70.3% | US$ 6.95 |
+| LangMem | 66.7% | US$ 3.70 |
+| Graphiti | 52.8% | US$ 18.72 |
+| MemOS | 51.6% | US$ 3.70 |
+
+With a different user id on each channel (agents from different vendors), Mem0 open source drops to
+28.5% and Niadra stays at 98.7%. Sensitive values reaching an unverified conversation: Niadra 0 of 32.
+
+Typed state ([`typed/2026-09-30-b59a5d`](https://github.com/ainiadra/niadra-sdk-python/tree/main/benchmarks/results/typed/2026-09-30-b59a5d)):
+with the state and constraints blocks, 84.9% correct [78, 90] against 36.6% without them; declared
+constraints respected went from 0% to 94.4%, and what changed since the customer last saw it from 0% to
+100%, with no extra tokens on a turn that asks for no block.
+
+Where Niadra does not lead in that run: ingest acknowledgement against systems that write in the
+background, opening a single history item, history search p95 against LangMem by a few ms, and tokens per
+turn against readers that return answer text. The benchmark is produced by Niadra; that is why every input
+and output is public.
+
 ## Integrations
 
 Every integration wires the same five things into the framework's own extension points: the
