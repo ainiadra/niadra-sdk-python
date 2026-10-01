@@ -978,6 +978,15 @@
           "minimum": 0,
           "title": "Unknown",
           "type": "integer"
+        },
+        "pieces_out": {
+          "description": "When it is not `yes`, the related objects, as `type:namespace:id`, that kept it from `yes`: for `all` and `any` the ones the condition does not hold for or that are not known, for `count`, `min` and `max` the ones not known. In the relation's order, the first 10.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Pieces Out",
+          "type": "array"
         }
       },
       "required": [

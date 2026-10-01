@@ -277,6 +277,15 @@ class DerivedState(ResponseModel):
 
     logic: Literal["yes", "no", "unobserved"]
     over: int = Field(ge=0, description="The related objects it was computed over.")
+    pieces_out: list[str] = Field(
+        default_factory=list,
+        max_length=10,
+        description=(
+            "When it is not `yes`, the related objects, as `type:namespace:id`, that kept it from "
+            "`yes`: for `all` and `any` the ones the condition does not hold for or that are not known,"
+            " for `count`, `min` and `max` the ones not known. In the relation's order, the first 10."
+        ),
+    )
     unknown: int = Field(
         ge=0,
         description=(

@@ -4231,6 +4231,15 @@
             "title": "Over",
             "type": "integer"
           },
+          "pieces_out": {
+            "description": "When it is not `yes`, the related objects, as `type:namespace:id`, that kept it from `yes`: for `all` and `any` the ones the condition does not hold for or that are not known, for `count`, `min` and `max` the ones not known. In the relation's order, the first 10.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Pieces Out",
+            "type": "array"
+          },
           "unknown": {
             "description": "How many of them were not known: out of the working set, not an exact match (`status_field`), or with the data the condition reads not observed.",
             "minimum": 0.0,
@@ -7191,6 +7200,19 @@
             ],
             "title": "Position"
           },
+          "purchase": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{0,39}:[^:\\s]{1,256}:\\S{1,512}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The purchase it counts in, when the revenue definition counts a split purchase's parts as one order.",
+            "title": "Purchase"
+          },
           "state": {
             "description": "The state the object or its line is in.",
             "maxLength": 256,
@@ -7226,7 +7248,7 @@
                 "type": "null"
               }
             ],
-            "description": "In the currency's minor units; absent: none.",
+            "description": "In the currency's minor units, as the signed revenue definition counts it; absent: none.",
             "title": "Value Minor"
           }
         },
