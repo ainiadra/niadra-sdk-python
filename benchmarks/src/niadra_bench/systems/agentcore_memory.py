@@ -23,6 +23,9 @@ container to run, so the harness reaches it through a small signing service of i
 - Reads: one RetrieveMemoryRecords per turn, the question as `searchQuery`, the customer's root as
   `namespacePath` (records of every strategy under it) and `topK` 10, the API's default. The agent
   receives each record's text as the service returns it (a fact, a preference as JSON, a summary as XML).
+- Path: the timed lines are named `region`, not `host`: each call leaves the harness's host for the
+  service's endpoint in the same region (TLS, a kept connection), where every other system answers on the
+  host itself.
 - A live exchange (metrics 6 and 9) is one CreateEvent. Metric 6 reads once a second, not every 50 ms:
   AWS bills each retrieval and the guide gives the extraction "seconds to minutes".
 - Open (metric 8): GetMemoryRecord on the first record.
@@ -47,6 +50,7 @@ import httpx
 from niadra_bench import config as bench_config
 from niadra_bench.dataset.model import Case, Session
 from niadra_bench.identity import SCENARIOS, Identities
+from niadra_bench.metrics import latency
 from niadra_bench.systems.base import Call, HttpSystem
 
 TURN_SPACING_S = 40
@@ -106,6 +110,8 @@ class AgentCoreMemory(HttpSystem):
     version = "bedrock-agentcore 2024-02-28 (managed, built-in strategies)"
     has_open = True
     min_settle_timeout_s = 2 * 3600.0
+    # Not on the harness's host: the service's endpoint in the region, through the signing proxy.
+    path = latency.REGION
     #: The identity scenarios the runner measures this system in (one instance each).
     scenarios: ClassVar[tuple[str, ...]] = SCENARIOS
     #: The settle step: seconds between two looks, how long the record count must stay the same, and how

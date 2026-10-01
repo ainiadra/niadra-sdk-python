@@ -138,7 +138,7 @@ async def test_a_dry_run_measures_agentcore_in_both_identity_scenarios(config, t
     )
     # one line per timed metric, from the known id instance
     latency = [r for r in metrics["latency"]["results"] if r["system"] == "agentcore_memory"]
-    assert len(latency) == 1 and latency[0]["path"] == "host"
+    assert len(latency) == 1 and latency[0]["path"] == "region"
     operations = {(r["system"], r["operation"]) for r in metrics["history"]["results"]}
     assert {("agentcore_memory", "search"), ("agentcore_memory", "open")} <= operations
     fresh = {r["system"]: r for r in metrics["freshness"]["results"]}
