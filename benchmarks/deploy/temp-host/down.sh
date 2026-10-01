@@ -6,8 +6,8 @@
 # <id> defaults to the newest host this computer created (deploy/temp-host/.state/). Resources are found by
 # their tag (niadra:bench-temp-host=<id>) and by name, so it also works without the state file. It refuses
 # while the host's S3 prefix holds a results folder that is not in benchmarks/results/ yet (bench.sh
-# collect copies them), unless --discard-results. Deleted, in order: the instance (and its volume), the
-# security group, the instance profile, the role and its policies, and the S3 prefix
+# collect copies them), unless --discard-results. Deleted, in order: the instance (and its volume), any
+# AgentCore Memory a run of that system left (named niadra_bench_*), the security group, the instance profile, the role and its policies, and the S3 prefix
 # benchmarks/temp-host/<id>/ (that prefix only). Exits 1 if anything is still there at the end.
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
@@ -49,6 +49,12 @@ if [ -n "$instances" ] && [ "$instances" != None ]; then
   # shellcheck disable=SC2086
   limit 900 aws ec2 wait instance-terminated --instance-ids $instances
 fi
+
+echo "==> AgentCore memories"
+for memory in $(bench_memories); do
+  [ "$memory" = None ] && continue
+  aws_ bedrock-agentcore-control delete-memory --memory-id "$memory" >/dev/null
+done
 
 echo "==> volumes"
 for volume in $(tagged_volumes "$id"); do
@@ -98,6 +104,7 @@ check() {
 }
 check instance "$(tagged_instances "$id")"
 check volume "$(tagged_volumes "$id")"
+check "AgentCore memory" "$(bench_memories)"
 check "security group" "$(tagged_security_groups "$id")"
 check "instance profile" "$(aws_ iam get-instance-profile --instance-profile-name "$role" --query InstanceProfile.Arn --output text 2>/dev/null || true)"
 check role "$(aws_ iam get-role --role-name "$role" --query Role.Arn --output text 2>/dev/null || true)"

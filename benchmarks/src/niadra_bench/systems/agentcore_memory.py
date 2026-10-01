@@ -39,6 +39,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import hashlib
+import logging
 import re
 import time
 import tomllib
@@ -54,6 +55,7 @@ from niadra_bench.identity import SCENARIOS, Identities
 from niadra_bench.metrics import latency
 from niadra_bench.systems.base import Call, HttpSystem
 
+log = logging.getLogger("niadra_bench")
 TURN_SPACING_S = 40
 SETTINGS_FILE = "agentcore.toml"
 _UNSAFE = re.compile(r"[^a-zA-Z0-9_-]")
@@ -161,8 +163,15 @@ class AgentCoreMemory(HttpSystem):
 
     async def close(self) -> None:
         if self._http is not None and self.memory_id != "unset":
+            # A memory left behind keeps its records billed: say so, and deploy/temp-host/down.sh deletes
+            # every memory of the benchmark and checks that none is left.
+            status: int | str = "no answer"
             with contextlib.suppress(httpx.HTTPError):
-                await self.http.delete(f"{self.url}/_bench/memory/{self.memory_id}", timeout=60)
+                status = (
+                    await self.http.delete(f"{self.url}/_bench/memory/{self.memory_id}", timeout=60)
+                ).status_code
+            if status != 200:
+                log.warning("AgentCore memory %s was not deleted (%s)", self.memory_id, status)
         await super().close()
 
     def health_call(self) -> Call:

@@ -189,7 +189,10 @@ class AgentCoreProxy:
     async def delete_memory(self, memory_id: str) -> tuple[int, dict[str, Any]]:
         if memory_id not in self.memories:
             return 404, {"error": "not a memory this proxy created"}
-        deleted = await self._call(self.control, "DELETE", f"/memories/{memory_id}/delete")
+        # DeleteMemory takes its idempotency token in the query string, and refuses a call without one.
+        deleted = await self._call(
+            self.control, "DELETE", f"/memories/{memory_id}/delete?clientToken={uuid.uuid4().hex}"
+        )
         if deleted.status_code // 100 != 2 and deleted.status_code != 404:
             return deleted.status_code, {"error": deleted.text[:2000]}
         self.memories.pop(memory_id, None)

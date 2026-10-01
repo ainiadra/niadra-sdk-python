@@ -138,6 +138,12 @@ tagged_security_groups() {
 tagged_volumes() {
   aws_ ec2 describe-volumes --filters "Name=tag:$TAG_KEY,Values=$1" --query 'Volumes[].VolumeId' --output text
 }
+# The AgentCore Memory resources a run of that system created (it deletes its own when it ends; a run
+# that was killed may leave them). They are named by the benchmark, not tagged with a host.
+bench_memories() {
+  aws_ bedrock-agentcore-control list-memories \
+    --query "memories[?starts_with(id, 'niadra_bench_') && status != 'DELETING'].id" --output text
+}
 role_name() { echo "$NAME_PREFIX-$1"; }
 prefix_of() { echo "benchmarks/temp-host/$1"; }
 

@@ -86,6 +86,10 @@ if cmd == "iam list-role-policies": out("benchmark-host")
 if cmd == "iam list-attached-role-policies": out("arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore")
 if cmd in ("iam delete-role-policy", "iam detach-role-policy"): out("")
 if cmd == "iam delete-role": state["created"].pop("role", None); out("")
+if cmd == "bedrock-agentcore-control list-memories":
+    out(" ".join(state.get("memories", [])))
+if cmd == "bedrock-agentcore-control delete-memory":
+    state["memories"].remove(args[args.index("--memory-id") + 1]); out("{}")
 if cmd == "s3 ls": out("")
 if cmd == "s3 rm": out("")
 fail("unexpected: " + " ".join(args))
@@ -166,9 +170,17 @@ def test_up_creates_a_scoped_host_and_down_deletes_it_and_checks(aws) -> None:
     state = next((aws.work / ".state").glob("*.env")).read_text()
     assert "INSTANCE=i-0host" in state and "SECURITY_GROUP=sg-1" in state
 
+    assert "bedrock-agentcore:CreateEvent" in resources and "memory/niadra_bench_*" in resources
+    # a run of AgentCore Memory that was killed left its resource behind: down.sh deletes it too
+    stub_state = Path(os.environ.get("STUB_STATE_PATH", aws.work.parents[1] / "state.json"))
+    held = json.loads(stub_state.read_text())
+    held["memories"] = ["niadra_bench_ab12cd34_known-Xy12345678"]
+    stub_state.write_text(json.dumps(held))
+
     down = aws("down.sh")
     assert down.returncode == 0, down.stdout + down.stderr
-    assert "nothing left" in down.stdout
+    assert "nothing left" in down.stdout and "gone: AgentCore memory" in down.stdout
+    assert json.loads(stub_state.read_text())["memories"] == []
     rm = next(c for c in aws.calls() if c[:2] == ["s3", "rm"])
     target = rm[-1]
     assert target.startswith("s3://niadra-cell-480916502925/benchmarks/temp-host/") and "*" not in target

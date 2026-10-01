@@ -2,7 +2,8 @@
 
 An open, reproducible benchmark of Niadra against the memory layers teams compare it with: Mem0, and a
 field of other memory systems added one adapter at a time (Graphiti, Hindsight, Memobase, Supermemory
-local, MemOS, Redis Agent Memory Server, Honcho, LangMem, Cognee). It measures what an engineer
+local, MemOS, Redis Agent Memory Server, Honcho, LangMem, Cognee, and Amazon Bedrock AgentCore Memory, a
+managed service of AWS). It measures what an engineer
 integrating a memory for customer-facing and internal agents needs to know, with the same model on every
 side where a system lets it be chosen (GPT-6 Luna at reasoning `low`, the model Niadra runs), and
 publishes every result file. Where Niadra loses, the number is published the same way.
@@ -20,7 +21,7 @@ below); each one is used through the calls its own documentation shows.
 |---|---|---|---|---|
 | 1 | Latency of the context before the model call (p50, p95, p99), open loop at 10 and 25 reads per second for 30 s over 20 conversations | `POST /v1/context` with the conversation id, through the public TLS address and through the private address in the VPC | `POST /search` on its own REST server, `top_k` 10, `threshold` 0.1 | its read of a turn (the field table) |
 | 2 | Tokens the memory adds to the prompt per turn (`o200k_base`) | `system_block` and `turn_block`, `voice` and `chat` views | the search results in the format of Mem0's examples ("Based on previous conversations, I recall:") | the lines its read returns, in the format its documentation shows |
-| 3 | Cost of the memory layer per thousand conversations of 10 exchanges | public price, both ends ($2 and $3), models included | open source: extraction model spend measured from the provider's usage numbers (servers not priced); Platform: public plans over their quotas | the model spend its gateway counted from seeding until its memory settled, per exchange (servers not priced); zero where it calls no model |
+| 3 | Cost of the memory layer per thousand conversations of 10 exchanges | public price, both ends ($2 and $3), models included | open source: extraction model spend measured from the provider's usage numbers (servers not priced); Platform: public plans over their quotas | the model spend its gateway counted from seeding until its memory settled, per exchange (servers not priced); zero where it calls no model; for a managed service whose models cannot be told apart from its price (AgentCore Memory), its public price per exchange |
 | 4 | Cross-channel continuity accuracy on the synthetic dataset | the agent answers from Niadra's context | the same agent answers from Mem0's results | the same agent answers from its read |
 | 5 | Privacy: sensitive value handed to an unverified (V0) conversation | counted in the memory block | counted in the memory block; "no mechanism" | counted in the memory block; "no mechanism" |
 | 6 | Freshness: a WhatsApp message until the voice agent reads it | `track()` until `context(view="voice")` shows it | `add()` until `search()` shows it | its write until its read shows it (a queue's wait included) |
@@ -173,12 +174,13 @@ what a Niadra buyer buys.
   particular are measured against a Mem0 without them. The Platform's accuracy is measured only when a
   run includes `mem0_platform` (below), which the default run does not.
 - **Identity.** No system but Niadra resolves identity across channels. Mem0 runs with the same user id
-  on every channel (`known_id`, its best case) and with each channel's own id (`per_channel_id`). Every
+  on every channel (`known_id`, its best case) and with each channel's own id (`per_channel_id`), and so
+  does AgentCore Memory, which keys memory by the `actorId` the application sends. Every other
   added system gets one store per customer (a user, group, bank, project, tag, peer, namespace or
   dataset) with every channel in it: the `known_id` scenario, their best case. Niadra receives the same handles in every scenario.
 - **Time.** Where a system's API takes the time of an event, it gets it (Graphiti's message `timestamp`,
   Hindsight's `timestamp`, Memobase's `created_at`, MemOS's `chat_time`, Redis Agent Memory Server's and
-  Honcho's message `created_at`); where it does not (Mem0's open source release, Supermemory local, LangMem,
+  Honcho's message `created_at`, AgentCore Memory's `eventTimestamp` and `contentTimestamp`); where it does not (Mem0's open source release, Supermemory local, LangMem,
   Cognee), the order of the writes is the only time it has. Redis Agent Memory Server stores each
   message's time, but its extraction prompt grounds relative dates on the time the extraction runs.
 - **Fresh customers.** Every repetition seeds new phone numbers, e-mails and ids, so extraction runs
@@ -238,6 +240,8 @@ know.
 | `langmem` | LangMem 0.0.30 (MIT), LangGraph's `AsyncPostgresStore` in PostgreSQL 17 with pgvector | the harness's LangMem service, database, gateway | One namespace per customer (`("memories", "{user_id}")`); each conversation to `create_memory_store_manager` with its defaults, queued and processed in order by one worker (as its `ReflectionExecutor` does), the service answering 202 once queued; the store's search with the question and `limit` 10 (its `search_memory` tool's default); the store's `get` as `open` | A library with no server: the service that runs it is the harness's (`deploy/systems/langmem/server.py`), calling only its documented API. No event time. One worker in order means seeding a full repetition of dataset v2 takes hours: run it with `--limit` and say so. A CRM or ERP record is a `system` message |
 | `cognee` | Cognee 1.6.1 (Apache 2.0; `cognee/cognee`), its default local stores (SQLite, LanceDB, its embedded graph) | one container, gateway | One dataset per customer, access control on (its default: each dataset has its own stores; the harness logs in as its default user); each session added as a text (`POST /api/v1/add`), then one `cognify` of the dataset, which returns when the graph is built; `POST /api/v1/search` with `GRAPH_COMPLETION` (its guide's search), the question, the dataset and a session of the customer's own, and the agent receives the answer text | A model call on every read (its answer, plus its automatic turn analysis): latency, cost and tokens include them, and its image serves with one process (`gunicorn -w 1`, its entrypoint), so reads wait for each other. No event time. The server's default search is now `HYBRID_COMPLETION`; the guide's `GRAPH_COMPLETION` is used. A live exchange is `remember` (add, cognify and its improve step) with `run_in_background`. The benchmark's embedder is not a HuggingFace model id, so its chunk sizing counts tokens with TikToken (it logs a warning). Its `cognify` answers only when a customer's graph is built, so its calls wait up to 30 minutes (every other call 60 s; on 27/09 seven customers with 30 to 60 sessions passed 60 s). Made for documents and code, not customers |
 
+| `agentcore_memory` | Amazon Bedrock AgentCore Memory, the managed service in us-east-2 (data plane API 2024-02-28), measured on 01/10/2026 | none of its own: the harness's signing proxy (`bench serve agentcore-proxy`) | One AgentCore Memory per identity scenario, created by the run and deleted when it ends, with the built-in semantic, user preference and summary strategies under one namespace root per customer (`config/agentcore.toml`); one `CreateEvent` per exchange (both messages, the customer's `actorId`, one `sessionId` per conversation, `eventTimestamp`); a CRM or ERP record through `IngestData` as a `json` payload; the settle waits until every session has a summary record and the record count stays the same; one `RetrieveMemoryRecords` per turn with the question, the customer's root as `namespacePath` and `topK` 10 (its default); `GetMemoryRecord` as `open`. Both identity scenarios, as Mem0 | Its models, prompts and embedder are AWS's and cannot be set: the only system here that does not extract with the benchmark's model or embed with its embedder. Not on the harness's host: its timed lines are the path `region` (the host to the service's endpoint in the same region, through the proxy), so they carry a network hop the `host` lines do not. Its cost line is AWS's public price, not a measured model spend. Episodic strategy off. The section "Amazon Bedrock AgentCore Memory" below has the rest |
+
 ### Models, system by system
 
 Every system that lets its model be chosen calls `openai/gpt-6-luna` at reasoning effort `low` (config
@@ -260,10 +264,12 @@ counts the calls that arrived without it (`reasoning_set` in the run's `model_us
 | `honcho`, `honcho_dialectic` | every `*_MODEL_CONFIG__MODEL` (deriver, summary, the five dialectic levels, both dreams) | every `*_MODEL_CONFIG__THINKING_EFFORT` | any model name no setting reaches, replaced by the gateway |
 | `langmem` | the `ChatOpenAI` its manager is built with (the harness's service) | `ChatOpenAI(reasoning_effort=...)` | nothing |
 | `cognee` | `LLM_MODEL` | `LLM_ARGS` with `reasoning_effort` (the arguments it merges into every completion call; LiteLLM may drop it for a model it does not know, and the gateway sets it) | any model name no setting reaches, replaced by the gateway |
+| `agentcore_memory` | AWS's, not settable with the built-in strategies | not settable | its whole model stack and its embedder |
 | `mem0_platform` | Mem0's hosted service, not settable | not settable | its whole model stack (not in the default run) |
 
-Every embedder is the benchmark's (above) but Hindsight's reranker, which is not an embedder. No measured
-system has an extraction model it will not let the benchmark set.
+Every embedder is the benchmark's (above) but Hindsight's reranker, which is not an embedder, and AgentCore
+Memory's, which is AWS's. AgentCore Memory is also the one measured system whose extraction model the
+benchmark cannot set: its built-in strategies run on models AWS chooses and bills inside its own prices.
 
 What no system here has, so their rows read "no mechanism" rather than a score: a verification level per
 conversation and a policy by purpose (privacy); identity across channels (every added system gets the
@@ -477,6 +483,7 @@ results/ab/              A/B runs in the region: results/ab/<date>-<id>/{ab.json
 results/local/           A/B runs on a local cell or the emulator, and results/local/model-cache/ (not committed)
 results/typed/           the typed-object set on a local cell, with and without the blocks: typed.json, typed.md
 config/ab.toml           `bench ab`'s ceiling, apart from benchmark.toml so the published hash stays
+config/agentcore.toml    AgentCore Memory's strategies, read and AWS's prices, apart for the same reason
 deploy/local/cell_server.py  the local cell `bench ab --local-cell` runs in a niadra-back checkout
 deploy/local/model_cache.py  the local cell's cache of model answers and its spend ledger (`--real-models`)
 ```
@@ -523,7 +530,8 @@ address), its 40 GiB encrypted gp3 volume (deleted with it), a security group wi
 host is reached through Systems Manager only), an IAM role and instance profile (Systems Manager;
 `secretsmanager:GetSecretValue` on `niadra/bench/openrouter` and `niadra/tenant/bootstrap` only, never on
 the production key `niadra/platform/openrouter`; pull of `niadra/models` only; read and write of
-`s3://<cell bucket>/benchmarks/temp-host/<id>/` only), and that S3 prefix. The host terminates itself
+`s3://<cell bucket>/benchmarks/temp-host/<id>/` only; Amazon Bedrock AgentCore Memory resources named
+`niadra_bench_*` only, which the run of that system creates, uses and deletes), and that S3 prefix. The host terminates itself
 after `BENCH_MAX_HOURS` (default 24) even if `down.sh` never runs; the role, the group and the prefix cost
 nothing and stay until `down.sh`.
 
