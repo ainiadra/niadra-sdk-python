@@ -582,6 +582,9 @@ class Run:
             },
             "config": {
                 "hash": bench_config.config_hash(dataset=self.options.dataset),
+                # The commit the hashed files came from, when a run joined an earlier campaign with that
+                # campaign's configuration (deploy/temp-host, BENCH_CONFIG_REF); None: the harness's own.
+                "config_ref": os.environ.get("BENCH_CONFIG_REF") or None,
                 "repetitions": self.options.repetitions,
                 "agent_model": self.config.agent.model,
                 "judge_model": None if self.options.dry_run else self.config.judge.model,

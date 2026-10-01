@@ -71,11 +71,19 @@ prepare() {
   chown 10001 "$SECRETS/harness" "$SECRETS/harness/bootstrap.json"
   chmod 0400 "$SECRETS/harness/bootstrap.json"
   umask 022
+  # A campaign's frozen configuration (BENCH_CONFIG_REF): the three hashed files as that commit has them.
+  if [ -n "${CONFIG_REF:-}" ]; then
+    git -C "$BASE/src" fetch -q --depth 1 origin "$CONFIG_REF"
+    local name
+    for name in benchmark.toml mem0.config.json dataset.v2.toml; do
+      git -C "$BASE/src" show "$CONFIG_REF:benchmarks/config/$name" >"$BASE/src/benchmarks/config/$name"
+    done
+  fi
   # The embedder the cell runs, from the account's registry.
   aws ecr get-login-password | docker login --username AWS --password-stdin "${MODELS_IMAGE%%/*}" >/dev/null
   docker pull -q "$MODELS_IMAGE" >/dev/null
   docker build -q -f "$DEPLOY/Dockerfile" --build-arg HARNESS_COMMIT="$(git -C "$BASE/src" rev-parse HEAD)" \
-    -t "$BENCH_HARNESS_IMAGE" "$DEPLOY/.." >/dev/null
+    --build-arg CONFIG_REF="${CONFIG_REF:-}" -t "$BENCH_HARNESS_IMAGE" "$DEPLOY/.." >/dev/null
   echo "prepared: harness $BENCH_HARNESS_IMAGE, embedder $MODELS_IMAGE"
 }
 

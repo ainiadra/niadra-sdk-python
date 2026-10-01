@@ -58,7 +58,7 @@ Temporary benchmark host $id
   S3 prefix s3://$bucket/$prefix/
   embedder image $models
   Niadra's private address in the VPC: $private_ip (the vpc path; the edge path is the public name)
-  repository $REPO at $REF; terminates itself after $MAX_HOURS h
+  repository $REPO at $REF${CONFIG_REF:+, the frozen configuration of $CONFIG_REF}; terminates itself after $MAX_HOURS h
 Cost (on-demand, paid from the account's credits on the free plan):
 $(cost_estimate | sed 's/^/  /')
 EOF
@@ -120,7 +120,7 @@ userdata="$(mktemp)"
 trap 'rm -f "$userdata"' EXIT
 sed -e "s#@HOST_ID@#$id#g" -e "s#@REGION@#$AWS_REGION#g" -e "s#@BUCKET@#$bucket#g" -e "s#@PREFIX@#$prefix#g" \
   -e "s#@MODELS_IMAGE@#$models#g" -e "s#@VPC_ADDRESS@#$private_ip#g" -e "s#@REPO@#$REPO#g" \
-  -e "s#@REF@#$REF#g" -e "s#@MAX_MINUTES@#$((MAX_HOURS * 60))#g" "$HERE/user-data.sh" >"$userdata"
+  -e "s#@REF@#$REF#g" -e "s#@CONFIG_REF@#$CONFIG_REF#g" -e "s#@MAX_MINUTES@#$((MAX_HOURS * 60))#g" "$HERE/user-data.sh" >"$userdata"
 instance=""
 error=""
 for _ in 1 2 3 4 5 6 7 8 9 10; do

@@ -15,6 +15,9 @@ RUN uv sync --frozen --no-dev --extra mem0 --extra agentcore \
  && mkdir -p /app/results && chown 10001 /app/results
 ARG HARNESS_COMMIT=unknown
 ENV BENCH_HARNESS_COMMIT=$HARNESS_COMMIT
+# The commit the frozen configuration files were taken from, when not the harness's own (a campaign's).
+ARG CONFIG_REF=""
+ENV BENCH_CONFIG_REF=$CONFIG_REF
 USER 10001
 ENTRYPOINT ["bench"]
 CMD ["--help"]
