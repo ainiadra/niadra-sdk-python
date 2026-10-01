@@ -229,3 +229,112 @@ class FakeLlm:
                 },
             },
         )
+
+
+class FakeAgentCore:
+    """Amazon Bedrock AgentCore Memory's routes, as far as the adapter uses them: the control plane's
+    create, details and delete of a memory, and the data plane's CreateEvent, IngestData,
+    RetrieveMemoryRecords, ListMemoryRecords and GetMemoryRecord. Every message becomes a record at once
+    (the real service extracts in the background with a model), and every session gets a summary record."""
+
+    def __init__(self) -> None:
+        self.memories: dict[str, dict[str, Any]] = {}
+        self.records: dict[str, list[dict[str, Any]]] = {}
+        self.events = 0
+
+    def _add(self, memory: str, actor: str, session: str, texts: list[str]) -> None:
+        records = self.records.setdefault(memory, [])
+        root = f"/customers/{actor}/"
+        for text in texts:
+            records.append(
+                {
+                    "memoryRecordId": f"mem-{len(records)}",
+                    "content": {"text": text},
+                    "memoryStrategyId": "facts-fake",
+                    "namespaces": [f"{root}facts/"],
+                }
+            )
+        summary = f"{root}summaries/{session}/"
+        if not any(r["namespaces"] == [summary] for r in records):
+            records.append(
+                {
+                    "memoryRecordId": f"mem-{len(records)}",
+                    "content": {"text": f'<topic name="session">{session}</topic>'},
+                    "memoryStrategyId": "summaries-fake",
+                    "namespaces": [summary],
+                }
+            )
+
+    def _under(self, memory: str, body: dict[str, Any]) -> list[dict[str, Any]]:
+        prefix = str(body.get("namespacePath") or body.get("namespace") or "/")
+        strategy = body.get("memoryStrategyId")
+        return [
+            r
+            for r in self.records.get(memory, [])
+            if r["namespaces"][0].startswith(prefix) and strategy in (None, r["memoryStrategyId"])
+        ]
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "lifespan":
+            await lifespan(receive, send)
+            return
+        path, method = scope["path"], scope["method"]
+        if path == "/healthz":
+            await respond_json(send, 200, {"status": "ok"})
+            return
+        body = json.loads(await read_body(receive) or b"{}")
+        parts = path.strip("/").split("/")
+        if path == "/memories/create":
+            memory_id = f"{body['name']}-fake000001"
+            strategies = [
+                {"name": spec["name"], "strategyId": f"{spec['name']}-fake", "status": "ACTIVE"}
+                for item in body.get("memoryStrategies", [])
+                for spec in item.values()
+            ]
+            self.memories[memory_id] = {"id": memory_id, "status": "ACTIVE", "strategies": strategies}
+            await respond_json(send, 202, {"memory": self.memories[memory_id]})
+            return
+        memory = parts[1] if len(parts) > 1 else ""
+        if memory not in self.memories:
+            await respond_json(send, 404, {"message": "no such memory"})
+            return
+        action = parts[2] if len(parts) > 2 else ""
+        if action == "details":
+            await respond_json(send, 200, {"memory": self.memories[memory]})
+        elif action == "delete":
+            self.memories.pop(memory)
+            self.records.pop(memory, None)
+            await respond_json(send, 202, {"memoryId": memory, "status": "DELETING"})
+        elif action == "events":
+            self.events += 1
+            texts = [str(p["conversational"]["content"]["text"]) for p in body["payload"]]
+            self._add(memory, body["actorId"], body["sessionId"], texts)
+            await respond_json(send, 201, {"event": {"eventId": f"e{self.events}", "memoryId": memory}})
+        elif action == "ingest":
+            texts = [
+                json.dumps(p["json"]["content"], ensure_ascii=False)
+                for p in body["source"]["inline"]["payload"]
+            ]
+            self._add(memory, body["actorId"], body["sessionId"], texts)
+            await respond_json(send, 202, {"sessionId": body["sessionId"]})
+        elif action == "retrieve":
+            criteria = body["searchCriteria"]
+            wanted = set(_WORD.findall(str(criteria["searchQuery"]).lower()))
+            found = self._under(memory, body)
+            ranked = sorted(
+                found, key=lambda r: -len(wanted & set(_WORD.findall(r["content"]["text"].lower())))
+            )
+            await respond_json(send, 200, {"memoryRecordSummaries": ranked[: int(criteria.get("topK", 10))]})
+        elif action == "memoryRecords":
+            found = self._under(memory, body)
+            start = int(body.get("nextToken") or 0)
+            page = found[start : start + int(body.get("maxResults", 20))]
+            answer: dict[str, Any] = {"memoryRecordSummaries": page}
+            if start + len(page) < len(found):
+                answer["nextToken"] = str(start + len(page))
+            await respond_json(send, 200, answer)
+        elif action == "memoryRecord" and method == "GET":
+            record = next((r for r in self.records.get(memory, []) if r["memoryRecordId"] == parts[3]), None)
+            await respond_json(send, 200 if record else 404, {"memoryRecord": record})
+        else:
+            await respond_json(send, 404, {"message": "no such route"})

@@ -1,0 +1,35 @@
+# Amazon Bedrock AgentCore Memory, as the benchmark uses it (src/niadra_bench/systems/agentcore_memory.py).
+# Kept apart from benchmark.toml: that file's hash identifies the published runs, and a run with this
+# system must still combine with them. Every result file of this system records what is here
+# (`seed.<label>.configuration`).
+
+[memory]
+# The resource the run creates and deletes (CreateMemory, DeleteMemory): one per identity scenario.
+# The longest AgentCore keeps a raw event, in days. The history of a dataset v2 customer goes back six
+# months, and an event carries the time it happened (`eventTimestamp`).
+event_expiry_days = 365
+# The built-in strategies, each with its model inference run and billed by AWS: the three the
+# AgentCore Memory guide and AWS's customer support examples use together. Episodic is not on: the guide
+# lists customer support among its uses, but no quick start or default turns it on, and its records are
+# indexed by the intent of an agent's task (its tool calls and their outcome), which the dataset's
+# conversations do not carry.
+# One namespace root per customer, so one hierarchical read (`namespacePath`) covers every strategy.
+strategies = ["semantic", "user_preference", "summary"]
+namespace_root = "/customers/{actorId}/"
+
+[read]
+# RetrieveMemoryRecords: the question as `searchQuery`, the customer's root as `namespacePath`, and the
+# API's documented default number of records.
+top_k = 10
+
+[prices]
+# USD, https://aws.amazon.com/bedrock/agentcore/pricing/ (Memory), the same in every commercial region.
+source = "https://aws.amazon.com/bedrock/agentcore/pricing/"
+checked_on = "2026-10-01"
+# Short-term memory: per CreateEvent request.
+event = 0.00025
+# Long-term memory retrieval: per RetrieveMemoryRecords request.
+retrieval = 0.0005
+# Long-term memory storage with built-in strategies: per record per month (billed hourly, 31-day month).
+# The built-in strategies' model inference is included in this price.
+record_month = 0.00075

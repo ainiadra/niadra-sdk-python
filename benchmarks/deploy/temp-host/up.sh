@@ -12,7 +12,8 @@
 #   - an IAM role and instance profile: Systems Manager; read of the two secrets by name
 #     (niadra/bench/openrouter, the benchmark's own OpenRouter key, and niadra/tenant/bootstrap); pull of
 #     the niadra/models image; write and read of one S3 prefix of the cell's bucket
-#     (benchmarks/temp-host/<id>/)
+#     (benchmarks/temp-host/<id>/); Amazon Bedrock AgentCore Memory resources named niadra_bench_* (the
+#     run of that system creates them, writes and reads them, and deletes them)
 #   - the instance (default m7i-flex.large: 2 vCPU, 8 GiB, free-tier eligible) in the cell's public subnet
 #     with a public address, Ubuntu 24.04, a 40 GiB encrypted gp3 volume deleted with it, IMDSv2 only; it
 #     terminates itself after BENCH_MAX_HOURS (default 24), whatever happens to this computer
@@ -98,6 +99,14 @@ aws_ iam put-role-policy --role-name "$role" --policy-name benchmark-host --poli
    "Resource": "arn:aws:ecr:$AWS_REGION:$ACCOUNT:repository/niadra/models"},
   {"Sid": "ResultsPrefix", "Effect": "Allow", "Action": ["s3:PutObject", "s3:GetObject"],
    "Resource": "arn:aws:s3:::$bucket/$prefix/*"},
+  {"Sid": "AgentCoreMemoryCreate", "Effect": "Allow",
+   "Action": ["bedrock-agentcore:CreateMemory", "bedrock-agentcore:ListMemories", "bedrock-agentcore:TagResource"],
+   "Resource": "*"},
+  {"Sid": "AgentCoreMemoryOfTheBenchmark", "Effect": "Allow",
+   "Action": ["bedrock-agentcore:GetMemory", "bedrock-agentcore:DeleteMemory", "bedrock-agentcore:CreateEvent",
+              "bedrock-agentcore:IngestData", "bedrock-agentcore:RetrieveMemoryRecords",
+              "bedrock-agentcore:ListMemoryRecords", "bedrock-agentcore:GetMemoryRecord"],
+   "Resource": "arn:aws:bedrock-agentcore:$AWS_REGION:$ACCOUNT:memory/niadra_bench_*"},
   {"Sid": "ResultsList", "Effect": "Allow", "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::$bucket",
    "Condition": {"StringLike": {"s3:prefix": ["$prefix/*"]}}}
 ]}

@@ -186,6 +186,10 @@ def test_every_compose_default_is_the_benchmarks_model_and_effort() -> None:
     models, efforts = set(), set()
     for path in systems.glob("*/compose.yaml"):
         text = path.read_text()
+        if "llm-meter" not in text:
+            # A managed service whose models are its provider's (AgentCore Memory): no gateway to set.
+            assert path.parent.name == "agentcore-memory"
+            continue
         models |= set(re.findall(r"\$\{BENCH_LLM_MODEL:-([^}]+)\}", text))
         efforts |= set(re.findall(r"\$\{BENCH_LLM_REASONING_EFFORT:-([^}]+)\}", text))
         assert "LLM_REASONING_EFFORT: ${BENCH_LLM_REASONING_EFFORT" in text, (

@@ -117,6 +117,9 @@ class HttpSystem(Target):
     call_timeout_s: ClassVar[float] = 60.0
     #: One store per customer: the application knows who the customer is (Mem0's best case).
     scenario = "known_id"
+    #: The identity scenarios the runner measures the system in, one instance each, built with
+    #: `scenario=`; empty for a system measured in `known_id` only.
+    scenarios: ClassVar[tuple[str, ...]] = ()
 
     def __init__(
         self,

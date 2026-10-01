@@ -230,13 +230,18 @@ class Run:
             if "mem0_platform" in systems:
                 targets.append(Mem0PlatformTarget(scenario, self.config.mem0))
         for key, adapter in REGISTRY.items():
-            if key in systems:
+            if key not in systems:
+                continue
+            # A system that keys memory by an id the application sends runs once per identity scenario
+            # its adapter names (`scenarios`), as Mem0 does; every other adapter runs in `known_id`.
+            for each in adapter.scenarios or (None,):
                 targets.append(
                     adapter(
                         transport=self.options.system_transports.get(key),
                         concurrency=self.config.run.concurrency,
                         settle_timeout_s=self.config.run.settle_timeout_s,
                         max_settle_s=self.options.max_settle_s,
+                        **({"scenario": each} if each else {}),
                     )
                 )
         return targets
@@ -278,7 +283,8 @@ class Run:
 
         mem0_usage: dict[str, dict[str, int]] = {}
         mem0_adds = 0
-        others = [t for t in targets if isinstance(t, HttpSystem)]
+        # One line per added system in the cost and the timed metrics: its `known_id` instance, as for Mem0.
+        others = [t for t in targets if isinstance(t, HttpSystem) and t.scenario == "known_id"]
         # Each added system's model gateway, before its seeding and after its memory settled.
         meters_before = {o.system: await o.meter_snapshot() for o in others}
         for target in targets:

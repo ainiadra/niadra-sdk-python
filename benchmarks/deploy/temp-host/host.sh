@@ -39,6 +39,10 @@ environment() {
   set +a
   export BENCH_ENVIRONMENT=region NIADRA_VPC_ADDRESS BENCH_MODELS_IMAGE="$MODELS_IMAGE"
   export BENCH_LLM_UPSTREAM=https://openrouter.ai/api/v1
+  # Amazon Bedrock AgentCore Memory is the real service here, in the host's region, with the host's role.
+  # Its run stops at this many dollars of AgentCore charges (AWS's public prices, counted by the proxy).
+  export BENCH_AGENTCORE_UPSTREAM=aws BENCH_AGENTCORE_REGION="$REGION"
+  export BENCH_AGENTCORE_MAX_USD="${BENCH_AGENTCORE_MAX_USD:-13}"
   export BENCH_RESULTS_DIR="$RESULTS" BENCH_SECRETS_DIR="$SECRETS/harness"
   export NIADRA_BOOTSTRAP=/secrets/bootstrap.json NIADRA_CONTROL_URL=https://control.api.niadra.com
 }

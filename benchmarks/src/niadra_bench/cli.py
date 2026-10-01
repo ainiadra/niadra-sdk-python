@@ -11,7 +11,7 @@ bench typed [options]            the typed-object set on a running cell, with an
 bench combine <dir> <dir> ...    one results folder from runs of different systems (the temporary host
                                  runs one system at a time); the first folder's references decide validity
 bench systems [--compose]        the systems added through adapters and their deploy/systems directory
-bench serve embed-proxy|llm-meter [--port N]    (fake-llm and fake-models: local smoke runs only)
+bench serve embed-proxy|llm-meter|agentcore-proxy [--port N]    (fake-*: local smoke runs only)
 """
 
 from __future__ import annotations
@@ -318,6 +318,15 @@ def _serve(args: argparse.Namespace) -> int:
         from niadra_bench.services.llm_meter import LlmMeter
 
         app = LlmMeter()
+    elif args.service == "agentcore-proxy":
+        from niadra_bench.services.agentcore_proxy import AgentCoreProxy
+
+        app = AgentCoreProxy()
+    elif args.service == "fake-agentcore":
+        # Local smoke runs only: never behind a published number.
+        from niadra_bench.services.fakes import FakeAgentCore
+
+        app = FakeAgentCore()
     elif args.service == "forward":
         # A plain forwarder (the fault proxy with no fault) to FORWARD_UPSTREAM: for a server that only
         # answers requests from its own host (deploy/systems/supermemory).
@@ -526,7 +535,18 @@ def main(argv: list[str] | None = None) -> None:
     systems.set_defaults(func=_systems)
 
     serve = sub.add_parser("serve", help="run a helper service")
-    serve.add_argument("service", choices=["embed-proxy", "llm-meter", "forward", "fake-llm", "fake-models"])
+    serve.add_argument(
+        "service",
+        choices=[
+            "embed-proxy",
+            "llm-meter",
+            "forward",
+            "agentcore-proxy",
+            "fake-llm",
+            "fake-models",
+            "fake-agentcore",
+        ],
+    )
     serve.add_argument("--host", default="0.0.0.0")  # noqa: S104 - a pod's service port
     serve.add_argument("--port", type=int, default=8080)
     serve.set_defaults(func=_serve)
