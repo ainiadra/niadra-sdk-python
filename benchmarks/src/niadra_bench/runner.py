@@ -56,6 +56,8 @@ from niadra_bench.targets.reference import FullHistory, NoMemory
 
 SCHEMA = "niadra-bench.results.v1"
 METRICS = ("latency", "tokens", "cost", "accuracy", "privacy", "freshness", "resilience", "history", "ingest")
+#: The timed loops config [production] caps for Niadra, which `--lift-caps` may name.
+CAPPED_LOOPS = ("latency", "history", "ingest")
 BUILT_IN = ("niadra", "mem0_oss", "mem0_oss_rerank", "mem0_platform")
 #: Every system `--systems` accepts: the built-in targets and one per adapter in `niadra_bench.systems`.
 SYSTEMS = (*BUILT_IN, *REGISTRY)
@@ -93,6 +95,9 @@ class Options:
     # `--max-settle-s`: the longest an added system's settle may wait, below its own minimum (a campaign's
     # wall-clock cap). A settle cut short is `settled: false`, and the run scores what the system has.
     max_settle_s: float | None = None
+    # `--lift-caps`: the timed loops that reach Niadra at their own section's rates, not at the cap of config
+    # [production], in a run on a temporary cell that joins a campaign whose frozen configuration capped them.
+    lifted_caps: frozenset[str] = frozenset()
     # Tests only: an in-process transport per system added through `niadra_bench.systems`.
     system_transports: dict[str, httpx.AsyncBaseTransport] = field(default_factory=dict)
     extra: dict[str, Any] = field(default_factory=dict)
@@ -210,9 +215,10 @@ class Run:
             record_answers=options.niadra_record_answers,
         )
 
-    def _niadra_rates(self, rates: list[int], capped: list[int]) -> list[int]:
-        """Niadra's rates for a timed loop: the production cap, or the first rate of a quick run."""
-        chosen = capped if self.against_production else rates
+    def _niadra_rates(self, metric: str, rates: list[int], capped: list[int]) -> list[int]:
+        """Niadra's rates for a timed loop: the production cap unless `--lift-caps` names the loop, or the
+        first rate of a quick run."""
+        chosen = capped if self.against_production and metric not in self.options.lifted_caps else rates
         return chosen[:1] if self.options.quick else chosen
 
     def build_targets(self) -> list[Target]:
@@ -383,7 +389,7 @@ class Run:
             count = min(lat.conversations, len(pairs))
             remote = self._niadra_probes(niadra, pairs[: lat.conversations], tag)
             local = self._local_probes(mem0, others, pairs[: lat.conversations])
-            niadra_rates = self._niadra_rates(lat.rates, caps.latency_rates)
+            niadra_rates = self._niadra_rates("latency", lat.rates, caps.latency_rates)
             rates = [lat.rates[0]] if quick else lat.rates
             rep["latency"] += await latency.run(remote, niadra_rates, duration, count, lat.request_timeout_s)
             rep["latency"] += await latency.run(local, rates, duration, count, lat.request_timeout_s)
@@ -431,7 +437,7 @@ class Run:
                 his,
                 self.config.mem0,
                 rates=[his.rates[0]] if quick else his.rates,
-                niadra_rates=self._niadra_rates(his.rates, caps.history_rates),
+                niadra_rates=self._niadra_rates("history", his.rates, caps.history_rates),
                 duration_s=3.0 if quick else his.duration_s,
                 transport=self.options.niadra_transport,
                 others=[op for other in others for op in await other.history_operations(chosen)],
@@ -447,7 +453,7 @@ class Run:
                 tag,
                 ing,
                 rates=[ing.rates[0]] if quick else ing.rates,
-                niadra_rates=self._niadra_rates(ing.rates, caps.ingest_rates),
+                niadra_rates=self._niadra_rates("ingest", ing.rates, caps.ingest_rates),
                 duration_s=3.0 if quick else ing.duration_s,
                 cooldown_s=0.0 if quick else ing.cooldown_s,
                 transport=self.options.niadra_transport,
@@ -622,6 +628,8 @@ class Run:
                 "references": "on" if self.options.references else "off",
                 # `--max-settle-s`, when a campaign capped the added systems' settle (None: their own).
                 "max_settle_s": self.options.max_settle_s,
+                # `--lift-caps`: Niadra's timed loops measured past the cap of config [production].
+                "lifted_caps": sorted(self.options.lifted_caps),
                 # A smoke run (`--quick`: 3 s loops at the first rate) is never published; the site's
                 # importer refuses it. `--limit` is the number of cases asked, or None for all of them.
                 "quick": self.options.quick,

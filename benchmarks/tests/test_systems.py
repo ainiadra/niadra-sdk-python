@@ -582,6 +582,12 @@ def test_the_production_caps_apply_to_the_region_only(config, cases, monkeypatch
         niadra_transport=lambda: httpx.MockTransport(lambda r: httpx.Response(200))
     ).against_production
     assert not run(niadra_bootstrap=Path("cell/bootstrap.json")).against_production
-    assert run()._niadra_rates([10, 25], [10]) == [10]
+    assert run()._niadra_rates("history", [10, 25], [10]) == [10]
+    # A temporary cell beside a campaign whose frozen configuration capped a loop lifts that loop only.
+    lifted = run(lifted_caps=frozenset({"history"}))
+    assert lifted._niadra_rates("history", [10, 25], [10]) == [10, 25]
+    assert lifted._niadra_rates("ingest", [10, 25], [10]) == [10]
+    quick = run(lifted_caps=frozenset({"history"}), quick=True)
+    assert quick._niadra_rates("history", [10, 25], [10]) == [10]
     monkeypatch.setenv("BENCH_ENVIRONMENT", "local")
-    assert not run().against_production and run()._niadra_rates([10, 25], [10]) == [10, 25]
+    assert not run().against_production and run()._niadra_rates("history", [10, 25], [10]) == [10, 25]
