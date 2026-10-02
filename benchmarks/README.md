@@ -671,6 +671,21 @@ uv run bench combine --references results/partial/2026-09-27-aaf0dd results/2026
   results/2026-09-27-a1ff8a results/2026-09-27-4cb045 results/2026-09-27-aa9155
 ```
 
+The combine of 01/10/2026 (`results/2026-09-30-abb516`): the combine of 30/09 with Amazon Bedrock AgentCore
+Memory added, measured in us-east-2 on 01/10/2026 from a temporary host (run `2026-10-01-c6cd9d`, three
+repetitions, both identity scenarios, the same dataset and configuration hashes and the same references). Every
+other system's lines are the same runs as 6e6d07. On the 165 cases every system answered, the judge's median:
+AgentCore Memory 80.0% (77.0 to 80.6) with one id on every channel and 27.9% with an id per channel; it showed
+the sensitive value in 32 of 32 unverified conversations, like Mem0, and its context was 351.5 tokens per turn
+at the median. Its cost line is AWS's public price per exchange, US$ 7.50 per thousand conversations:
+
+```bash
+uv run bench combine --references results/partial/2026-09-27-aaf0dd results/2026-09-30-288fae \
+  results/2026-09-27-9e1e99 results/2026-09-27-1f0e6a results/2026-09-27-eed88a results/2026-09-27-d03ae2 \
+  results/2026-09-27-64b5ae results/2026-09-27-320e9d results/2026-09-27-385a79 results/2026-09-27-63d738 \
+  results/2026-09-27-a1ff8a results/2026-09-27-4cb045 results/2026-09-27-aa9155 results/2026-10-01-c6cd9d
+```
+
 Expected duration per repetition of dataset v2 (356 cases, about 2,330 conversations), not yet measured:
 Niadra's seeding at the production cap about 23 minutes, then its settle; Mem0 about 1 h 15 (seeding both
 scenarios, the accuracy pass, the timed loops); each added system from an hour to many hours (Graphiti,

@@ -1,0 +1,685 @@
+{
+  "repetition": 2,
+  "tag": "c6cd9dr2",
+  "seed": {
+    "agentcore_memory:known_id": {
+      "seconds": 48.3,
+      "failures": [],
+      "writes": 2872,
+      "write_retries": 162
+    },
+    "agentcore_memory:per_channel_id": {
+      "seconds": 47.7,
+      "failures": [],
+      "writes": 2852,
+      "write_retries": 158
+    }
+  },
+  "settle": {
+    "agentcore_memory:known_id": {
+      "settled": true,
+      "seconds": 763.0,
+      "rounds": 18,
+      "sessions_written": 5689,
+      "writes": 6815,
+      "sessions_summarized": 5321,
+      "records": 11651,
+      "records_by_strategy": {
+        "facts": 6021,
+        "summaries": 5430,
+        "preferences": 200
+      },
+      "list_calls": 1331,
+      "memory_id": "niadra_bench_f6b2ac74_known-ngzl3p3dSj",
+      "configuration": {
+        "event_expiry_days": 365,
+        "strategies": [
+          "semantic",
+          "user_preference",
+          "summary"
+        ],
+        "namespace_root": "/customers/{actorId}/",
+        "top_k": 10
+      },
+      "requests": {
+        "events": 10710,
+        "retrievals": 3448,
+        "ingests": 1808,
+        "lists": 1760,
+        "gets": 977,
+        "other": 0,
+        "throttled": 759,
+        "failed": 0,
+        "refused": 0
+      }
+    },
+    "agentcore_memory:per_channel_id": {
+      "settled": true,
+      "seconds": 948.7,
+      "rounds": 23,
+      "sessions_written": 5560,
+      "writes": 5704,
+      "sessions_summarized": 5420,
+      "records": 11581,
+      "records_by_strategy": {
+        "facts": 5906,
+        "summaries": 5420,
+        "preferences": 255
+      },
+      "list_calls": 1593,
+      "memory_id": "niadra_bench_ca7dd5fb_channel-E0qg3u8jXu",
+      "configuration": {
+        "event_expiry_days": 365,
+        "strategies": [
+          "semantic",
+          "user_preference",
+          "summary"
+        ],
+        "namespace_root": "/customers/{actorId}/",
+        "top_k": 10
+      },
+      "requests": {
+        "events": 10710,
+        "retrievals": 3448,
+        "ingests": 1808,
+        "lists": 3353,
+        "gets": 977,
+        "other": 0,
+        "throttled": 759,
+        "failed": 0,
+        "refused": 0
+      }
+    }
+  },
+  "validity": {
+    "valid": 0,
+    "excluded": []
+  },
+  "accuracy": [
+    {
+      "system": "agentcore_memory",
+      "scenario": "known_id",
+      "cases": 0,
+      "deterministic": null,
+      "judge": null,
+      "context_has_answer": null,
+      "context_has_answer_loose": null,
+      "by_category": {
+        "continuity": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "identity": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "recurrence": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "order_time": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "promise_action": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "privacy": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "contradiction": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "paraphrase": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "long_history": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "unanswerable": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "recurrence_topic": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        }
+      },
+      "tokens": {
+        "default": {
+          "median": 359.5,
+          "p95": 487,
+          "mean": 364.5
+        }
+      },
+      "privacy": {
+        "cases": 32,
+        "leaks": 32,
+        "leak_rate": 1.0,
+        "verification": "none"
+      },
+      "retrieve_errors": 0,
+      "retrieve_ms_p50": 191.05
+    },
+    {
+      "system": "agentcore_memory",
+      "scenario": "per_channel_id",
+      "cases": 0,
+      "deterministic": null,
+      "judge": null,
+      "context_has_answer": null,
+      "context_has_answer_loose": null,
+      "by_category": {
+        "continuity": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "identity": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "recurrence": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "order_time": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "promise_action": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "privacy": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "contradiction": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "paraphrase": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "long_history": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "unanswerable": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        },
+        "recurrence_topic": {
+          "cases": 0,
+          "deterministic": null,
+          "judge": null
+        }
+      },
+      "tokens": {
+        "default": {
+          "median": 84.0,
+          "p95": 289,
+          "mean": 97.0
+        }
+      },
+      "privacy": {
+        "cases": 32,
+        "leaks": 0,
+        "leak_rate": 0.0,
+        "verification": "none"
+      },
+      "retrieve_errors": 0,
+      "retrieve_ms_p50": 189.0
+    }
+  ],
+  "backing": [
+    {
+      "system": "agentcore_memory",
+      "scenario": "known_id",
+      "answers": 356,
+      "values_checked": 390,
+      "unbacked": 0,
+      "answers_with_unbacked": 0,
+      "per_1000_answers": 0.0,
+      "by_kind": {},
+      "by_category": {
+        "continuity": {
+          "answers": 40,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "contradiction": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "identity": {
+          "answers": 40,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "long_history": {
+          "answers": 20,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "order_time": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "paraphrase": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "privacy": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "promise_action": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "recurrence": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "recurrence_topic": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "unanswerable": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        }
+      }
+    },
+    {
+      "system": "agentcore_memory",
+      "scenario": "per_channel_id",
+      "answers": 356,
+      "values_checked": 193,
+      "unbacked": 0,
+      "answers_with_unbacked": 0,
+      "per_1000_answers": 0.0,
+      "by_kind": {},
+      "by_category": {
+        "continuity": {
+          "answers": 40,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "contradiction": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "identity": {
+          "answers": 40,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "long_history": {
+          "answers": 20,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "order_time": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "paraphrase": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "privacy": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "promise_action": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "recurrence": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "recurrence_topic": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        },
+        "unanswerable": {
+          "answers": 32,
+          "unbacked": 0,
+          "per_1000_answers": 0.0
+        }
+      }
+    }
+  ],
+  "cost": [
+    {
+      "system": "niadra",
+      "variant": "price_low",
+      "memory_usd_per_1000": 5.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public price, models included"
+    },
+    {
+      "system": "niadra",
+      "variant": "price_high",
+      "memory_usd_per_1000": 15.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public price, models included"
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "hobby",
+      "memory_usd_per_1000": 0.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 0.0,
+      "conversations_per_month": 100
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "starter",
+      "memory_usd_per_1000": 38.0,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 19.0,
+      "conversations_per_month": 500
+    },
+    {
+      "system": "mem0_platform",
+      "variant": "pro",
+      "memory_usd_per_1000": 49.8,
+      "agent_prompt_usd_per_1000": null,
+      "basis": "public plan price over its monthly quota",
+      "monthly_usd": 249.0,
+      "conversations_per_month": 5000
+    },
+    {
+      "system": "agentcore_memory",
+      "variant": "service_price",
+      "memory_usd_per_1000": 7.5,
+      "basis": "AWS public prices: one CreateEvent and one RetrieveMemoryRecords per exchange, the built-in strategies' model inference included; record storage apart, per month kept",
+      "usd_per_event": 0.00025,
+      "usd_per_retrieval": 0.0005,
+      "usd_per_record_month": 0.00075,
+      "prices_checked_on": "2026-10-01",
+      "records_per_write": 0.913,
+      "summary_records_per_session": 0.954,
+      "storage_usd_per_1000_per_month": 7.5622,
+      "agent_prompt_usd_per_1000": 0.3595
+    }
+  ],
+  "latency": [
+    {
+      "system": "agentcore_memory",
+      "path": "region",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 187.4,
+      "p90": 203.3,
+      "p95": 210.6,
+      "p99": 232.4,
+      "max": 246.3,
+      "sent": 300,
+      "errors": {}
+    },
+    {
+      "system": "agentcore_memory",
+      "path": "region",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 186.2,
+      "p90": 202.5,
+      "p95": 213.0,
+      "p99": 251.5,
+      "max": 446.6,
+      "sent": 750,
+      "errors": {}
+    }
+  ],
+  "freshness": [
+    {
+      "system": "agentcore_memory",
+      "trials": 20,
+      "timeouts": 20,
+      "timeout_s": 30.0,
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+    }
+  ],
+  "resilience": [
+    {
+      "system": "agentcore_memory",
+      "fault": "delay_2000ms",
+      "trials": 20,
+      "memory_stage_ms": {
+        "n": 20,
+        "p50": 2195.5,
+        "p90": 2208.7,
+        "p95": 2212.6,
+        "p99": 2215.1,
+        "max": 2215.1
+      },
+      "within_budget_rate": 0.0,
+      "raised_rate": 0.0,
+      "empty_rate": 0.0,
+      "turn_budget_ms": 1000
+    },
+    {
+      "system": "agentcore_memory",
+      "fault": "http_503",
+      "trials": 20,
+      "memory_stage_ms": {
+        "n": 20,
+        "p50": 0.7,
+        "p90": 0.8,
+        "p95": 1.2,
+        "p99": 2.1,
+        "max": 2.1
+      },
+      "within_budget_rate": 1.0,
+      "raised_rate": 1.0,
+      "empty_rate": 1.0,
+      "turn_budget_ms": 1000
+    }
+  ],
+  "history": [
+    {
+      "system": "embedder",
+      "path": "host",
+      "operation": "encode",
+      "call": "POST /v1/embed",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 15.1,
+      "p90": 15.6,
+      "p95": 15.9,
+      "p99": 19.4,
+      "max": 62.9,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "embedder",
+      "path": "host",
+      "operation": "encode",
+      "call": "POST /v1/embed",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 15.1,
+      "p90": 15.6,
+      "p95": 15.8,
+      "p99": 18.2,
+      "max": 23.6,
+      "sent": 750,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "agentcore_memory",
+      "path": "region",
+      "operation": "search",
+      "call": "POST /memories/niadra_bench_f6b2ac74_known-ngzl3p3dSj/retrieve",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 187.2,
+      "p90": 203.8,
+      "p95": 219.4,
+      "p99": 300.4,
+      "max": 327.3,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "agentcore_memory",
+      "path": "region",
+      "operation": "search",
+      "call": "POST /memories/niadra_bench_f6b2ac74_known-ngzl3p3dSj/retrieve",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 186.9,
+      "p90": 202.4,
+      "p95": 210.0,
+      "p99": 258.1,
+      "max": 2551.4,
+      "sent": 750,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "agentcore_memory",
+      "path": "region",
+      "operation": "open",
+      "call": "GET /memories/niadra_bench_f6b2ac74_known-ngzl3p3dSj/memoryRecord/mem-66340601-200e-4433-8882-5f870b785318",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 70.1,
+      "p90": 85.0,
+      "p95": 94.4,
+      "p99": 140.3,
+      "max": 157.4,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "agentcore_memory",
+      "path": "region",
+      "operation": "open",
+      "call": "GET /memories/niadra_bench_f6b2ac74_known-ngzl3p3dSj/memoryRecord/mem-66340601-200e-4433-8882-5f870b785318",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 636,
+      "p50": 69.3,
+      "p90": 77.1,
+      "p95": 84.1,
+      "p99": 108.2,
+      "max": 183.1,
+      "sent": 750,
+      "errors": {
+        "http429": 114
+      },
+      "empty": 0,
+      "degraded": 0
+    }
+  ],
+  "ingest": [
+    {
+      "system": "agentcore_memory",
+      "path": "region",
+      "operation": "write",
+      "call": "POST /memories/niadra_bench_f6b2ac74_known-ngzl3p3dSj/events",
+      "rate": 10,
+      "duration_s": 30.0,
+      "n": 300,
+      "p50": 77.9,
+      "p90": 86.7,
+      "p95": 90.1,
+      "p99": 104.6,
+      "max": 196.2,
+      "sent": 300,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    },
+    {
+      "system": "agentcore_memory",
+      "path": "region",
+      "operation": "write",
+      "call": "POST /memories/niadra_bench_f6b2ac74_known-ngzl3p3dSj/events",
+      "rate": 25,
+      "duration_s": 30.0,
+      "n": 750,
+      "p50": 76.3,
+      "p90": 84.8,
+      "p95": 89.4,
+      "p99": 105.4,
+      "max": 126.0,
+      "sent": 750,
+      "errors": {},
+      "empty": 0,
+      "degraded": 0
+    }
+  ]
+}
