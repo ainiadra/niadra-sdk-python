@@ -13,11 +13,28 @@ import base64
 import hashlib
 import hmac
 import re
+import unicodedata
 from typing import Literal
 
 from niadra.errors import NiadraError
 
 _SEPARATORS = re.compile(r"[\s().\-/]")
+_AREA_CODES = frozenset(
+    f"{tens}{unit}"
+    for tens, units in (
+        (1, "123456789"),
+        (2, "12478"),
+        (3, "1234578"),
+        (4, "123456789"),
+        (5, "1345"),
+        (6, "123456789"),
+        (7, "134579"),
+        (8, "123456789"),
+        (9, "123456789"),
+    )
+    for unit in units
+)
+"""Brazil's area codes (DDD) in use (section 3.4)."""
 _DIGITS = re.compile(r"[0-9]+")
 _BASE64URL = re.compile(r"[A-Za-z0-9_-]*")
 _DOMAIN = r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9-]{1,63})+"
@@ -60,28 +77,45 @@ def suppression_key(salt_b64url: str, canonical: str) -> str:
 
 
 def _phone(value: str) -> str:
-    """`phone:+<digits>` in E.164: a Brazilian national number gains `55`, and a Brazilian mobile number
-    from before the ninth digit gains its `9`."""
-    raw = _SEPARATORS.sub("", value.strip())
-    international = raw.startswith(("+", "00"))
+    """`phone:+<digits>` in E.164 (section 3.1): invisible marks and a `tel:` prefix dropped, a Brazilian
+    national number gains `55` (also after a carrier code), a Brazilian mobile number from before the
+    ninth digit gains its `9`, and the mobile `1` of Mexico and `9` of Argentina that WhatsApp ids keep
+    are dropped."""
+    folded = unicodedata.normalize("NFKC", value)
+    text = "".join(c for c in folded if unicodedata.category(c) != "Cf").strip()
+    if text[:4].lower() == "tel:":
+        text = text[4:]
+    international = text.startswith(("+", "00"))
+    if international:
+        text = text.replace("(0)", "")
+    raw = _SEPARATORS.sub("", text)
     digits = raw[1:] if raw.startswith("+") else raw[2:] if international else raw
     if not _DIGITS.fullmatch(digits):
         raise DestinationError("invalid_handle")
-    national = digits.lstrip("0")
-    if not international and len(national) in (10, 11) and _area(national[:2]):
-        digits = "55" + national
+    if not international:
+        national = digits.lstrip("0")
+        if _brazilian_national(national):
+            digits = "55" + national
+        elif digits.startswith("0") and len(national) in (12, 13) and _brazilian_national(national[2:]):
+            digits = "55" + national[2:]
     if not 8 <= len(digits) <= 15 or digits.startswith("0"):
         raise DestinationError("invalid_handle")
     if digits.startswith("55"):
         rest = digits[2:]
-        if len(rest) == 10 and _area(rest[:2]) and rest[2] in "6789":
+        if len(rest) == 10 and rest[:2] in _AREA_CODES and rest[2] in "6789":
             digits = "55" + rest[:2] + "9" + rest[2:]
+    if len(digits) == 13 and digits[:3] in ("521", "549"):
+        digits = digits[:2] + digits[3:]
     return "phone:+" + digits
 
 
-def _area(code: str) -> bool:
-    """A Brazilian area code: two digits, neither of them zero."""
-    return len(code) == 2 and code[0] != "0" and code[1] != "0"
+def _brazilian_national(national: str) -> bool:
+    """An area code, then 8 digits from 2 to 9 or 9 digits from 9 (section 3.1, step 5)."""
+    if national[:2] not in _AREA_CODES:
+        return False
+    if len(national) == 10:
+        return national[2] in "23456789"
+    return len(national) == 11 and national[2] == "9"
 
 
 def _unb64(text: str) -> bytes:
