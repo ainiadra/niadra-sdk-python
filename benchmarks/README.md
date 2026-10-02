@@ -287,8 +287,8 @@ settings:
 | Seeding | 2 batches per second across all seeding tasks, 4 at a time; a 429 or 503 pauses every seeding task for 30 s (or the Retry-After, if longer) | On 25/09 the afternoon run seeded about 12 batches per second with about 18% of the conversations extracted (174 of 986): about 2 extractions per second reached the workers and the cell held. Since niadra-back bb4ecaa nearly every conversation is extracted, so the same pace became about 10 per second in the evening run and saturated PgBouncer (4 server connections per database and role, 6 per database) and the db.t4g.micro. At 2 batches per second, dataset v2 (2,780 batches, 2,328 of them conversations) sends about 1.7 extractions per second, the rate the cell absorbed on 25/09, and takes about 23 minutes per repetition |
 | Reads outside the timed loops | 4 at a time; the settle pass reads every case at most once per 10 s | The settle, the accuracy pass and the verifications read the context of hundreds of customers; 4 at a time keeps them to tens of reads per second |
 | Metric 1, `context()` | 10 and 25 per second, both paths | `context()` serves the cached pack |
-| Metric 8, history navigation | 10 per second only | Each call opens a transaction on the space's database and writes a receipt |
-| Metric 9, ingestion | 10 per second only | Each call writes two events in one transaction and every 10 calls open a conversation to extract: one 30 s line is 300 calls and 30 conversations per path |
+| Metric 8, history navigation | 10 and 25 per second, both paths | Each call opens a transaction on the space's database and writes a receipt. Capped at 10 until 02/10/2026, when a temporary cell with production's classes took 25 with no error (below) |
+| Metric 9, ingestion | 10 and 25 per second, both paths | Each call writes two events in one transaction and every 10 calls open a conversation to extract: one 30 s line at 25 is 750 calls and 75 conversations per path. Capped at 10 until 02/10/2026, as metric 8 |
 
 Before a run, check that the cell's deployment extracts with `openai/gpt-6-luna` at reasoning `low` and
 decides with `typesafe/jev-1.13` (niadra-back's settings; the run records the server version it read, and
@@ -336,8 +336,10 @@ How the Niadra side is prepared, before any clock starts:
   settings is in the frozen config: the config hash does not change. Runs before 26/09/2026, when the
   harness ran as a pod of the cell, have a path `cluster`: each service's own address, through the
   cluster's network.
-- **Rates.** Niadra's lines run at 10 per second only (config `[production]`); the other systems' at 10
-  and 25.
+- **Rates.** Niadra's lines run at 10 and 25 per second, as the other systems' do (config `[production]`).
+  Runs of the configuration before 02/10/2026 (hash `7ad9c33e`, every published run until then) capped
+  them at 10; `bench run --lift-caps history,ingest` measures them at both rates on a temporary cell while
+  keeping that frozen configuration, so the run joins those campaigns (`config.lifted_caps` records it).
 
 Both searches start by encoding the question with the same model (Niadra's read service calls the
 cell's `niadra-models`; Mem0, and every added system that takes the benchmark's embedder, call the same
@@ -684,6 +686,29 @@ uv run bench combine --references results/partial/2026-09-27-aaf0dd results/2026
   results/2026-09-27-9e1e99 results/2026-09-27-1f0e6a results/2026-09-27-eed88a results/2026-09-27-d03ae2 \
   results/2026-09-27-64b5ae results/2026-09-27-320e9d results/2026-09-27-385a79 results/2026-09-27-63d738 \
   results/2026-09-27-a1ff8a results/2026-09-27-4cb045 results/2026-09-27-aa9155 results/2026-10-01-c6cd9d
+```
+
+The combine of 02/10/2026 (`results/2026-09-30-5ea7a2`): the combine of 01/10 with Niadra's history navigation
+and ingestion at 25 per second, which every earlier Niadra run left out (the configuration of those runs
+capped them at 10). They were measured on 02/10/2026 on a new temporary cell with production's machine and
+database classes, on the images production ran that day (server `src-1251160c05ea6cd5`: niadra-back c7116df,
+niadra-infra a81748a; the image of the 30/09 runs is no longer in the registry), harness 9a09222 with the
+published SDK 0.7.0 and the frozen configuration of 84d64cc (the same configuration and dataset hashes):
+one repetition of the 356 cases seeded, then metrics 8 and 9 at 10 and 25 per second through the public
+address and the VPC (`2026-10-02-8aa295`, `--metrics history,ingest --lift-caps history,ingest`). The combine
+adds its 25 per second lines; its 10 per second lines stay in its own folder, beside the 30/09 ones the
+combine keeps (search p95 35.7 ms through the public address against 37.6 on 30/09, open 14.0 against 14.4,
+ingestion 15.1 against 72.5, which varied from 17.4 to 163 between the 30/09 repetitions). No call of the 25
+per second lines failed. `2026-10-02-6637d0` is Niadra's `host` path at both rates from the cell's own machine
+(three repetitions on 20 cases, `--dry-run`), measured after the cell drained; it is not combined, and the
+site takes its 25 per second lines only:
+
+```bash
+uv run bench combine --references results/partial/2026-09-27-aaf0dd results/2026-09-30-288fae \
+  results/2026-09-27-9e1e99 results/2026-09-27-1f0e6a results/2026-09-27-eed88a results/2026-09-27-d03ae2 \
+  results/2026-09-27-64b5ae results/2026-09-27-320e9d results/2026-09-27-385a79 results/2026-09-27-63d738 \
+  results/2026-09-27-a1ff8a results/2026-09-27-4cb045 results/2026-09-27-aa9155 results/2026-10-01-c6cd9d \
+  results/2026-10-02-8aa295
 ```
 
 Expected duration per repetition of dataset v2 (356 cases, about 2,330 conversations), not yet measured:

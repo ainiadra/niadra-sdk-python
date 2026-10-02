@@ -17,6 +17,10 @@ takes its validity from that last one, and says so (`validity.references`). A ru
 and `accuracy_shared` scores every system again on the valid cases all of them answered, so a system
 measured on fewer cases is set beside the others on the same cases, never on its own.
 
+A source with no case rows (a run of the timed loops only, such as `--metrics history,ingest` on a
+temporary cell) is listed with the systems of its lines. It adds the lines the sources before it lack and
+never changes `per_system`, which names, for each system, the first source that measured its cases.
+
 A source folder may carry `cell-cost.json`: cost lines measured outside the harness for that run (Niadra's
 own model spend, read from the cell's ledger over the run's window), with the inputs that give them. They
 join that repetition's cost lines like any other.
@@ -43,6 +47,8 @@ KEYS: dict[str, tuple[str, ...]] = {
     "cost": ("system", "variant"),
 }
 REFERENCES = frozenset({"no_memory", "full_history"})
+#: A line of the embedder alone (metric 8's `encode`), shared by every run that measures search.
+EMBEDDER = "embedder"
 
 
 def _rows(directory: Path, n: int) -> list[accuracy.CaseRow]:
@@ -95,6 +101,11 @@ def _references(directory: Path) -> tuple[dict[str, Any], dict[int, list[accurac
     return summary, rows
 
 
+def _line_systems(rep: dict[str, Any]) -> set[str]:
+    """The systems a repetition has timed lines for, the embedder aside."""
+    return {line["system"] for metric in KEYS for line in rep.get(metric) or []} - {EMBEDDER} - REFERENCES
+
+
 def _cell_cost(directory: Path, n: int) -> list[dict[str, Any]]:
     """Cost lines measured outside the harness for repetition n of a run (cell-cost.json), if any."""
     path = directory / "cell-cost.json"
@@ -127,6 +138,8 @@ def combine(
     reps: list[dict[str, Any]] = []
     rows_by_rep: dict[int, list[accuracy.CaseRow]] = {}
     sources: list[dict[str, Any]] = []
+    # The systems each source measured cases of, for `per_system`.
+    measured: list[tuple[dict[str, Any], set[str]]] = []
     for n in range(1, repetitions + 1):
         rows: list[accuracy.CaseRow] = list(ref_rows.get(n, []))
         seen_systems: set[tuple[str, str | None]] = {(r.system, r.scenario) for r in rows}
@@ -154,16 +167,18 @@ def combine(
                         rep.setdefault(metric, []).append(line)
                         have.add(key)
             if n == 1:
+                named = {s for s, _ in systems} - REFERENCES
                 sources.append(
                     {
                         "run_id": summaries[index]["run_id"],
-                        "systems": sorted({s for s, _ in systems} - REFERENCES),
+                        "systems": sorted(named or _line_systems(raw)),
                         "repetitions": summaries[index]["config"]["repetitions"],
                         "cases": summaries[index]["dataset"]["cases"],
                         "started_at": summaries[index]["started_at"],
                         "finished_at": summaries[index]["finished_at"],
                     }
                 )
+                measured.append((sources[-1], named))
         rows_by_rep[n] = rows
         reps.append(rep)
 
@@ -225,11 +240,13 @@ def combine(
         },
     }
     summary["combined_from"] = sources
-    summary["per_system"] = {
-        system: {"run_id": source["run_id"], "repetitions": source["repetitions"], "cases": source["cases"]}
-        for source in sources
-        for system in source["systems"]
-    }
+    summary["per_system"] = {}
+    for source, named in measured:
+        for system in sorted(named):
+            summary["per_system"].setdefault(
+                system,
+                {"run_id": source["run_id"], "repetitions": source["repetitions"], "cases": source["cases"]},
+            )
     summary["metrics"] = aggregate(reps)
     shared_metrics = aggregate([{"accuracy": r["accuracy_shared"]} for r in reps if "accuracy_shared" in r])
     if "accuracy" in shared_metrics:

@@ -31,7 +31,7 @@ from niadra_bench import config as bench_config
 from niadra_bench.dataset import generate
 from niadra_bench.dataset.typed import TYPED_CATEGORIES
 from niadra_bench.dataset.validate import structural_problems
-from niadra_bench.runner import METRICS, SYSTEMS, Options, Run, aggregate, load_cases
+from niadra_bench.runner import CAPPED_LOOPS, METRICS, SYSTEMS, Options, Run, aggregate, load_cases
 
 
 def _prepare(args: argparse.Namespace) -> int:
@@ -191,6 +191,7 @@ def _run(args: argparse.Namespace) -> int:
         niadra_record_answers=args.niadra_guards == "measure",
         references=not args.no_references,
         max_settle_s=args.max_settle_s,
+        lifted_caps=frozenset(_csv(args.lift_caps, CAPPED_LOOPS)) if args.lift_caps else frozenset(),
     )
     if args.mock:
         import httpx
@@ -432,6 +433,13 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         help="the longest an added system's settle may wait (a campaign's wall-clock cap); a settle cut "
         "short is recorded as settled: false and the run scores what the system has",
+    )
+    run.add_argument(
+        "--lift-caps",
+        default=None,
+        help=f"comma list of {', '.join(CAPPED_LOOPS)}: Niadra's timed loops at their own section's rates, "
+        "past the cap of config [production], for a temporary cell measured beside a campaign whose "
+        "frozen configuration capped them; recorded as config.lifted_caps",
     )
     run.set_defaults(func=_run)
 

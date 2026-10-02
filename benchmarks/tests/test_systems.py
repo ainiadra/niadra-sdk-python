@@ -419,6 +419,47 @@ async def test_runs_with_fewer_repetitions_and_cases_combine_after_the_first(
     assert all(r["context"] is None for r in first if r["system"] in ("no_memory", "full_history"))
 
 
+async def test_a_run_of_timed_loops_only_adds_its_lines_and_keeps_who_measured_the_cases(
+    config, tmp_path, monkeypatch
+) -> None:
+    from niadra_bench.combine import combine
+
+    monkeypatch.setenv("NIADRA_API_KEY", MOCK_KEY)
+    monkeypatch.delenv("NIADRA_BOOTSTRAP", raising=False)
+    monkeypatch.delenv("MEM0_METER_URL", raising=False)
+    cases = load_cases("v2")
+    outs = []
+    # Niadra's run with its cases, then a run of history navigation alone on a later cell.
+    for metrics, references in (
+        ({"latency", "accuracy", "tokens", "privacy", "cost"}, True),
+        ({"history"}, False),
+    ):
+        mock = MockApp()
+        options = Options(
+            systems={"niadra"},
+            metrics=metrics,
+            repetitions=1,
+            dry_run=True,
+            limit=8,
+            quick=True,
+            output=tmp_path / "runs",
+            dataset="v2",
+            references=references,
+            niadra_transport=lambda mock=mock: httpx.ASGITransport(app=mock.asgi),
+            niadra_base_url="http://niadra-mock",
+            extra={"tokenizer": word_tokenizer},
+        )
+        outs.append(await Run(config, cases, options).execute())
+    summary = json.loads(
+        (combine(outs, tmp_path / "combined", {c.id: c for c in cases}) / "summary.json").read_text()
+    )
+    assert [s["systems"] for s in summary["combined_from"]] == [["niadra"], ["niadra"]]
+    first = json.loads((outs[0] / "summary.json").read_text())["run_id"]
+    assert summary["per_system"] == {"niadra": {"run_id": first, "repetitions": 1, "cases": 8}}
+    lines = summary["metrics"]["history"]["results"]
+    assert {r["system"] for r in lines} >= {"niadra"} and summary["metrics"]["latency"]["results"]
+
+
 async def test_a_one_repetition_reference_run_combines_with_a_system_of_more(
     config, tmp_path, monkeypatch
 ) -> None:
@@ -582,6 +623,12 @@ def test_the_production_caps_apply_to_the_region_only(config, cases, monkeypatch
         niadra_transport=lambda: httpx.MockTransport(lambda r: httpx.Response(200))
     ).against_production
     assert not run(niadra_bootstrap=Path("cell/bootstrap.json")).against_production
-    assert run()._niadra_rates([10, 25], [10]) == [10]
+    assert run()._niadra_rates("history", [10, 25], [10]) == [10]
+    # A temporary cell beside a campaign whose frozen configuration capped a loop lifts that loop only.
+    lifted = run(lifted_caps=frozenset({"history"}))
+    assert lifted._niadra_rates("history", [10, 25], [10]) == [10, 25]
+    assert lifted._niadra_rates("ingest", [10, 25], [10]) == [10]
+    quick = run(lifted_caps=frozenset({"history"}), quick=True)
+    assert quick._niadra_rates("history", [10, 25], [10]) == [10]
     monkeypatch.setenv("BENCH_ENVIRONMENT", "local")
-    assert not run().against_production and run()._niadra_rates([10, 25], [10]) == [10, 25]
+    assert not run().against_production and run()._niadra_rates("history", [10, 25], [10]) == [10, 25]
