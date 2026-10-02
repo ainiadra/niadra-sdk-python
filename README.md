@@ -80,19 +80,20 @@ with its extra, such as `pip install 'niadra[livekit]'`.
 
 ## Benchmark
 
-Niadra and nine other memory systems for agents (twelve configurations) were measured on the same dataset, in the same AWS region
+Niadra and ten other memory systems for agents (thirteen configurations) were measured on the same dataset, in the same AWS region
 (us-east-2), with the same agent and the same judge for every system. The script, the dataset and every
 result file are in this repository, under [`benchmarks/`](https://github.com/ainiadra/niadra-sdk-python/tree/main/benchmarks),
 so anyone can run it again. The full page, with every metric and where Niadra does not lead, is at
 [niadra.com/benchmark](https://niadra.com/benchmark).
 
-Run of 30/09/2026 ([`2026-09-30-6e6d07`](https://github.com/ainiadra/niadra-sdk-python/tree/main/benchmarks/results/2026-09-30-6e6d07)),
+Combined run of 01/10/2026 ([`2026-09-30-abb516`](https://github.com/ainiadra/niadra-sdk-python/tree/main/benchmarks/results/2026-09-30-abb516)),
 cross-channel accuracy on the same 165 valid cases, judged by the same model:
 
 | System | Accuracy | Model spend per 1,000 conversations |
 |---|---|---|
 | **Niadra** (3 repetitions) | **98.7%** | **US$ 0.36** |
 | Hindsight | 86.7% | US$ 6.10 |
+| Amazon Bedrock AgentCore Memory (3 repetitions) | 80% | US$ 7.50 (AWS public price, its models included) |
 | Honcho (dialectic) | 79.4% | US$ 6.92 |
 | Mem0 open source (3 repetitions) | 77.6% | US$ 1.88 |
 | Memobase | 77% | US$ 4.13 |
@@ -103,7 +104,8 @@ cross-channel accuracy on the same 165 valid cases, judged by the same model:
 | MemOS | 51.6% | US$ 3.70 |
 
 With a different user id on each channel (agents from different vendors), Mem0 open source drops to
-28.5% and Niadra stays at 98.7%. Sensitive values reaching an unverified conversation: Niadra 0 of 32.
+28.5%, AgentCore Memory to 27.9%, and Niadra stays at 98.7%. Sensitive values reaching an unverified
+conversation: Niadra 0 of 32; Mem0 and AgentCore Memory 32 of 32.
 
 Typed state ([`typed/2026-09-30-b59a5d`](https://github.com/ainiadra/niadra-sdk-python/tree/main/benchmarks/results/typed/2026-09-30-b59a5d)):
 with the state and constraints blocks, 84.9% correct [78, 90] against 36.6% without them; declared

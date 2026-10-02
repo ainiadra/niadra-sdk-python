@@ -117,6 +117,12 @@ class HttpSystem(Target):
     call_timeout_s: ClassVar[float] = 60.0
     #: One store per customer: the application knows who the customer is (Mem0's best case).
     scenario = "known_id"
+    #: How a timed call travels, as the results name it: `host` (the system's container on the harness's
+    #: host), or `region` for a managed service reached at its endpoint in the harness's region.
+    path: ClassVar[str] = HOST_PATH
+    #: The identity scenarios the runner measures the system in, one instance each, built with
+    #: `scenario=`; empty for a system measured in `known_id` only.
+    scenarios: ClassVar[tuple[str, ...]] = ()
 
     def __init__(
         self,
@@ -312,7 +318,7 @@ class HttpSystem(Target):
         def call(client: httpx.AsyncClient, n: int) -> Awaitable[tuple[float, str]]:
             return timed(calls[n % len(calls)].send(client, base, headers), 200)
 
-        return latency.Probe(self.system, HOST_PATH, call, self._factory())
+        return latency.Probe(self.system, self.path, call, self._factory())
 
     def _factory(self) -> Callable[[], httpx.AsyncBaseTransport] | None:
         transport = self.transport
@@ -336,7 +342,7 @@ class HttpSystem(Target):
 
         ops = [
             Operation(
-                latency.Probe(self.system, HOST_PATH, search, self._factory()), "search", _name(reads[0])
+                latency.Probe(self.system, self.path, search, self._factory()), "search", _name(reads[0])
             )
         ]
         if self.has_open:
@@ -346,7 +352,7 @@ class HttpSystem(Target):
 
             skipped = None if opens else "no item returned by any read"
             name = _name(opens[0]) if opens else "open"
-            probe = latency.Probe(self.system, HOST_PATH, open_one, self._factory())
+            probe = latency.Probe(self.system, self.path, open_one, self._factory())
             ops.append(Operation(probe, "open", name, skipped))
         return ops
 
@@ -378,7 +384,7 @@ class HttpSystem(Target):
             return elapsed, OK
 
         first = self.exchange_call(*pairs[0], f"{prefix}-conv-0", "", "")
-        return Operation(latency.Probe(self.system, HOST_PATH, call, self._factory()), "write", _name(first))
+        return Operation(latency.Probe(self.system, self.path, call, self._factory()), "write", _name(first))
 
     async def freshness_trial(
         self, case: Case, ids: Identities, interval_s: float, timeout_s: float

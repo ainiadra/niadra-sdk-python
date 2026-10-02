@@ -12,7 +12,8 @@
 #   - an IAM role and instance profile: Systems Manager; read of the two secrets by name
 #     (niadra/bench/openrouter, the benchmark's own OpenRouter key, and niadra/tenant/bootstrap); pull of
 #     the niadra/models image; write and read of one S3 prefix of the cell's bucket
-#     (benchmarks/temp-host/<id>/)
+#     (benchmarks/temp-host/<id>/); Amazon Bedrock AgentCore Memory resources named niadra_bench_* (the
+#     run of that system creates them, writes and reads them, and deletes them)
 #   - the instance (default m7i-flex.large: 2 vCPU, 8 GiB, free-tier eligible) in the cell's public subnet
 #     with a public address, Ubuntu 24.04, a 40 GiB encrypted gp3 volume deleted with it, IMDSv2 only; it
 #     terminates itself after BENCH_MAX_HOURS (default 24), whatever happens to this computer
@@ -57,7 +58,7 @@ Temporary benchmark host $id
   S3 prefix s3://$bucket/$prefix/
   embedder image $models
   Niadra's private address in the VPC: $private_ip (the vpc path; the edge path is the public name)
-  repository $REPO at $REF; terminates itself after $MAX_HOURS h
+  repository $REPO at $REF${CONFIG_REF:+, the frozen configuration of $CONFIG_REF}; terminates itself after $MAX_HOURS h
 Cost (on-demand, paid from the account's credits on the free plan):
 $(cost_estimate | sed 's/^/  /')
 EOF
@@ -98,6 +99,14 @@ aws_ iam put-role-policy --role-name "$role" --policy-name benchmark-host --poli
    "Resource": "arn:aws:ecr:$AWS_REGION:$ACCOUNT:repository/niadra/models"},
   {"Sid": "ResultsPrefix", "Effect": "Allow", "Action": ["s3:PutObject", "s3:GetObject"],
    "Resource": "arn:aws:s3:::$bucket/$prefix/*"},
+  {"Sid": "AgentCoreMemoryCreate", "Effect": "Allow",
+   "Action": ["bedrock-agentcore:CreateMemory", "bedrock-agentcore:ListMemories", "bedrock-agentcore:TagResource"],
+   "Resource": "*"},
+  {"Sid": "AgentCoreMemoryOfTheBenchmark", "Effect": "Allow",
+   "Action": ["bedrock-agentcore:GetMemory", "bedrock-agentcore:DeleteMemory", "bedrock-agentcore:CreateEvent",
+              "bedrock-agentcore:IngestData", "bedrock-agentcore:RetrieveMemoryRecords",
+              "bedrock-agentcore:ListMemoryRecords", "bedrock-agentcore:GetMemoryRecord"],
+   "Resource": "arn:aws:bedrock-agentcore:$AWS_REGION:$ACCOUNT:memory/niadra_bench_*"},
   {"Sid": "ResultsList", "Effect": "Allow", "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::$bucket",
    "Condition": {"StringLike": {"s3:prefix": ["$prefix/*"]}}}
 ]}
@@ -111,7 +120,7 @@ userdata="$(mktemp)"
 trap 'rm -f "$userdata"' EXIT
 sed -e "s#@HOST_ID@#$id#g" -e "s#@REGION@#$AWS_REGION#g" -e "s#@BUCKET@#$bucket#g" -e "s#@PREFIX@#$prefix#g" \
   -e "s#@MODELS_IMAGE@#$models#g" -e "s#@VPC_ADDRESS@#$private_ip#g" -e "s#@REPO@#$REPO#g" \
-  -e "s#@REF@#$REF#g" -e "s#@MAX_MINUTES@#$((MAX_HOURS * 60))#g" "$HERE/user-data.sh" >"$userdata"
+  -e "s#@REF@#$REF#g" -e "s#@CONFIG_REF@#$CONFIG_REF#g" -e "s#@MAX_MINUTES@#$((MAX_HOURS * 60))#g" "$HERE/user-data.sh" >"$userdata"
 instance=""
 error=""
 for _ in 1 2 3 4 5 6 7 8 9 10; do

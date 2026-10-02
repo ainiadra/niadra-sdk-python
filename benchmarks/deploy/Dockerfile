@@ -1,4 +1,4 @@
-# The harness image: `bench` with the Mem0 extra, the tokenizer and the spaCy model baked in, so a run
+# The harness image: `bench` with the Mem0 and AgentCore extras, the tokenizer and the spaCy model baked in, so a run
 # downloads nothing but the models it calls. Build context: the benchmarks/ directory.
 #   docker build -f deploy/Dockerfile --build-arg HARNESS_COMMIT=$(git rev-parse HEAD) -t niadra-bench/harness .
 FROM python:3.12-slim
@@ -8,13 +8,16 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/opt/venv \
     PYTHONUNBUFFERED=1 HOME=/tmp MEM0_DIR=/tmp/.mem0
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --extra mem0 --no-install-project
+RUN uv sync --frozen --no-dev --extra mem0 --extra agentcore --no-install-project
 COPY . .
-RUN uv sync --frozen --no-dev --extra mem0 \
+RUN uv sync --frozen --no-dev --extra mem0 --extra agentcore \
  && python -c "import tiktoken; tiktoken.get_encoding('o200k_base')" \
  && mkdir -p /app/results && chown 10001 /app/results
 ARG HARNESS_COMMIT=unknown
 ENV BENCH_HARNESS_COMMIT=$HARNESS_COMMIT
+# The commit the frozen configuration files were taken from, when not the harness's own (a campaign's).
+ARG CONFIG_REF=""
+ENV BENCH_CONFIG_REF=$CONFIG_REF
 USER 10001
 ENTRYPOINT ["bench"]
 CMD ["--help"]

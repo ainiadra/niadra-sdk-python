@@ -28,6 +28,8 @@ Call = Callable[[httpx.AsyncClient, int], Awaitable[tuple[float, str]]]
 
 #: The path of a system that runs beside the harness, on the same host (every system but Niadra).
 HOST = "host"
+#: A managed service of the cloud provider, called at its endpoint in the harness's region.
+REGION = "region"
 
 
 @dataclass

@@ -1,0 +1,19 @@
+# systems: agentcore_memory
+# Amazon Bedrock AgentCore Memory, AWS's managed memory for agents: a service of the region, not a
+# container. What runs here is the harness's own signing proxy (`bench serve agentcore-proxy`): it takes
+# the paths AgentCore's data plane documents, signs each request (SigV4) with the host's role and sends it
+# to the regional endpoint, creates and deletes the run's memory resources (built-in strategies,
+# config/agentcore.toml) and counts the requests AWS charges for. On the temporary host the upstream is
+# the real service (`BENCH_AGENTCORE_UPSTREAM=aws`); locally it is a stand-in with no AWS at all.
+# AgentCore's models, prompts and embedder are AWS's and cannot be set: no gateway, no benchmark embedder.
+# Memory: the proxy 256 MiB.
+services:
+  agentcore:
+    image: ${BENCH_HARNESS_IMAGE:-niadra-bench/harness:local}
+    command: [serve, agentcore-proxy, --port, "8090"]
+    environment:
+      AGENTCORE_UPSTREAM: ${BENCH_AGENTCORE_UPSTREAM:-http://fake-agentcore:9002}
+      AGENTCORE_REGION: ${BENCH_AGENTCORE_REGION:-us-east-2}
+      # The most the run may spend on AgentCore at AWS's public prices; the proxy refuses past it.
+      AGENTCORE_MAX_USD: ${BENCH_AGENTCORE_MAX_USD:-}
+    mem_limit: 256m

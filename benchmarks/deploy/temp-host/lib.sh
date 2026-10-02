@@ -6,7 +6,8 @@
 # cell's CloudFormation stack, default niadra), BENCH_ACCOUNT (the account the scripts refuse to leave,
 # default 480916502925), BENCH_INSTANCE_TYPE (default m7i-flex.large), BENCH_VOLUME_GIB (default 40),
 # BENCH_MAX_HOURS (the host terminates itself after this many hours, default 24), BENCH_REF (the branch
-# or tag of this repository the host checks out, default main).
+# or tag of this repository the host checks out, default main), BENCH_CONFIG_REF (the commit whose frozen
+# configuration files the host uses, default the checkout's own).
 
 # shellcheck disable=SC2034 # the settings are read by the scripts that source this file
 set -euo pipefail
@@ -19,6 +20,10 @@ INSTANCE_TYPE="${BENCH_INSTANCE_TYPE:-m7i-flex.large}"
 VOLUME_GIB="${BENCH_VOLUME_GIB:-40}"
 MAX_HOURS="${BENCH_MAX_HOURS:-24}"
 REF="${BENCH_REF:-main}"
+# A campaign's frozen configuration: when set (a commit of this repository), the host takes
+# config/benchmark.toml, config/mem0.config.json and config/dataset.v2.toml from that commit, so a system
+# measured later joins the campaign's runs with their configuration hash (bench combine refuses another).
+CONFIG_REF="${BENCH_CONFIG_REF:-}"
 # Seconds between two polls of the AWS API (tests set 0).
 POLL_S="${BENCH_POLL_S:-3}"
 REPO="${BENCH_REPO:-https://github.com/ainiadra/niadra-sdk-python.git}"
@@ -132,6 +137,12 @@ tagged_security_groups() {
 }
 tagged_volumes() {
   aws_ ec2 describe-volumes --filters "Name=tag:$TAG_KEY,Values=$1" --query 'Volumes[].VolumeId' --output text
+}
+# The AgentCore Memory resources a run of that system created (it deletes its own when it ends; a run
+# that was killed may leave them). They are named by the benchmark, not tagged with a host.
+bench_memories() {
+  aws_ bedrock-agentcore-control list-memories \
+    --query "memories[?starts_with(id, 'niadra_bench_') && status != 'DELETING'].id" --output text
 }
 role_name() { echo "$NAME_PREFIX-$1"; }
 prefix_of() { echo "benchmarks/temp-host/$1"; }
