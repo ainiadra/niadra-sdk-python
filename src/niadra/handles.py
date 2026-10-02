@@ -14,6 +14,8 @@ from niadra.vocabulary import HandleType, SubjectKind
 _PHONE_NOISE = re.compile(r"[\s().\-]")
 _E164 = re.compile(r"^\+[1-9]\d{6,14}$")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_COUNTRY = re.compile(r"^[A-Za-z]{2}$")
+_DOCUMENT_CHARS = re.compile(r"[^0-9A-Za-z]")
 
 
 def phone(number: str) -> Handle:
@@ -65,6 +67,45 @@ def system_id(namespace: str, id: str, *, kind: SubjectKind | str | None = None)
         scope=namespace,
         subject_kind=SubjectKind(kind) if kind is not None else None,
     )
+
+
+def gov_id(number: str, country: str) -> Handle:
+    """A person's national document, e.g. `gov_id("529.982.247-25", "BR")` for a CPF.
+
+    Send the number itself, as printed or as digits: never hash it on your side. The server checks
+    its check digits (a CPF's in Brazil), then keeps only a keyed hash with your space's secret and
+    an encrypted copy, and shows it masked. A hash would fail the check digits and be refused.
+    `country` is the issuing country's ISO 3166-1 alpha-2 code.
+    """
+    return Handle(type=HandleType.GOV_ID_HMAC, value=_document(number), scope=_country(country))
+
+
+def org_registry(number: str, country: str) -> Handle:
+    """A company's registry number, e.g. `org_registry("11.222.333/0001-81", "BR")` for a CNPJ.
+    Identifies an organization (`subject_kind="account"`).
+
+    As with `gov_id`, send the number itself: the server checks its check digits and keeps only a
+    keyed hash and an encrypted copy.
+    """
+    return Handle(
+        type=HandleType.ORG_REGISTRY_HMAC,
+        value=_document(number),
+        scope=_country(country),
+        subject_kind=SubjectKind.ACCOUNT,
+    )
+
+
+def _document(number: str) -> str:
+    value = number.strip()
+    if len(_DOCUMENT_CHARS.sub("", value)) < 4:
+        raise ValueError("a document number has at least 4 letters or digits")
+    return value
+
+
+def _country(country: str) -> str:
+    if not _COUNTRY.match(country):
+        raise ValueError("country is an ISO 3166-1 alpha-2 code, e.g. BR")
+    return country.upper()
 
 
 def app_user(user_id: str) -> Handle:

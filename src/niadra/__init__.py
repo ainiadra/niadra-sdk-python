@@ -29,7 +29,17 @@ from niadra.errors import (
     UnprocessableEntityError,
     WrongCellError,
 )
-from niadra.handles import anonymous, app_user, email, phone, system_id, whatsapp, whatsapp_bsuid
+from niadra.handles import (
+    anonymous,
+    app_user,
+    email,
+    gov_id,
+    org_registry,
+    phone,
+    system_id,
+    whatsapp,
+    whatsapp_bsuid,
+)
 from niadra.integrations.openai import wrap
 from niadra.keys import ApiKey
 from niadra.models import (
@@ -132,6 +142,8 @@ __all__ = [
     "app_user",
     "current_session",
     "email",
+    "gov_id",
+    "org_registry",
     "phone",
     "system_id",
     "whatsapp",
