@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-10-02
+
+### Changed
+
+- The canonical phone of the suppression list follows the revised rules of the suppression spec (3.1 and 3.4): Mexico's and Argentina's mobile prefixes, an 11-digit North American number, a carrier code, `(0)`, `tel:` and direction marks. The key the SDK computes for an opted-out contact matches the server's again.
+
 ## [0.9.1] - 2026-10-02
 
 ### Fixed
