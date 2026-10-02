@@ -1,0 +1,520 @@
+{
+  "schema": "niadra-bench.results.v1",
+  "run_id": "20261002T165609Z-6637d0",
+  "date": "2026-10-02",
+  "started_at": "2026-10-02T16:56:09+00:00",
+  "finished_at": "2026-10-02T17:11:15+00:00",
+  "environment": {
+    "kind": "dry-run",
+    "region": null,
+    "machine_class": null,
+    "database_class": null,
+    "harness_host": null,
+    "harness_machine_class": null,
+    "verified_by_instance_metadata": false,
+    "host": "bench-host-2652",
+    "python": "3.13.16"
+  },
+  "versions": {
+    "harness": "0.1.0",
+    "harness_commit": "9a092222467da69940767fbdd4d0fbe70111c130",
+    "niadra_sdk": "0.7.0",
+    "niadra_server": null,
+    "mem0ai": null
+  },
+  "config": {
+    "hash": "sha256:7ad9c33ec9a6e17da92f74654104b8494487a2b239bf8bddbb950f715d8b0ce0",
+    "config_ref": "84d64cc932a999c4f468d4fad802abdb19623cf8",
+    "repetitions": 3,
+    "agent_model": "openai/gpt-6-luna",
+    "judge_model": null,
+    "agent": "context_only",
+    "agent_reasoning_effort": "low",
+    "extraction_model": "openai/gpt-6-luna",
+    "reasoning_effort": "low",
+    "niadra_models": [
+      "openai/gpt-6-luna",
+      "typesafe/jev-1.13"
+    ],
+    "embedder": "paraphrase-multilingual-minilm-l12-v2-r1",
+    "latency_rates": [
+      10,
+      25
+    ],
+    "latency_duration_s": 30.0,
+    "latency_conversations": 20,
+    "mem0_top_k": 10,
+    "mem0_threshold": 0.1,
+    "token_encoding": "o200k_base",
+    "turns_per_conversation": 10,
+    "prices_checked_on": "2026-09-27",
+    "history_rates": [
+      10,
+      25
+    ],
+    "history_duration_s": 30.0,
+    "history_conversations": 20,
+    "history_max_tokens": 800,
+    "ingest_rates": [
+      10,
+      25
+    ],
+    "ingest_duration_s": 30.0,
+    "ingest_conversations": 20,
+    "ingest_mem0_modes": [
+      "raw",
+      "infer"
+    ],
+    "niadra_guards": "off",
+    "context_has_answer_rule": "specific-v2",
+    "references": "off",
+    "max_settle_s": null,
+    "lifted_caps": [
+      "history",
+      "ingest"
+    ],
+    "quick": false,
+    "limit": 20
+  },
+  "dataset": {
+    "version": "v2",
+    "hash": "sha256:afdd99efd133199eae45e6a2b229156df39e8659c26c2d00bb636529dbdbfb1d",
+    "generator_version": "2",
+    "cases": 20,
+    "valid": {
+      "median": null,
+      "min": null,
+      "max": null,
+      "runs": [
+        null,
+        null,
+        null
+      ]
+    },
+    "excluded": [
+      [],
+      [],
+      []
+    ]
+  },
+  "metrics": {
+    "history": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "niadra",
+          "path": "host",
+          "operation": "search",
+          "call": "POST /v1/history/search",
+          "rate": 10,
+          "p50": {
+            "median": 29.8,
+            "min": 29.6,
+            "max": 37.1,
+            "runs": [
+              29.8,
+              29.6,
+              37.1
+            ]
+          },
+          "p95": {
+            "median": 71.8,
+            "min": 64.0,
+            "max": 108.3,
+            "runs": [
+              64.0,
+              71.8,
+              108.3
+            ]
+          },
+          "p99": {
+            "median": 102.0,
+            "min": 92.1,
+            "max": 199.4,
+            "runs": [
+              102.0,
+              92.1,
+              199.4
+            ]
+          },
+          "max": {
+            "median": 140.2,
+            "min": 116.0,
+            "max": 345.7,
+            "runs": [
+              116.0,
+              140.2,
+              345.7
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 900,
+          "empty": 0,
+          "degraded": 3,
+          "server_timing": {
+            "app": {
+              "p50": {
+                "median": 27.6,
+                "min": 27.4,
+                "max": 33.7,
+                "runs": [
+                  27.6,
+                  27.4,
+                  33.7
+                ]
+              },
+              "p95": {
+                "median": 69.1,
+                "min": 60.0,
+                "max": 86.3,
+                "runs": [
+                  60.0,
+                  69.1,
+                  86.3
+                ]
+              }
+            }
+          }
+        },
+        {
+          "system": "niadra",
+          "path": "host",
+          "operation": "search",
+          "call": "POST /v1/history/search",
+          "rate": 25,
+          "p50": {
+            "median": 29.9,
+            "min": 29.1,
+            "max": 31.4,
+            "runs": [
+              29.1,
+              29.9,
+              31.4
+            ]
+          },
+          "p95": {
+            "median": 90.2,
+            "min": 81.1,
+            "max": 117.1,
+            "runs": [
+              90.2,
+              81.1,
+              117.1
+            ]
+          },
+          "p99": {
+            "median": 178.0,
+            "min": 139.8,
+            "max": 311.4,
+            "runs": [
+              178.0,
+              139.8,
+              311.4
+            ]
+          },
+          "max": {
+            "median": 309.9,
+            "min": 238.7,
+            "max": 482.4,
+            "runs": [
+              238.7,
+              309.9,
+              482.4
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 2250,
+          "empty": 0,
+          "degraded": 27,
+          "server_timing": {
+            "app": {
+              "p50": {
+                "median": 27.2,
+                "min": 26.2,
+                "max": 28.3,
+                "runs": [
+                  26.2,
+                  27.2,
+                  28.3
+                ]
+              },
+              "p95": {
+                "median": 78.2,
+                "min": 71.7,
+                "max": 101.0,
+                "runs": [
+                  78.2,
+                  71.7,
+                  101.0
+                ]
+              }
+            }
+          }
+        },
+        {
+          "system": "niadra",
+          "path": "host",
+          "operation": "open",
+          "call": "POST /v1/history/open",
+          "rate": 10,
+          "p50": {
+            "median": 10.5,
+            "min": 10.4,
+            "max": 10.7,
+            "runs": [
+              10.7,
+              10.4,
+              10.5
+            ]
+          },
+          "p95": {
+            "median": 56.1,
+            "min": 55.3,
+            "max": 59.0,
+            "runs": [
+              55.3,
+              56.1,
+              59.0
+            ]
+          },
+          "p99": {
+            "median": 104.9,
+            "min": 77.2,
+            "max": 140.3,
+            "runs": [
+              140.3,
+              77.2,
+              104.9
+            ]
+          },
+          "max": {
+            "median": 157.1,
+            "min": 140.5,
+            "max": 254.3,
+            "runs": [
+              254.3,
+              157.1,
+              140.5
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 900,
+          "empty": 0,
+          "degraded": 0
+        },
+        {
+          "system": "niadra",
+          "path": "host",
+          "operation": "open",
+          "call": "POST /v1/history/open",
+          "rate": 25,
+          "p50": {
+            "median": 10.2,
+            "min": 10.1,
+            "max": 10.2,
+            "runs": [
+              10.2,
+              10.2,
+              10.1
+            ]
+          },
+          "p95": {
+            "median": 17.9,
+            "min": 17.7,
+            "max": 19.1,
+            "runs": [
+              19.1,
+              17.9,
+              17.7
+            ]
+          },
+          "p99": {
+            "median": 39.4,
+            "min": 27.8,
+            "max": 58.5,
+            "runs": [
+              58.5,
+              27.8,
+              39.4
+            ]
+          },
+          "max": {
+            "median": 109.7,
+            "min": 76.5,
+            "max": 122.8,
+            "runs": [
+              109.7,
+              122.8,
+              76.5
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 2250,
+          "empty": 0,
+          "degraded": 0
+        }
+      ]
+    },
+    "ingest": {
+      "unit": "ms",
+      "results": [
+        {
+          "system": "niadra",
+          "path": "host",
+          "operation": "batch",
+          "call": "POST /v1/batch",
+          "rate": 10,
+          "p50": {
+            "median": 9.5,
+            "min": 9.1,
+            "max": 10.6,
+            "runs": [
+              9.1,
+              10.6,
+              9.5
+            ]
+          },
+          "p95": {
+            "median": 18.0,
+            "min": 17.7,
+            "max": 23.8,
+            "runs": [
+              17.7,
+              23.8,
+              18.0
+            ]
+          },
+          "p99": {
+            "median": 41.8,
+            "min": 26.3,
+            "max": 48.7,
+            "runs": [
+              48.7,
+              41.8,
+              26.3
+            ]
+          },
+          "max": {
+            "median": 87.9,
+            "min": 66.0,
+            "max": 118.4,
+            "runs": [
+              118.4,
+              87.9,
+              66.0
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 900,
+          "empty": 0,
+          "degraded": 0,
+          "server_timing": {
+            "app": {
+              "p50": {
+                "median": 6.9,
+                "min": 6.7,
+                "max": 7.5,
+                "runs": [
+                  6.7,
+                  7.5,
+                  6.9
+                ]
+              },
+              "p95": {
+                "median": 12.8,
+                "min": 11.8,
+                "max": 14.9,
+                "runs": [
+                  11.8,
+                  14.9,
+                  12.8
+                ]
+              }
+            }
+          }
+        },
+        {
+          "system": "niadra",
+          "path": "host",
+          "operation": "batch",
+          "call": "POST /v1/batch",
+          "rate": 25,
+          "p50": {
+            "median": 11.4,
+            "min": 11.3,
+            "max": 11.8,
+            "runs": [
+              11.3,
+              11.8,
+              11.4
+            ]
+          },
+          "p95": {
+            "median": 24.2,
+            "min": 22.8,
+            "max": 24.9,
+            "runs": [
+              22.8,
+              24.2,
+              24.9
+            ]
+          },
+          "p99": {
+            "median": 53.9,
+            "min": 53.1,
+            "max": 55.9,
+            "runs": [
+              53.1,
+              55.9,
+              53.9
+            ]
+          },
+          "max": {
+            "median": 87.6,
+            "min": 80.9,
+            "max": 99.9,
+            "runs": [
+              99.9,
+              87.6,
+              80.9
+            ]
+          },
+          "errors": 0,
+          "error_kinds": {},
+          "sent": 2250,
+          "empty": 0,
+          "degraded": 0,
+          "server_timing": {
+            "app": {
+              "p50": {
+                "median": 8.0,
+                "min": 8.0,
+                "max": 8.3,
+                "runs": [
+                  8.0,
+                  8.3,
+                  8.0
+                ]
+              },
+              "p95": {
+                "median": 13.3,
+                "min": 13.2,
+                "max": 13.9,
+                "runs": [
+                  13.2,
+                  13.3,
+                  13.9
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

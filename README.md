@@ -86,7 +86,7 @@ result file are in this repository, under [`benchmarks/`](https://github.com/ain
 so anyone can run it again. The full page, with every metric and where Niadra does not lead, is at
 [niadra.com/benchmark](https://niadra.com/benchmark).
 
-Combined run of 01/10/2026 ([`2026-09-30-abb516`](https://github.com/ainiadra/niadra-sdk-python/tree/main/benchmarks/results/2026-09-30-abb516)),
+Combined run of 02/10/2026 ([`2026-09-30-5ea7a2`](https://github.com/ainiadra/niadra-sdk-python/tree/main/benchmarks/results/2026-09-30-5ea7a2)),
 cross-channel accuracy on the same 165 valid cases, judged by the same model:
 
 | System | Accuracy | Model spend per 1,000 conversations |

@@ -28,15 +28,16 @@ seed_concurrency = 4
 # pass reads every case at most once per `settle_interval_s`.
 read_concurrency = 4
 settle_interval_s = 10
-# Timed loops against Niadra. `context()` serves the cached pack, so it is read at both rates (10 and
-# 25 a second) through the public address and the VPC. History navigation opens a transaction on the
-# space's database per call (and writes a receipt), and each ingestion call writes two events in one
-# transaction and opens a conversation to extract every 10 calls: both only at 10 a second, where one
-# 30 s line is 300 calls and 30 new conversations per path. The other systems run on the benchmark's own
-# host and keep the rates of [latency], [history] and [ingest].
+# Timed loops against Niadra, through the public address and the VPC, at the rates every other system
+# runs. History navigation opens a transaction on the space's database per call (and writes a receipt),
+# and each ingestion call writes two events in one transaction and opens a conversation to extract every
+# 10 calls; until 02/10/2026 both ran at 10 a second only. On 02/10/2026 a temporary cell with
+# production's machine and database classes took both at 25 a second, through both paths, after seeding
+# dataset v2 (run 2026-10-02-8aa295): no error on any of the 4,500 calls of those lines, the database
+# never under 85 MB free, no swap, no PgBouncer or database error line.
 latency_rates = [10, 25]
-history_rates = [10]
-ingest_rates = [10]
+history_rates = [10, 25]
+ingest_rates = [10, 25]
 pause_on_overload_s = 30
 
 [run]
