@@ -103,6 +103,116 @@
       }
     },
     {
+      "id": "key.phone_carrier_code",
+      "description": "A Brazilian national number dialed with a carrier code loses it.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "0 21 11 98765-4321",
+      "expect": {
+        "canonical": "phone:+5511987654321",
+        "key": "artBgq3okzeNZ3ZtbJSsKtr1JqULKXhkJeIg-433n-s"
+      }
+    },
+    {
+      "id": "key.phone_not_brazilian",
+      "description": "Eleven digits without the mobile 9 are not a Brazilian number: they keep their digits.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "14155550100",
+      "expect": {
+        "canonical": "phone:+14155550100",
+        "key": "2MKme4jgvWD_N4KYBwVwmwYwdtNNy9Q3ru34U4Nho5U"
+      }
+    },
+    {
+      "id": "key.phone_trunk_zero",
+      "description": "The national trunk zero in parentheses after a country code is dropped.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "+44 (0) 20 7946 0958",
+      "expect": {
+        "canonical": "phone:+442079460958",
+        "key": "yauXYP0JMVpFxoLLmzAciJPHQHbfdn9qbtPoj1tMTSY"
+      }
+    },
+    {
+      "id": "key.phone_invisible_marks",
+      "description": "Direction marks around a copied number are dropped.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "\u202a+55 11 98765-4321\u202c",
+      "expect": {
+        "canonical": "phone:+5511987654321",
+        "key": "artBgq3okzeNZ3ZtbJSsKtr1JqULKXhkJeIg-433n-s"
+      }
+    },
+    {
+      "id": "key.phone_full_width",
+      "description": "Full-width digits are folded to ASCII.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "\uff0b\uff15\uff15\uff11\uff11\uff19\uff18\uff17\uff16\uff15\uff14\uff13\uff12\uff11",
+      "expect": {
+        "canonical": "phone:+5511987654321",
+        "key": "artBgq3okzeNZ3ZtbJSsKtr1JqULKXhkJeIg-433n-s"
+      }
+    },
+    {
+      "id": "key.phone_tel_scheme",
+      "description": "A tel: prefix is dropped.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "tel:+55-11-98765-4321",
+      "expect": {
+        "canonical": "phone:+5511987654321",
+        "key": "artBgq3okzeNZ3ZtbJSsKtr1JqULKXhkJeIg-433n-s"
+      }
+    },
+    {
+      "id": "key.wa_id_mexico",
+      "description": "A Mexican WhatsApp id loses the mobile 1 that phone calls no longer show.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "wa_id",
+      "value": "5215512345678",
+      "expect": {
+        "canonical": "phone:+525512345678",
+        "key": "DbgAjFtROWRfEcBGvcQ1zTmIGWk4LFtO9VW64cZZqIk"
+      }
+    },
+    {
+      "id": "key.phone_mexico",
+      "description": "A Mexican mobile number as a call shows it.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "+52 55 1234 5678",
+      "expect": {
+        "canonical": "phone:+525512345678",
+        "key": "DbgAjFtROWRfEcBGvcQ1zTmIGWk4LFtO9VW64cZZqIk"
+      }
+    },
+    {
+      "id": "key.wa_id_argentina",
+      "description": "An Argentine WhatsApp id loses the mobile 9.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "wa_id",
+      "value": "5491123456789",
+      "expect": {
+        "canonical": "phone:+541123456789",
+        "key": "zKmOdPIKUgw9Id31bqkc1d4QxXdUDk56gfmB77N-8HY"
+      }
+    },
+    {
+      "id": "key.phone_argentina",
+      "description": "An Argentine mobile number dialed without the 9 is the same line.",
+      "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
+      "type": "phone_e164",
+      "value": "+54 11 2345-6789",
+      "expect": {
+        "canonical": "phone:+541123456789",
+        "key": "zKmOdPIKUgw9Id31bqkc1d4QxXdUDk56gfmB77N-8HY"
+      }
+    },
+    {
       "id": "key.email",
       "description": "An e-mail address is trimmed and lowercased.",
       "salt": "mqMjL0W933lDL4N4FVz5CScExzzbnXQPNTYPwp_Oybg",
