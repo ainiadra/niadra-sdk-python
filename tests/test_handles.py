@@ -8,6 +8,8 @@ from niadra import (
     anonymous,
     app_user,
     email,
+    gov_id,
+    org_registry,
     phone,
     system_id,
     whatsapp,
@@ -55,6 +57,33 @@ def test_scoped_handles_carry_their_namespace() -> None:
         "C-1042",
         SubjectKind.ACCOUNT,
     )
+
+
+def test_documents_travel_as_the_number_for_the_server_to_check_and_hash() -> None:
+    cpf = gov_id(" 529.982.247-25 ", "br")
+    assert (cpf.type, cpf.value, cpf.scope, cpf.subject_kind) == (
+        HandleType.GOV_ID_HMAC,
+        "529.982.247-25",
+        "BR",
+        None,
+    )
+    cnpj = org_registry("11.222.333/0001-81", "BR")
+    assert (cnpj.type, cnpj.value, cnpj.scope, cnpj.subject_kind) == (
+        HandleType.ORG_REGISTRY_HMAC,
+        "11.222.333/0001-81",
+        "BR",
+        SubjectKind.ACCOUNT,
+    )
+
+
+@pytest.mark.parametrize(
+    ("number", "country", "message"), [("12-3", "BR", "4 letters"), ("52998224725", "BRA", "alpha-2")]
+)
+def test_documents_refuse_what_cannot_be_one(number: str, country: str, message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        gov_id(number, country)
+    with pytest.raises(ValueError, match=message):
+        org_registry(number, country)
 
 
 def test_app_and_anonymous_handles() -> None:
