@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-02
+
+### Fixed
+
+- `conversation.claims.guard_text()` in a space with no claim contract raised `NameError: name 'Guarded' is not defined`: the result class was imported for type checking only. It now returns the text as it is, as documented.
+
 ### Added
 
 - A route or field the API deprecates answers with the `Deprecation`, `Sunset` and `Link` headers; the

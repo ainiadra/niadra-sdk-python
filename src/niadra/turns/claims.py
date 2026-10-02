@@ -145,7 +145,7 @@ class ClaimCheck:
         """`text` as the contract's actions leave it, with its claims recorded in the current turn. An
         immutable output (the contract's `outputs.immutable`, or `immutable=True`) never changes: a block
         sends it to a person (`review`). Without a contract the text goes as it is."""
-        from niadra.turns.guard import guard_text
+        from niadra.turns.guard import Guarded, guard_text
 
         contract = self._contract()
         if contract is None:
