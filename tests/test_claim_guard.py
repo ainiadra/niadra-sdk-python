@@ -185,6 +185,18 @@ def test_the_record_carries_the_act_the_guard_took_once(app: MockApp) -> None:
     client.close()
 
 
+def test_without_a_contract_guard_text_returns_the_text_as_it_is() -> None:
+    mock = MockApp()
+    client = _client(mock)
+    with (
+        client.conversation("c-10", subject=phone("+5511912345678"), agent_id="sales") as conversation,
+        conversation.turn(),
+    ):
+        guarded = conversation.claims.guard_text("O vestido sai por R$ 199,90 hoje.")
+    assert guarded.text == "O vestido sai por R$ 199,90 hoje."
+    client.close()
+
+
 _pieces = st.sampled_from(
     [
         "Sai por ",
