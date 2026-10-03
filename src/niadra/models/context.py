@@ -18,7 +18,7 @@ VIEW_PATTERN = r"^(voice|chat|brief|full|custom|account|partner|task:[a-z0-9_]{1
 View = Annotated[str, StringConstraints(pattern=VIEW_PATTERN)]
 
 # What navigation returns. A system event is never an item: it changes its object, so search `object`.
-HistoryItemKind = Literal["episode", "fact", "open_item", "action", "object", "trait"]
+HistoryItemKind = Literal["episode", "fact", "open_item", "action", "object", "trait", "system_event"]
 
 # Blocks a read may add in the same round trip (Context Pack v2, section 10); each needs its feature on.
 Include = Literal["state", "constraints", "coordination", "budget"]
@@ -326,6 +326,11 @@ class ContextResponse(ResponseModel):
     timing: dict[str, float] = Field(default_factory=dict)
     path: DeliveryPath | str
     degraded: bool = False
+    about_unlinked: bool = Field(
+        default=False,
+        description="`about` named an organization with no active link to the subject: the pack is the "
+        "subject's own, without that organization's block. It never says whether the organization exists.",
+    )
     pack: ContextPack | None = None
     constraints: ConstraintsBlock | None = Field(
         default=None,
@@ -448,6 +453,11 @@ class SearchResponse(ResponseModel):
     degraded: str | None = Field(default=None, description="`text_only` when the encoder was unavailable.")
     window: TimeWindow | None = None
     ignored: list[str] = Field(default_factory=list, description="Filters the server could not read.")
+    about_unlinked: bool = Field(
+        default=False,
+        description="`about` named an organization with no active link to the subject: the rows are the "
+        "subject's own. It never says whether the organization exists.",
+    )
 
 
 class TimelineRequest(Model):
@@ -468,6 +478,10 @@ class OpenItemRequest(Model):
     subject: Handle | None = Field(
         default=None, description="The customer the item must belong to; any other item answers 404."
     )
+    about: Handle | None = Field(
+        default=None,
+        description="The organization the customer acts for: also an item of it the customer's view shows.",
+    )
     verification: Verification = Verification.V0
     conversation_id: IdStr | None = None
 
@@ -479,6 +493,11 @@ class TimelineResponse(ResponseModel):
     as_of: datetime | None = None
     window: TimeWindow | None = None
     ignored: list[str] = Field(default_factory=list, description="Filters the server could not read.")
+    about_unlinked: bool = Field(
+        default=False,
+        description="`about` named an organization with no active link to the subject: the rows are the "
+        "subject's own. It never says whether the organization exists.",
+    )
 
 
 class ItemVersion(ResponseModel):

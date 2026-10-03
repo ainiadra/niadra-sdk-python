@@ -2870,6 +2870,12 @@
       "title": "Degraded",
       "type": "boolean"
     },
+    "about_unlinked": {
+      "default": false,
+      "description": "`about` named an account or partner with no active link to the subject: the pack is the subject's own, without that organization's block. It never says whether the organization exists.",
+      "title": "About Unlinked",
+      "type": "boolean"
+    },
     "pack": {
       "anyOf": [
         {

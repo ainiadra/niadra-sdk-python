@@ -6,6 +6,35 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-03
+
+### Added
+
+- `gov_id(number, country)` and `org_registry(number, country)`: a national document as a handle. The number
+  travels as typed and the space keeps only a keyed hash of it.
+- `open(..., about=)`: with the person bound in `subject`, also an item of the organization they act for that
+  their view shows (the pack's account block). A conversation's `tools()` passes its `about`, so the bound kit
+  reaches what the pack shows.
+- `about_unlinked` on `Context`, `SearchResponse` and `TimelineResponse`: `about` named an organization with no
+  active link to the subject, and the read went on with the subject's own memory. A conversation logs it once
+  on the `niadra` logger.
+- `APIError.explained()` and `niadra.errors.explain()`: an API refusal for a log line, with its code, detail and
+  request id.
+- `HistoryItemKind` includes `system_event`.
+- `niadra-mock` ships `py.typed`.
+
+### Changed
+
+- `str(error)` of an `APIError` carries the code, the API's detail and the request id, not only the status.
+- Idle connections stay open 120 s between turns (5 s before). A call that has to open a connection gets
+  `Timeouts.connect` (1.0 s by default) on top of its method's budget, once per cold period, so a first read
+  after idle no longer times out on the TLS handshake.
+- A coordination check the API refuses (400, 401, 403 or 422) is `invalid_request`, never `unchecked`: an
+  outbound contact is deferred and an inbound one allowed, and `strict` raises. Refusals of background writes
+  (the outbox, turn records) log the problem's detail and request id.
+- The tool definitions follow the server's: the timeline tool says it also lists the open items, facts,
+  patterns or objects `filters.item_kinds` names.
+
 ## [0.9.2] - 2026-10-02
 
 ### Changed

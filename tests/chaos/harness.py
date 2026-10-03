@@ -145,7 +145,8 @@ class Ledger:
 
 
 def _ok(entry: dict[str, Any]) -> bool:
-    return 200 <= entry.get("status", 0) < 300
+    status: int = entry.get("status", 0)
+    return 200 <= status < 300
 
 
 class _Threaded(ThreadingMixIn, WSGIServer):

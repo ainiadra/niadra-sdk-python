@@ -46,7 +46,16 @@ from datetime import datetime, timezone
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, Union, overload
 
-from niadra._base import HandleLike, ItemLike, ObjectLike, TargetLike, VerificationLike, as_handle, as_object
+from niadra._base import (
+    HandleLike,
+    ItemLike,
+    ObjectLike,
+    TargetLike,
+    VerificationLike,
+    as_handle,
+    as_object,
+    logger,
+)
 from niadra._ids import new_key
 from niadra.agent_state import AgentStateHandle, AsyncAgentStateHandle
 from niadra.backing import BackingReport, Sources, UnbackedValue, check
@@ -148,6 +157,7 @@ class _Session:
         self.subject = as_handle(subject) if subject is not None else None
         self.object = as_object(object) if object is not None else None
         self.about = as_handle(about) if about is not None else None
+        self._unlinked_said = False
         self.channel = channel
         self.view = view
         self.verification = Verification(verification)
@@ -431,6 +441,13 @@ class _Session:
             self._deltas = [*self._deltas, context.delta][-MAX_DELTAS:]
         result = context.model_copy(update={"delta": "\n\n".join(self._deltas) or None})
         self.last_context = result
+        if result.about_unlinked and not self._unlinked_said:
+            # Once per session: the read went on with the subject's own memory (never the organization's).
+            self._unlinked_said = True
+            logger.warning(
+                "niadra: `about` names an organization with no active link to the subject; the context is "
+                "the subject's own, without that organization's memory. Create the link to read it."
+            )
         return result
 
     def _kit_binding(self) -> dict[str, Any] | None:

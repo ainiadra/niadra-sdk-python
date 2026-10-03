@@ -225,3 +225,19 @@ async def test_the_async_transport_warns_too(
         "niadra: the API deprecated a GET route this client calls, since 2026-10-01; it stops answering"
         " on a date not announced yet. See https://docs.niadra.com/en/security/api-versioning"
     ]
+
+
+def test_an_api_error_says_its_code_detail_and_request_id(
+    respx_mock: respx.MockRouter, transport: SyncTransport
+) -> None:
+    # A traceback or `str(error)` carries what the API said, never only the status and code.
+    problem = {
+        "code": "invalid_input",
+        "detail": "unknown purpose legal",
+        "request_id": "req-7",
+        "status": 422,
+    }
+    respx_mock.post(f"{BASE}/v1/batch").mock(return_value=httpx.Response(422, json=problem))
+    with pytest.raises(UnprocessableEntityError) as raised:
+        transport.request(post())
+    assert str(raised.value) == "HTTP 422 invalid_input: unknown purpose legal (request req-7)"

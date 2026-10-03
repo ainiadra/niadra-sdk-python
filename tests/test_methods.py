@@ -420,6 +420,29 @@ def test_session_tools_bind_the_session_and_follow_its_level(
     assert sent["verification"] == "V2" and sent["conversation_id"] == "call-1"
     assert sent["about"]["value"] == "A-9"
     assert search.calls.last.request.extensions["timeout"]["read"] <= 0.3
+    # Open reaches what the pack's account block shows too: the organization goes along.
+    opened = respx_mock.post(f"{BASE}/v1/history/open").respond(
+        200, json={"id": "ep_9", "kind": "episode", "summary": "renewal"}
+    )
+    kit.call("open_history_item", {"id": "ep_9"})
+    assert json.loads(opened.calls.last.request.content)["about"]["value"] == "A-9"
+
+
+def test_an_unlinked_about_is_said_once_per_session(
+    respx_mock: respx.MockRouter, client: Niadra, caplog: pytest.LogCaptureFixture
+) -> None:
+    respx_mock.post(f"{BASE}/v1/context").respond(200, json={**context_payload(), "about_unlinked": True})
+    respx_mock.post(f"{BASE}/v1/batch").respond(200, json=batch_ok())
+    account = {"type": "system_id", "scope": "crm", "value": "A-9"}
+    with (
+        caplog.at_level("WARNING", logger="niadra"),
+        client.conversation("call-2", subject=MARINA, about=account) as conversation,
+    ):
+        first = conversation.context()
+        conversation.context(delta=True)
+    # The read went on with the subject's own memory, and the flag says so.
+    assert first.about_unlinked and first.text
+    assert sum("no active link" in r.getMessage() for r in caplog.records) == 1
 
 
 def test_session_tools_need_a_subject(client: Niadra) -> None:

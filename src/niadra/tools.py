@@ -217,8 +217,11 @@ class _ToolKitBase:
             item_id = str(args.get("id") or "").strip()
             if not item_id:
                 return _error("id is required")
-            # The bound customer goes along, so the server opens only an item of theirs.
-            return _Plan("open", (item_id,), {**common, "subject": self.subject}, _render)
+            # The bound customer goes along, so the server opens only an item of theirs, or of the
+            # organization they act for when the kit is bound to one (`about`).
+            return _Plan(
+                "open", (item_id,), {**common, "subject": self.subject, "about": self.about}, _render
+            )
         return self._agent_memory_plan(name, args)
 
     def _agent_memory_plan(self, name: str, args: dict[str, Any]) -> _Plan | str:

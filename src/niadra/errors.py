@@ -47,8 +47,9 @@ class APIError(NiadraError):
     def __init__(self, status_code: int, problem: Problem | None = None) -> None:
         self.status_code = status_code
         self.problem = problem
-        code = problem.code if problem else "unknown"
-        super().__init__(f"HTTP {status_code} ({code})")
+        # The message is what a traceback or `str(error)` shows: the code, the API's detail and the request
+        # id, never the values sent.
+        super().__init__(self.explained())
 
     @property
     def code(self) -> str:
