@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-10-03
+
+### Changed
+
+- The client measures the round trip to the region once when it starts (`GET /healthz`, twice), not only
+  for voice, which also opens the connection the first read uses. `Timeouts.context` and
+  `Timeouts.navigation` left at their defaults take the measured round trip on top: from Sao Paulo (170 ms to
+  us-east-2) every chat read with the defaults ran out of time. A value you set stays a ceiling, and the
+  client logs one warning when the round trip plus 50 ms exceeds it. The voice budgets are unchanged, and
+  their warnings now come only once the client reads in voice. `VoiceOptions(probe=False)` measures nothing.
+
 ## [0.10.1] - 2026-10-03
 
 ### Added

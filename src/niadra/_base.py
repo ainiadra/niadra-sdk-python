@@ -21,7 +21,7 @@ from niadra._ids import new_key
 from niadra._queue import EventBuffer, serialize
 from niadra._transport import Request
 from niadra._turns import MIN_PREFETCH, BlockSupport, turn_text
-from niadra._voice import rtt_warnings
+from niadra._voice import budget_warnings, rtt_warnings
 from niadra.errors import APIError, ConfigurationError, NotFoundError
 from niadra.keys import ApiKey
 from niadra.models.admin import LinkRequest
@@ -198,6 +198,18 @@ class ClientCore:
         self.strict = strict
         self.channel = channel
         self.timeouts = timeouts or Timeouts()
+        defaults = Timeouts()
+        # The read budgets left at their defaults take the round trip to the region on top once it is
+        # measured; one the caller set is a ceiling the SDK keeps (and warns about when the network alone
+        # exceeds it).
+        self.default_reads = frozenset(
+            name
+            for name in ("context", "navigation")
+            if getattr(self.timeouts, name) == getattr(defaults, name)
+        )
+        self.rtt: float | None = None
+        self.voice_started = False
+        self._voice_warned = False
         self.cache_options = cache or CacheOptions()
         self.queue_options = queue or QueueOptions()
         self.voice_options = voice or VoiceOptions()
@@ -237,12 +249,23 @@ class ClientCore:
     def context_budget(self, view: str, timeout: float | None) -> float:
         if timeout is not None:
             return timeout
-        return self.timeouts.context_voice if view == "voice" else self.timeouts.context
+        if view == "voice":
+            return self.timeouts.context_voice
+        return self._with_rtt("context", self.timeouts.context)
 
     def navigation_budget(self, voice: bool, timeout: float | None) -> float:
         if timeout is not None:
             return timeout
-        return self.timeouts.navigation_voice if voice else self.timeouts.navigation
+        if voice:
+            return self.timeouts.navigation_voice
+        return self._with_rtt("navigation", self.timeouts.navigation)
+
+    def _with_rtt(self, name: str, budget: float) -> float:
+        """A default read budget is what the API may take: the measured round trip goes on top, so a
+        caller far from the region (Sao Paulo, 170 ms from us-east-2) is not timed out by the network."""
+        if self.rtt is not None and name in self.default_reads:
+            return budget + self.rtt
+        return budget
 
     def context_request(
         self,
@@ -376,15 +399,33 @@ class ClientCore:
         return Request("GET", "/healthz", timeout=2.0, budget=2.0, max_attempts=1)
 
     def probed(self, samples: Sequence[float]) -> float | None:
-        """Records the round trip to the region, the fastest of `samples`, and warns when the voice
-        budgets cannot hold it."""
+        """Records the round trip to the region, the fastest of `samples`: the default read budgets take it
+        on top from now on. Warns once about a budget the caller set that it leaves no room in, and about
+        the voice budgets once the client reads in voice."""
         if not samples:
             return None
         rtt = min(samples)
+        self.rtt = rtt
         logger.info("niadra: round trip to the region %d ms", round(rtt * 1000))
-        for warning in rtt_warnings(rtt, self.timeouts):
+        explicit = {"context", "navigation"} - self.default_reads
+        for warning in budget_warnings(rtt, self.timeouts, explicit):
             logger.warning("niadra: %s", warning)
+        if self.voice_started:
+            self.warn_voice()
         return rtt
+
+    def start_voice(self) -> None:
+        """The client reads in voice: the voice budgets' warnings matter from now on."""
+        self.voice_started = True
+        if self.rtt is not None:
+            self.warn_voice()
+
+    def warn_voice(self) -> None:
+        if self._voice_warned or self.rtt is None:
+            return
+        self._voice_warned = True
+        for warning in rtt_warnings(self.rtt, self.timeouts):
+            logger.warning("niadra: %s", warning)
 
     @staticmethod
     def scope_of(conversation_id: str | None, task_id: str | None) -> str:

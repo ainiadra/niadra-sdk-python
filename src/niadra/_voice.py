@@ -193,6 +193,26 @@ def compose(body: Context, read: TurnRead | None) -> Context:
     return body.model_copy(update={"slots": fetched.slots, "guards": fetched.guards, "pack": pack})
 
 
+RTT_MARGIN = 0.05
+"""What a read needs on top of the round trip at the least: the API's own time (20 to 40 ms at its p95)."""
+
+
+def budget_warnings(rtt: float, timeouts: Timeouts, explicit: set[str]) -> list[str]:
+    """The read budgets the caller set below the round trip plus `RTT_MARGIN`: every such read would run out
+    of time. Log-safe: numbers only."""
+    ms = round(rtt * 1000)
+    found = []
+    for name in sorted(explicit):
+        budget = getattr(timeouts, name)
+        if budget < rtt + RTT_MARGIN:
+            found.append(
+                f"Timeouts.{name} ({round(budget * 1000)} ms) is shorter than the round trip to the region "
+                f"({ms} ms) plus {round(RTT_MARGIN * 1000)} ms for the API: its reads will run out of time. "
+                f"Leave it at its default, which adds the measured round trip, or raise it"
+            )
+    return found
+
+
 def rtt_warnings(rtt: float, timeouts: Timeouts) -> list[str]:
     """What to warn about once the round trip to the region is known. Log-safe: numbers only."""
     ms = round(rtt * 1000)
