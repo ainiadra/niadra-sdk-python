@@ -24,6 +24,7 @@ from niadra._turns import MIN_PREFETCH, BlockSupport, turn_text
 from niadra._voice import rtt_warnings
 from niadra.errors import APIError, ConfigurationError, NotFoundError
 from niadra.keys import ApiKey
+from niadra.models.admin import LinkRequest
 from niadra.models.agent_memory import AgentMemory, AgentMemorySearchRequest, CreateAgentNoteRequest, Evidence
 from niadra.models.common import Handle, ObjectRef
 from niadra.models.context import (
@@ -644,6 +645,28 @@ class ClientCore:
         body = {"items": [_body(r) for r in requests]}
         return Request(
             "POST", "/v1/feedback/batch", json=body, timeout=self.timeouts.write, budget=self.timeouts.write
+        )
+
+    def link_http(self, request: LinkRequest, idempotency_key: str) -> Request:
+        budget = self.timeouts.write
+        body = _body(request)
+        return Request(
+            "POST",
+            "/v1/identity/links",
+            json=body,
+            timeout=budget,
+            budget=budget,
+            idempotency_key=idempotency_key,
+        )
+
+    def end_link_http(self, link_id: str, valid_to: datetime | None, idempotency_key: str) -> Request:
+        if not link_id:
+            raise ValueError("link_id must not be empty")
+        body = {"valid_to": valid_to.isoformat()} if valid_to is not None else {}
+        budget = self.timeouts.write
+        path = f"/v1/identity/links/{link_id}/end"
+        return Request(
+            "POST", path, json=body, timeout=budget, budget=budget, idempotency_key=idempotency_key
         )
 
     def ingest_status_http(self, conversation_id: str | None, task_id: str | None) -> Request:

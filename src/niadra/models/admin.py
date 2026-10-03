@@ -249,3 +249,36 @@ class ExportPackage(ResponseModel):
     download_expires_at: datetime
     files: dict[str, str] = Field(default_factory=dict)
     sha256: str
+
+
+LinkMethod = Literal["system_import", "co_occurrence", "declared", "login"]
+
+
+class LinkRequest(Model):
+    """Body of `POST /v1/identity/links`: a person who acts for an organization (an account or a partner)."""
+
+    person: Handle
+    organization: Handle
+    role: Annotated[str, StringConstraints(min_length=1, max_length=64)] = Field(
+        description="buyer, driver, broker, technical_contact, owner..."
+    )
+    can_see_contacts: bool = Field(
+        default=False,
+        description="Whether the person reads what the organization's other contacts said; needs the "
+        "`admin` scope (a key with `identity:link` alone links without it).",
+    )
+    valid_from: datetime | None = None
+    valid_to: datetime | None = None
+    method: LinkMethod = "system_import"
+
+
+class Link(ResponseModel):
+    """A person-organization link: from `valid_from` until `valid_to` (open when absent)."""
+
+    link_id: str
+    person_handle_id: str
+    org_handle_id: str
+    role: str
+    can_see_contacts: bool = False
+    valid_from: datetime
+    valid_to: datetime | None = None

@@ -29,6 +29,7 @@ from niadra._base import (
     logger,
 )
 from niadra._cache import ContextCache, cache_key
+from niadra._ids import new_key
 from niadra._outbox import AsyncOutbox
 from niadra._profile import ProfileCache
 from niadra._queue import AsyncFlusher, is_retryable
@@ -43,7 +44,7 @@ from niadra.coordination.client import Coordinator
 from niadra.coordination.suppression import FAIL_OPEN, MAX_PAGES, SuppressionCopy
 from niadra.coordination.token import AsyncContactGateway, SeenTokens
 from niadra.errors import APITimeoutError
-from niadra.models.admin import IngestStatus, KeyIdentity
+from niadra.models.admin import IngestStatus, KeyIdentity, Link, LinkMethod, LinkRequest
 from niadra.models.agent_memory import (
     AgentMemory,
     AgentMemorySearchResponse,
@@ -673,6 +674,53 @@ class AsyncNiadra:
             )
         except Exception as exc:
             return self._core.fail("feedback_batch", exc, None)
+
+    async def link(
+        self,
+        person: HandleLike,
+        organization: HandleLike,
+        *,
+        role: str,
+        can_see_contacts: bool = False,
+        valid_from: datetime | None = None,
+        valid_to: datetime | None = None,
+        method: LinkMethod = "system_import",
+        idempotency_key: str | None = None,
+    ) -> Link | None:
+        """Links a person to the organization they act for (an account or a partner), as a system of
+        record that knows who works for whom: a CRM, an HR system. Needs a key with the `identity:link`
+        scope (or `admin`); `can_see_contacts` needs `admin`. Reads with `about` reach the organization
+        through the link. Sent right away, with an idempotency key; None when it could not be delivered."""
+        if not self._core.enabled:
+            return None
+        try:
+            body = LinkRequest(
+                person=as_handle(person),
+                organization=as_handle(organization),
+                role=role,
+                can_see_contacts=can_see_contacts,
+                valid_from=valid_from,
+                valid_to=valid_to,
+                method=method,
+            )
+            request = self._core.link_http(body, idempotency_key or new_key())
+            return Link.model_validate(await self._transport.request(request))
+        except Exception as exc:
+            return self._core.fail("link", exc, None)
+
+    async def end_link(
+        self, link_id: str, *, valid_to: datetime | None = None, idempotency_key: str | None = None
+    ) -> Link | None:
+        """Ends a link, from `valid_to` (now when absent): the person no longer acts for the organization,
+        and reads with `about` for the pair go on with the person's own memory. Needs `identity:link` or
+        `admin`."""
+        if not self._core.enabled:
+            return None
+        try:
+            request = self._core.end_link_http(link_id, valid_to, idempotency_key or new_key())
+            return Link.model_validate(await self._transport.request(request))
+        except Exception as exc:
+            return self._core.fail("end_link", exc, None)
 
     async def ingest_status(
         self, *, conversation_id: str | None = None, task_id: str | None = None

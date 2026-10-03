@@ -10,7 +10,7 @@ import httpx
 import pytest
 import respx
 
-from niadra import AsyncNiadra, Niadra, phone
+from niadra import AsyncNiadra, Niadra, phone, system_id
 from niadra.errors import NotFoundError, PermissionDeniedError
 from tests.conftest import BASE, KEY
 
@@ -98,6 +98,56 @@ def test_feedback_fails_open_and_raises_in_strict(
     assert lenient.feedback("nonsense", MARINA) is None  # type: ignore[arg-type]
     with pytest.raises(PermissionDeniedError):
         client.feedback("retract_fact", MARINA, fact_id="f-1")
+
+
+LINKED = {
+    "link_id": "0192f7a2-0000-7000-8000-000000000001",
+    "person_handle_id": "0192f7a2-0000-7000-8000-000000000002",
+    "org_handle_id": "0192f7a2-0000-7000-8000-000000000003",
+    "role": "buyer",
+    "can_see_contacts": False,
+    "valid_from": "2026-10-03T00:00:00Z",
+}
+
+
+def test_link_and_end_link_send_the_contract_bodies(respx_mock: respx.MockRouter, client: Niadra) -> None:
+    # A CRM links its people to their company with the `identity:link` scope, never an admin key.
+    acme = system_id("crm", "ACC-9", kind="account")
+    created = respx_mock.post(f"{BASE}/v1/identity/links").respond(201, json=LINKED)
+    link = client.link(MARINA, acme, role="buyer", idempotency_key="lk-1")
+    assert link is not None and link.role == "buyer"
+    assert json.loads(created.calls.last.request.content) == {
+        "person": {"type": "phone_e164", "value": "+5511912345678"},
+        "organization": {"type": "system_id", "value": "ACC-9", "scope": "crm", "subject_kind": "account"},
+        "role": "buyer",
+        "can_see_contacts": False,
+        "method": "system_import",
+    }
+    assert created.calls.last.request.headers["idempotency-key"] == "lk-1"
+    ended = respx_mock.post(f"{BASE}/v1/identity/links/{LINKED['link_id']}/end").respond(
+        200, json={**LINKED, "valid_to": "2026-10-04T00:00:00Z"}
+    )
+    closed = client.end_link(LINKED["link_id"])
+    assert closed is not None and closed.valid_to is not None
+    assert json.loads(ended.calls.last.request.content) == {}
+    assert ended.calls.last.request.headers["idempotency-key"]
+
+
+def test_link_fails_open_and_raises_in_strict(
+    respx_mock: respx.MockRouter, lenient: Niadra, client: Niadra
+) -> None:
+    respx_mock.post(f"{BASE}/v1/identity/links").respond(403, json={"code": "scope_missing"})
+    acme = system_id("crm", "ACC-9", kind="account")
+    assert lenient.link(MARINA, acme, role="buyer") is None
+    with pytest.raises(PermissionDeniedError):
+        client.link(MARINA, acme, role="buyer")
+
+
+async def test_async_link(respx_mock: respx.MockRouter) -> None:
+    respx_mock.post(f"{BASE}/v1/identity/links").respond(201, json=LINKED)
+    async with AsyncNiadra(KEY, base_url=BASE, strict=True) as niadra:
+        link = await niadra.link(MARINA, system_id("crm", "ACC-9", kind="account"), role="buyer")
+    assert link is not None and link.link_id == LINKED["link_id"]
 
 
 def test_upload_reserves_then_puts_the_bytes_without_the_key(

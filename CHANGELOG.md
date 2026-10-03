@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `link(person, organization, role=...)` and `end_link(link_id)`: a system of record that knows who works for
+  whom (a CRM, an HR system) links a person to the account or partner they act for, and ends the link, with a
+  key that has the `identity:link` scope instead of `admin`. `can_see_contacts` still needs `admin`. `Link` and
+  `LinkRequest` are the models.
+
 ## [0.10.0] - 2026-10-03
 
 ### Added

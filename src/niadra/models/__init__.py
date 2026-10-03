@@ -10,6 +10,8 @@ from niadra.models.admin import (
     FactRelation,
     IngestStatus,
     KeyIdentity,
+    Link,
+    LinkRequest,
     ProfileMatch,
     ProfileMemory,
 )
@@ -138,6 +140,8 @@ __all__ = [
     "ItemError",
     "ItemVersion",
     "KeyIdentity",
+    "Link",
+    "LinkRequest",
     "LiveTurn",
     "MediaUpload",
     "MediaUploadRequest",
