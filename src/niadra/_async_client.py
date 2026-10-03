@@ -124,7 +124,9 @@ class AsyncNiadra:
             voice=voice,
         )
         self._cache = ContextCache(self._core.cache_options)
-        self._transport = AsyncTransport(self._core.base_url, self._core.api_key, http_client)
+        self._transport = AsyncTransport(
+            self._core.base_url, self._core.api_key, http_client, cold_allowance=self._core.timeouts.connect
+        )
         self.admin = AsyncAdmin(self._core, self._transport)
         """Governance calls for a key with the `admin` scope: memory, fact history, corrections, erasure."""
         self.api = AsyncApi(self._core, self._transport)

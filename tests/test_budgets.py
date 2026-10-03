@@ -15,7 +15,7 @@ import pytest
 import respx
 
 from niadra import APITimeoutError, AsyncNiadra, Niadra, phone
-from niadra._transport import AsyncTransport, Request, SyncTransport
+from niadra._transport import AsyncTransport, Request, SyncTransport, Warmth
 from niadra.options import QueueOptions, Timeouts
 from tests.conftest import KEY, batch_ok, context_payload
 
@@ -25,6 +25,8 @@ QUIET = QueueOptions(batch_size=10_000, interval=3600, turn_interval=3600)
 # Its own address: an attempt these tests abandon, or a retry of the background queue, may still
 # be in flight when the next test mocks the API, and must never match that test's routes.
 BASE = "https://budgets.example.test"
+# The budgets of a client whose connection is open: the allowance for opening one has its own tests.
+OPEN = {"connect": 0.0}
 
 
 def late(seconds: float, response: httpx.Response) -> Callable[[httpx.Request], httpx.Response]:
@@ -80,7 +82,7 @@ def test_context_returns_empty_on_time_when_the_answer_is_late(respx_mock: respx
     respx_mock.post(f"{BASE}/v1/context").mock(
         side_effect=late(0.8, httpx.Response(200, json=context_payload()))
     )
-    niadra = Niadra(KEY, base_url=BASE, timeouts=Timeouts(context=0.2), queue=QUIET)
+    niadra = Niadra(KEY, base_url=BASE, timeouts=Timeouts(context=0.2, **OPEN), queue=QUIET)
     niadra._closed = True
     started = time.monotonic()
     context = niadra.context(MARINA, conversation_id="c-1")
@@ -90,7 +92,7 @@ def test_context_returns_empty_on_time_when_the_answer_is_late(respx_mock: respx
 
 def test_identify_stops_waiting_at_the_write_budget_and_keeps_the_item(respx_mock: respx.MockRouter) -> None:
     respx_mock.post(f"{BASE}/v1/batch").mock(side_effect=late(0.5, httpx.Response(503)))
-    niadra = Niadra(KEY, base_url=BASE, channel="whatsapp", timeouts=Timeouts(write=0.3), queue=QUIET)
+    niadra = Niadra(KEY, base_url=BASE, channel="whatsapp", timeouts=Timeouts(write=0.3, **OPEN), queue=QUIET)
     niadra._closed = True
     started = time.monotonic()
     result = niadra.identify([MARINA, phone("+5511987654321")], conversation_id="c-1")
@@ -108,7 +110,7 @@ def test_feedback_stops_waiting_at_the_write_budget(respx_mock: respx.MockRouter
         return httpx.Response(503)
 
     respx_mock.post(f"{BASE}/v1/feedback").mock(side_effect=unavailable)
-    niadra = Niadra(KEY, base_url=BASE, timeouts=Timeouts(write=0.4), queue=QUIET)
+    niadra = Niadra(KEY, base_url=BASE, timeouts=Timeouts(write=0.4, **OPEN), queue=QUIET)
     niadra._closed = True
     started = time.monotonic()
     assert niadra.feedback("retract_fact", MARINA, fact_id="f-1") is None
@@ -149,9 +151,65 @@ async def test_async_identify_stops_waiting_at_the_write_budget(respx_mock: resp
     respx_mock.post(f"{BASE}/v1/batch").mock(
         side_effect=late_async(1.0, httpx.Response(200, json=batch_ok()))
     )
-    niadra = AsyncNiadra(KEY, base_url=BASE, channel="whatsapp", timeouts=Timeouts(write=0.2), queue=QUIET)
+    niadra = AsyncNiadra(
+        KEY, base_url=BASE, channel="whatsapp", timeouts=Timeouts(write=0.2, **OPEN), queue=QUIET
+    )
     started = time.monotonic()
     result = await niadra.identify([MARINA, phone("+5511987654321")], conversation_id="c-1")
     assert time.monotonic() - started < 0.45
     assert result is None
     niadra._closed = True
+
+
+# Opening a connection (TCP and TLS) takes a few round trips, which a 0.3 s budget cannot hold from another
+# continent: the first call with no connection open gets the `connect` allowance, once.
+
+
+def test_a_read_with_no_open_connection_gets_the_allowance_once(respx_mock: respx.MockRouter) -> None:
+    respx_mock.post(f"{BASE}/v1/context").mock(side_effect=late(0.3, httpx.Response(200, json={"ok": 1})))
+    transport = SyncTransport(BASE, KEY, cold_allowance=0.5)
+    assert transport.request(read(0.15)) == {"ok": 1}
+    started = time.monotonic()
+    with pytest.raises(APITimeoutError):
+        transport.request(read(0.15))
+    assert time.monotonic() - started < 0.4, "with a connection open, the budget is exact"
+    transport.close()
+
+
+async def test_the_async_transport_gives_the_allowance_once(respx_mock: respx.MockRouter) -> None:
+    respx_mock.post(f"{BASE}/v1/context").mock(
+        side_effect=late_async(0.3, httpx.Response(200, json={"ok": 1}))
+    )
+    transport = AsyncTransport(BASE, KEY, cold_allowance=0.5)
+    assert await transport.request(read(0.15)) == {"ok": 1}
+    with pytest.raises(APITimeoutError):
+        await transport.request(read(0.15))
+    await transport.aclose()
+
+
+def test_the_allowance_comes_back_when_the_connection_was_idle_past_the_keepalive() -> None:
+    warmth = Warmth(keepalive_s=0.05, allowance=0.5)
+    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.6)
+    assert warmth.budgeted(read(0.1)).timeout == pytest.approx(0.6)
+    warmth.answered()
+    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.1)
+    time.sleep(0.06)
+    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.6)
+    unbudgeted = Request("POST", "/v1/batch", json={}, timeout=5.0)
+    assert warmth.budgeted(unbudgeted) is unbudgeted, "a batch of the background queue keeps its timeouts"
+    assert Warmth(keepalive_s=120, allowance=0).budgeted(read(0.1)).budget == pytest.approx(0.1)
+
+
+def test_the_first_context_of_a_cold_client_arrives_and_the_next_keeps_the_budget(
+    respx_mock: respx.MockRouter,
+) -> None:
+    respx_mock.post(f"{BASE}/v1/context").mock(
+        side_effect=late(0.3, httpx.Response(200, json=context_payload()))
+    )
+    niadra = Niadra(KEY, base_url=BASE, timeouts=Timeouts(context=0.15, connect=0.5), queue=QUIET)
+    niadra._closed = True
+    assert niadra.context(MARINA, conversation_id="c-1")
+    started = time.monotonic()
+    late_one = niadra.context(MARINA, conversation_id="c-2")
+    assert time.monotonic() - started < 0.4
+    assert not late_one and late_one.degraded

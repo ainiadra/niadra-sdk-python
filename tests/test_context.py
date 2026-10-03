@@ -65,6 +65,7 @@ def test_voice_views_get_the_shorter_budget(respx_mock: respx.MockRouter, client
         return httpx.Response(200, json=context_payload())
 
     respx_mock.post(URL).mock(side_effect=record)
+    client._transport._warmth.answered()  # a connection is open: the budgets are exact
     client.context(MARINA, view="voice")
     client.context(MARINA, view="chat")
     assert budgets[0] == pytest.approx(0.20, abs=0.01)

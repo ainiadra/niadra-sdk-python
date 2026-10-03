@@ -12,7 +12,8 @@ class Timeouts:
 
     Managed agent platforms give a turn 7 to 10 seconds and self-hosted frameworks give it
     none, so the SDK keeps its own: a missing context is better than a silent caller. Each
-    budget covers the whole call, retries and waits included. `write` is the budget of the
+    budget covers the whole call, retries and waits included; only a call that must open the
+    connection first gets `connect` on top, once. `write` is the budget of the
     writes a caller waits for (`identify`, `verify`, `feedback`, `subject_token` and the
     reservation of an upload) and the timeout of each attempt of the background queue, which
     never holds a caller. `upload` bounds sending media bytes to storage. `prefetch` bounds a
@@ -39,6 +40,9 @@ class Timeouts:
     write: float = 5.0
     upload: float = 60.0
     prefetch: float = 1.0
+    connect: float = 1.0
+    """Added once to a budget when no connection to the API is likely open (no answer in the last two
+    minutes): TCP and TLS take a few round trips, 0.3 s or more from another continent. 0 never adds it."""
 
 
 @dataclass(frozen=True)
