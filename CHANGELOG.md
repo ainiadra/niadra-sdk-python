@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.3] - 2026-10-03
+
+### Added
+
+- `keep_warm` (on by default): while a conversation or task is open (created and not ended) and the client was
+  used in the last 10 minutes, the client sends `GET /healthz` every 100 s when nothing else went out for 90 s,
+  one attempt with a 2-second budget, so the connection to the region stays open. A turn after a pause longer
+  than the 120 s an idle connection is kept no longer pays TCP, TLS and often DNS again (from Sao Paulo, a read
+  after 150 s idle took 550 ms instead of 200, and about 900 ms when the DNS entry had also expired). The pings
+  are not the client's use; a conversation nobody holds any more stops them. `keep_warm=False` never pings.
+
 ## [0.10.2] - 2026-10-03
 
 ### Changed

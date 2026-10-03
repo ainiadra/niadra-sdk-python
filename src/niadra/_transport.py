@@ -87,6 +87,8 @@ class Request:
     idempotency_key: str | None = None
     max_attempts: int = 3
     headers: dict[str, str] | None = None
+    activity: bool = True
+    """False for the SDK's own upkeep (the keep-warm ping): it is not the client's use."""
 
 
 @dataclass
@@ -301,8 +303,12 @@ class SyncTransport:
         self._lock = threading.Lock()
         self._workers: concurrent.futures.ThreadPoolExecutor | None = None
         self._warmth = Warmth(KEEPALIVE_S if self._owns_client else SUPPLIED_KEEPALIVE_S, cold_allowance)
+        self.last_activity: float | None = None
+        """When the client last sent a request of its own (`Request.activity`), monotonic."""
 
     def request(self, request: Request) -> Any:
+        if request.activity:
+            self.last_activity = time.monotonic()
         request = self._warmth.budgeted(request)
         state = RetryState(request)
         while True:
@@ -428,8 +434,12 @@ class AsyncTransport:
         self._client = http_client or _own_async_client()
         self._retired: list[httpx.AsyncClient] = []
         self._warmth = Warmth(KEEPALIVE_S if self._owns_client else SUPPLIED_KEEPALIVE_S, cold_allowance)
+        self.last_activity: float | None = None
+        """When the client last sent a request of its own (`Request.activity`), monotonic."""
 
     async def request(self, request: Request) -> Any:
+        if request.activity:
+            self.last_activity = time.monotonic()
         request = self._warmth.budgeted(request)
         state = RetryState(request)
         while True:

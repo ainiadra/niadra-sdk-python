@@ -35,6 +35,8 @@ from niadra._profile import ProfileCache
 from niadra._queue import AsyncFlusher, is_retryable
 from niadra._transport import AsyncTransport
 from niadra._voice import TurnRead, VoiceLine, VoiceLines, compose, words_of
+from niadra._warm import EVERY_S as KEEP_WARM_EVERY_S
+from niadra._warm import KeepWarm, ping_http
 from niadra.agent_state import AgentStates
 from niadra.api import AsyncApi
 from niadra.claims.internal import InternalText
@@ -88,6 +90,7 @@ from niadra.turns.tool import BoundTool
 from niadra.vocabulary import AssertionMethod, Speaker, SubjectKind, Verification
 
 F = TypeVar("F", bound=Callable[..., Any])
+_S = TypeVar("_S")
 
 
 class AsyncNiadra:
@@ -113,6 +116,7 @@ class AsyncNiadra:
         http_client: httpx.AsyncClient | None = None,
         voice: VoiceOptions | None = None,
         turns: TurnOptions | None = None,
+        keep_warm: bool = True,
     ) -> None:
         self._core = ClientCore(
             api_key,
@@ -169,6 +173,8 @@ class AsyncNiadra:
         self._prefetching: dict[str, PrefetchRequest | None] = {}
         self._voice = VoiceLines(self._core.voice_options)
         self._closed = False
+        self._keep_warm = KeepWarm(keep_warm and self._core.enabled)
+        self._warm_pending = False
         # The round trip to the region, measured now when a loop runs, else at the first call: the default
         # read budgets take it on top, and the connection it opens is warm for the first read.
         self._start_probe()
@@ -846,17 +852,19 @@ class AsyncNiadra:
         agent_id: str | None = None,
     ) -> AsyncConversation:
         """A conversation with one customer, as an async context manager. See `Niadra.conversation`."""
-        return AsyncConversation(
-            self,
-            conversation_id,
-            subject=subject,
-            object=object,
-            about=about,
-            channel=channel or self._core.channel,
-            view=view,
-            verification=verification,
-            target=target,
-            agent_id=agent_id,
+        return self._warm(
+            AsyncConversation(
+                self,
+                conversation_id,
+                subject=subject,
+                object=object,
+                about=about,
+                channel=channel or self._core.channel,
+                view=view,
+                verification=verification,
+                target=target,
+                agent_id=agent_id,
+            )
         )
 
     def task(
@@ -873,17 +881,19 @@ class AsyncNiadra:
         agent_id: str | None = None,
     ) -> AsyncTask:
         """A unit of work of an internal agent, as an async context manager. See `Niadra.task`."""
-        return AsyncTask(
-            self,
-            task_id,
-            subject=subject,
-            object=object,
-            about=about,
-            channel=channel or self._core.channel,
-            view=view,
-            verification=verification,
-            target=target,
-            agent_id=agent_id,
+        return self._warm(
+            AsyncTask(
+                self,
+                task_id,
+                subject=subject,
+                object=object,
+                about=about,
+                channel=channel or self._core.channel,
+                view=view,
+                verification=verification,
+                target=target,
+                agent_id=agent_id,
+            )
         )
 
     def tools(
@@ -1237,10 +1247,43 @@ class AsyncNiadra:
         self._start_probe()
         return self._core.navigation_budget(voice, timeout)
 
+    def _warm(self, session: _S) -> _S:
+        """Notes an open conversation or task; the first one starts the keep-warm task (`niadra._warm`), on
+        the running loop, or at the next read when there is none yet."""
+        if self._keep_warm.add(session):
+            self._warm_pending = True
+            self._start_keep_warm()
+        return session
+
+    def _start_keep_warm(self) -> None:
+        if not self._warm_pending:
+            return
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        self._warm_pending = False
+        self._spawn(self._keep_warm_loop())
+
+    async def _keep_warm_loop(self) -> None:
+        while not self._closed:
+            await asyncio.sleep(KEEP_WARM_EVERY_S)
+            if self._closed:
+                return
+            step = self._keep_warm.step(time.monotonic(), self._transport.last_activity)
+            if step == "stop":
+                return
+            if step == "ping":
+                try:
+                    await self._transport.request(ping_http())
+                except Exception as exc:  # the next turn opens a connection, as before
+                    logger.debug("niadra: keep-warm ping failed (%s)", error_code(exc))
+
     def _start_probe(self) -> None:
         """Measures the round trip to the region once per client, as a task on the running loop, which also
         opens the connection the first read will use. Without a running loop (a client built at import) the
         first call starts it."""
+        self._start_keep_warm()
         if not self._core.enabled or self._voice.probed:
             return
         try:

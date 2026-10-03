@@ -41,6 +41,8 @@ from niadra._profile import ProfileCache
 from niadra._queue import SyncFlusher, is_retryable
 from niadra._transport import SyncTransport
 from niadra._voice import TurnRead, VoiceLine, VoiceLines, compose, words_of
+from niadra._warm import EVERY_S as KEEP_WARM_EVERY_S
+from niadra._warm import KeepWarm, ping_http
 from niadra.agent_state import AgentStates
 from niadra.api import Api
 from niadra.claims.internal import InternalText
@@ -94,6 +96,7 @@ from niadra.turns.tool import BoundTool
 from niadra.vocabulary import AssertionMethod, Speaker, SubjectKind, Verification
 
 F = TypeVar("F", bound=Callable[..., Any])
+_S = TypeVar("_S")
 
 
 class Niadra:
@@ -124,6 +127,9 @@ class Niadra:
         queue: Batching of `track()`.
         http_client: An `httpx.Client` to send requests with (proxies, custom transports).
         voice: The voice read path of conversations in the `voice` view (`niadra._voice`).
+        keep_warm: While a conversation is open and was used in the last 10 minutes, keep the connection
+            to the region open with a `GET /healthz` every 100 s of quiet, so a turn after a long pause
+            does not pay for a new connection (`niadra._warm`). False never pings.
     """
 
     def __init__(
@@ -139,6 +145,7 @@ class Niadra:
         http_client: httpx.Client | None = None,
         voice: VoiceOptions | None = None,
         turns: TurnOptions | None = None,
+        keep_warm: bool = True,
     ) -> None:
         self._core = ClientCore(
             api_key,
@@ -199,6 +206,8 @@ class Niadra:
         self._voice = VoiceLines(self._core.voice_options)
         self._voice_workers: ThreadPoolExecutor | None = None
         self._closed = False
+        self._keep_warm = KeepWarm(keep_warm and self._core.enabled)
+        self._warm_stop = threading.Event()
         if self._core.enabled:
             atexit.register(_flush_at_exit, weakref.ref(self))
         # The round trip to the region, measured now: the default read budgets take it on top, and the
@@ -988,17 +997,19 @@ class Niadra:
         Without a `conversation_id` the SDK mints one. `agent_id` identifies your agent
         within the source, and is stamped on its turns and actions.
         """
-        return Conversation(
-            self,
-            conversation_id,
-            subject=subject,
-            object=object,
-            about=about,
-            channel=channel or self._core.channel,
-            view=view,
-            verification=verification,
-            target=target,
-            agent_id=agent_id,
+        return self._warm(
+            Conversation(
+                self,
+                conversation_id,
+                subject=subject,
+                object=object,
+                about=about,
+                channel=channel or self._core.channel,
+                view=view,
+                verification=verification,
+                target=target,
+                agent_id=agent_id,
+            )
         )
 
     def task(
@@ -1018,17 +1029,19 @@ class Niadra:
 
         With an `object`, the pack is centered on it; use a task view such as `"task:billing"`.
         """
-        return Task(
-            self,
-            task_id,
-            subject=subject,
-            object=object,
-            about=about,
-            channel=channel or self._core.channel,
-            view=view,
-            verification=verification,
-            target=target,
-            agent_id=agent_id,
+        return self._warm(
+            Task(
+                self,
+                task_id,
+                subject=subject,
+                object=object,
+                about=about,
+                channel=channel or self._core.channel,
+                view=view,
+                verification=verification,
+                target=target,
+                agent_id=agent_id,
+            )
         )
 
     def tools(
@@ -1240,6 +1253,7 @@ class Niadra:
         if self._closed:
             return
         self._closed = True
+        self._warm_stop.set()
         try:
             if self._core.enabled:
                 deadline = None if timeout is None else time.monotonic() + timeout
@@ -1381,6 +1395,21 @@ class Niadra:
             if self._voice_workers is None:
                 self._voice_workers = ThreadPoolExecutor(max_workers=32, thread_name_prefix="niadra-voice")
             return self._voice_workers
+
+    def _warm(self, session: _S) -> _S:
+        """Notes an open conversation or task; the first one starts the keep-warm timer (`niadra._warm`)."""
+        if self._keep_warm.add(session):
+            threading.Thread(target=self._keep_warm_loop, name="niadra-keep-warm", daemon=True).start()
+        return session
+
+    def _keep_warm_loop(self) -> None:
+        while not self._warm_stop.wait(KEEP_WARM_EVERY_S):
+            step = self._keep_warm.step(time.monotonic(), self._transport.last_activity)
+            if step == "stop":
+                return
+            if step == "ping":
+                with suppress(Exception):
+                    self._transport.request(ping_http())
 
     def _start_probe(self) -> None:
         """Measures the round trip to the region once per client, in the background, which also opens the
