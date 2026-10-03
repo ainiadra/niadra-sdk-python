@@ -161,6 +161,7 @@ class Niadra:
         self._transport = SyncTransport(
             self._core.base_url, self._core.api_key, http_client, cold_allowance=self._core.timeouts.connect
         )
+        self._core.connection_open = self._transport.connection_open
         self.admin = Admin(self._core, self._transport)
         """Governance calls for a key with the `admin` scope: memory, fact history, corrections, erasure."""
         self.api = Api(self._core, self._transport)
@@ -1416,6 +1417,7 @@ class Niadra:
         connection the first read will use."""
         if not self._core.enabled or not self._voice.claim_probe():
             return
+        self._core.measuring = True
         with suppress(RuntimeError):  # the client is closing
             self._voice_pool().submit(self._probe)
 
@@ -1427,6 +1429,7 @@ class Niadra:
                 self._transport.request(self._core.probe_http())
             except Exception as exc:
                 logger.debug("niadra: round trip probe failed (%s)", error_code(exc))
+                self._core.measuring = False
                 return
             samples.append(time.monotonic() - started)
         self._voice.rtt = self._core.probed(samples)

@@ -9,7 +9,7 @@ import logging
 import os
 import threading
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import date, datetime
 from typing import Any, Literal, TypeVar
 from urllib.parse import quote, urlsplit
@@ -208,6 +208,10 @@ class ClientCore:
             if getattr(self.timeouts, name) == getattr(defaults, name)
         )
         self.rtt: float | None = None
+        self.measuring = False
+        """A probe is on its way: until it ends, default read budgets get `Timeouts.connect` on top."""
+        self.connection_open: Callable[[], bool] = lambda: False
+        """The transport's guess that a connection is open; set by the client once it has one."""
         self.voice_started = False
         self._voice_warned = False
         self.cache_options = cache or CacheOptions()
@@ -262,9 +266,16 @@ class ClientCore:
 
     def _with_rtt(self, name: str, budget: float) -> float:
         """A default read budget is what the API may take: the measured round trip goes on top, so a
-        caller far from the region (Sao Paulo, 170 ms from us-east-2) is not timed out by the network."""
-        if self.rtt is not None and name in self.default_reads:
+        caller far from the region (Sao Paulo, 170 ms from us-east-2) is not timed out by the network.
+        Until the probe has measured it, `Timeouts.connect` goes on top instead: a read made right after the
+        client starts timed out at the bare default from Sao Paulo (03/10/2026)."""
+        if name not in self.default_reads:
+            return budget
+        if self.rtt is not None:
             return budget + self.rtt
+        # With no connection open the transport adds `connect` itself: never twice for one unknown network.
+        if self.measuring and self.connection_open():
+            return budget + self.timeouts.connect
         return budget
 
     def context_request(
@@ -402,6 +413,7 @@ class ClientCore:
         """Records the round trip to the region, the fastest of `samples`: the default read budgets take it
         on top from now on. Warns once about a budget the caller set that it leaves no room in, and about
         the voice budgets once the client reads in voice."""
+        self.measuring = False
         if not samples:
             return None
         rtt = min(samples)

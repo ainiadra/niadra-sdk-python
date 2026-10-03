@@ -251,6 +251,11 @@ class Warmth:
         self._answered = time.monotonic()
         self._granted = None
 
+    def open(self) -> bool:
+        """An answer came within the time the client keeps an idle connection: one is likely open."""
+        answered = self._answered
+        return answered is not None and time.monotonic() - answered <= self._keepalive_s
+
     def forget(self) -> None:
         self._answered = None
         self._granted = None
@@ -305,6 +310,10 @@ class SyncTransport:
         self._warmth = Warmth(KEEPALIVE_S if self._owns_client else SUPPLIED_KEEPALIVE_S, cold_allowance)
         self.last_activity: float | None = None
         """When the client last sent a request of its own (`Request.activity`), monotonic."""
+
+    def connection_open(self) -> bool:
+        """Likely: an answer came within the keep-alive. When not, the next budgeted call gets `connect`."""
+        return self._warmth.open()
 
     def request(self, request: Request) -> Any:
         if request.activity:
@@ -436,6 +445,10 @@ class AsyncTransport:
         self._warmth = Warmth(KEEPALIVE_S if self._owns_client else SUPPLIED_KEEPALIVE_S, cold_allowance)
         self.last_activity: float | None = None
         """When the client last sent a request of its own (`Request.activity`), monotonic."""
+
+    def connection_open(self) -> bool:
+        """Likely: an answer came within the keep-alive. When not, the next budgeted call gets `connect`."""
+        return self._warmth.open()
 
     async def request(self, request: Request) -> Any:
         if request.activity:

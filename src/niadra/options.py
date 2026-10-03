@@ -24,8 +24,9 @@ class Timeouts:
     the round trip to the region once when it starts (`VoiceOptions.probe`) and adds it on top, so an
     agent far from the region (Sao Paulo is 170 ms from us-east-2) is not timed out by the network.
     A value you set is a ceiling the SDK keeps; when the measured round trip plus 50 ms exceeds it,
-    the client logs one warning, since every such read would run out of time. Before the measurement
-    ends, the defaults apply as they are (with `connect` on top while no connection is open).
+    the client logs one warning, since every such read would run out of time. While the probe is on its
+    way, `connect` goes on top of them instead; a probe that failed, or `probe=False`, leaves them as
+    they are.
 
     In a voice conversation the pinned pack is read once and then served from memory, so
     `context_voice` is not a round trip: it is the most a turn waits for the read of its own words
