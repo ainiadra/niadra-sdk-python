@@ -4,13 +4,14 @@ and the contact token checked at the company's gateway."""
 from __future__ import annotations
 
 import base64
+import logging
 from collections.abc import Iterator
 from typing import Any
 
 import httpx
 import pytest
 
-from niadra import AsyncNiadra, Niadra, phone
+from niadra import AsyncNiadra, Niadra, UnprocessableEntityError, phone
 from niadra.coordination.token import ContactTokenError
 from niadra.options import CacheOptions, TurnOptions
 from niadra_mock import MOCK_KEY, MockApp
@@ -214,3 +215,28 @@ async def test_the_async_client_checks_declares_and_verifies(app: MockApp) -> No
     assert declared["detail"]["jti"] == claims.jti and declared["detail"]["unchecked"] is False
     await client.close(timeout=1)
     await http.aclose()
+
+
+@pytest.mark.parametrize(("direction", "decision"), [("outbound", "defer"), ("inbound", "allow")])
+def test_a_check_the_api_refuses_is_the_integrations_error_never_unchecked(
+    app: MockApp, niadra: Niadra, caplog: pytest.LogCaptureFixture, direction: Any, decision: str
+) -> None:
+    # A purpose the space does not declare answered 422 and read as `allow`, `unchecked`, as if Niadra were
+    # down: an outbound contact now waits, and the log says why.
+    app.cell.fail_next("/v1/coordination/check", 422)
+    with caplog.at_level(logging.WARNING, logger="niadra"), niadra.conversation("c-9", subject=CUSTOMER) as c:
+        result = c.check("deadline_reminder", purpose="legal", direction=direction)
+    assert (result.decision, result.reasons, result.valid_for_s) == (decision, ["invalid_request"], 0)
+    assert (
+        "the coordination check was refused: HTTP 422 invalid_input: injected by niadra-mock (request "
+        in caplog.text
+    )
+
+
+def test_strict_raises_a_check_the_api_refuses(app: MockApp) -> None:
+    http = httpx.Client(transport=httpx.WSGITransport(app=app.wsgi))
+    strict = Niadra(MOCK_KEY, base_url="http://mock", channel="whatsapp", strict=True, http_client=http)
+    app.cell.fail_next("/v1/coordination/check", 422)
+    with pytest.raises(UnprocessableEntityError), strict.conversation("c-10", subject=CUSTOMER) as c:
+        c.check("deadline_reminder", purpose="legal")
+    strict.close()

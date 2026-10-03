@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any
 
 from niadra._queue import _Pacing, is_retryable
 from niadra._transport import Request
-from niadra.errors import APIError, NiadraError, NotFoundError
+from niadra.errors import APIError, NiadraError, NotFoundError, explain
 from niadra.models.turns import TurnsResponse
 from niadra.turns.capture import TurnFrame
 from niadra.turns.queue import TurnQueue
@@ -146,8 +146,7 @@ class _Sender:
                 frame.mode = "hash_only"
                 self._queue.requeue(batch.frames)
                 return True
-        code = getattr(error, "code", None) or type(error).__name__
-        self._recorder.rejected(len(batch.frames), {str(code)})
+        self._recorder.rejected(len(batch.frames), {explain(error)})
         return True
 
     def _accepted(self, batch: Batch, answer: Any) -> None:
@@ -157,7 +156,7 @@ class _Sender:
             return
         self._recorder.sent(result.accepted, result.duplicates)
         again: list[TurnFrame] = []
-        codes: set[str] = set()
+        reasons: set[str] = set()
         refused = 0
         for error in result.errors:
             if not 0 <= error.index < len(batch.frames):
@@ -169,11 +168,11 @@ class _Sender:
                 again.append(frame)
             else:
                 refused += 1
-                codes.add(error.code)
+                reasons.add(f"{error.code}: {error.detail[:300]}" if error.detail else error.code)
         if again:
             self._queue.requeue(again)
         if refused:
-            self._recorder.rejected(refused, codes)
+            self._recorder.rejected(refused, reasons)
 
     def wait_hint(self) -> float:
         """Seconds until the next batch is due: infinite with nothing waiting (a new turn wakes the sender),

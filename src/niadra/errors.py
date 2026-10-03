@@ -58,6 +58,18 @@ class APIError(NiadraError):
     def request_id(self) -> str | None:
         return self.problem.request_id if self.problem else None
 
+    def explained(self) -> str:
+        """`HTTP 422 invalid_input: unknown purpose ... (request <id>)`: what a log line may carry. The API's
+        detail names fields and rules, never the values sent."""
+        detail = (self.problem.detail or "").strip() if self.problem else ""
+        said = f"HTTP {self.status_code} {self.code}" + (f": {detail[:300]}" if detail else "")
+        return said + (f" (request {self.request_id})" if self.request_id else "")
+
+
+def explain(error: Exception) -> str:
+    """A refusal for a log line: an API error with its detail and request id, anything else by its class."""
+    return error.explained() if isinstance(error, APIError) else type(error).__name__
+
 
 class BadRequestError(APIError):
     pass
