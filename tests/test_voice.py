@@ -335,11 +335,11 @@ async def test_the_round_trip_is_measured_once_and_a_short_budget_is_reported(
     assert all("+55" not in r.getMessage() for r in caplog.records), "numbers only, never the customer"
 
 
-async def test_the_voice_path_can_be_turned_off(region: Region) -> None:
+async def test_the_voice_path_and_the_probe_can_be_turned_off(region: Region) -> None:
     region.latency = (0.05, 0.05)
     http = httpx.AsyncClient(transport=httpx.MockTransport(region.handle_async))
     niadra = AsyncNiadra(
-        KEY, channel="voice", queue=QUIET, http_client=http, voice=VoiceOptions(enabled=False)
+        KEY, channel="voice", queue=QUIET, http_client=http, voice=VoiceOptions(enabled=False, probe=False)
     )
     try:
         async with niadra.conversation("call-11", subject=MARINA, channel="voice", view="voice") as call:

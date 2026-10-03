@@ -556,7 +556,7 @@ class _SyncSession(_Session):
             {"kind": self._kind, "id": self.id},
             self.agent_id,
             self.subject,
-            client._core.timeouts.navigation,
+            client._core.navigation_budget(False, None),
             client._core.fail,
         )
         """This session's working state for its agent: `get()` and `put()` (`niadra.agent_state`)."""
@@ -632,7 +632,7 @@ class _SyncSession(_Session):
         try:
             request = self._claim_request(object, task, kind, lease_s, level, intents)
             data = self._client._transport.request(
-                Coordinator.claim_http(request, timeout or self._client._core.timeouts.navigation)
+                Coordinator.claim_http(request, self._client._core.navigation_budget(False, timeout or None))
             )
         except Exception as error:
             return claimed(error=error)
@@ -755,7 +755,7 @@ class _AsyncSession(_Session):
             {"kind": self._kind, "id": self.id},
             self.agent_id,
             self.subject,
-            client._core.timeouts.navigation,
+            client._core.navigation_budget(False, None),
             client._core.fail,
         )
         """This session's working state for its agent: `await get()` and `await put()`."""
@@ -827,7 +827,7 @@ class _AsyncSession(_Session):
         try:
             request = self._claim_request(object, task, kind, lease_s, level, intents)
             data = await self._client._transport.request(
-                Coordinator.claim_http(request, timeout or self._client._core.timeouts.navigation)
+                Coordinator.claim_http(request, self._client._core.navigation_budget(False, timeout or None))
             )
         except Exception as error:
             return claimed(error=error)

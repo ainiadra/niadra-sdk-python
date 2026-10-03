@@ -20,6 +20,13 @@ class Timeouts:
     prefetch, which runs in the background and never holds a turn, and a voice read that goes on
     after its turn's budget.
 
+    `context` and `navigation` left at their defaults are what the API may take: the client measures
+    the round trip to the region once when it starts (`VoiceOptions.probe`) and adds it on top, so an
+    agent far from the region (Sao Paulo is 170 ms from us-east-2) is not timed out by the network.
+    A value you set is a ceiling the SDK keeps; when the measured round trip plus 50 ms exceeds it,
+    the client logs one warning, since every such read would run out of time. Before the measurement
+    ends, the defaults apply as they are (with `connect` on top while no connection is open).
+
     In a voice conversation the pinned pack is read once and then served from memory, so
     `context_voice` is not a round trip: it is the most a turn waits for the read of its own words
     that a prefetch already started (see `niadra._voice`). A read starts when the partial transcript
@@ -70,8 +77,11 @@ class VoiceOptions:
     `settle` is how long, in seconds, a partial transcript must stay the same before the SDK
     reads the turn with it. A read's slots answer the final turn when the final words start with
     the partial's and the partial carries at least `min_coverage` of them. `probe` measures the
-    round trip to the region once, with `GET /healthz`, and logs a warning when the voice budgets
-    cannot hold it. `enabled=False` sends every voice turn to the API as the other views do.
+    round trip to the region once, with `GET /healthz`, when the client starts (an `AsyncNiadra`
+    built outside a running loop, at its first call): the default read budgets add it (`Timeouts`),
+    and a warning says when a budget you set, or a voice budget once the client reads in voice,
+    cannot hold it. `probe=False` measures nothing. `enabled=False` sends every voice turn to the
+    API as the other views do.
     """
 
     enabled: bool = True

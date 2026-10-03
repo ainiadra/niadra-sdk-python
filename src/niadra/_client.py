@@ -201,6 +201,9 @@ class Niadra:
         self._closed = False
         if self._core.enabled:
             atexit.register(_flush_at_exit, weakref.ref(self))
+        # The round trip to the region, measured now: the default read budgets take it on top, and the
+        # connection it opens is warm for the first read.
+        self._start_probe()
 
     @staticmethod
     def build(
@@ -237,7 +240,7 @@ class Niadra:
         `valid_for_s` has passed. When Niadra does not answer, the last profile read stays in use; None when
         there is none yet. Never raises unless `strict`."""
         if self._core.enabled and self._profile.due():
-            budget = timeout if timeout is not None else self._core.timeouts.navigation
+            budget = self._core.navigation_budget(False, timeout)
             try:
                 self._profile.absorb(self._transport.request(self._profile.request(budget)))
             except Exception as exc:
@@ -328,7 +331,7 @@ class Niadra:
             if self._suppressions.held:
                 self._read_suppressions_later()
             else:
-                self._read_suppressions(self._core.timeouts.navigation)
+                self._read_suppressions(self._core.navigation_budget(False, None))
         return self._suppressions.may_contact(target, purpose, channel=channel, fail_open=fail_open)
 
     def _keep_suppressions(self) -> None:
@@ -514,8 +517,9 @@ class Niadra:
 
     @property
     def rtt(self) -> float | None:
-        """The round trip to the region in seconds, measured once with the first voice read; None
-        before that, or when `VoiceOptions.probe` is off."""
+        """The round trip to the region in seconds, measured once in the background when the client starts;
+        None before that, or when `VoiceOptions.probe` is off. The read budgets left at their defaults take it
+        on top (`Timeouts`)."""
         return self._voice.rtt
 
     def search(
@@ -1378,9 +1382,10 @@ class Niadra:
                 self._voice_workers = ThreadPoolExecutor(max_workers=32, thread_name_prefix="niadra-voice")
             return self._voice_workers
 
-    def _voice_probe(self) -> None:
-        """Measures the round trip to the region once per client, in the background."""
-        if not self._voice.claim_probe():
+    def _start_probe(self) -> None:
+        """Measures the round trip to the region once per client, in the background, which also opens the
+        connection the first read will use."""
+        if not self._core.enabled or not self._voice.claim_probe():
             return
         with suppress(RuntimeError):  # the client is closing
             self._voice_pool().submit(self._probe)
@@ -1409,7 +1414,8 @@ class Niadra:
         key = cache_key(request)
         scope = self._core.scope_of(request.conversation_id, request.task_id)
         line = self._voice.line(scope)
-        self._voice_probe()
+        self._start_probe()
+        self._core.start_voice()
         with self._voice.lock:
             line.request = request
             if self._cache.has(key) or line.in_flight():
@@ -1427,7 +1433,8 @@ class Niadra:
         key = cache_key(request)
         scope = self._core.scope_of(request.conversation_id, request.task_id)
         line = self._voice.line(scope)
-        self._voice_probe()
+        self._start_probe()
+        self._core.start_voice()
         background = self._core.timeouts.prefetch
         options = self._core.voice_options
         words = words_of(query)

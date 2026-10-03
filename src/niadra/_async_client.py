@@ -169,6 +169,9 @@ class AsyncNiadra:
         self._prefetching: dict[str, PrefetchRequest | None] = {}
         self._voice = VoiceLines(self._core.voice_options)
         self._closed = False
+        # The round trip to the region, measured now when a loop runs, else at the first call: the default
+        # read budgets take it on top, and the connection it opens is warm for the first read.
+        self._start_probe()
 
     @staticmethod
     def build(
@@ -205,7 +208,7 @@ class AsyncNiadra:
         `valid_for_s` has passed. When Niadra does not answer, the last profile read stays in use; None when
         there is none yet. Never raises unless `strict`."""
         if self._core.enabled and self._profile.due():
-            budget = timeout if timeout is not None else self._core.timeouts.navigation
+            budget = self._read_budget_navigation(False, timeout)
             try:
                 self._profile.absorb(await self._transport.request(self._profile.request(budget)))
             except Exception as exc:
@@ -285,7 +288,7 @@ class AsyncNiadra:
             if self._suppressions.held:
                 self._keep_suppressions()
             else:
-                await self._read_suppressions(self._core.timeouts.navigation)
+                await self._read_suppressions(self._core.navigation_budget(False, None))
         return self._suppressions.may_contact(target, purpose, channel=channel, fail_open=fail_open)
 
     def _keep_suppressions(self) -> None:
@@ -372,7 +375,7 @@ class AsyncNiadra:
             )
         if not self._core.enabled:
             return Context.empty(requested=requested, error="disabled")
-        budget = self._core.context_budget(view, timeout)
+        budget = self._read_budget_context(view, timeout)
         query = self._core.turn_query(request, turn)
         request = request.model_copy(update={"query": None})  # the pack's key is the read's without it
         if self._core.voice_path(request, use_cache):
@@ -425,8 +428,9 @@ class AsyncNiadra:
 
     @property
     def rtt(self) -> float | None:
-        """The round trip to the region in seconds, measured once with the first voice read; None
-        before that, or when `VoiceOptions.probe` is off."""
+        """The round trip to the region in seconds, measured once in the background when the client starts
+        (or at its first call, when it was built outside a running loop); None before that, or when
+        `VoiceOptions.probe` is off. The read budgets left at their defaults take it on top (`Timeouts`)."""
         return self._voice.rtt
 
     async def search(
@@ -448,7 +452,7 @@ class AsyncNiadra:
         if not self._core.enabled:
             return SearchResult(error="disabled")
         try:
-            budget = self._core.navigation_budget(voice, timeout)
+            budget = self._read_budget_navigation(voice, timeout)
             request = self._core.search_http(
                 subject,
                 query,
@@ -482,7 +486,7 @@ class AsyncNiadra:
         if not self._core.enabled:
             return TimelinePage(error="disabled")
         try:
-            budget = self._core.navigation_budget(voice, timeout)
+            budget = self._read_budget_navigation(voice, timeout)
             request = self._core.timeline_http(
                 subject, about, filters, cursor, limit, verification, conversation_id, budget
             )
@@ -505,7 +509,7 @@ class AsyncNiadra:
         if not self._core.enabled:
             return None
         try:
-            budget = self._core.navigation_budget(voice, timeout)
+            budget = self._read_budget_navigation(voice, timeout)
             request = self._core.open_http(item_id, verification, conversation_id, subject, budget, about)
             return OpenedItem.model_validate(await self._transport.request(request))
         except Exception as exc:
@@ -929,7 +933,7 @@ class AsyncNiadra:
         if cached is not None and fresh:
             return cached.model_copy(update={"source": "cache"})
         try:
-            budget = self._core.context_budget(view or "chat", timeout)
+            budget = self._read_budget_context(view or "chat", timeout)
             etag = cached.etag if cached is not None and cached.etag else None
             request = self._core.agent_memory_http(max_tokens, tags, view, etag, budget)
             return self._core.agent_memory_cache.absorb(key, await self._transport.request(request))
@@ -950,7 +954,7 @@ class AsyncNiadra:
         if not self._core.enabled:
             return []
         try:
-            budget = self._core.navigation_budget(False, timeout)
+            budget = self._read_budget_navigation(False, timeout)
             request = self._core.search_agent_memory_http(
                 query, tags, limit, conversation_id, task_id, budget
             )
@@ -1225,8 +1229,24 @@ class AsyncNiadra:
         task.add_done_callback(self._refreshes.discard)
         return task
 
-    def _voice_probe(self) -> None:
-        """Measures the round trip to the region once per client, as a task on the running loop."""
+    def _read_budget_context(self, view: str, timeout: float | None) -> float:
+        self._start_probe()
+        return self._core.context_budget(view, timeout)
+
+    def _read_budget_navigation(self, voice: bool, timeout: float | None) -> float:
+        self._start_probe()
+        return self._core.navigation_budget(voice, timeout)
+
+    def _start_probe(self) -> None:
+        """Measures the round trip to the region once per client, as a task on the running loop, which also
+        opens the connection the first read will use. Without a running loop (a client built at import) the
+        first call starts it."""
+        if not self._core.enabled or self._voice.probed:
+            return
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return
         if self._voice.claim_probe():
             self._spawn(self._probe())
 
@@ -1253,7 +1273,8 @@ class AsyncNiadra:
     def _voice_begin(self, request: ContextRequest) -> bool:
         key = cache_key(request)
         line = self._voice.line(self._core.scope_of(request.conversation_id, request.task_id))
-        self._voice_probe()
+        self._start_probe()
+        self._core.start_voice()
         line.request = request
         if not self._cache.has(key) and not line.in_flight():
             self._voice_read(line, key, request, None, self._core.timeouts.context_voice_start)
@@ -1269,7 +1290,8 @@ class AsyncNiadra:
         key = cache_key(request)
         scope = self._core.scope_of(request.conversation_id, request.task_id)
         line = self._voice.line(scope)
-        self._voice_probe()
+        self._start_probe()
+        self._core.start_voice()
         background = self._core.timeouts.prefetch
         words = words_of(query)
         line.request = request
