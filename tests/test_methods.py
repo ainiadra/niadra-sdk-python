@@ -66,6 +66,7 @@ def test_navigation_budgets(respx_mock: respx.MockRouter, client: Niadra) -> Non
         return httpx.Response(200, json=SEARCH)
 
     respx_mock.post(f"{BASE}/v1/history/search").mock(side_effect=record)
+    client._transport._warmth.answered()  # a connection is open: the budgets are exact
     client.search(MARINA, "x")
     client.search(MARINA, "x", voice=True)
     assert budgets == [pytest.approx(0.6, abs=0.01), pytest.approx(0.3, abs=0.01)]

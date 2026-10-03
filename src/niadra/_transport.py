@@ -17,6 +17,10 @@ The rules:
   apart (pool, connect, write, every read), so a budgeted attempt is also bounded as a whole:
   on a worker thread in the sync transport, by cancellation in the async one. Batches of the
   background queue carry no budget and keep httpx's per-phase timeouts.
+- A connection stays open between calls for `KEEPALIVE_S`. When none is likely open (no answer
+  came within that time), a budgeted request gets `cold_allowance` more, once, for TCP and TLS:
+  a few round trips that a 0.3 s context budget cannot hold from another continent. Once a
+  connection is open, budgets are exact.
 
 A route or field the API deprecates answers with `Deprecation` (RFC 9745), `Sunset` (RFC 8594) and a
 `Link` to its migration note. The transport logs one warning per deprecated route per process, with the
@@ -40,7 +44,7 @@ import re
 import threading
 import time
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any
@@ -57,6 +61,11 @@ USER_AGENT = f"niadra-python/{__version__}"
 # attempt that outlives its budget holds one only until httpx's own phase timeouts end it.
 ATTEMPT_WORKERS = 64
 VERSIONING_DOCS = "https://docs.niadra.com/en/security/api-versioning"
+KEEPALIVE_S = 120.0
+"""How long the SDK's own client keeps an idle connection: under the 180 s the API's edge keeps one, and
+longer than the gap between two turns of a conversation. httpx's default, 5 s, closed it between turns."""
+SUPPLIED_KEEPALIVE_S = 5.0
+"""httpx's default, assumed for a client the caller passes in."""
 
 logger = logging.getLogger("niadra")
 _DEPRECATION_LINK = re.compile(r'<([^>]*)>[^,]*;\s*rel="?deprecation"?', re.IGNORECASE)
@@ -225,6 +234,33 @@ def _overrun() -> httpx.TimeoutException:
     return httpx.TimeoutException("the attempt ran past its time budget")
 
 
+class Warmth:
+    """Whether the next request is likely to find an open connection: an answer came within the time the
+    client keeps an idle one."""
+
+    def __init__(self, keepalive_s: float, allowance: float) -> None:
+        self._keepalive_s = keepalive_s
+        self._allowance = allowance
+        self._answered: float | None = None
+
+    def answered(self) -> None:
+        self._answered = time.monotonic()
+
+    def forget(self) -> None:
+        self._answered = None
+
+    def budgeted(self, request: Request) -> Request:
+        """`request` with the allowance for opening a connection, when it has a budget and none is open."""
+        if request.budget is None or self._allowance <= 0:
+            return request
+        answered = self._answered
+        if answered is not None and time.monotonic() - answered <= self._keepalive_s:
+            return request
+        return replace(
+            request, budget=request.budget + self._allowance, timeout=request.timeout + self._allowance
+        )
+
+
 def _headers(api_key: str, request: Request) -> dict[str, str]:
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -239,16 +275,25 @@ def _headers(api_key: str, request: Request) -> dict[str, str]:
 
 
 class SyncTransport:
-    def __init__(self, base_url: str, api_key: str, http_client: httpx.Client | None = None) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        http_client: httpx.Client | None = None,
+        *,
+        cold_allowance: float = 0.0,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._owns_client = http_client is None
-        self._client = http_client or httpx.Client()
+        self._client = http_client or _own_client()
         self._retired: list[httpx.Client] = []
         self._lock = threading.Lock()
         self._workers: concurrent.futures.ThreadPoolExecutor | None = None
+        self._warmth = Warmth(KEEPALIVE_S if self._owns_client else SUPPLIED_KEEPALIVE_S, cold_allowance)
 
     def request(self, request: Request) -> Any:
+        request = self._warmth.budgeted(request)
         state = RetryState(request)
         while True:
             timeout = state.attempt_timeout()
@@ -269,6 +314,7 @@ class SyncTransport:
             except httpx.HTTPError as exc:
                 decision = state.on_exception(exc)
             else:
+                self._warmth.answered()
                 warn_if_deprecated(request.method, request.path, response.headers)
                 outcome = state.on_response(response.status_code, response.headers, response.content)
                 if outcome is None:
@@ -341,7 +387,8 @@ class SyncTransport:
             return
         with self._lock:
             self._retired.append(self._client)
-            self._client = httpx.Client()
+            self._client = _own_client()
+            self._warmth.forget()
 
     def close(self) -> None:
         with self._lock:
@@ -357,14 +404,23 @@ class SyncTransport:
 
 
 class AsyncTransport:
-    def __init__(self, base_url: str, api_key: str, http_client: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        http_client: httpx.AsyncClient | None = None,
+        *,
+        cold_allowance: float = 0.0,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._owns_client = http_client is None
-        self._client = http_client or httpx.AsyncClient()
+        self._client = http_client or _own_async_client()
         self._retired: list[httpx.AsyncClient] = []
+        self._warmth = Warmth(KEEPALIVE_S if self._owns_client else SUPPLIED_KEEPALIVE_S, cold_allowance)
 
     async def request(self, request: Request) -> Any:
+        request = self._warmth.budgeted(request)
         state = RetryState(request)
         while True:
             timeout = state.attempt_timeout()
@@ -384,6 +440,7 @@ class AsyncTransport:
             except httpx.HTTPError as exc:
                 decision = state.on_exception(exc)
             else:
+                self._warmth.answered()
                 warn_if_deprecated(request.method, request.path, response.headers)
                 outcome = state.on_response(response.status_code, response.headers, response.content)
                 if outcome is None:
@@ -437,7 +494,8 @@ class AsyncTransport:
         if not self._owns_client:
             return
         self._retired.append(self._client)
-        self._client = httpx.AsyncClient()
+        self._client = _own_async_client()
+        self._warmth.forget()
 
     async def aclose(self) -> None:
         if not self._owns_client:
@@ -445,3 +503,11 @@ class AsyncTransport:
         clients, self._retired = [*self._retired, self._client], []
         for client in clients:
             await client.aclose()
+
+
+def _own_client() -> httpx.Client:
+    return httpx.Client(limits=httpx.Limits(keepalive_expiry=KEEPALIVE_S))
+
+
+def _own_async_client() -> httpx.AsyncClient:
+    return httpx.AsyncClient(limits=httpx.Limits(keepalive_expiry=KEEPALIVE_S))
