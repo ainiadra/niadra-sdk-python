@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.resources
 import json
 from datetime import datetime, timezone
 
@@ -316,3 +317,9 @@ def test_the_command_line_parses_its_options(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr("niadra_mock.__main__.make_server", fake_make_server)
     main(["--port", "9999"])
     assert served == {"host": "127.0.0.1", "port": 9999, "closed": True}
+
+
+@pytest.mark.parametrize("package", ["niadra", "niadra_mock"])
+def test_both_packages_ship_their_types(package: str) -> None:
+    # Without the marker, mypy --strict reads `from niadra_mock import ...` as untyped (PEP 561).
+    assert importlib.resources.files(package).joinpath("py.typed").is_file()
