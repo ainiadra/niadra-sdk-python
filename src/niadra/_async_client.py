@@ -496,6 +496,7 @@ class AsyncNiadra:
         verification: VerificationLike = Verification.V0,
         conversation_id: str | None = None,
         subject: HandleLike | None = None,
+        about: HandleLike | None = None,
         voice: bool = False,
         timeout: float | None = None,
     ) -> OpenedItem | None:
@@ -504,7 +505,7 @@ class AsyncNiadra:
             return None
         try:
             budget = self._core.navigation_budget(voice, timeout)
-            request = self._core.open_http(item_id, verification, conversation_id, subject, budget)
+            request = self._core.open_http(item_id, verification, conversation_id, subject, budget, about)
             return OpenedItem.model_validate(await self._transport.request(request))
         except Exception as exc:
             return self._core.fail("open", exc, None)

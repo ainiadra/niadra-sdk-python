@@ -478,6 +478,7 @@ class ClientCore:
         conversation_id: str | None,
         subject: HandleLike | None,
         budget: float,
+        about: HandleLike | None = None,
     ) -> Request:
         # POST rather than GET: a conversation id may be a phone number or an e-mail, and the customer
         # is personal data; both go in the body, never in a URL.
@@ -486,6 +487,7 @@ class ClientCore:
         body = OpenItemRequest(
             item_id=item_id,
             subject=as_handle(subject) if subject is not None else None,
+            about=as_handle(about) if about is not None else None,
             verification=Verification(verification),
             conversation_id=conversation_id,
         )

@@ -1,15 +1,13 @@
 # Specification copies
 
-The SDK keeps copies of what it implements from the Niadra open specifications and the server's API, and
-tests itself against them. `scripts/sync_spec.py` refreshes the generated part:
-
-```
-uv run python scripts/sync_spec.py --server ../niadra-back --spec ../niadra-spec
-```
+The SDK keeps copies of what it implements from the Niadra specifications and the server's API, and
+tests itself against them. `scripts/sync_spec.py` refreshes the generated part: Niadra's
+maintainers run it against the server and the specifications, and the copies here are what the SDK is
+tested against.
 
 ## Context Pack schema
 
-`context-pack.v1.json` is a copy of the Context Pack schema of the Niadra open specifications
+`context-pack.v1.json` is a copy of the Context Pack schema of the Niadra specifications
 (JSON Schema 2020-12): the answer to a read, with the pack as data and the blocks a read asks for by
 `include` (constraints, state, coordination and budget). `examples/context-pack/turn-as-data.json` is its
 example of the answer to a turn, with the turn's slots, as data. `tests/test_spec.py` keeps `ContextResponse`,

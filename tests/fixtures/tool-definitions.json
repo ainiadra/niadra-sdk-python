@@ -75,7 +75,7 @@
     "type": "function",
     "function": {
       "name": "get_customer_timeline",
-      "description": "List this customer's conversations and agent actions in order, newest first, one line each. Use it to leaf through the history when you do not know what to search for. Pass next_cursor to continue. Prefer search_customer_history for a specific question.",
+      "description": "List this customer's conversations, agent actions and system events in order, newest first, one line each. Use it to leaf through the history when you do not know what to search for; filters.item_kinds also lists the open items, facts, patterns or objects it names. Pass next_cursor to continue. Prefer search_customer_history for a specific question.",
       "parameters": {
         "type": "object",
         "properties": {

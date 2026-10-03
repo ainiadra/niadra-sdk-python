@@ -590,6 +590,7 @@ class Niadra:
         verification: VerificationLike = Verification.V0,
         conversation_id: str | None = None,
         subject: HandleLike | None = None,
+        about: HandleLike | None = None,
         voice: bool = False,
         timeout: float | None = None,
     ) -> OpenedItem | None:
@@ -597,13 +598,14 @@ class Niadra:
 
         Sent as `POST /v1/history/open`: the conversation id and `subject` go in the body, never in a
         URL. With `subject`, the server opens the item only when it belongs to that customer, which
-        is how `tools()` keeps the model on the bound customer.
+        is how `tools()` keeps the model on the bound customer; with `about` too, also an item of that
+        organization the person's view shows (the pack's account block).
         """
         if not self._core.enabled:
             return None
         try:
             budget = self._core.navigation_budget(voice, timeout)
-            request = self._core.open_http(item_id, verification, conversation_id, subject, budget)
+            request = self._core.open_http(item_id, verification, conversation_id, subject, budget, about)
             return OpenedItem.model_validate(self._transport.request(request))
         except Exception as exc:
             return self._core.fail("open", exc, None)
