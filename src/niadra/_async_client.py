@@ -4,7 +4,7 @@ import asyncio
 import contextlib
 import time
 from collections.abc import Callable, Mapping, Sequence
-from datetime import datetime
+from datetime import date, datetime
 from types import TracebackType
 from typing import Any, Literal, TypeVar
 from uuid import UUID
@@ -44,7 +44,7 @@ from niadra.coordination.client import Coordinator
 from niadra.coordination.suppression import FAIL_OPEN, MAX_PAGES, SuppressionCopy
 from niadra.coordination.token import AsyncContactGateway, SeenTokens
 from niadra.errors import APITimeoutError
-from niadra.models.admin import IngestStatus, KeyIdentity, Link, LinkMethod, LinkRequest
+from niadra.models.admin import ContextUseReport, IngestStatus, KeyIdentity, Link, LinkMethod, LinkRequest
 from niadra.models.agent_memory import (
     AgentMemory,
     AgentMemorySearchResponse,
@@ -674,6 +674,42 @@ class AsyncNiadra:
             )
         except Exception as exc:
             return self._core.fail("feedback_batch", exc, None)
+
+    async def context_use(
+        self,
+        *,
+        since: date | None = None,
+        until: date | None = None,
+        group_by: Sequence[str] = ("source_id",),
+        source_id: str | None = None,
+        channel: str | None = None,
+        view: str | None = None,
+        experiment_group: str | None = None,
+        timeout: float | None = None,
+    ) -> ContextUseReport | None:
+        """How the space's agents used the context they read (`GET /v1/context-use`): sessions,
+        deliveries, use, repetition, transfers and recontact, with intervals, grouped by `group_by`
+        (`day`, `source_id`, `vendor`, `channel`, `view`, `experiment_group`). A key of an `analyst`
+        source with the `analytics` scope reads every source of the space; a key with `admin` reads its
+        own source. None when unavailable."""
+        if not self._core.enabled:
+            return None
+        try:
+            filters = {
+                "source_id": source_id,
+                "channel": channel,
+                "view": view,
+                "experiment_group": experiment_group,
+            }
+            request = self._core.context_use_http(since, until, group_by, filters, timeout)
+            answer = dict(await self._transport.request(request))
+            known = {"since", "until", "group_by", "buckets"}
+            body = {k: v for k, v in answer.items() if k in known}
+            return ContextUseReport.model_validate(
+                {**body, "extra": {k: v for k, v in answer.items() if k not in known}}
+            )
+        except Exception as exc:
+            return self._core.fail("context_use", exc, None)
 
     async def link(
         self,

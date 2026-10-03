@@ -1,7 +1,10 @@
 """Typed models of the Niadra wire format, mirroring the server contracts field for field."""
 
 from niadra.models.admin import (
+    ContextUseBucket,
     ContextUseEntry,
+    ContextUseRate,
+    ContextUseReport,
     CorrectionRequest,
     Erasure,
     ExportPackage,
@@ -115,7 +118,10 @@ __all__ = [
     "ContextRequest",
     "ContextResponse",
     "ContextStamp",
+    "ContextUseBucket",
     "ContextUseEntry",
+    "ContextUseRate",
+    "ContextUseReport",
     "ConversationEndedItem",
     "CorrectionRequest",
     "CreateAgentNoteRequest",

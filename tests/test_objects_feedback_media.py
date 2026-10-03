@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import date
 from typing import Any
 
 import httpx
@@ -100,7 +101,7 @@ def test_feedback_fails_open_and_raises_in_strict(
         client.feedback("retract_fact", MARINA, fact_id="f-1")
 
 
-LINKED = {
+LINKED: dict[str, Any] = {
     "link_id": "0192f7a2-0000-7000-8000-000000000001",
     "person_handle_id": "0192f7a2-0000-7000-8000-000000000002",
     "org_handle_id": "0192f7a2-0000-7000-8000-000000000003",
@@ -148,6 +149,30 @@ async def test_async_link(respx_mock: respx.MockRouter) -> None:
     async with AsyncNiadra(KEY, base_url=BASE, strict=True) as niadra:
         link = await niadra.link(MARINA, system_id("crm", "ACC-9", kind="account"), role="buyer")
     assert link is not None and link.link_id == LINKED["link_id"]
+
+
+def test_context_use_reads_the_report_with_its_filters(respx_mock: respx.MockRouter, client: Niadra) -> None:
+    # An analyst key reads the measurement summed over the space's sources (B20).
+    answer = {
+        "since": "2026-09-26",
+        "until": "2026-10-03",
+        "group_by": ["source_id"],
+        "buckets": [
+            {"source_id": "s-1", "sessions": 42, "no_context": 8, "deliveries": 34, "deliveries_used": 17,
+             "usage_rate": {"value": 0.5, "low": 0.34, "high": 0.66, "n": 34}, "unbacked_per_1000": 12.5}
+        ],
+        "claims": [{"source_id": "s-1"}],
+    }  # fmt: skip
+    route = respx_mock.get(f"{BASE}/v1/context-use").respond(200, json=answer)
+    report = client.context_use(since=date(2026, 9, 26), group_by=["source_id", "day"], channel="app")
+    assert report is not None
+    [bucket] = report.buckets
+    assert (bucket.sessions, bucket.usage_rate.value if bucket.usage_rate else None) == (42, 0.5)
+    assert report.extra == {"claims": [{"source_id": "s-1"}]}
+    sent = route.calls.last.request.url.params
+    assert sent.get_list("group_by") == ["source_id", "day"]
+    assert (sent["since"], sent["channel"]) == ("2026-09-26", "app")
+    assert "until" not in sent
 
 
 def test_upload_reserves_then_puts_the_bytes_without_the_key(

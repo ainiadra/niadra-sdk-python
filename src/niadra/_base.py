@@ -10,7 +10,7 @@ import os
 import threading
 import time
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal, TypeVar
 from urllib.parse import quote, urlsplit
 
@@ -646,6 +646,24 @@ class ClientCore:
         return Request(
             "POST", "/v1/feedback/batch", json=body, timeout=self.timeouts.write, budget=self.timeouts.write
         )
+
+    def context_use_http(
+        self,
+        since: date | None,
+        until: date | None,
+        group_by: Sequence[str],
+        filters: Mapping[str, str | None],
+        timeout: float | None,
+    ) -> Request:
+        params: dict[str, Any] = {k: v for k, v in filters.items() if v is not None}
+        if since is not None:
+            params["since"] = since.isoformat()
+        if until is not None:
+            params["until"] = until.isoformat()
+        if group_by:
+            params["group_by"] = list(group_by)
+        budget = timeout if timeout is not None else self.timeouts.write
+        return Request("GET", "/v1/context-use", params=params, timeout=budget, budget=budget)
 
     def link_http(self, request: LinkRequest, idempotency_key: str) -> Request:
         budget = self.timeouts.write
