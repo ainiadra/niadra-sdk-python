@@ -50,7 +50,15 @@ from niadra._base import HandleLike, ItemLike, ObjectLike, TargetLike, Verificat
 from niadra._ids import new_key
 from niadra.agent_state import AgentStateHandle, AsyncAgentStateHandle
 from niadra.backing import BackingReport, Sources, UnbackedValue, check
-from niadra.coordination.client import CHECK_BUDGET, Checked, Claimed, Coordinator, check_request, claimed
+from niadra.coordination.client import (
+    CHECK_BUDGET,
+    Checked,
+    Claimed,
+    Coordinator,
+    check_request,
+    claimed,
+    refused,
+)
 from niadra.coordination.session import Declarations
 from niadra.models.agent_memory import AgentMemory, AgentNoteKind, RememberResult
 from niadra.models.context import PackGuard
@@ -578,6 +586,8 @@ class _SyncSession(_Session):
         try:
             data = self._client._transport.request(coordinator.check_http(request, timeout or CHECK_BUDGET))
         except Exception as error:
+            if refused(error) and self._client._core.strict:
+                raise
             return coordinator.failed(request, self._checked, fail_open, error)
         return coordinator.decided(data, request, self._checked)
 
@@ -774,6 +784,8 @@ class _AsyncSession(_Session):
                 coordinator.check_http(request, timeout or CHECK_BUDGET)
             )
         except Exception as error:
+            if refused(error) and self._client._core.strict:
+                raise
             return coordinator.failed(request, self._checked, fail_open, error)
         return coordinator.decided(data, request, self._checked)
 

@@ -189,10 +189,13 @@ class TurnRecorder:
             self.accepted += accepted
             self.duplicates += duplicates
 
-    def rejected(self, count: int, codes: set[str]) -> None:
+    def rejected(self, count: int, reasons: set[str]) -> None:
+        """`reasons`: the API's code and detail of each refusal (field paths and rules, never a value)."""
         with self._lock:
             self.rejected_turns += count
-        logger.warning("niadra: %d turn records were refused (%s)", count, ", ".join(sorted(codes)))
+        shown = sorted(reasons)
+        more = f" (and {len(shown) - 3} more)" if len(shown) > 3 else ""
+        logger.warning("niadra: %d turn records were refused: %s%s", count, "; ".join(shown[:3]), more)
 
     def not_recorded(self, count: int, *, off: bool) -> None:
         """The space does not record turns: these are dropped, and with `off` (the route answered 404)

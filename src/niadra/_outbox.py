@@ -22,6 +22,7 @@ from typing import Any
 
 from niadra._queue import _Pacing, is_retryable
 from niadra._transport import Request
+from niadra.errors import explain
 
 logger = logging.getLogger("niadra")
 
@@ -71,7 +72,8 @@ class Outbox:
                 self._writes.popleft()
         self._pacing.succeeded()
         if error is not None:
-            logger.warning("niadra: a write was refused (%s)", getattr(error, "code", type(error).__name__))
+            request = write.request
+            logger.warning("niadra: %s %s was refused: %s", request.method, request.path, explain(error))
         if write.settled is not None:
             try:
                 write.settled(answer, error)

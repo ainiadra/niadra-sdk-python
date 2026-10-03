@@ -19,13 +19,19 @@ way it fails):
   refuses without a token): `defer`, `unavailable`;
 - any other purpose (`transactional`, `service`...): `allow`, `unchecked`, and the declaration says so.
 
-`fail_open=` overrides the purpose's direction. Declarations (`conversation.declare`) leave in the background
-with an idempotency key and are sent again until Niadra takes them; a turn records its decisions and the
-effects it reported (`coordination` and `effects` in the record).
+A check the API refuses (400, 401, 403 or 422: a purpose or channel the space does not declare, a key without
+the `coordinate` scope) is the integration's error, not an outage: an outbound contact gets `defer` with the
+reason `invalid_request` (an inbound message is never held: `allow`), the problem is logged with its request
+id, and `strict=True` raises it.
+
+`fail_open=` overrides the purpose's direction when Niadra did not answer. Declarations
+(`conversation.declare`) leave in the background with an idempotency key and are sent again until Niadra takes
+them; a turn records its decisions and the effects it reported (`coordination` and `effects` in the record).
 """
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
@@ -35,7 +41,7 @@ from niadra._ids import new_key
 from niadra._outbox import Outbox, Write
 from niadra._transport import Request
 from niadra.coordination.suppression import SuppressionCopy
-from niadra.errors import NotFoundError
+from niadra.errors import APIError, NotFoundError
 from niadra.models.common import Handle
 from niadra.models.coordination import CheckRequest, CheckResult, ClaimRequest, OwnershipClaim
 from niadra.turns.capture import current_turn
@@ -43,6 +49,10 @@ from niadra.turns.capture import current_turn
 if TYPE_CHECKING:
     from niadra.models.common import ObjectRef
 
+logger = logging.getLogger("niadra")
+
+REFUSED = frozenset({400, 401, 403, 422})
+"""Statuses of a check the API refused as asked: the integration's error, never an outage."""
 FAIL_CLOSED = frozenset({"marketing", "retention", "collection"})
 """Purposes that wait when Niadra cannot decide; every other purpose goes, marked unchecked."""
 CHECK_BUDGET = 0.200
@@ -81,6 +91,11 @@ def check_request(
         "destination_hash": destination_hash,
     }
     return CheckRequest.model_validate({k: v for k, v in fields.items() if v is not None})
+
+
+def refused(error: Exception | None) -> bool:
+    """Whether the API refused the check as asked (`REFUSED`)."""
+    return isinstance(error, APIError) and error.status_code in REFUSED
 
 
 def fallback(
@@ -149,7 +164,17 @@ class Coordinator:
     def failed(
         self, request: CheckRequest, checked: Checked, fail_open: bool | None, error: Exception | None = None
     ) -> CheckResult:
-        """The purpose's direction decides. A space that does not coordinate (404) holds nothing back."""
+        """The purpose's direction decides. A space that does not coordinate (404) holds nothing back. A check
+        the API refused holds an outbound contact back, as `invalid_request`."""
+        if refused(error):
+            assert isinstance(error, APIError)
+            logger.warning("niadra: the coordination check was refused: %s", error.explained())
+            decision: Literal["allow", "defer"] = "allow" if request.direction == "inbound" else "defer"
+            invalid = CheckResult(
+                decision=decision, decision_id=uuid4(), reasons=["invalid_request"], valid_for_s=0
+            )
+            _record(invalid)
+            return invalid
         if isinstance(error, NotFoundError):
             fail_open = True
         result = fallback(

@@ -447,3 +447,34 @@ def test_a_turn_without_a_pin_the_space_requires_is_kept_with_one_warning(
     assert warnings == [
         "niadra: turns without the prompts pin are kept but cannot be replayed; name them in Niadra.build()"
     ]
+
+
+def test_a_refused_turn_says_which_field_and_why_never_the_value(
+    mock_app: MockApp, niadra: Niadra, caplog: pytest.LogCaptureFixture
+) -> None:
+    # A whole batch the API refuses: the log carries its detail (field paths and rules) and request id.
+    mock_app.cell.fail_next("/v1/turns", 422)
+    with caplog.at_level("WARNING", logger="niadra"):
+        with niadra.conversation("c-30", subject=CUSTOMER) as conversation, conversation.turn():
+            quote("regional", 2)
+        assert niadra.flush(5)
+    assert niadra.turns.rejected_turns == 1
+    assert (
+        "1 turn records were refused: HTTP 422 invalid_input: injected by niadra-mock (request "
+        in caplog.text
+    )
+
+
+def test_a_refused_write_of_the_outbox_says_which_route_and_why(
+    mock_app: MockApp, niadra: Niadra, caplog: pytest.LogCaptureFixture
+) -> None:
+    mock_app.cell.features.add("coordination")
+    mock_app.cell.fail_next("/v1/coordination/declare", 422)
+    with caplog.at_level("WARNING", logger="niadra"):
+        with niadra.conversation("c-31", subject=CUSTOMER) as conversation:
+            conversation.declare.contact_made(None, purpose="transactional", channel="whatsapp")
+        assert niadra._outbox.flush(5)
+    assert (
+        "POST /v1/coordination/declare was refused: HTTP 422 invalid_input: injected by niadra-mock"
+        in caplog.text
+    )
