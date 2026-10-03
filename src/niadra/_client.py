@@ -161,6 +161,7 @@ class Niadra:
         self._transport = SyncTransport(
             self._core.base_url, self._core.api_key, http_client, cold_allowance=self._core.timeouts.connect
         )
+        self._core.connection_open = self._transport.connection_open
         self.admin = Admin(self._core, self._transport)
         """Governance calls for a key with the `admin` scope: memory, fact history, corrections, erasure."""
         self.api = Api(self._core, self._transport)

@@ -26,7 +26,11 @@ def test_default_read_budgets_take_the_round_trip_on_top_once_it_is_measured() -
     c = core()
     assert c.context_budget("chat", None) == pytest.approx(0.30)  # no probe sent: the defaults as they are
     c.measuring = True
-    # The probe is on its way: `connect` on top, so a read right after the client starts is not cut short.
+    # No connection open yet: the transport adds `connect` itself, never twice.
+    assert c.context_budget("chat", None) == pytest.approx(0.30)
+    c.connection_open = lambda: True
+    # The probe is on its way and a connection is open: `connect` on top, so a read right after the client
+    # starts is not cut short.
     assert c.context_budget("chat", None) == pytest.approx(1.30)
     assert c.navigation_budget(False, None) == pytest.approx(1.60)
     assert c.probed([0.42, 0.17]) == pytest.approx(0.17)  # the fastest sample

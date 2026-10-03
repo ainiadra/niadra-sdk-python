@@ -9,7 +9,7 @@ import logging
 import os
 import threading
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import date, datetime
 from typing import Any, Literal, TypeVar
 from urllib.parse import quote, urlsplit
@@ -210,6 +210,8 @@ class ClientCore:
         self.rtt: float | None = None
         self.measuring = False
         """A probe is on its way: until it ends, default read budgets get `Timeouts.connect` on top."""
+        self.connection_open: Callable[[], bool] = lambda: False
+        """The transport's guess that a connection is open; set by the client once it has one."""
         self.voice_started = False
         self._voice_warned = False
         self.cache_options = cache or CacheOptions()
@@ -271,7 +273,8 @@ class ClientCore:
             return budget
         if self.rtt is not None:
             return budget + self.rtt
-        if self.measuring:
+        # With no connection open the transport adds `connect` itself: never twice for one unknown network.
+        if self.measuring and self.connection_open():
             return budget + self.timeouts.connect
         return budget
 
