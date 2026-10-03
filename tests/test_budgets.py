@@ -194,10 +194,23 @@ def test_the_allowance_comes_back_when_the_connection_was_idle_past_the_keepaliv
     warmth.answered()
     assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.1)
     time.sleep(0.06)
-    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.6)
+    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.6), "idle past the keepalive: cold again"
     unbudgeted = Request("POST", "/v1/batch", json={}, timeout=5.0)
     assert warmth.budgeted(unbudgeted) is unbudgeted, "a batch of the background queue keeps its timeouts"
     assert Warmth(keepalive_s=120, allowance=0).budgeted(read(0.1)).budget == pytest.approx(0.1)
+
+
+def test_an_outage_spends_the_allowance_once_not_on_every_turn() -> None:
+    warmth = Warmth(keepalive_s=120, allowance=0.05)
+    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.15)
+    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.15), "a call of the same moment gets it too"
+    time.sleep(0.06)
+    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.1), (
+        "no answer came: later turns keep the budget"
+    )
+    warmth.answered()
+    warmth.forget()
+    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.15), "a new connection gets it again"
 
 
 def test_the_first_context_of_a_cold_client_arrives_and_the_next_keeps_the_budget(
