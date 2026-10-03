@@ -12,7 +12,7 @@ import time
 import httpx
 import pytest
 
-from niadra import AsyncNiadra, Niadra, Timeouts
+from niadra import AsyncNiadra, Niadra, Timeouts, VoiceOptions
 from niadra._base import ClientCore
 from tests.conftest import KEY
 from tests.test_voice import MARINA, QUIET, Region
@@ -24,7 +24,11 @@ def core(timeouts: Timeouts | None = None) -> ClientCore:
 
 def test_default_read_budgets_take_the_round_trip_on_top_once_it_is_measured() -> None:
     c = core()
-    assert c.context_budget("chat", None) == pytest.approx(0.30)  # nothing measured yet
+    assert c.context_budget("chat", None) == pytest.approx(0.30)  # no probe sent: the defaults as they are
+    c.measuring = True
+    # The probe is on its way: `connect` on top, so a read right after the client starts is not cut short.
+    assert c.context_budget("chat", None) == pytest.approx(1.30)
+    assert c.navigation_budget(False, None) == pytest.approx(1.60)
     assert c.probed([0.42, 0.17]) == pytest.approx(0.17)  # the fastest sample
     assert c.context_budget("chat", None) == pytest.approx(0.47)
     assert c.navigation_budget(False, None) == pytest.approx(0.77)
@@ -95,6 +99,44 @@ def test_the_sync_client_measures_when_it_starts() -> None:
             time.sleep(0.05)
         assert niadra.rtt == pytest.approx(0.2, abs=0.05)
         assert sum(1 for _, path, _ in region.requests if path == "/healthz") == 2
+    finally:
+        niadra.close(timeout=0)
+        http.close()
+
+
+def test_without_the_probe_the_defaults_apply_as_they_are() -> None:
+    c = ClientCore(
+        KEY,
+        None,
+        channel="chat",
+        strict=False,
+        timeouts=None,
+        cache=None,
+        queue=None,
+        voice=VoiceOptions(probe=False),
+    )
+    assert c.context_budget("chat", None) == pytest.approx(0.30)
+    assert c.navigation_budget(False, None) == pytest.approx(0.60)
+
+
+def test_a_budget_the_caller_set_never_gets_the_allowance_before_the_probe() -> None:
+    assert core(Timeouts(context=0.25)).context_budget("chat", None) == pytest.approx(0.25)
+
+
+def test_a_probe_that_failed_leaves_the_defaults_as_they_are() -> None:
+    """A region the probe cannot reach (a proxy that blocks /healthz) never keeps the allowance for good."""
+    http = httpx.Client(
+        transport=httpx.MockTransport(lambda request: httpx.Response(503, json={"code": "down"}))
+    )
+    niadra = Niadra(KEY, channel="chat", queue=QUIET, http_client=http)
+    try:
+        for _ in range(60):
+            if not niadra._core.measuring:
+                break
+            time.sleep(0.05)
+        assert niadra._core.measuring is False
+        assert niadra.rtt is None
+        assert niadra._core.context_budget("chat", None) == pytest.approx(0.30)
     finally:
         niadra.close(timeout=0)
         http.close()

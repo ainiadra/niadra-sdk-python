@@ -1416,6 +1416,7 @@ class Niadra:
         connection the first read will use."""
         if not self._core.enabled or not self._voice.claim_probe():
             return
+        self._core.measuring = True
         with suppress(RuntimeError):  # the client is closing
             self._voice_pool().submit(self._probe)
 
@@ -1427,6 +1428,7 @@ class Niadra:
                 self._transport.request(self._core.probe_http())
             except Exception as exc:
                 logger.debug("niadra: round trip probe failed (%s)", error_code(exc))
+                self._core.measuring = False
                 return
             samples.append(time.monotonic() - started)
         self._voice.rtt = self._core.probed(samples)

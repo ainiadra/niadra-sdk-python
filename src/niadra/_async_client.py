@@ -1291,6 +1291,7 @@ class AsyncNiadra:
         except RuntimeError:
             return
         if self._voice.claim_probe():
+            self._core.measuring = True
             self._spawn(self._probe())
 
     async def _probe(self) -> None:
@@ -1301,6 +1302,7 @@ class AsyncNiadra:
                 await self._transport.request(self._core.probe_http())
             except Exception as exc:
                 logger.debug("niadra: round trip probe failed (%s)", error_code(exc))
+                self._core.measuring = False
                 return
             samples.append(time.monotonic() - started)
         self._voice.rtt = self._core.probed(samples)

@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.4] - 2026-10-03
+
+### Fixed
+
+- A read made before the startup probe measured the round trip used the bare default budget, and timed out
+  from Sao Paulo (the first context read carrying the customer's turn took 674 ms). While the startup probe is
+  on its way, `Timeouts.context` and `Timeouts.navigation` left at their defaults get `Timeouts.connect` on
+  top; a probe that failed, or `VoiceOptions(probe=False)`, leaves the defaults as they are.
+
 ## [0.10.3] - 2026-10-03
 
 ### Added

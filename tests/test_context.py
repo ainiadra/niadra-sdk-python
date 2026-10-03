@@ -66,6 +66,7 @@ def test_voice_views_get_the_shorter_budget(respx_mock: respx.MockRouter, client
 
     respx_mock.post(URL).mock(side_effect=record)
     client._transport._warmth.answered()  # a connection is open: the budgets are exact
+    client._core.rtt = 0.0  # measured, in the region: the defaults apply as they are
     client.context(MARINA, view="voice")
     client.context(MARINA, view="chat")
     assert budgets[0] == pytest.approx(0.20, abs=0.01)
