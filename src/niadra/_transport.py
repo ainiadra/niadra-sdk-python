@@ -18,9 +18,10 @@ The rules:
   on a worker thread in the sync transport, by cancellation in the async one. Batches of the
   background queue carry no budget and keep httpx's per-phase timeouts.
 - A connection stays open between calls for `KEEPALIVE_S`. When none is likely open (no answer
-  came within that time), a budgeted request gets `cold_allowance` more, once, for TCP and TLS:
-  a few round trips that a 0.3 s context budget cannot hold from another continent. Once a
-  connection is open, budgets are exact.
+  came within that time), a budgeted request gets `cold_allowance` more, for TCP and TLS: a few
+  round trips that a 0.3 s context budget cannot hold from another continent. The requests that
+  start while the first one opens the connection get it too; after that none does until an answer
+  comes, so an outage costs it once. Once a connection is open, budgets are exact.
 
 A route or field the API deprecates answers with `Deprecation` (RFC 9745), `Sunset` (RFC 8594) and a
 `Link` to its migration note. The transport logs one warning per deprecated route per process, with the
@@ -242,19 +243,28 @@ class Warmth:
         self._keepalive_s = keepalive_s
         self._allowance = allowance
         self._answered: float | None = None
+        self._granted: float | None = None
 
     def answered(self) -> None:
         self._answered = time.monotonic()
+        self._granted = None
 
     def forget(self) -> None:
         self._answered = None
+        self._granted = None
 
     def budgeted(self, request: Request) -> Request:
-        """`request` with the allowance for opening a connection, when it has a budget and none is open."""
+        """`request` with the allowance for opening a connection, when it has a budget, none is open and the
+        allowance was not already spent since the last answer, past the moment it was first given."""
         if request.budget is None or self._allowance <= 0:
             return request
+        now = time.monotonic()
         answered = self._answered
-        if answered is not None and time.monotonic() - answered <= self._keepalive_s:
+        if answered is not None and now - answered <= self._keepalive_s:
+            return request
+        if self._granted is None:
+            self._granted = now
+        if now - self._granted > self._allowance:
             return request
         return replace(
             request, budget=request.budget + self._allowance, timeout=request.timeout + self._allowance
