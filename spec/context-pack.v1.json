@@ -698,6 +698,15 @@
           "title": "Conflicts",
           "type": "array"
         },
+        "instructions": {
+          "description": "What people said must or must not be done about the objects the read is about.",
+          "items": {
+            "$ref": "#/$defs/ObjectInstruction"
+          },
+          "maxItems": 50,
+          "title": "Instructions",
+          "type": "array"
+        },
         "ask": {
           "description": "Questions the agent should ask, as `for_whom`, before assuming.",
           "items": {
@@ -1249,7 +1258,8 @@
           "enum": [
             "turn",
             "session",
-            "persistent"
+            "persistent",
+            "object"
           ],
           "title": "Scope",
           "type": "string"
@@ -1292,6 +1302,20 @@
           ],
           "default": null,
           "title": "Expires At"
+        },
+        "object": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{0,39}:[^:\\s]{1,256}:\\S{1,512}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "With `scope: object`, the object the instruction is about.",
+          "title": "Object"
         }
       },
       "required": [
@@ -1384,6 +1408,160 @@
         "source_id"
       ],
       "title": "LiveTurn",
+      "type": "object"
+    },
+    "ObjectInstruction": {
+      "additionalProperties": false,
+      "description": "What someone said must or must not be done about an object the read is about: a task on the object, a read by the object, or a task view of its type. Hard, never relaxed, never inferred; one about a field of the object's type is also in `hard`, where a tool binding applies it.",
+      "properties": {
+        "id": {
+          "pattern": "^i[0-9]{1,4}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "object": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{0,39}:[^:\\s]{1,256}:\\S{1,512}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The object it is about.",
+          "title": "Object"
+        },
+        "about": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Naming no object: the organization (its profile) it is about, a client the read is about, its own reads or a contact's read with `about`.",
+          "title": "About"
+        },
+        "text": {
+          "description": "As it was said, short: what a reader honors without a tool binding.",
+          "maxLength": 256,
+          "title": "Text",
+          "type": "string"
+        },
+        "strength": {
+          "enum": [
+            "must",
+            "must_not"
+          ],
+          "title": "Strength",
+          "type": "string"
+        },
+        "attr": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{0,39}\\.[a-z][a-z0-9_]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The field of the object's type it is about.",
+          "title": "Attr"
+        },
+        "hard": {
+          "anyOf": [
+            {
+              "pattern": "^h[0-9]{1,4}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The entry of `hard` that carries it for a tool, when `attr` is set.",
+          "title": "Hard"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The role on the object of who said it (`owner`, `participant`, `lawyer`).",
+          "title": "Role"
+        },
+        "said_at": {
+          "format": "date-time",
+          "title": "Said At",
+          "type": "string"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "strength",
+        "said_at"
+      ],
+      "title": "ObjectInstruction",
+      "type": "object"
+    },
+    "ObjectMemoryOut": {
+      "additionalProperties": false,
+      "description": "What the owner and participants of an object said about it (memory bound to the object), newest first, at most 20 of each kind, as this reader may read it.",
+      "properties": {
+        "said": {
+          "description": "Observations about the object.",
+          "items": {
+            "$ref": "#/$defs/SaidAbout"
+          },
+          "title": "Said",
+          "type": "array"
+        },
+        "instructions": {
+          "description": "What must or must not be done about the object.",
+          "items": {
+            "$ref": "#/$defs/SaidAbout"
+          },
+          "title": "Instructions",
+          "type": "array"
+        },
+        "items": {
+          "description": "Promises, disputes and requests about the object still open.",
+          "items": {
+            "$ref": "#/$defs/SaidAbout"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "title": "ObjectMemoryOut",
       "type": "object"
     },
     "ObjectRead": {
@@ -1584,6 +1762,18 @@
             }
           ],
           "default": null
+        },
+        "memory": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectMemoryOut"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What its owner and participants said about it, in a context read that serves a pack."
         }
       },
       "required": [
@@ -2089,6 +2279,206 @@
         "args"
       ],
       "title": "Rendered",
+      "type": "object"
+    },
+    "SaidAbout": {
+      "additionalProperties": false,
+      "description": "One row of what people and agents said about an object, kept under the person who said it.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "observation",
+            "item",
+            "instruction"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "description": "The fact, open item or instruction it is.",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "said_at": {
+          "format": "date-time",
+          "title": "Said At",
+          "type": "string"
+        },
+        "audience": {
+          "description": "`shared` reaches every participant of the object, a customer-facing agent included; `internal`, the internal readers only.",
+          "enum": [
+            "shared",
+            "internal"
+          ],
+          "title": "Audience",
+          "type": "string"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The role of who said it on the object (`owner`, `participant`, `lawyer`).",
+          "title": "Role"
+        },
+        "by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The handle of who said it; only in the Console.",
+          "title": "By"
+        },
+        "predicate": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Predicate"
+        },
+        "item_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "promise",
+                "dispute",
+                "request"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Item Kind"
+        },
+        "due_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Due At"
+        },
+        "overdue": {
+          "default": false,
+          "title": "Overdue",
+          "type": "boolean"
+        },
+        "strength": {
+          "anyOf": [
+            {
+              "enum": [
+                "must",
+                "must_not"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Strength"
+        },
+        "attr": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attr"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        },
+        "observes": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The field of the object's type an observation is about: shown beside the value the system of record holds, never in its place.",
+          "title": "Observes"
+        },
+        "recorded": {
+          "default": null,
+          "description": "The value the system of record holds for `observes`.",
+          "title": "Recorded"
+        },
+        "diverges": {
+          "default": false,
+          "description": "The value said differs from the one recorded: a data issue was opened.",
+          "title": "Diverges",
+          "type": "boolean"
+        },
+        "claim_safe": {
+          "const": false,
+          "default": false,
+          "description": "Always false: what was said may be reported as said, never stated as the record.",
+          "title": "Claim Safe",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "text",
+        "said_at",
+        "audience"
+      ],
+      "title": "SaidAbout",
       "type": "object"
     },
     "Shown": {

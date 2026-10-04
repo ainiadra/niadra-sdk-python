@@ -373,6 +373,61 @@ class FieldState(ResponseModel):
     was: PreviousValue | None = None
 
 
+class SaidAbout(ResponseModel):
+    """One row of what people and agents said about an object, kept under the person who said it."""
+
+    attr: ShortStr | None = None
+    audience: Literal["shared", "internal"] = Field(
+        description=(
+            "`shared` reaches every participant of the object, a customer-facing agent included; "
+            "`internal`, the internal readers only."
+        )
+    )
+    by: str | None = Field(default=None, description="The handle of who said it; only in the Console.")
+    claim_safe: Literal[False] = Field(
+        default=False,
+        description="Always false: what was said may be reported as said, never stated as the record.",
+    )
+    diverges: bool = Field(
+        default=False, description="The value said differs from the one recorded: a data issue was opened."
+    )
+    due_at: datetime | None = None
+    expires_at: datetime | None = None
+    id: str = Field(description="The fact, open item or instruction it is.")
+    item_kind: Literal["promise", "dispute", "request"] | None = None
+    kind: Literal["observation", "item", "instruction"]
+    observes: ShortStr | None = Field(
+        default=None,
+        description=(
+            "The field of the object's type an observation is about: shown beside the value the system "
+            "of record holds, never in its place."
+        ),
+    )
+    overdue: bool = False
+    predicate: ShortStr | None = None
+    recorded: Any = Field(default=None, description="The value the system of record holds for `observes`.")
+    role: ShortStr | None = Field(
+        default=None, description="The role of who said it on the object (`owner`, `participant`, `lawyer`)."
+    )
+    said_at: datetime
+    strength: Literal["must", "must_not"] | None = None
+    text: str
+
+
+class ObjectMemoryOut(ResponseModel):
+    """What the owner and participants of an object said about it (memory bound to the object), newest first,
+    at most 20 of each kind, as this reader may read it.
+    """
+
+    instructions: list[SaidAbout] = Field(
+        default_factory=list, description="What must or must not be done about the object."
+    )
+    items: list[SaidAbout] = Field(
+        default_factory=list, description="Promises, disputes and requests about the object still open."
+    )
+    said: list[SaidAbout] = Field(default_factory=list, description="Observations about the object.")
+
+
 class OutcomeState(ResponseModel):
     at: datetime | None = None
     final: bool
@@ -470,6 +525,10 @@ class ObjectRead(ResponseModel):
     expired_by: list[str] = Field(default_factory=list, description="The inputs whose change expired it.")
     fields: dict[str, FieldState] = Field(default_factory=dict)
     latches: dict[str, datetime] = Field(default_factory=dict)
+    memory: ObjectMemoryOut | None = Field(
+        default=None,
+        description="What its owner and participants said about it, in a context read that serves a pack.",
+    )
     outcome: OutcomeState | None = None
     prohibitions: list[str] = Field(default_factory=list)
     readings: dict[str, ReadingResult] = Field(default_factory=dict)

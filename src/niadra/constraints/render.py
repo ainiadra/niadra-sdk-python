@@ -12,7 +12,8 @@ of what was sent the results honored. The server runs the same rules for `POST /
 - What no argument can express is residual: the SDK filters it from the results when the tool overfetches,
   and it is otherwise unenforced. `exclude` is always residual.
 - Advisory mode (the default) changes nothing and suggests. Apply mode adds only what the call left out, and
-  only a hard constraint said in this turn or this session, or an attribute the person said; it never
+  only a hard constraint said in this turn or this session, an instruction about the object the read was
+  about, or an attribute the person said; it never
   overrides an argument the call set (the current utterance wins, and the clash is reported as a conflict),
   and never adds an inferred size.
 - A block for another beneficiary than the call's does not apply at all.
@@ -134,7 +135,8 @@ def render(
     args = dict(call.args)
     injected: list[str] = []
     if mode == "apply":
-        allowed = {h.id for h in block.hard if h.source in SAID and h.scope in ("turn", "session")}
+        # An instruction about an object is in the block only while the read is about that object.
+        allowed = {h.id for h in block.hard if h.source in SAID and h.scope in ("turn", "session", "object")}
         allowed -= {i for i, _ in conflicts}
         allowed |= {a.id for a in block.attributes if a.source in ("stated", "correction")}
         for param, value in suggested.items():
