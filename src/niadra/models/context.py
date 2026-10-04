@@ -462,6 +462,14 @@ class HistoryItem(ResponseModel):
         default=None,
         description="A merged item's: the `open_item:<id>` it was merged into, which carries it on.",
     )
+    item_kind: Literal["promise", "dispute", "request"] | None = Field(
+        default=None, description="An open item's: a promise someone made, a dispute raised or a request."
+    )
+    audience: Literal["shared", "internal"] | None = Field(
+        default=None,
+        description="A row about an object: shared reaches every participant of the object, a "
+        "customer-facing agent included; internal, the internal readers only.",
+    )
 
 
 class TimeWindow(ResponseModel):
