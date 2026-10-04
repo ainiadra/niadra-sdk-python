@@ -8,7 +8,7 @@ import httpx
 import pytest
 import respx
 
-from niadra import Niadra, Verification, current_session, email, phone
+from niadra import HistoryFilters, Niadra, Verification, current_session, email, phone
 from niadra.tools import BUILTIN_DEFINITIONS
 from tests.conftest import BASE, KEY, batch_ok, context_payload
 
@@ -56,6 +56,65 @@ def test_search(respx_mock: respx.MockRouter, client: Niadra) -> None:
     assert result.items[0].outcome == "rescheduled"
     assert result.recurrence is not None and result.recurrence.occurrences == 3
     assert (result.withheld, result.error) == (1, None)
+
+
+def test_timeline_lists_resolved_items_with_what_closed_them(
+    respx_mock: respx.MockRouter, client: Niadra
+) -> None:
+    resolved = {
+        "id": "open_item:019a",
+        "kind": "open_item",
+        "text": "Credit invoice 0823 · kept on 22/09",
+        "at": "2026-09-22T14:02:00Z",
+        "outcome": "resolved",
+        "object": {"type": "invoice", "namespace": "erp", "id": "0823"},
+        "expected_operation": "credit",
+        "status": "resolved",
+        "closed_at": "2026-09-22T14:06:00Z",
+        "closed_by": {"kind": "action", "action_id": "a-1", "event_id": "e-1", "operation": "credit"},
+    }
+    merged = {**resolved, "id": "open_item:019b", "status": "merged", "merged_into": "open_item:019a"}
+    route = respx_mock.post(f"{BASE}/v1/history/timeline").respond(
+        200, json={"items": [resolved, merged], "next_cursor": None}
+    )
+    page = client.timeline(
+        MARINA, filters={"item_kinds": ["open_item"], "item_statuses": ["resolved", "merged"]}
+    )
+    assert body(route)["filters"]["item_statuses"] == ["resolved", "merged"]
+    done, twin = page.items
+    assert (done.status, done.expected_operation) == ("resolved", "credit")
+    assert done.object is not None and done.object.id == "0823"
+    assert done.closed_at == datetime(2026, 9, 22, 14, 6, tzinfo=timezone.utc)
+    assert done.closed_by is not None
+    assert (done.closed_by.kind, done.closed_by.action_id, done.closed_by.operation) == (
+        "action",
+        "a-1",
+        "credit",
+    )
+    assert (twin.status, twin.merged_into) == ("merged", "open_item:019a")
+    # Unset, the filter is not sent: a server without it reads the request as before.
+    client.timeline(MARINA)
+    assert "item_statuses" not in body(route)["filters"]
+    with pytest.raises(ValueError, match="item_statuses"):
+        HistoryFilters.model_validate({"item_statuses": ["closed"]})
+
+
+def test_open_reads_an_open_item_and_the_root_a_merged_id_answers_for(
+    respx_mock: respx.MockRouter, client: Niadra
+) -> None:
+    respx_mock.post(f"{BASE}/v1/history/open").respond(
+        200,
+        json={
+            "id": "open_item:019b",
+            "kind": "open_item",
+            "summary": "File the reply by Friday",
+            "status": "merged",
+            "merged_into": "open_item:019a",
+        },
+    )
+    item = client.open("open_item:019b", verification="V2")
+    assert item is not None
+    assert (item.kind, item.status, item.merged_into) == ("open_item", "merged", "open_item:019a")
 
 
 def test_navigation_budgets(respx_mock: respx.MockRouter, client: Niadra) -> None:

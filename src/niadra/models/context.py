@@ -20,6 +20,9 @@ View = Annotated[str, StringConstraints(pattern=VIEW_PATTERN)]
 # What navigation returns. A system event is never an item: it changes its object, so search `object`.
 HistoryItemKind = Literal["episode", "fact", "open_item", "action", "object", "trait", "system_event"]
 
+# The open items history lists by status (`HistoryFilters.item_statuses`).
+ItemStatus = Literal["open", "overdue", "resolved", "merged"]
+
 # Blocks a read may add in the same round trip (Context Pack v2, section 10); each needs its feature on.
 Include = Literal["state", "constraints", "coordination", "budget"]
 
@@ -390,6 +393,13 @@ class HistoryFilters(Model):
     channels: list[ShortStr] = Field(default_factory=list)
     categories: list[ShortStr] = Field(default_factory=list)
     item_kinds: list[HistoryItemKind] = Field(default_factory=list)
+    item_statuses: list[ItemStatus] | None = Field(
+        default=None,
+        description="The open items to list, by status. Unset: the open and overdue ones and the promises "
+        "kept in the last 7 days. `resolved` reaches every resolved item, with `closed_at` and `closed_by`; "
+        "`merged`, the twins merged into another item, with `merged_into`. Named, the timeline lists open "
+        "items too.",
+    )
     outcome: ShortStr | None = None
     object: ObjectRef | None = None
     show_expired: bool | None = Field(default=None, description="Also items whose `valid_until` has passed.")
@@ -415,6 +425,17 @@ class SearchRequest(Model):
     limit: int | None = Field(default=None, ge=1, le=100, description="At most this many items.")
 
 
+class ClosedBy(ResponseModel):
+    """What closed an open item: the same object the `open_item.closed` webhook carried."""
+
+    kind: str = Field(description="`action`, `system_event`, `conversation` or `feedback`.")
+    action_id: str | None = None
+    event_id: str | None = None
+    session_id: str | None = None
+    operation: str | None = None
+    source_id: str | None = None
+
+
 class HistoryItem(ResponseModel):
     id: str
     kind: str
@@ -426,6 +447,21 @@ class HistoryItem(ResponseModel):
     confidence: float | None = None
     origin_event_id: str | None = None
     valid_until: datetime | None = None
+    object: ObjectRef | None = Field(
+        default=None, description="The business object the row is about: an open item's, a fact's, its own."
+    )
+    expected_operation: str | None = Field(
+        default=None, description="An open item's: the operation that closes it when done on its object."
+    )
+    status: str | None = Field(
+        default=None, description="An open item's: `open`, `overdue`, `resolved` or `merged`."
+    )
+    closed_at: datetime | None = Field(default=None, description="A resolved item's: when it was closed.")
+    closed_by: ClosedBy | None = Field(default=None, description="A resolved item's: what closed it.")
+    merged_into: str | None = Field(
+        default=None,
+        description="A merged item's: the `open_item:<id>` it was merged into, which carries it on.",
+    )
 
 
 class TimeWindow(ResponseModel):
@@ -517,7 +553,7 @@ class Promise(ResponseModel):
 
 class OpenedItem(ResponseModel):
     id: str
-    kind: Literal["episode", "object"]
+    kind: str = Field(description="`episode`, `object` or `open_item`; `/v1` may add kinds.")
     summary: str
     requested: str | None = None
     promises: list[Promise] = Field(default_factory=list)
@@ -527,6 +563,15 @@ class OpenedItem(ResponseModel):
     timeline: list[HistoryItem] = Field(default_factory=list)
     as_of: datetime | None = None
     versions: list[ItemVersion] = Field(default_factory=list)
+    status: str | None = Field(
+        default=None,
+        description="An open item's status: `open`, `overdue`, `resolved`, or `merged` when the id is a twin "
+        "of another item, which answers for it from then on.",
+    )
+    merged_into: str | None = Field(
+        default=None,
+        description="The item a merged id answers for (`open_item:<id>`); `summary` is that item's.",
+    )
 
 
 class ToolDefinition(ResponseModel):

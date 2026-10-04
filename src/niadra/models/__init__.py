@@ -38,6 +38,7 @@ from niadra.models.agent_memory import (
 from niadra.models.common import Handle, ObjectRef, Problem, SourceCoverage, Subject
 from niadra.models.context import (
     CacheDirectives,
+    ClosedBy,
     ContextPack,
     ContextRequest,
     ContextResponse,
@@ -111,6 +112,7 @@ __all__ = [
     "BatchRequest",
     "BatchResponse",
     "CacheDirectives",
+    "ClosedBy",
     "Closes",
     "Content",
     "Context",

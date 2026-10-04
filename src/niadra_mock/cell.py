@@ -730,6 +730,12 @@ class MockCell:
                 return False
             if filters.channels and item.channel not in filters.channels:
                 return False
+            if (
+                filters.item_statuses
+                and item.kind == "open_item"
+                and item.status not in filters.item_statuses
+            ):
+                return False
             return not filters.item_kinds or item.kind in filters.item_kinds
 
         return [item for item in items if keep(item)]
