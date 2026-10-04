@@ -1760,6 +1760,77 @@
         "post_filter": [],
         "conflicts": []
       }
+    },
+    {
+      "id": "legal.object_instruction.apply_injects",
+      "block": {
+        "version": "cv_7a1b2c3d4e5f",
+        "subject": {
+          "for": "self"
+        },
+        "hard": [
+          {
+            "id": "h1",
+            "attr": "lawsuit.offer_settlement",
+            "op": "ne",
+            "values": [
+              true
+            ],
+            "source": "stated",
+            "scope": "object",
+            "object": "lawsuit:court:c-1",
+            "relax": "never",
+            "origin": {
+              "kind": "stated"
+            }
+          }
+        ],
+        "attributes": [],
+        "exclude": [],
+        "text": ""
+      },
+      "binding": {
+        "tool": "draft_petition",
+        "args": [
+          {
+            "attr": "lawsuit.offer_settlement",
+            "param": "offer_settlement",
+            "negation": {
+              "param": "no_settlement"
+            }
+          }
+        ],
+        "overfetch": false
+      },
+      "families": {},
+      "call": {
+        "args": {
+          "case": "c-1"
+        },
+        "for": "self",
+        "category": null,
+        "asked": []
+      },
+      "mode": "apply",
+      "expect": {
+        "applies": true,
+        "args": {
+          "case": "c-1",
+          "no_settlement": true
+        },
+        "suggested": {
+          "no_settlement": true
+        },
+        "injected": [
+          "h1"
+        ],
+        "hard_sent": [
+          "h1"
+        ],
+        "residual": [],
+        "post_filter": [],
+        "conflicts": []
+      }
     }
   ]
 }

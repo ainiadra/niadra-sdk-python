@@ -186,13 +186,48 @@ class HardConstraint(ResponseModel):
     category: ShortStr | None = None
     expires_at: datetime | None = None
     id: Annotated[str, StringConstraints(pattern=r"^h[0-9]{1,4}$")]
+    object: ObjectKey | None = Field(
+        default=None, description="With `scope: object`, the object the instruction is about."
+    )
     op: Literal["in", "not_in", "eq", "ne", "lt", "lte", "gt", "gte", "between"]
     origin: ConstraintOrigin
     relax: Literal["never", "ask"] = "never"
-    scope: Literal["turn", "session", "persistent"]
+    scope: Literal["turn", "session", "persistent", "object"]
     source: Literal["stated", "tool_args", "correction"]
     values: list[bool | int | float | Annotated[str, StringConstraints(max_length=256)]] = Field(
         min_length=1, max_length=50
+    )
+
+
+class ObjectInstruction(ResponseModel):
+    """What someone said must or must not be done about an object the read is about: a task on the object, a
+    read by the object, or a task view of its type. Hard, never relaxed, never inferred; one about a field
+    of the object's type is also in `hard`, where a tool binding applies it.
+    """
+
+    about: UUID | None = Field(
+        default=None,
+        description=(
+            "Naming no object: the organization (its profile) it is about, a client the read is about, "
+            "its own reads or a contact's read with `about`."
+        ),
+    )
+    attr: (
+        Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}\.[a-z][a-z0-9_]{0,63}$")] | None
+    ) = Field(default=None, description="The field of the object's type it is about.")
+    expires_at: datetime | None = None
+    hard: Annotated[str, StringConstraints(pattern=r"^h[0-9]{1,4}$")] | None = Field(
+        default=None, description="The entry of `hard` that carries it for a tool, when `attr` is set."
+    )
+    id: Annotated[str, StringConstraints(pattern=r"^i[0-9]{1,4}$")]
+    object: ObjectKey | None = Field(default=None, description="The object it is about.")
+    role: ShortStr | None = Field(
+        default=None, description="The role on the object of who said it (`owner`, `participant`, `lawyer`)."
+    )
+    said_at: datetime
+    strength: Literal["must", "must_not"]
+    text: Annotated[str, StringConstraints(max_length=256)] = Field(
+        description="As it was said, short: what a reader honors without a tool binding."
     )
 
 
@@ -257,6 +292,11 @@ class ConstraintsBlock(ResponseModel):
     conflicts: list[Conflict] = Field(default_factory=list, max_length=50)
     exclude: list[ObjectKey] = Field(default_factory=list, max_length=200)
     hard: list[HardConstraint] = Field(default_factory=list, max_length=100)
+    instructions: list[ObjectInstruction] = Field(
+        default_factory=list,
+        max_length=50,
+        description="What people said must or must not be done about the objects the read is about.",
+    )
     precedence: list[Literal["current_utterance", "stated_persistent", "inferred"]] = Field(
         default_factory=list
     )
@@ -461,11 +501,13 @@ class Inference(ResponseModel):
         Field(default="self", alias="for")
     )
     key: IdStr = Field(description="A keyed hash that names the inference; it never carries its value.")
-    kind: Literal["affinity", "soft_constraint", "attribute", "interest"] = Field(
+    kind: Literal["affinity", "soft_constraint", "attribute", "interest", "instruction"] = Field(
         description=(
             "`soft_constraint` when the constraints block carries it as a soft entry, `attribute` for "
             "the inferred size, `affinity` for a value with evidence and no entry yet, `interest` for "
-            "an object."
+            "an object, `instruction` for what the subject said must or must not be done about an "
+            "object (`ref`, the words in `value`): said, not inferred, and listed so a correction can "
+            "withdraw it."
         )
     )
     origin: ShortStr = Field(
