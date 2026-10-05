@@ -148,6 +148,14 @@ def _guard_slot(guard: PackGuard, explain: bool) -> PackSlot:
     return PackSlot(section="guard", id=guard.id, text=line, why=why)
 
 
+# Ids are bare UUIDs, as the cell's: one per event, and one per conversation for its episode.
+_IDS = uuid.UUID("01a0b2c4-0000-7000-8000-00000000a11d")
+
+
+def _episode_id(conversation: str) -> str:
+    return str(uuid.uuid5(_IDS, f"episode:{conversation}"))
+
+
 def _b64(hex_digest: str) -> str:
     return base64.b64encode(bytes.fromhex(hex_digest)).decode()
 
@@ -163,7 +171,7 @@ class StoredEvent:
 
     @property
     def id(self) -> str:
-        return f"ev_{self.seq}"
+        return str(uuid.uuid5(_IDS, f"event:{self.seq}"))
 
     @property
     def text(self) -> str:
@@ -707,7 +715,7 @@ class MockCell:
         for conversation, turns in episodes.items():
             items.append(
                 HistoryItem(
-                    id=f"ep_{_digest(conversation)}",
+                    id=_episode_id(conversation),
                     kind="episode",
                     text=" / ".join(f"{t.item.speaker.role.value}: {t.text}" for t in turns),
                     at=turns[-1].item.occurred_at,
@@ -803,9 +811,10 @@ class MockCell:
             def theirs(event: StoredEvent) -> bool:
                 return root is None or any(self._find(k) == root for k in self._event_keys(event))
 
-            if item_id.startswith("ev_"):
-                event = next((e for e in self.events if e.id == item_id), None)
-                if event is None or not event.item.object_refs or not self._visible(event, level):
+            # The id carries no kind: an event with an object opens the object.
+            event = next((e for e in self.events if e.id == item_id), None)
+            if event is not None:
+                if not event.item.object_refs or not self._visible(event, level):
                     raise ItemNotFoundError(item_id)
                 if not theirs(event):
                     raise ItemNotFoundError(item_id)
@@ -826,7 +835,7 @@ class MockCell:
                 )
             for event in self.events:
                 conversation = event.item.conversation_id or event.id
-                if f"ep_{_digest(conversation)}" == item_id and event.item.kind is EventKind.MESSAGE:
+                if _episode_id(conversation) == item_id and event.item.kind is EventKind.MESSAGE:
                     if not theirs(event):
                         raise ItemNotFoundError(item_id)
                     turns = [

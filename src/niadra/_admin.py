@@ -62,8 +62,7 @@ class _Requests:
         return self._write("GET", f"/v1/profiles/{_path(profile_id)}/memory")
 
     def fact_history(self, profile_id: str, fact_id: str) -> Request:
-        fact = fact_id.removeprefix("fact:")
-        return self._write("GET", f"/v1/profiles/{_path(profile_id)}/facts/{_path(fact)}/history")
+        return self._write("GET", f"/v1/profiles/{_path(profile_id)}/facts/{_path(fact_id)}/history")
 
     def correct(self, request: CorrectionRequest, key: str) -> Request:
         return self._write("POST", "/v1/corrections", request.model_dump(mode="json", exclude_none=True), key)
@@ -162,7 +161,7 @@ class Admin:
             request = CorrectionRequest(
                 profile_id=profile_id,
                 action=action,
-                fact_id=fact_id.removeprefix("fact:") if fact_id else None,
+                fact_id=fact_id,
                 open_item_id=open_item_id,
                 value=value,
                 reason=reason,
@@ -253,7 +252,7 @@ class AsyncAdmin:
             request = CorrectionRequest(
                 profile_id=profile_id,
                 action=action,
-                fact_id=fact_id.removeprefix("fact:") if fact_id else None,
+                fact_id=fact_id,
                 open_item_id=open_item_id,
                 value=value,
                 reason=reason,

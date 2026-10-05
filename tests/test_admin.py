@@ -105,7 +105,7 @@ def test_admin_reads_memory_and_a_facts_history(respx_mock: respx.MockRouter, cl
     memory = client.admin.memory(found.profile_id)
     assert memory is not None
     assert memory.facts[0].value == "Marina"
-    chain = client.admin.fact_history(PROFILE, f"fact:{FACT}")
+    chain = client.admin.fact_history(PROFILE, FACT)
     assert chain is not None
     assert chain.relations[0].type == "supersedes"
     assert history.called
@@ -129,7 +129,7 @@ def test_admin_corrects_forgets_and_exports_with_idempotency_keys(
         },
     )
 
-    assert client.admin.correct(PROFILE, "correct_fact", fact_id=f"fact:{FACT}", value="Mari") is not None
+    assert client.admin.correct(PROFILE, "correct_fact", fact_id=FACT, value="Mari") is not None
     sent = one.calls.last.request
     assert json.loads(sent.content)["fact_id"] == FACT
     assert sent.headers["idempotency-key"]

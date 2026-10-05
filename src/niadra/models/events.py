@@ -61,7 +61,7 @@ class VoiceInfo(Model):
 class Closes(Model):
     """The open item an action fulfils: by `item_id`, or by `object` and canonical `operation`."""
 
-    item_id: str | None = None
+    item_id: str | None = Field(default=None, description="An open item's `id`, a bare UUID.")
     object: ObjectRef | None = None
     operation: ShortStr | None = None
 
@@ -360,8 +360,10 @@ class FeedbackRequest(Model):
     idempotency_key: IdStr = Field(default_factory=new_key)
     subject: Handle
     action: FeedbackAction
-    fact_id: str | None = None
-    open_item_id: str | None = None
+    fact_id: str | None = Field(default=None, description="A fact's `id`, a bare UUID.")
+    open_item_id: str | None = Field(
+        default=None, description="The open item `resolve_open_item` closes: its `id`, a bare UUID."
+    )
     conversation_id: IdStr | None = None
     value: Annotated[str, StringConstraints(max_length=2000)] | None = None
     reason: Annotated[str, StringConstraints(max_length=500)] | None = None

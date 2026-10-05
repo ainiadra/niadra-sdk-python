@@ -25,7 +25,7 @@ def test_the_definitions_are_the_apis_byte_for_byte() -> None:
     shipped = json.dumps(ALL_DEFINITIONS, indent=2, ensure_ascii=False) + "\n"
     assert shipped.encode() == FIXTURE.read_bytes()
     digest = hashlib.sha256(FIXTURE.read_bytes()).hexdigest()
-    assert digest == "e013468333816603dd2dc03c7bac75129a611c71d9ffb3ee3a645429341ac5ac", (
+    assert digest == "c4331cc6d1da57bcebbf1e0306652d553e6a861dc08e24b6cc684b278222c384", (
         "same file as the TS SDK"
     )
     names = [d["function"]["name"] for d in ALL_DEFINITIONS]
