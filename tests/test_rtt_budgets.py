@@ -6,6 +6,7 @@ alone exceeds it."""
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 
@@ -144,3 +145,58 @@ def test_a_probe_that_failed_leaves_the_defaults_as_they_are() -> None:
     finally:
         niadra.close(timeout=0)
         http.close()
+
+
+def test_the_first_read_of_a_key_may_take_the_compile_of_its_pack() -> None:
+    c = core()
+    c.probed([0.17])
+    assert c.context_budget("chat", None, first=True) == pytest.approx(1.17)
+    assert c.context_budget("chat", None) == pytest.approx(0.47)
+    assert c.context_budget("voice", None, first=True) == pytest.approx(0.20)  # a voice read is from memory
+    assert c.context_budget("chat", 0.5, first=True) == pytest.approx(0.5)  # a call's own timeout is its own
+    ceiling = core(Timeouts(context=0.25))
+    assert ceiling.context_budget("chat", None, first=True) == pytest.approx(
+        0.25
+    )  # a set budget is a ceiling
+    assert c.first_read("k1")
+    c.read_answered("k1")
+    assert not c.first_read("k1")
+    assert c.first_read("k2")
+
+
+class ColdRegion(Region):
+    """The region of 05/10/2026: 170 ms away, and the first read of a conversation compiles its pack (0.41 s
+    on the server); the next reads of it find the pack compiled."""
+
+    def __init__(self) -> None:
+        super().__init__(latency=(0.17, 0.17))
+        self.compiled: set[str] = set()
+
+    async def handle_async(self, request: httpx.Request) -> httpx.Response:
+        self.arrive(request)
+        wait = self.delay()
+        if request.url.path == "/v1/context":
+            key = json.loads(request.content).get("conversation_id") or ""
+            if key not in self.compiled:
+                self.compiled.add(key)
+                wait += 0.41
+        await asyncio.sleep(wait)
+        return self.answer(request)
+
+
+async def test_a_first_read_fits_while_its_pack_compiles_and_the_next_keeps_the_short_budget() -> None:
+    region = ColdRegion()
+    http = httpx.AsyncClient(transport=httpx.MockTransport(region.handle_async))
+    niadra = AsyncNiadra(KEY, channel="chat", queue=QUIET, http_client=http)
+    try:
+        await asyncio.sleep(0.6)  # the probe: two round trips
+        first = await niadra.context(MARINA, conversation_id="c-new", use_cache=False)
+        again = await niadra.context(MARINA, conversation_id="c-new", use_cache=False)
+        budget = niadra._core.context_budget("chat", None, first=niadra._core.first_read("x"))
+    finally:
+        await niadra.close(timeout=0)
+        await http.aclose()
+    assert first.error is None, "0.58 s for a first read: within 0.30 + 0.70 of compile + the round trip"
+    assert again.error is None
+    assert budget == pytest.approx(1.17, abs=0.05)
+    assert niadra._core.context_budget("chat", None) == pytest.approx(0.47, abs=0.05)

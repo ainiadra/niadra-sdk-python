@@ -68,9 +68,11 @@ def test_voice_views_get_the_shorter_budget(respx_mock: respx.MockRouter, client
     client._transport._warmth.answered()  # a connection is open: the budgets are exact
     client._core.rtt = 0.0  # measured, in the region: the defaults apply as they are
     client.context(MARINA, view="voice")
-    client.context(MARINA, view="chat")
+    client.context(MARINA, view="chat", use_cache=False)
+    client.context(MARINA, view="chat", use_cache=False)
     assert budgets[0] == pytest.approx(0.20, abs=0.01)
-    assert budgets[1] == pytest.approx(0.30, abs=0.01)
+    assert budgets[1] == pytest.approx(1.00, abs=0.01)  # the chat pack's first read: the API compiles it
+    assert budgets[2] == pytest.approx(0.30, abs=0.01)
 
 
 def test_live_turns_and_delta_form_the_turn_block(respx_mock: respx.MockRouter, client: Niadra) -> None:

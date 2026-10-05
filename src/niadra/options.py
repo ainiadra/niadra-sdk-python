@@ -41,6 +41,12 @@ class Timeouts:
     """
 
     context: float = 0.30
+    context_first: float = 1.0
+    """The default budget of the first read of a conversation, task or object in this client, before the
+    round trip: the API compiles its pack on that read. One right after a customer's first message took
+    0.41 s on the server (05/10/2026: resolving the customer 153 ms, the pack 120 ms), more than `context`,
+    and the agent answered without memory. Later reads of the same key find the pack compiled. Only when
+    `context` is left at its default."""
     context_voice: float = 0.20
     context_voice_start: float = 1.5
     navigation: float = 0.60
