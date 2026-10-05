@@ -470,15 +470,18 @@ class Niadra:
             )
         if not self._core.enabled:
             return Context.empty(requested=requested, error="disabled")
-        budget = self._core.context_budget(view, timeout)
         query = self._core.turn_query(request, turn)
         request = request.model_copy(update={"query": None})  # the pack's key is the read's without it
+        read_key = cache_key(request)
+        budget = self._core.context_budget(view, timeout, first=self._core.first_read(read_key))
         if self._core.voice_path(request, use_cache):
             result = self._voice_context(request, query, budget, requested)
         elif query is not None:
             result = self._turn_context(request, query, budget, use_cache, requested)
         else:
             result = self._pinned_context(request, budget, use_cache, requested)
+        if result.error is None:
+            self._core.read_answered(read_key)
         if self.content.registered and result.state is not None:
             return self.content.fill(result)
         return result
@@ -1097,7 +1100,7 @@ class Niadra:
         if cached is not None and fresh:
             return cached.model_copy(update={"source": "cache"})
         try:
-            budget = self._core.context_budget(view or "chat", timeout)
+            budget = self._core.context_budget(view or "chat", timeout, first=cached is None)
             etag = cached.etag if cached is not None and cached.etag else None
             request = self._core.agent_memory_http(max_tokens, tags, view, etag, budget)
             return self._core.agent_memory_cache.absorb(key, self._transport.request(request))

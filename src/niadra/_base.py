@@ -9,6 +9,7 @@ import logging
 import os
 import threading
 import time
+from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
 from datetime import date, datetime
 from typing import Any, Literal, TypeVar
@@ -61,6 +62,9 @@ from niadra.vocabulary import AssertionMethod, EventKind, Speaker, SubjectKind, 
 logger = logging.getLogger("niadra")
 
 T = TypeVar("T")
+
+READ_KEYS_KEPT = 4096
+"""Keys of answered reads a client remembers to tell a first read from the next (`Timeouts.context_first`)."""
 
 HandleLike = Handle | Mapping[str, Any]
 ObjectLike = ObjectRef | str | Mapping[str, Any]
@@ -208,6 +212,8 @@ class ClientCore:
             if getattr(self.timeouts, name) == getattr(defaults, name)
         )
         self.rtt: float | None = None
+        self._read_keys: OrderedDict[str, None] = OrderedDict()
+        """The keys whose read answered in this client, newest last (`first_read`)."""
         self.measuring = False
         """A probe is on its way: until it ends, default read budgets get `Timeouts.connect` on top."""
         self.connection_open: Callable[[], bool] = lambda: False
@@ -250,12 +256,26 @@ class ClientCore:
         logger.warning("niadra: %s failed, continuing without it (%s)", method, describe(error))
         return default
 
-    def context_budget(self, view: str, timeout: float | None) -> float:
+    def context_budget(self, view: str, timeout: float | None, *, first: bool = False) -> float:
+        """`first`: the first read of its key in this client, whose pack the API compiles on it
+        (`Timeouts.context_first`)."""
         if timeout is not None:
             return timeout
         if view == "voice":
             return self.timeouts.context_voice
+        if first and "context" in self.default_reads:
+            return self._with_rtt("context", max(self.timeouts.context, self.timeouts.context_first))
         return self._with_rtt("context", self.timeouts.context)
+
+    def first_read(self, key: str) -> bool:
+        """No read of this key has answered in this client yet."""
+        return key not in self._read_keys
+
+    def read_answered(self, key: str) -> None:
+        self._read_keys[key] = None
+        self._read_keys.move_to_end(key)
+        while len(self._read_keys) > READ_KEYS_KEPT:
+            self._read_keys.popitem(last=False)
 
     def navigation_budget(self, voice: bool, timeout: float | None) -> float:
         if timeout is not None:

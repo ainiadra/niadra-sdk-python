@@ -382,15 +382,18 @@ class AsyncNiadra:
             )
         if not self._core.enabled:
             return Context.empty(requested=requested, error="disabled")
-        budget = self._read_budget_context(view, timeout)
         query = self._core.turn_query(request, turn)
         request = request.model_copy(update={"query": None})  # the pack's key is the read's without it
+        read_key = cache_key(request)
+        budget = self._read_budget_context(view, timeout, first=self._core.first_read(read_key))
         if self._core.voice_path(request, use_cache):
             result = await self._voice_context(request, query, budget, requested)
         elif query is not None:
             result = await self._turn_context(request, query, budget, use_cache, requested)
         else:
             result = await self._pinned_context(request, budget, use_cache, requested)
+        if result.error is None:
+            self._core.read_answered(read_key)
         if self.content.registered and result.state is not None:
             return await self.content.afill(result)
         return result
@@ -944,7 +947,7 @@ class AsyncNiadra:
         if cached is not None and fresh:
             return cached.model_copy(update={"source": "cache"})
         try:
-            budget = self._read_budget_context(view or "chat", timeout)
+            budget = self._read_budget_context(view or "chat", timeout, first=cached is None)
             etag = cached.etag if cached is not None and cached.etag else None
             request = self._core.agent_memory_http(max_tokens, tags, view, etag, budget)
             return self._core.agent_memory_cache.absorb(key, await self._transport.request(request))
@@ -1240,9 +1243,9 @@ class AsyncNiadra:
         task.add_done_callback(self._refreshes.discard)
         return task
 
-    def _read_budget_context(self, view: str, timeout: float | None) -> float:
+    def _read_budget_context(self, view: str, timeout: float | None, *, first: bool = False) -> float:
         self._start_probe()
-        return self._core.context_budget(view, timeout)
+        return self._core.context_budget(view, timeout, first=first)
 
     def _read_budget_navigation(self, voice: bool, timeout: float | None) -> float:
         self._start_probe()
