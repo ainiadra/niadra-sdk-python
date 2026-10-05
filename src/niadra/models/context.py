@@ -21,7 +21,7 @@ View = Annotated[str, StringConstraints(pattern=VIEW_PATTERN)]
 HistoryItemKind = Literal["episode", "fact", "open_item", "action", "object", "trait", "system_event"]
 
 # The open items history lists by status (`HistoryFilters.item_statuses`).
-ItemStatus = Literal["open", "overdue", "resolved", "merged"]
+ItemStatus = Literal["open", "overdue", "resolved"]
 
 # Blocks a read may add in the same round trip (Context Pack v2, section 10); each needs its feature on.
 Include = Literal["state", "constraints", "coordination", "budget"]
@@ -393,12 +393,11 @@ class HistoryFilters(Model):
     channels: list[ShortStr] = Field(default_factory=list)
     categories: list[ShortStr] = Field(default_factory=list)
     item_kinds: list[HistoryItemKind] = Field(default_factory=list)
-    item_statuses: list[ItemStatus] | None = Field(
-        default=None,
-        description="The open items to list, by status. Unset: the open and overdue ones and the promises "
-        "kept in the last 7 days. `resolved` reaches every resolved item, with `closed_at` and `closed_by`; "
-        "`merged`, the twins merged into another item, with `merged_into`. Named, the timeline lists open "
-        "items too.",
+    item_statuses: list[ItemStatus] = Field(
+        default_factory=list,
+        description="The open items to list, by status. Empty: the open and overdue ones and the promises "
+        "kept in the last 7 days. `resolved` reaches every resolved item, with `closed_at` and `closed_by`. "
+        "Named, the timeline lists open items too.",
     )
     outcome: ShortStr | None = None
     object: ObjectRef | None = None
@@ -437,7 +436,7 @@ class ClosedBy(ResponseModel):
 
 
 class HistoryItem(ResponseModel):
-    id: str
+    id: str = Field(description="The row's own id, a bare UUID; `kind` says what it is.")
     kind: str
     text: str
     at: datetime
@@ -453,15 +452,9 @@ class HistoryItem(ResponseModel):
     expected_operation: str | None = Field(
         default=None, description="An open item's: the operation that closes it when done on its object."
     )
-    status: str | None = Field(
-        default=None, description="An open item's: `open`, `overdue`, `resolved` or `merged`."
-    )
+    status: str | None = Field(default=None, description="An open item's: `open`, `overdue` or `resolved`.")
     closed_at: datetime | None = Field(default=None, description="A resolved item's: when it was closed.")
     closed_by: ClosedBy | None = Field(default=None, description="A resolved item's: what closed it.")
-    merged_into: str | None = Field(
-        default=None,
-        description="A merged item's: the `open_item:<id>` it was merged into, which carries it on.",
-    )
     item_kind: Literal["promise", "dispute", "request"] | None = Field(
         default=None, description="An open item's: a promise someone made, a dispute raised or a request."
     )
@@ -518,7 +511,9 @@ class OpenItemRequest(Model):
     """Body of `POST /v1/history/open`: the conversation id may be a phone number or an e-mail, and the
     customer is personal data, so neither goes in a URL."""
 
-    item_id: IdStr
+    item_id: IdStr = Field(
+        description="The `id` of an `episode` or `object` row, as search or the timeline listed it."
+    )
     subject: Handle | None = Field(
         default=None, description="The customer the item must belong to; any other item answers 404."
     )
@@ -561,7 +556,7 @@ class Promise(ResponseModel):
 
 class OpenedItem(ResponseModel):
     id: str
-    kind: str = Field(description="`episode`, `object` or `open_item`; `/v1` may add kinds.")
+    kind: str = Field(description="`episode` or `object`; `/v1` may add kinds.")
     summary: str
     requested: str | None = None
     promises: list[Promise] = Field(default_factory=list)
@@ -571,15 +566,6 @@ class OpenedItem(ResponseModel):
     timeline: list[HistoryItem] = Field(default_factory=list)
     as_of: datetime | None = None
     versions: list[ItemVersion] = Field(default_factory=list)
-    status: str | None = Field(
-        default=None,
-        description="An open item's status: `open`, `overdue`, `resolved`, or `merged` when the id is a twin "
-        "of another item, which answers for it from then on.",
-    )
-    merged_into: str | None = Field(
-        default=None,
-        description="The item a merged id answers for (`open_item:<id>`); `summary` is that item's.",
-    )
 
 
 class ToolDefinition(ResponseModel):

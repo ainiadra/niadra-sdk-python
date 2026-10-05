@@ -364,7 +364,8 @@ item = niadra.open(found.items[0].id)  # what was asked, promised and by whom, t
 
 Filters take `when`, a time phrase in the customer's own words (`last week`, `semana passada`,
 `en marzo`); the answer's `window` says the period read and `ignored` lists what the server could
-not read. What an event states can expire (`valid_until` on the event): expired items leave the
+not read. Every row's `id` is a bare UUID and `kind` says what it is; `open()` takes the `id` of an
+`episode` or `object` row, and feedback and `closes` take the `id` of a fact or an open item as listed. What an event states can expire (`valid_until` on the event): expired items leave the
 context and the search unless `show_expired=True`. An opened object lists its `versions`.
 
 The handle, the search and the conversation id go in request bodies, never in a URL: a

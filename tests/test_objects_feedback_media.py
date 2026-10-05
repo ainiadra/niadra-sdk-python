@@ -26,7 +26,14 @@ STATE = {
 }
 TIMELINE = {
     "ref": {"type": "invoice", "namespace": "erp", "id": "0823"},
-    "items": [{"id": "ev_2", "kind": "action", "text": "credit R$ 40", "at": "2026-09-22T14:06:00Z"}],
+    "items": [
+        {
+            "id": "019a7c2e-5b1d-7f00-8000-0000000000e2",
+            "kind": "action",
+            "text": "credit R$ 40",
+            "at": "2026-09-22T14:06:00Z",
+        }
+    ],
     "next_cursor": "c2",
 }
 UPLOAD_URL = "https://media.example-bucket.s3.amazonaws.com/sp/med_1?X-Amz-Signature=abc"

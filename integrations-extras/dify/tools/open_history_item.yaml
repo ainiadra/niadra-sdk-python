@@ -67,9 +67,9 @@ parameters:
   label:
     en_US: Item id
   human_description:
-    en_US: The item id, e.g. `episode:...`.
+    en_US: The item's `id`, as search or the timeline listed it.
   form: llm
-  llm_description: The item id, e.g. `episode:...`.
+  llm_description: The item's `id`, as search or the timeline listed it.
 extra:
   python:
     source: tools/open_history_item.py

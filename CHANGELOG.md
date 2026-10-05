@@ -6,6 +6,28 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-05
+
+The server gives every item one id, a bare UUID, on every surface. This release follows it and removes
+the forms it no longer sends or accepts.
+
+### Changed
+
+- History rows (`search`, `timeline`, `open`) carry each row's own id as a bare UUID; `kind` says what the
+  row is. `open()` takes the `id` of an `episode` or `object` row as listed, and `OpenedItem.kind` is
+  `episode` or `object`.
+- `feedback()`, `admin.correct()`, `admin.fact_history()` and `closes` send the id as given: a bare UUID.
+  The SDK no longer strips a `fact:` prefix; the server refuses a prefixed id.
+- `HistoryFilters.item_statuses` is a list like the other filters, empty by default and always sent.
+- The emulator (`niadra_mock`) gives events and episodes bare UUIDs and finds the kind of an opened id
+  itself.
+- The canonical tool definitions name the kind of an openable row instead of an id prefix.
+
+### Removed
+
+- The `merged` open item status, `HistoryItem.merged_into`, and `OpenedItem.status` and `merged_into`:
+  the server derives one id per item, so twins are not created and nothing is merged.
+
 ## [0.10.5] - 2026-10-03
 
 ### Added

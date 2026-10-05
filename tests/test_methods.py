@@ -48,7 +48,7 @@ def test_search(respx_mock: respx.MockRouter, client: Niadra) -> None:
     assert body(route) == {
         "subject": {"type": "phone_e164", "value": "+5511912345678"},
         "query": "technician",
-        "filters": {"channels": ["voice"], "categories": [], "item_kinds": []},
+        "filters": {"channels": ["voice"], "categories": [], "item_kinds": [], "item_statuses": []},
         "max_tokens": 300,
         "verification": "V1",
         "conversation_id": "c-1",
@@ -62,7 +62,7 @@ def test_timeline_lists_resolved_items_with_what_closed_them(
     respx_mock: respx.MockRouter, client: Niadra
 ) -> None:
     resolved = {
-        "id": "open_item:019a",
+        "id": "019a7c2e-5b1d-7f00-8000-0000000000a1",
         "kind": "open_item",
         "text": "Credit invoice 0823 · kept on 22/09",
         "at": "2026-09-22T14:02:00Z",
@@ -73,15 +73,13 @@ def test_timeline_lists_resolved_items_with_what_closed_them(
         "closed_at": "2026-09-22T14:06:00Z",
         "closed_by": {"kind": "action", "action_id": "a-1", "event_id": "e-1", "operation": "credit"},
     }
-    merged = {**resolved, "id": "open_item:019b", "status": "merged", "merged_into": "open_item:019a"}
     route = respx_mock.post(f"{BASE}/v1/history/timeline").respond(
-        200, json={"items": [resolved, merged], "next_cursor": None}
+        200, json={"items": [resolved], "next_cursor": None}
     )
-    page = client.timeline(
-        MARINA, filters={"item_kinds": ["open_item"], "item_statuses": ["resolved", "merged"]}
-    )
-    assert body(route)["filters"]["item_statuses"] == ["resolved", "merged"]
-    done, twin = page.items
+    page = client.timeline(MARINA, filters={"item_kinds": ["open_item"], "item_statuses": ["resolved"]})
+    assert body(route)["filters"]["item_statuses"] == ["resolved"]
+    [done] = page.items
+    assert done.id == "019a7c2e-5b1d-7f00-8000-0000000000a1"
     assert (done.status, done.expected_operation) == ("resolved", "credit")
     assert done.object is not None and done.object.id == "0823"
     assert done.closed_at == datetime(2026, 9, 22, 14, 6, tzinfo=timezone.utc)
@@ -91,30 +89,19 @@ def test_timeline_lists_resolved_items_with_what_closed_them(
         "a-1",
         "credit",
     )
-    assert (twin.status, twin.merged_into) == ("merged", "open_item:019a")
-    # Unset, the filter is not sent: a server without it reads the request as before.
-    client.timeline(MARINA)
-    assert "item_statuses" not in body(route)["filters"]
-    with pytest.raises(ValueError, match="item_statuses"):
-        HistoryFilters.model_validate({"item_statuses": ["closed"]})
+    for status in ("closed", "merged"):
+        with pytest.raises(ValueError, match="item_statuses"):
+            HistoryFilters.model_validate({"item_statuses": [status]})
 
 
-def test_open_reads_an_open_item_and_the_root_a_merged_id_answers_for(
-    respx_mock: respx.MockRouter, client: Niadra
-) -> None:
-    respx_mock.post(f"{BASE}/v1/history/open").respond(
-        200,
-        json={
-            "id": "open_item:019b",
-            "kind": "open_item",
-            "summary": "File the reply by Friday",
-            "status": "merged",
-            "merged_into": "open_item:019a",
-        },
+def test_open_sends_the_bare_id_the_row_listed(respx_mock: respx.MockRouter, client: Niadra) -> None:
+    episode = "019a7c2e-5b1d-7f00-8000-0000000000e1"
+    route = respx_mock.post(f"{BASE}/v1/history/open").respond(
+        200, json={"id": episode, "kind": "episode", "summary": "Asked to move the visit"}
     )
-    item = client.open("open_item:019b", verification="V2")
-    assert item is not None
-    assert (item.kind, item.status, item.merged_into) == ("open_item", "merged", "open_item:019a")
+    item = client.open(episode, verification="V2")
+    assert body(route)["item_id"] == episode
+    assert item is not None and (item.id, item.kind) == (episode, "episode")
 
 
 def test_navigation_budgets(respx_mock: respx.MockRouter, client: Niadra) -> None:
