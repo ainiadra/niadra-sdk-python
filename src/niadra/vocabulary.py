@@ -37,6 +37,7 @@ class SubjectKind(_StrEnum):
     PERSON = "person"
     ACCOUNT = "account"
     PARTNER = "partner"
+    STAFF = "staff"
 
 
 class HandleType(_StrEnum):
