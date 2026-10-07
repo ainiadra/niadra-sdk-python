@@ -69,6 +69,17 @@ def system_id(namespace: str, id: str, *, kind: SubjectKind | str | None = None)
     )
 
 
+def staff(namespace: str, id: str) -> Handle:
+    """Someone who works for your company, by the id one of your systems gives them, e.g.
+    `staff("hr", "U-17")` for the lawyer at your firm's assistant.
+
+    A conversation with staff is internal: the agent reads what your team may read, and what the person says
+    is your company's word. A conversation with anyone else is customer-facing, whatever the key. Only a
+    system id names staff: a phone or an e-mail always names a customer.
+    """
+    return Handle(type=HandleType.SYSTEM_ID, value=id, scope=namespace, subject_kind=SubjectKind.STAFF)
+
+
 def gov_id(number: str, country: str) -> Handle:
     """A person's national document, e.g. `gov_id("529.982.247-25", "BR")` for a CPF.
 
