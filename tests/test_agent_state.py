@@ -58,12 +58,12 @@ def test_merge_by_key_keeps_the_other_fields_and_a_removed_one_stays_gone(niadra
     assert (read.version, read.body) == (3, {"offer": {"status": "accepted"}})
 
 
-def test_over_the_cap_the_previous_state_stays_and_nothing_fails(niadra: Niadra) -> None:
+def test_a_large_state_is_kept_whole(niadra: Niadra) -> None:
     with niadra.conversation("c-3", subject=CUSTOMER, agent_id="closing") as conversation:
         conversation.agent_state.put({"note": "short"})
         big = conversation.agent_state.put({"note": "x" * 20_000})
-        assert (big.stored, big.reason, big.version) == (False, "over_cap", 1)
-        assert conversation.agent_state.get().body == {"note": "short"}
+        assert (big.stored, big.reason, big.version) == (True, None, 2)
+        assert conversation.agent_state.get().body == {"note": "x" * 20_000}
 
 
 def test_a_read_never_goes_back_behind_a_write(app: MockApp, niadra: Niadra) -> None:

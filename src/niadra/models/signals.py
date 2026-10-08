@@ -309,8 +309,16 @@ class ConstraintsBlock(ResponseModel):
     hard: list[HardConstraint] = Field(default_factory=list, max_length=100)
     instructions: list[ObjectInstruction] = Field(
         default_factory=list,
-        max_length=50,
+        max_length=500,
         description="What people said must or must not be done about the objects the read is about.",
+    )
+    omitted: dict[str, int] = Field(
+        default_factory=dict,
+        description=(
+            "How many entries of each kind (`hard`, `soft`, `exclude`, `already_presented`, "
+            "`instructions`) the block's sizes left out; the restrictions keep their room first. Absent"
+            " when nothing was left out; `text` says it too."
+        ),
     )
     precedence: list[Literal["current_utterance", "stated_persistent", "inferred"]] = Field(
         default_factory=list
