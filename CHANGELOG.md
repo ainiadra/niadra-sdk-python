@@ -8,6 +8,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [0.11.4] - 2026-10-08
 
+### Changed
+
+- The generated models follow the server as it is now: the constraints block's `omitted`, derived values'
+  `partial`, paging cursors, a handoff's `open_objects_more`, agent notes' `left_out`, kept failed batches
+  (`kept`, `api.failed_intake`, `api.retry_failed_intake`), the data issue kinds `budget_reached`,
+  `row_failed` and `inference_limit`, and an action's `result` as long as an event's text (200,000).
+- An agent's working state is kept whole: `over_cap` is gone, and `valid_until` is `None` when the agent's
+  type names no retention.
+
 ### Fixed
 
 - A turn record cut to the lists the server takes (claims, interactions, coordination, effects, event keys) now says it is `partial`; before, only calls, blobs and reads did, and the other cuts were silent.

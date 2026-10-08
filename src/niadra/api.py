@@ -94,6 +94,9 @@ from niadra.models.turns import (
     ChangePage,
     DataIssue,
     DataIssuePage,
+    FailedIntakePage,
+    FailedIntakeRetried,
+    FailedIntakeRetry,
     NotificationPage,
     PromoteRequest,
     PromoteResponse,
@@ -142,6 +145,19 @@ class Api(SyncRoutes):
         opens a new one.
         """
         return self._call(DataIssue, "POST", f"/v1/data-issues/{segment(issue_id)}/ack")
+
+    def failed_intake(self) -> FailedIntakePage:
+        """`GET /v1/intake/failed`. The batches that failed every attempt to be taken in (`row_failed`): kept
+        aside, sealed, never deleted, oldest first. Kind, source and times only, never their content.
+        """
+        return self._call(FailedIntakePage, "GET", "/v1/intake/failed")
+
+    def retry_failed_intake(self, body: FailedIntakeRetry) -> FailedIntakeRetried:
+        """`POST /v1/intake/failed/retry`. Puts kept batches back in the space's order for a worker to store,
+        every one when no ids are given. A batch that fails again is kept aside again, with a new
+        `row_failed` occurrence.
+        """
+        return self._call(FailedIntakeRetried, "POST", "/v1/intake/failed/retry", body=body)
 
     def replay_case(self, body: ReplayCaseRequest) -> ReplayCase:
         """`POST /v1/replay/cases`. One turn with what a runner needs to run it again, once the running build
@@ -638,6 +654,19 @@ class AsyncApi(AsyncRoutes):
         opens a new one.
         """
         return await self._call(DataIssue, "POST", f"/v1/data-issues/{segment(issue_id)}/ack")
+
+    async def failed_intake(self) -> FailedIntakePage:
+        """`GET /v1/intake/failed`. The batches that failed every attempt to be taken in (`row_failed`): kept
+        aside, sealed, never deleted, oldest first. Kind, source and times only, never their content.
+        """
+        return await self._call(FailedIntakePage, "GET", "/v1/intake/failed")
+
+    async def retry_failed_intake(self, body: FailedIntakeRetry) -> FailedIntakeRetried:
+        """`POST /v1/intake/failed/retry`. Puts kept batches back in the space's order for a worker to store,
+        every one when no ids are given. A batch that fails again is kept aside again, with a new
+        `row_failed` occurrence.
+        """
+        return await self._call(FailedIntakeRetried, "POST", "/v1/intake/failed/retry", body=body)
 
     async def replay_case(self, body: ReplayCaseRequest) -> ReplayCase:
         """`POST /v1/replay/cases`. One turn with what a runner needs to run it again, once the running build

@@ -211,6 +211,9 @@ class DataIssue(ResponseModel):
         "rule_conflict",
         "type_undeclared",
         "field_held",
+        "budget_reached",
+        "row_failed",
+        "inference_limit",
     ] = Field(
         description=(
             "`null_field`, `out_of_vocabulary`, `stale_source`, `invalid_value`: a value an agent's "
@@ -218,8 +221,15 @@ class DataIssue(ResponseModel):
             "sources of one value disagree; `drift`: the schema a type mirrors changed, and a new field"
             " is already served to agents as it came (a note, nothing to fix); `field_held`: a new "
             "field that may be personal data or free text, held from agents until the type declares it;"
-            " `rule_conflict`: two rules decide one thing differently; `type_undeclared`: tools showed "
-            "objects of a type the space never declared."
+            " `row_failed`: a row that failed every attempt to be taken in is kept aside, sealed, never"
+            " deleted, until an admin retries it (`POST /v1/intake/failed/retry`), `source` naming "
+            "where it came from; `rule_conflict`: two rules decide one thing differently; "
+            "`type_undeclared`: tools showed objects of a type the space never declared; "
+            "`budget_reached`: the space spent its day's AI ceiling for a purpose (`source`), and "
+            "memory waits for the next UTC day; `inference_limit`: what the space's systems send passed"
+            " a limit of what Niadra infers on its own (types, fields or states of a type, operations),"
+            " or a name was not safe to use; what passed it is still stored and served as it came, and "
+            "`field` names the limit."
         )
     )
     last_seen_at: datetime
@@ -247,6 +257,43 @@ class Engaged(Model):
     how: Literal["click", "detail", "mention", "add_to_cart", "compare", "share", "other"]
     kind: Literal["engaged"]
     ref: ObjectKey
+
+
+class FailedIntake(ResponseModel):
+    """A batch of the company's data that failed every attempt to be taken in: kept aside, sealed as it came,
+    never deleted, until an admin retries it. What kind of batch, from which source and when; never its
+    content.
+    """
+
+    attempts: int = Field(ge=0)
+    failed_at: datetime
+    intake_id: UUID
+    kind: Literal["events", "turns"] = Field(
+        description="`events` for `POST /v1/events` and the webhooks, `turns` for `POST /v1/turns`."
+    )
+    received_at: datetime
+    source_id: UUID
+
+
+class FailedIntakePage(ResponseModel):
+    items: list[FailedIntake] = Field(description="Oldest first, up to 500 of each kind.")
+    kept: int = Field(
+        ge=0,
+        description=(
+            "Every batch kept aside, listed or not; past the listing, `POST /v1/intake/failed/retry` "
+            "with no ids retries all of them."
+        ),
+    )
+
+
+class FailedIntakeRetried(ResponseModel):
+    retried: int = Field(ge=0, description="Batches put back in the space's order for a worker to store.")
+
+
+class FailedIntakeRetry(Model):
+    intake_ids: Annotated[list[UUID], Field(max_length=500)] | None = Field(
+        default=None, description="The batches to retry; none retries every kept batch."
+    )
 
 
 class Feedback(Model):

@@ -703,9 +703,17 @@
           "items": {
             "$ref": "#/$defs/ObjectInstruction"
           },
-          "maxItems": 50,
+          "maxItems": 500,
           "title": "Instructions",
           "type": "array"
+        },
+        "omitted": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "How many entries of each kind (`hard`, `soft`, `exclude`, `already_presented`, `instructions`) the block's sizes left out; the restrictions keep their room first. Absent when nothing was left out; `text` says it too.",
+          "title": "Omitted",
+          "type": "object"
         },
         "ask": {
           "description": "Questions the agent should ask, as `for_whom`, before assuming.",
@@ -996,6 +1004,12 @@
           "maxItems": 10,
           "title": "Pieces Out",
           "type": "array"
+        },
+        "partial": {
+          "default": false,
+          "description": "The relation names more related objects than one read takes: the first ones were read and the rest counted as not known, so `over` and `unknown` are at least what they say.",
+          "title": "Partial",
+          "type": "boolean"
         }
       },
       "required": [
@@ -1503,6 +1517,27 @@
           "default": null,
           "description": "The role on the object of who said it (`owner`, `participant`, `lawyer`).",
           "title": "Role"
+        },
+        "only_with": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The one person it holds with, as the conversation named them: it binds the readers dealing with that person, not whoever is speaking. With `contact`, the person it is the preference of.",
+          "title": "Only With"
+        },
+        "contact": {
+          "default": false,
+          "description": "A contact preference (a channel, hours): how the company reaches `only_with`, never a limit on what may be said to them.",
+          "title": "Contact",
+          "type": "boolean"
         },
         "said_at": {
           "format": "date-time",

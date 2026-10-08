@@ -46,7 +46,9 @@ class AgentStateMeta(ResponseModel):
     scope_kind: Literal["conversation", "task", "object", "subject"]
     source_id: IdStr
     updated_at: datetime
-    valid_until: datetime
+    valid_until: datetime | None = Field(
+        default=None, description="When the state goes, by its type's retention; null while it names none."
+    )
     version: int
 
 
@@ -89,7 +91,7 @@ class AgentStateWrite(Model):
 
 
 class AgentStateWriteResult(ResponseModel):
-    reason: Literal["over_cap", "not_declared_field"] | None = None
+    reason: Literal["not_declared_field"] | None = None
     stored: bool
     version: int
 
@@ -277,6 +279,13 @@ class DerivedState(ResponseModel):
 
     logic: Literal["yes", "no", "unobserved"]
     over: int = Field(ge=0, description="The related objects it was computed over.")
+    partial: bool = Field(
+        default=False,
+        description=(
+            "The relation names more related objects than one read takes: the first ones were read and "
+            "the rest counted as not known, so `over` and `unknown` are at least what they say."
+        ),
+    )
     pieces_out: list[str] = Field(
         default_factory=list,
         max_length=10,
@@ -329,8 +338,8 @@ Feature = Literal[
     "notifications",
     "legal_holds",
 ]
-"""The agent features a space turns on: everything is off until the space's `features` document lists it, and
-`GET /v1/sdk/profile` announces what is on.
+"""The agent features of a space: every one is on by default, so a space works with no configuration; the
+space's `features` document lists fewer to turn some off, and `GET /v1/sdk/profile` announces what is on.
 """
 
 

@@ -3,7 +3,7 @@ objects a claim is verified against, the refresh requests a resolver worker take
 (behind `state`).
 
 - `PUT /v1/agent-state` applies `cas` and `merge_by_key` with the spec's rules: 412 `agent_state_conflict` at
-  another version, `stored: false, reason: over_cap` past 16 KB. `POST /v1/agent-state/read` reads a state,
+  another version; a state is kept whole, with no size cap. `POST /v1/agent-state/read` reads a state,
   version 0 and an empty body before the first write.
 - `observe()` sets an object's field with its status; `POST /v1/state/verify` answers each check from them.
 - `request_refresh()` queues a refresh request; `GET /v1/state/refresh-requests` leases the waiting ones for
@@ -14,7 +14,6 @@ objects a claim is verified against, the refresh requests a resolver worker take
 
 from __future__ import annotations
 
-import json
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -22,7 +21,6 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import uuid4
 
-CAP = 16 * 1024
 DELETE = {"$delete": True}
 LEASE = timedelta(seconds=60)
 
@@ -70,8 +68,6 @@ class StateStore:
                         new.pop(name, None)
                     else:
                         new[name] = value
-            if len(json.dumps(new, sort_keys=True, separators=(",", ":")).encode()) > CAP:
-                return {"stored": False, "version": version, "reason": "over_cap"}
             self.agent_states[key] = (new, version + 1, datetime.now(timezone.utc))
             return {"stored": True, "version": version + 1}
 

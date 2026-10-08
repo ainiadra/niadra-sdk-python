@@ -225,7 +225,9 @@ class CommitmentDecided(Model):
 
 
 class CommitmentMadeDetail(Model):
-    """`score` ranks commitments of a `best_wins` type: the higher holds."""
+    """`score` ranks commitments of a `best_wins` type: the higher holds. Its `terms` are kept whole, in the
+    commitment and in the action memory records of it (`terms_text`), up to an event's text.
+    """
 
     commitment_id: IdStr
     score: float | None = None
@@ -546,6 +548,9 @@ class HandoffPackage(ResponseModel):
     handoff_id: IdStr
     level: Verification
     open_objects: list[OpenObject] = Field(default_factory=list, max_length=50)
+    open_objects_more: int = Field(
+        default=0, ge=0, description="The subject's open objects past the 50 a package carries, left out."
+    )
     outcome: OutcomeRequest = Field(default_factory=OutcomeRequest)
     owner: Owner | None = None
     promises_open: list[PromiseRef] = Field(default_factory=list)

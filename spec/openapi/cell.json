@@ -135,9 +135,17 @@
             "type": "string"
           },
           "valid_until": {
-            "format": "date-time",
-            "title": "Valid Until",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the state goes, by its type's retention; null while it names none.",
+            "title": "Valid Until"
           },
           "version": {
             "title": "Version",
@@ -150,8 +158,7 @@
           "source_id",
           "bytes",
           "version",
-          "updated_at",
-          "valid_until"
+          "updated_at"
         ],
         "title": "AgentStateMeta",
         "type": "object"
@@ -286,10 +293,7 @@
           "reason": {
             "anyOf": [
               {
-                "enum": [
-                  "over_cap",
-                  "not_declared_field"
-                ],
+                "const": "not_declared_field",
                 "type": "string"
               },
               {
@@ -2495,7 +2499,7 @@
       },
       "CommitmentMadeDetail": {
         "additionalProperties": false,
-        "description": "`score` ranks commitments of a `best_wins` type: the higher holds.",
+        "description": "`score` ranks commitments of a `best_wins` type: the higher holds. Its `terms` are kept whole, in the\ncommitment and in the action memory records of it (`terms_text`), up to an event's text.",
         "properties": {
           "commitment_id": {
             "maxLength": 512,
@@ -2901,9 +2905,17 @@
             "items": {
               "$ref": "#/components/schemas/ObjectInstruction"
             },
-            "maxItems": 50,
+            "maxItems": 500,
             "title": "Instructions",
             "type": "array"
+          },
+          "omitted": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "How many entries of each kind (`hard`, `soft`, `exclude`, `already_presented`, `instructions`) the block's sizes left out; the restrictions keep their room first. Absent when nothing was left out; `text` says it too.",
+            "title": "Omitted",
+            "type": "object"
           },
           "precedence": {
             "items": {
@@ -4030,7 +4042,7 @@
             "type": "string"
           },
           "kind": {
-            "description": "`null_field`, `out_of_vocabulary`, `stale_source`, `invalid_value`: a value an agent's tool showed; `coverage_drop`: a field filled less often than before; `divergence`: two sources of one value disagree; `drift`: the schema a type mirrors changed, and a new field is already served to agents as it came (a note, nothing to fix); `field_held`: a new field that may be personal data or free text, held from agents until the type declares it; `rule_conflict`: two rules decide one thing differently; `type_undeclared`: tools showed objects of a type the space never declared.",
+            "description": "`null_field`, `out_of_vocabulary`, `stale_source`, `invalid_value`: a value an agent's tool showed; `coverage_drop`: a field filled less often than before; `divergence`: two sources of one value disagree; `drift`: the schema a type mirrors changed, and a new field is already served to agents as it came (a note, nothing to fix); `field_held`: a new field that may be personal data or free text, held from agents until the type declares it; `row_failed`: a row that failed every attempt to be taken in is kept aside, sealed, never deleted, until an admin retries it (`POST /v1/intake/failed/retry`), `source` naming where it came from; `rule_conflict`: two rules decide one thing differently; `type_undeclared`: tools showed objects of a type the space never declared; `budget_reached`: the space spent its day's AI ceiling for a purpose (`source`), and memory waits for the next UTC day; `inference_limit`: what the space's systems send passed a limit of what Niadra infers on its own (types, fields or states of a type, operations), or a name was not safe to use; what passed it is still stored and served as it came, and `field` names the limit.",
             "enum": [
               "null_field",
               "out_of_vocabulary",
@@ -4041,7 +4053,10 @@
               "drift",
               "rule_conflict",
               "type_undeclared",
-              "field_held"
+              "field_held",
+              "budget_reached",
+              "row_failed",
+              "inference_limit"
             ],
             "title": "Kind",
             "type": "string"
@@ -4240,6 +4255,12 @@
             "minimum": 0.0,
             "title": "Over",
             "type": "integer"
+          },
+          "partial": {
+            "default": false,
+            "description": "The relation names more related objects than one read takes: the first ones were read and the rest counted as not known, so `over` and `unknown` are at least what they say.",
+            "title": "Partial",
+            "type": "boolean"
           },
           "pieces_out": {
             "description": "When it is not `yes`, the related objects, as `type:namespace:id`, that kept it from `yes`: for `all` and `any` the ones the condition does not hold for or that are not known, for `count`, `min` and `max` the ones not known. In the relation's order, the first 10.",
@@ -4874,8 +4895,123 @@
         "title": "ExperimentResult",
         "type": "object"
       },
+      "FailedIntake": {
+        "additionalProperties": false,
+        "description": "A batch of the company's data that failed every attempt to be taken in: kept aside, sealed as it\ncame, never deleted, until an admin retries it. What kind of batch, from which source and when; never\nits content.",
+        "properties": {
+          "attempts": {
+            "minimum": 0.0,
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "failed_at": {
+            "format": "date-time",
+            "title": "Failed At",
+            "type": "string"
+          },
+          "intake_id": {
+            "format": "uuid",
+            "title": "Intake Id",
+            "type": "string"
+          },
+          "kind": {
+            "description": "`events` for `POST /v1/events` and the webhooks, `turns` for `POST /v1/turns`.",
+            "enum": [
+              "events",
+              "turns"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "source_id": {
+            "format": "uuid",
+            "title": "Source Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "intake_id",
+          "kind",
+          "source_id",
+          "received_at",
+          "failed_at",
+          "attempts"
+        ],
+        "title": "FailedIntake",
+        "type": "object"
+      },
+      "FailedIntakePage": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "Oldest first, up to 500 of each kind.",
+            "items": {
+              "$ref": "#/components/schemas/FailedIntake"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kept": {
+            "description": "Every batch kept aside, listed or not; past the listing, `POST /v1/intake/failed/retry` with no ids retries all of them.",
+            "minimum": 0.0,
+            "title": "Kept",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "kept"
+        ],
+        "title": "FailedIntakePage",
+        "type": "object"
+      },
+      "FailedIntakeRetried": {
+        "additionalProperties": false,
+        "properties": {
+          "retried": {
+            "description": "Batches put back in the space's order for a worker to store.",
+            "minimum": 0.0,
+            "title": "Retried",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "retried"
+        ],
+        "title": "FailedIntakeRetried",
+        "type": "object"
+      },
+      "FailedIntakeRetry": {
+        "additionalProperties": false,
+        "properties": {
+          "intake_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "maxItems": 500,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The batches to retry; none retries every kept batch.",
+            "title": "Intake Ids"
+          }
+        },
+        "title": "FailedIntakeRetry",
+        "type": "object"
+      },
       "Feature": {
-        "description": "The agent features a space turns on: everything is off until the space's `features`\ndocument lists it, and `GET /v1/sdk/profile` announces what is on.",
+        "description": "The agent features of a space: every one is on by default, so a space works with no\nconfiguration; the space's `features` document lists fewer to turn some off, and\n`GET /v1/sdk/profile` announces what is on.",
         "enum": [
           "turns",
           "state",
@@ -5541,6 +5677,13 @@
             "maxItems": 50,
             "title": "Open Objects",
             "type": "array"
+          },
+          "open_objects_more": {
+            "default": 0,
+            "description": "The subject's open objects past the 50 a package carries, left out.",
+            "minimum": 0.0,
+            "title": "Open Objects More",
+            "type": "integer"
           },
           "outcome": {
             "$ref": "#/components/schemas/OutcomeRequest"
@@ -14606,6 +14749,70 @@
         "summary": "Handoff Outcome",
         "tags": [
           "coordination"
+        ]
+      }
+    },
+    "/v1/intake/failed": {
+      "get": {
+        "description": "The batches that failed every attempt to be taken in (`row_failed`): kept aside, sealed, never\ndeleted, oldest first. Kind, source and times only, never their content.",
+        "operationId": "failed_intake_v1_intake_failed_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailedIntakePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Failed Intake",
+        "tags": [
+          "turns"
+        ]
+      }
+    },
+    "/v1/intake/failed/retry": {
+      "post": {
+        "description": "Puts kept batches back in the space's order for a worker to store, every one when no ids are given.\nA batch that fails again is kept aside again, with a new `row_failed` occurrence.",
+        "operationId": "retry_failed_intake_v1_intake_failed_retry_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FailedIntakeRetry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailedIntakeRetried"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not match the contract."
+          }
+        },
+        "summary": "Retry Failed Intake",
+        "tags": [
+          "turns"
         ]
       }
     },
