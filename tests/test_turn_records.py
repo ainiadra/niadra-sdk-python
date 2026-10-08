@@ -478,3 +478,22 @@ def test_a_refused_write_of_the_outbox_says_which_route_and_why(
         "POST /v1/coordination/declare was refused: HTTP 422 invalid_input: injected by niadra-mock"
         in caplog.text
     )
+
+
+def test_a_record_cut_to_the_servers_list_sizes_says_it_is_partial() -> None:
+    """Every list the record carries is as long as the server takes it; a longer one is never cut silently."""
+    from niadra.turns.record import MAX_EVENT_KEYS, MAX_INTERACTIONS, build
+
+    frame = TurnFrame(None, agent="a", conversation_id="c")
+    with frame:
+        frame.tool_call("t", {"k": 1})
+    frame.event_keys.extend(f"k{n}" for n in range(MAX_EVENT_KEYS + 1))
+    record = build(frame, "stored")
+    assert len(record["output"]["event_keys"]) == MAX_EVENT_KEYS
+    assert record["completeness"] == "partial"
+
+    frame = TurnFrame(None, agent="a", conversation_id="c")
+    with frame:
+        frame.tool_call("t", {"k": 1})
+    frame.interactions.extend({"kind": "viewed"} for _ in range(MAX_INTERACTIONS + 1))
+    assert build(frame, "stored")["completeness"] == "partial"

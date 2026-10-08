@@ -96,7 +96,18 @@ def build(
     found = _claims(frame, claims)
     if found is None:
         completeness = "incomplete"
-    lost = len(frame.calls) > MAX_CALLS or len(frame.blobs) > MAX_BLOBS or len(frame.reads) > MAX_READS
+    # The record's lists are as long as the server takes them; past that the record says it is partial, never
+    # silently shorter (memory never cuts what it was given without saying so).
+    lost = (
+        len(frame.calls) > MAX_CALLS
+        or len(frame.blobs) > MAX_BLOBS
+        or len(frame.reads) > MAX_READS
+        or len(found or []) > MAX_CLAIMS
+        or len(frame.interactions) > MAX_INTERACTIONS
+        or len(frame.coordination) > MAX_DECISIONS
+        or len(frame.effects) > MAX_DECISIONS
+        or len(frame.event_keys) > MAX_EVENT_KEYS
+    )
     if lost and completeness == "complete":
         completeness = "partial"
     agent: dict[str, Any] = {"name": frame.agent}
