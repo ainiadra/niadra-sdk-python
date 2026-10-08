@@ -10,6 +10,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- A turn record cut to the lists the server takes (claims, interactions, coordination, effects, event keys) now says it is `partial`; before, only calls, blobs and reads did, and the other cuts were silent.
 - A 404 from `/v1/context` that was not about the blocks (an object or a profile the API does not know) no
   longer stops the client from asking for `include` blocks for ten minutes. The blocks count as refused only
   when the same read without them answers.
