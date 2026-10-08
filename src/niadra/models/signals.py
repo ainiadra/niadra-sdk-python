@@ -215,12 +215,27 @@ class ObjectInstruction(ResponseModel):
     attr: (
         Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}\.[a-z][a-z0-9_]{0,63}$")] | None
     ) = Field(default=None, description="The field of the object's type it is about.")
+    contact: bool = Field(
+        default=False,
+        description=(
+            "A contact preference (a channel, hours): how the company reaches `only_with`, never a "
+            "limit on what may be said to them."
+        ),
+    )
     expires_at: datetime | None = None
     hard: Annotated[str, StringConstraints(pattern=r"^h[0-9]{1,4}$")] | None = Field(
         default=None, description="The entry of `hard` that carries it for a tool, when `attr` is set."
     )
     id: Annotated[str, StringConstraints(pattern=r"^i[0-9]{1,4}$")]
     object: ObjectKey | None = Field(default=None, description="The object it is about.")
+    only_with: ShortStr | None = Field(
+        default=None,
+        description=(
+            "The one person it holds with, as the conversation named them: it binds the readers dealing"
+            " with that person, not whoever is speaking. With `contact`, the person it is the "
+            "preference of."
+        ),
+    )
     role: ShortStr | None = Field(
         default=None, description="The role on the object of who said it (`owner`, `participant`, `lawyer`)."
     )
