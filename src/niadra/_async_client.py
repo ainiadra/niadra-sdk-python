@@ -1143,12 +1143,14 @@ class AsyncNiadra:
         try:
             data = await self._transport.request(self._core.context_http(request, budget, known_etag))
         except Exception as exc:
-            plain = self._core.refused_blocks(request, exc)
+            plain = self._core.without_blocks(request, exc)
             left = budget - (time.monotonic() - started)
             if plain is None or left <= 0:
                 raise
             data = await self._transport.request(self._core.context_http(plain, left, known_etag))
-        return self._core.parse_context(data, started)
+            self._core.blocks_refused(request)
+            return self._core.parse_context(data, started, plain)
+        return self._core.parse_context(data, started, request)
 
     async def _pinned_context(
         self, request: ContextRequest, budget: float, use_cache: bool, requested: Verification

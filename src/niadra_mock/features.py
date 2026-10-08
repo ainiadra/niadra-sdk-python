@@ -60,6 +60,8 @@ class FeatureStore:
     tool_bindings: list[dict[str, Any]] = field(default_factory=list)
     drift_issues: dict[str, dict[str, Any]] = field(default_factory=dict)
     """The open drift issues, by type: `issue_id`, `field` and `occurrences`."""
+    failing: set[str] = field(default_factory=set)
+    """Blocks a read leaves out as the server does when one fails to read: the answer says `degraded`."""
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def profile(self) -> SdkProfile:
@@ -116,12 +118,12 @@ class FeatureStore:
         for name in include:
             if BLOCK_FEATURES[name] not in self.features:
                 raise FeatureOffError
-        if "constraints" in include:
+        if "constraints" in include and "constraints" not in self.failing:
             key = (subject.type, subject.value) if subject is not None else None
             with self._lock:
                 block = self.blocks.get(key) if key is not None else None
             found["constraints"] = block or ConstraintsBlock(version="cv_" + "0" * 16, text="")
-        if "state" in include:
+        if "state" in include and "state" not in self.failing:
             key = (subject.type, subject.value) if subject is not None else None
             with self._lock:
                 view = self.views.get(key) if key is not None else None

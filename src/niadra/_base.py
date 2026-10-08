@@ -470,19 +470,28 @@ class ClientCore:
         )
         return Request("POST", "/v1/context", json=body, timeout=budget, budget=budget)
 
-    def refused_blocks(self, request: ContextRequest, error: Exception) -> ContextRequest | None:
-        """The read again without its blocks, when the space answered that it serves none of them (404 for
-        a feature it left off): nothing else of the read is lost. None otherwise."""
+    def without_blocks(self, request: ContextRequest, error: Exception) -> ContextRequest | None:
+        """The read again without its blocks, after a 404 that may be a feature the space left off: nothing
+        else of the read is lost. None otherwise. The blocks count as refused only when that read answers
+        (`blocks_refused`): `/v1/context` also answers 404 for an object or profile it does not know, and
+        taking that for a feature turned off would leave every read of this client without its constraints
+        for `BLOCK_RECHECK_AFTER`."""
         if not request.include or not isinstance(error, NotFoundError):
             return None
-        self.blocks.refused(request.include)
         return request.model_copy(update={"include": None})
 
+    def blocks_refused(self, request: ContextRequest) -> None:
+        """The read without its blocks answered where the read with them got 404: the space serves none of
+        them, and they are not asked for a while."""
+        self.blocks.refused(request.include or ())
+
     @staticmethod
-    def parse_context(data: Any, started: float) -> Context:
+    def parse_context(data: Any, started: float, request: ContextRequest) -> Context:
+        """The answer, with the blocks the read asked by `include` (`Context.unread_blocks`)."""
         context = Context.model_validate(data)
         elapsed_ms = round((time.monotonic() - started) * 1000, 1)
-        return context.model_copy(update={"elapsed_ms": elapsed_ms, "age_ms": 0.0})
+        asked = list(request.include or ())
+        return context.model_copy(update={"elapsed_ms": elapsed_ms, "age_ms": 0.0, "asked_blocks": asked})
 
     def search_http(
         self,
