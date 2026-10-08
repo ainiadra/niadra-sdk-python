@@ -16,9 +16,17 @@ All notable changes to this project are documented here. The format follows
   `row_failed` and `inference_limit`, and an action's `result` as long as an event's text (200,000).
 - An agent's working state is kept whole: `over_cap` is gone, and `valid_until` is `None` when the agent's
   type names no retention.
+- A replay case's `expires_at` is `None` while the space sets no retention for recordings: turn recordings
+  are kept until the customer sets one.
+- `ProfileMemory.timeline_next` carries where the timeline's next page starts.
 
 ### Fixed
 
+- Agent notes and action results were refused on this side below the server's limits: `remember()` and
+  the `remember` tool now take titles up to 300 characters and bodies up to 20,000 (it was 120 and 2,000),
+  an action's `result` up to 200,000 (it was 2,000), and an update's tags keep the server's 8. The
+  canonical tool definitions are regenerated from the server, the same file as the TS SDK.
+- `AgentMemory.left_out` is read: how many notes the block's size left out, each kept and searchable.
 - A turn record cut to the lists the server takes (claims, interactions, coordination, effects, event keys) now says it is `partial`; before, only calls, blobs and reads did, and the other cuts were silent.
 - A 404 from `/v1/context` that was not about the blocks (an object or a profile the API does not know) no
   longer stops the client from asking for `include` blocks for ten minutes. The blocks count as refused only

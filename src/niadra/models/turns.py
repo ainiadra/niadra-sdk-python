@@ -398,8 +398,8 @@ class Presented(Model):
 
 
 class PromoteRequest(Model):
-    """Moves turns from the short tier (every turn, 7 days) to the kept one, by conversation or by id, with
-    the reason: the complaint arrives days after the turn.
+    """Moves turns from the short tier (every turn) to the kept one, which search reads, by conversation or by
+    id, with the reason: the complaint arrives days after the turn.
     """
 
     conversation_id: IdStr | None = None
@@ -707,7 +707,13 @@ class ReplayCase(ResponseModel):
 
     assertions: list[ReplayAssertion] = Field(default_factory=list)
     case_id: IdStr
-    expires_at: datetime = Field(description="When the turn leaves storage; after it, `replay_expired`.")
+    expires_at: datetime | None = Field(
+        default=None,
+        description=(
+            "When the turn leaves storage, after which a case is `replay_expired`; null while the space"
+            " sets no retention for recordings."
+        ),
+    )
     history: list[ReplayHistoryEntry] = Field(default_factory=list)
     input: ReplayInput
     mode: Literal["hermetic_turn", "hermetic_conversation", "era_memory"]

@@ -79,7 +79,7 @@ class Closes(Model):
 
 class ActionInfo(Model):
     operation: ShortStr = Field(description="Canonical operation, e.g. `credit`, `reschedule`.")
-    result: Annotated[str, StringConstraints(max_length=2000)] | None = None
+    result: Annotated[str, StringConstraints(max_length=200_000)] | None = None
     purpose: ShortStr | None = None
     closes: Closes | None = None
     corrects_action_id: str | None = None

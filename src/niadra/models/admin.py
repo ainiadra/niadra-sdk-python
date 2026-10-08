@@ -141,6 +141,10 @@ class ProfileMemory(ResponseModel):
     timeline: list[EpisodeOut] = Field(default_factory=list)
     traits: list[TraitOut] = Field(default_factory=list)
     withheld: dict[str, int] = Field(default_factory=dict)
+    timeline_next: str | None = Field(
+        default=None,
+        description="Where the timeline's next page starts (`timeline_cursor`); null when it holds no more.",
+    )
 
 
 class FactRelation(ResponseModel):
