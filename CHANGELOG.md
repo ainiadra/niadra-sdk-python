@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.3] - 2026-10-08
+
+### Changed
+
+- The generated models follow the server's current specification: the instruction fields `contact` and
+  `only_with` on constraints and signals, and the `field_held` data issue kind.
+
+### Removed
+
+- A counter the benchmark target wrote and never read.
+
 ## [0.11.2] - 2026-10-07
 
 ### Added

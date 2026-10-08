@@ -218,7 +218,6 @@ class NiadraTarget(Target):
         # message, so its measurement counts the values the agent contradicted and the server writes guard
         # lines for those kinds of value in the reads after it.
         self.record_answers = record_answers
-        self.answers_recorded = 0
         self.refused: list[str] = []
         self.control_url = control_url
         self.operations = operations or []
@@ -482,7 +481,6 @@ class NiadraTarget(Target):
             idempotency_key=f"{prefix}-end", conversation_id=conversation, occurred_at=self._now()
         ).model_dump(mode="json", exclude_none=True)
         await self._post_batch(channel, [message, ended])
-        self.answers_recorded += 1
 
     async def close(self) -> None:
         for client in self._clients.values():
