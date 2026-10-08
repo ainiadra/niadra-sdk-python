@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.4] - 2026-10-08
+
+### Fixed
+
+- A 404 from `/v1/context` that was not about the blocks (an object or a profile the API does not know) no
+  longer stops the client from asking for `include` blocks for ten minutes. The blocks count as refused only
+  when the same read without them answers.
+- A `constraints` block the read asked for and the server could not read is said in the turn block, in the
+  space's language, instead of being left out in silence. `Context.unread_blocks` lists the blocks asked and
+  absent.
+
 ## [0.11.3] - 2026-10-08
 
 ### Changed

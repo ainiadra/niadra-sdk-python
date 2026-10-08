@@ -19,6 +19,8 @@ gets a turn block with exactly the bytes it had before blocks existed.
 
 from __future__ import annotations
 
+from collections.abc import Collection
+
 from niadra.models.signals import ConstraintsBlock
 from niadra.models.state import StateView
 
@@ -41,9 +43,42 @@ def language(pack: str | None, state: StateView | None = None) -> str:
     return "en"
 
 
-def include_text(pack: str | None, state: StateView | None, constraints: ConstraintsBlock | None) -> str:
-    """The `<niadra>` section of the blocks a read asked for, or "" when they hold nothing to say."""
-    parts = [block.text for block in (state, constraints) if block is not None and block.text]
+_UNREAD_LINE = {
+    "pt": (
+        "restrições",
+        "as restrições deste cliente não puderam ser lidas agora: pode haver alguma que não está aqui",
+    ),
+    "en": (
+        "constraints",
+        "this customer's constraints could not be read just now: some may hold that are not listed here",
+    ),
+    "es": (
+        "restricciones",
+        "las restricciones de este cliente no se pudieron leer ahora: puede haber alguna que no está aquí",
+    ),
+}
+
+
+def _unread_constraints(lang: str) -> str:
+    tag, line = _UNREAD_LINE[lang]
+    return f"<{tag}>\n- {line}\n</{tag}>"
+
+
+def include_text(
+    pack: str | None,
+    state: StateView | None,
+    constraints: ConstraintsBlock | None,
+    *,
+    unread: Collection[str] = (),
+) -> str:
+    """The `<niadra>` section of the blocks a read asked for, or "" when they hold nothing to say. A
+    `constraints` block the read asked for and the server could not read (`unread`) is said, in the space's
+    language, where the block would be: a restriction that may hold is never left silent."""
+    lang = language(pack, state)
+    said = constraints.text if constraints is not None else None
+    if said is None and "constraints" in unread:
+        said = _unread_constraints(lang)
+    parts = [text for text in (state.text if state is not None else None, said) if text]
     if not parts:
         return ""
-    return "\n".join(["<niadra>", _OPENING[language(pack, state)], *parts, "</niadra>"])
+    return "\n".join(["<niadra>", _OPENING[lang], *parts, "</niadra>"])

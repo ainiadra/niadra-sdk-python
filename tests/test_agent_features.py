@@ -312,3 +312,34 @@ async def test_the_async_client_reads_the_profile_and_keeps_the_opt_out(store: M
     assert await client.may_contact(OTHER, "marketing")
     await client.close(timeout=0)
     await http.aclose()
+
+
+def test_a_404_that_is_not_about_the_blocks_keeps_asking_for_them(store: MockApp, niadra: Niadra) -> None:
+    # `/v1/context` answers 404 for an object or a profile it does not know too: that is no feature turned
+    # off, and the next reads must still carry the constraints.
+    store.cell.fail_next("/v1/context", 404, times=2)
+    with niadra.conversation("c-404", subject=CUSTOMER) as conversation:
+        failed = conversation.context(include=["constraints"])
+    assert not failed.text and failed.error is not None
+    assert niadra._core.blocks.wanted(["constraints"]) == ["constraints"]
+    with niadra.conversation("c-after", subject=CUSTOMER) as conversation:
+        context = conversation.context(include=["constraints"])
+    assert context.constraints is not None and context.constraints.version == "cv_0123456789abcdef"
+
+
+def test_constraints_the_server_could_not_read_are_said_never_left_silent(
+    store: MockApp, niadra: Niadra
+) -> None:
+    store.cell.agent_features.failing.add("constraints")
+    with niadra.conversation("c-unread", subject=CUSTOMER) as conversation:
+        context = conversation.context(include=["constraints"])
+    assert context.text and context.constraints is None and context.degraded
+    assert context.unread_blocks == ["constraints"]
+    assert "could not be read" in context.turn_block or "não puderam ser lidas" in context.turn_block
+
+
+def test_a_read_that_asked_no_block_says_nothing_of_blocks(store: MockApp, niadra: Niadra) -> None:
+    store.cell.agent_features.failing.add("constraints")
+    with niadra.conversation("c-none", subject=CUSTOMER) as conversation:
+        context = conversation.context()
+    assert context.unread_blocks == [] and "<constraints>" not in context.turn_block

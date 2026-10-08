@@ -48,6 +48,8 @@ class Context(ContextResponse):
     error: str | None = None
     elapsed_ms: float | None = None
     age_ms: float | None = None
+    asked_blocks: list[str] = Field(default_factory=list)
+    """The blocks the read asked by `include` (after any the space does not serve)."""
 
     @classmethod
     def empty(cls, *, requested: Verification = Verification.V0, error: str | None = None) -> Context:
@@ -66,6 +68,13 @@ class Context(ContextResponse):
     def is_holdout(self) -> bool:
         """The subject is in a control group. The pack is empty on purpose; this is not an error."""
         return self.path == DeliveryPath.HOLDOUT
+
+    @property
+    def unread_blocks(self) -> list[str]:
+        """Blocks the read asked by `include` that the answer does not carry: the server could not read them
+        this time and said `degraded`. A missing `constraints` block is said in the turn block, never left
+        silent: a model that is not told a restriction may hold would answer as if none did."""
+        return [name for name in self.asked_blocks if getattr(self, name, None) is None]
 
     @property
     def system_block(self) -> str:
@@ -90,7 +99,8 @@ def render_turn(context: ContextResponse) -> str:
     delta. Empty for a holdout."""
     if context.path == DeliveryPath.HOLDOUT:
         return ""
-    included = include_text(context.text, context.state, context.constraints)
+    unread = context.unread_blocks if isinstance(context, Context) else ()
+    included = include_text(context.text, context.state, context.constraints, unread=unread)
     return "\n\n".join(
         part for part in (render_live(context), context.slots or "", included, context.delta or "") if part
     )

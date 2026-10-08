@@ -477,10 +477,12 @@ class MockApp:
 
     def _context(self, body: bytes) -> Response:
         request = ContextRequest.model_validate_json(body)
-        blocks = self.cell.agent_features.blocks_for(list(request.include or ()), request.subject)
+        asked: list[str] = list(request.include or ())
+        blocks = self.cell.agent_features.blocks_for(asked, request.subject)
         response = self.cell.context(request)
         if response.path != "holdout":
-            response = response.model_copy(update=blocks)
+            failed = bool(set(asked) & self.cell.agent_features.failing)
+            response = response.model_copy(update={**blocks, "degraded": response.degraded or failed})
         return _model(response)
 
     def _prefetch(self, body: bytes) -> Response:
