@@ -8498,7 +8498,7 @@
       },
       "PromoteRequest": {
         "additionalProperties": false,
-        "description": "Moves turns from the short tier (every turn, 7 days) to the kept one, by conversation or by id, with\nthe reason: the complaint arrives days after the turn.",
+        "description": "Moves turns from the short tier (every turn) to the kept one, which search reads, by conversation or by\nid, with the reason: the complaint arrives days after the turn.",
         "properties": {
           "conversation_id": {
             "anyOf": [
@@ -9162,10 +9162,17 @@
             "type": "string"
           },
           "expires_at": {
-            "description": "When the turn leaves storage; after it, `replay_expired`.",
-            "format": "date-time",
-            "title": "Expires At",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the turn leaves storage, after which a case is `replay_expired`; null while the space sets no retention for recordings.",
+            "title": "Expires At"
           },
           "history": {
             "items": {
@@ -9242,8 +9249,7 @@
           "mode",
           "record",
           "required_pins",
-          "input",
-          "expires_at"
+          "input"
         ],
         "title": "ReplayCase",
         "type": "object"

@@ -56,6 +56,14 @@ class AgentMemoryBlock(ResponseModel):
     etag: str = ""
     tokens: int = 0
     enabled: bool = True
+    left_out: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Notes the reader may see that this block's size left out: each is kept, and the note search"
+            " reads it."
+        ),
+    )
 
 
 class AgentMemory(AgentMemoryBlock):
@@ -91,8 +99,8 @@ class AgentMemorySearchResponse(ResponseModel):
 
 class CreateAgentNoteRequest(Model):
     kind: AgentNoteKind
-    title: Annotated[str, StringConstraints(min_length=1, max_length=120)]
-    body: Annotated[str, StringConstraints(min_length=1, max_length=2000)]
+    title: Annotated[str, StringConstraints(min_length=1, max_length=300)]
+    body: Annotated[str, StringConstraints(min_length=1, max_length=20000)]
     tags: list[Tag] = Field(default_factory=list, max_length=8)
     evidence: Evidence | None = None
     visibility: AgentNoteVisibility = "source"
@@ -102,9 +110,9 @@ class CreateAgentNoteRequest(Model):
 
 class UpdateAgentNoteRequest(Model):
     kind: AgentNoteKind | None = None
-    title: Annotated[str, StringConstraints(min_length=1, max_length=120)] | None = None
-    body: Annotated[str, StringConstraints(min_length=1, max_length=2000)] | None = None
-    tags: list[Tag] | None = None
+    title: Annotated[str, StringConstraints(min_length=1, max_length=300)] | None = None
+    body: Annotated[str, StringConstraints(min_length=1, max_length=20000)] | None = None
+    tags: list[Tag] | None = Field(default=None, max_length=8)
     visibility: AgentNoteVisibility | None = None
     valid_until: datetime | None = None
 
