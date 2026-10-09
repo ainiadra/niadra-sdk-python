@@ -17,11 +17,12 @@ The rules:
   apart (pool, connect, write, every read), so a budgeted attempt is also bounded as a whole:
   on a worker thread in the sync transport, by cancellation in the async one. Batches of the
   background queue carry no budget and keep httpx's per-phase timeouts.
-- A connection stays open between calls for `KEEPALIVE_S`. When none is likely open (no answer
-  came within that time), a budgeted request gets `cold_allowance` more, for TCP and TLS: a few
-  round trips that a 0.3 s context budget cannot hold from another continent. The requests that
-  start while the first one opens the connection get it too; after that none does until an answer
-  comes, so an outage costs it once. Once a connection is open, budgets are exact. A request with a
+- A connection stays open between calls for `KEEPALIVE_S`, one for each request that was in flight at
+  once. When none is likely left idle for a request (every open one is busy, or none answered within
+  that time), a budgeted request gets `cold_allowance` more, for TCP and TLS: a few round trips that a
+  0.3 s context budget cannot hold from another continent. The requests that start while the first one
+  opens a connection get it too; after that none does until an answer comes, so an outage costs it
+  once. A request that finds an idle connection keeps its budget exact. A request with a
   `ceiling` (a voice read) never grows past it: a voice turn keeps its budget, and a cold connection
   there answers empty in time instead of holding the turn.
 
@@ -250,47 +251,79 @@ def _overrun() -> httpx.TimeoutException:
 
 
 class Warmth:
-    """Whether the next request is likely to find an open connection: an answer came within the time the
-    client keeps an idle one."""
+    """Whether a request is likely to find an open connection: the pool keeps one for each request that was in
+    flight at once, each until `keepalive_s` after its last answer, and a request that starts while every one
+    of them is busy opens another.
+
+    One answer used to stand for every connection: the keep-warm ping kept one open, and when a turn read its
+    context, its notes and its state at once, two of the three opened a connection again from Sao Paulo
+    without the allowance, and the notes' 0.3 s budget ran out (juridico-zero, 09/10/2026, twice, after 4 and
+    10 idle minutes). The server had answered every one of them in under 50 ms."""
 
     def __init__(self, keepalive_s: float, allowance: float) -> None:
         self._keepalive_s = keepalive_s
         self._allowance = allowance
-        self._answered: float | None = None
+        self._lock = threading.Lock()
+        self._open: list[float] = []
+        """When each connection the pool likely keeps last answered, the latest first."""
+        self._in_flight = 0
         self._granted: float | None = None
 
-    def answered(self) -> None:
-        self._answered = time.monotonic()
-        self._granted = None
-
-    def open(self) -> bool:
-        """An answer came within the time the client keeps an idle connection: one is likely open."""
-        answered = self._answered
-        return answered is not None and time.monotonic() - answered <= self._keepalive_s
-
-    def forget(self) -> None:
-        self._answered = None
-        self._granted = None
-
-    def budgeted(self, request: Request) -> Request:
-        """`request` with the allowance for opening a connection, when it has a budget, none is open and the
-        allowance was not already spent since the last answer, past the moment it was first given."""
-        if request.budget is None or self._allowance <= 0:
+    def begin(self, request: Request) -> Request:
+        """A request starts: `request` with the allowance for opening a connection, when it has a budget, no
+        idle connection is likely left for it and the allowance was not already spent since the last answer,
+        past the moment it was first given. Only the requests a caller waits on (a budget) count as holding
+        one: a batch of the background queue held up by a slow API would give every read the allowance.
+        Every `begin` has its `end` with the request it returned."""
+        if request.budget is None:
             return request
-        now = time.monotonic()
-        answered = self._answered
-        if answered is not None and now - answered <= self._keepalive_s:
-            return request
-        if self._granted is None:
-            self._granted = now
-        if now - self._granted > self._allowance:
-            return request
+        with self._lock:
+            busy = self._in_flight
+            self._in_flight += 1
+            if self._allowance <= 0:
+                return request
+            now = time.monotonic()
+            if len(self._live(now)) > busy:
+                return request
+            if self._granted is None:
+                self._granted = now
+            if now - self._granted > self._allowance:
+                return request
         extra = self._allowance
         if request.ceiling is not None:
             extra = min(extra, request.ceiling - request.budget)
         if extra <= 0:
             return request
         return replace(request, budget=request.budget + extra, timeout=request.timeout + extra)
+
+    def end(self, request: Request) -> None:
+        if request.budget is not None:
+            with self._lock:
+                self._in_flight -= 1
+
+    def answered(self) -> None:
+        """An answer came while `_in_flight` requests a caller waits on were out: that many connections, one
+        at least, answered just now."""
+        with self._lock:
+            now = time.monotonic()
+            live = self._live(now)
+            fresh = max(self._in_flight, 1)
+            self._open = [now] * fresh + live[fresh:]
+            self._granted = None
+
+    def open(self) -> bool:
+        """An answer came within the time the client keeps an idle connection: one is likely open."""
+        with self._lock:
+            return bool(self._live(time.monotonic()))
+
+    def forget(self) -> None:
+        with self._lock:
+            self._open = []
+            self._granted = None
+
+    def _live(self, now: float) -> list[float]:
+        self._open = [at for at in self._open if now - at <= self._keepalive_s]
+        return self._open
 
 
 def _headers(api_key: str, request: Request) -> dict[str, str]:
@@ -333,7 +366,13 @@ class SyncTransport:
     def request(self, request: Request) -> Any:
         if request.activity:
             self.last_activity = time.monotonic()
-        request = self._warmth.budgeted(request)
+        request = self._warmth.begin(request)
+        try:
+            return self._attempts(request)
+        finally:
+            self._warmth.end(request)
+
+    def _attempts(self, request: Request) -> Any:
         state = RetryState(request)
         while True:
             timeout = state.attempt_timeout()
@@ -468,7 +507,13 @@ class AsyncTransport:
     async def request(self, request: Request) -> Any:
         if request.activity:
             self.last_activity = time.monotonic()
-        request = self._warmth.budgeted(request)
+        request = self._warmth.begin(request)
+        try:
+            return await self._attempts(request)
+        finally:
+            self._warmth.end(request)
+
+    async def _attempts(self, request: Request) -> Any:
         state = RetryState(request)
         while True:
             timeout = state.attempt_timeout()
