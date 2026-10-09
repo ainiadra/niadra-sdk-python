@@ -35,6 +35,11 @@ FAIL_OPEN = frozenset({"transactional", "service"})
 PAGE = 200
 MAX_PAGES = 50
 """Pages one read takes at most; the next read goes on from its cursor."""
+FIRST_READ_ROUNDS = 2
+"""Round trips the first check waits for, each within its own budget: the salt and the first page, the
+whole list of a space with up to `PAGE` entries. One budget for both ran out from Sao Paulo on a new
+client (09/10/2026: 0.6 s for about 1.1 s of round trips), and every first check of a purpose that fails
+closed answered no, whatever the channel. A longer list goes on in the background."""
 
 
 class SuppressionCopy:
