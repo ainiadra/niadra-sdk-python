@@ -864,9 +864,10 @@ class ClientCore:
         if view:
             params["view"] = view
         headers = {"If-None-Match": etag} if etag else None
-        return Request(
+        request = Request(
             "GET", "/v1/agent-memory/block", params=params, headers=headers, timeout=budget, budget=budget
         )
+        return voiced(request, view == "voice")
 
     def search_agent_memory_http(
         self,
