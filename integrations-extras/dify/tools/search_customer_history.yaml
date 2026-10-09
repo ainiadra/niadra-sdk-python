@@ -9,8 +9,9 @@ description:
   llm: 'Search everything that already happened with this customer: past conversations, promises, agent
     actions, orders and invoices. Use it when the customer refers to something earlier or asks whether
     a problem happened before. Do not call it when the answer is already in the context block, including
-    its ''Do histórico'' line, which already counts recurrences. Returns short items with date, channel
-    and outcome, plus a recurrence count. Open one with open_history_item.'
+    its ''Histórico'' line, which already counts recurrences. Returns short items with date, channel
+    and outcome, plus a recurrence count. Open a conversation (kind `episode`) or an object (kind `object`)
+    by its id with open_history_item; the other items are complete as listed.'
 parameters:
 - name: customer_id_type
   type: select
