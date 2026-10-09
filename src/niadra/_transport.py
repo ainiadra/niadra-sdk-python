@@ -21,7 +21,9 @@ The rules:
   came within that time), a budgeted request gets `cold_allowance` more, for TCP and TLS: a few
   round trips that a 0.3 s context budget cannot hold from another continent. The requests that
   start while the first one opens the connection get it too; after that none does until an answer
-  comes, so an outage costs it once. Once a connection is open, budgets are exact.
+  comes, so an outage costs it once. Once a connection is open, budgets are exact. A request with a
+  `ceiling` (a voice read) never grows past it: a voice turn keeps its budget, and a cold connection
+  there answers empty in time instead of holding the turn.
 
 A route or field the API deprecates answers with `Deprecation` (RFC 9745), `Sunset` (RFC 8594) and a
 `Link` to its migration note. The transport logs one warning per deprecated route per process, with the
@@ -89,6 +91,9 @@ class Request:
     headers: dict[str, str] | None = None
     activity: bool = True
     """False for the SDK's own upkeep (the keep-warm ping): it is not the client's use."""
+    ceiling: float | None = None
+    """The most `budget` may become with the cold-connection allowance; None: no limit. A voice read
+    sets it to its own budget, since the turn waits for it."""
 
 
 @dataclass
@@ -97,6 +102,13 @@ class Decision:
     delay: float = 0.0
     reconnect: bool = False
     error: Exception | None = None
+
+
+def voiced(request: Request, voice: bool) -> Request:
+    """`request` with its budget as its ceiling when a voice turn waits for it (`Request.ceiling`)."""
+    if not voice or request.budget is None:
+        return request
+    return replace(request, ceiling=request.budget)
 
 
 @dataclass
@@ -273,9 +285,12 @@ class Warmth:
             self._granted = now
         if now - self._granted > self._allowance:
             return request
-        return replace(
-            request, budget=request.budget + self._allowance, timeout=request.timeout + self._allowance
-        )
+        extra = self._allowance
+        if request.ceiling is not None:
+            extra = min(extra, request.ceiling - request.budget)
+        if extra <= 0:
+            return request
+        return replace(request, budget=request.budget + extra, timeout=request.timeout + extra)
 
 
 def _headers(api_key: str, request: Request) -> dict[str, str]:

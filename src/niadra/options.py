@@ -56,7 +56,9 @@ class Timeouts:
     prefetch: float = 1.0
     connect: float = 1.0
     """Added once to a budget when no connection to the API is likely open (no answer in the last two
-    minutes): TCP and TLS take a few round trips, 0.3 s or more from another continent. 0 never adds it."""
+    minutes): TCP and TLS take a few round trips, 0.3 s or more from another continent. 0 never adds it.
+    Never to a voice read: the turn waits for it, so it keeps its own budget and answers empty in time; a
+    call's first read made with `begin()` while it rings is where the connection opens."""
 
 
 @dataclass(frozen=True)
