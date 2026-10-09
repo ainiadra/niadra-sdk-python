@@ -20,7 +20,7 @@ from pydantic import BaseModel, ValidationError
 from niadra._cache import ContextCache
 from niadra._ids import new_key
 from niadra._queue import EventBuffer, serialize
-from niadra._transport import Request
+from niadra._transport import Request, voiced
 from niadra._turns import MIN_PREFETCH, BlockSupport, turn_text
 from niadra._voice import budget_warnings, rtt_warnings
 from niadra.errors import APIError, ConfigurationError, NotFoundError
@@ -465,10 +465,12 @@ class ClientCore:
 
     @staticmethod
     def context_http(request: ContextRequest, budget: float, known_etag: str | None) -> Request:
+        """A voice read keeps its budget whatever the connection (`Request.ceiling`)."""
         body = request.model_copy(update={"known_etag": known_etag}).model_dump(
             mode="json", exclude_none=True
         )
-        return Request("POST", "/v1/context", json=body, timeout=budget, budget=budget)
+        ceiling = budget if request.view == "voice" else None
+        return Request("POST", "/v1/context", json=body, timeout=budget, budget=budget, ceiling=ceiling)
 
     def without_blocks(self, request: ContextRequest, error: Exception) -> ContextRequest | None:
         """The read again without its blocks, after a 404 that may be a feature the space left off: nothing
@@ -700,7 +702,7 @@ class ClientCore:
 
     def object_http(self, object: ObjectLike, voice: bool, timeout: float | None) -> Request:
         budget = self.navigation_budget(voice, timeout)
-        return Request("GET", object_path(object), timeout=budget, budget=budget)
+        return voiced(Request("GET", object_path(object), timeout=budget, budget=budget), voice)
 
     def object_timeline_http(
         self, object: ObjectLike, cursor: str | None, limit: int, voice: bool, timeout: float | None
@@ -711,7 +713,10 @@ class ClientCore:
         if cursor:
             params["cursor"] = cursor
         budget = self.navigation_budget(voice, timeout)
-        return Request("GET", object_path(object) + "/timeline", params=params, timeout=budget, budget=budget)
+        request = Request(
+            "GET", object_path(object) + "/timeline", params=params, timeout=budget, budget=budget
+        )
+        return voiced(request, voice)
 
     def feedback_http(self, request: FeedbackRequest) -> Request:
         return Request(

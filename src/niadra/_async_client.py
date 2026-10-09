@@ -33,7 +33,7 @@ from niadra._ids import new_key
 from niadra._outbox import AsyncOutbox
 from niadra._profile import ProfileCache
 from niadra._queue import AsyncFlusher, is_retryable
-from niadra._transport import AsyncTransport
+from niadra._transport import AsyncTransport, voiced
 from niadra._voice import TurnRead, VoiceLine, VoiceLines, compose, words_of
 from niadra._warm import EVERY_S as KEEP_WARM_EVERY_S
 from niadra._warm import KeepWarm, ping_http
@@ -475,6 +475,7 @@ class AsyncNiadra:
                 budget,
                 limit,
             )
+            request = voiced(request, voice)
             return SearchResult.model_validate(await self._transport.request(request))
         except Exception as exc:
             return self._core.fail("search", exc, SearchResult(error=error_code(exc)))
@@ -500,6 +501,7 @@ class AsyncNiadra:
             request = self._core.timeline_http(
                 subject, about, filters, cursor, limit, verification, conversation_id, budget
             )
+            request = voiced(request, voice)
             return TimelinePage.model_validate(await self._transport.request(request))
         except Exception as exc:
             return self._core.fail("timeline", exc, TimelinePage(error=error_code(exc)))
@@ -520,7 +522,9 @@ class AsyncNiadra:
             return None
         try:
             budget = self._read_budget_navigation(voice, timeout)
-            request = self._core.open_http(item_id, verification, conversation_id, subject, budget, about)
+            request = voiced(
+                self._core.open_http(item_id, verification, conversation_id, subject, budget, about), voice
+            )
             return OpenedItem.model_validate(await self._transport.request(request))
         except Exception as exc:
             return self._core.fail("open", exc, None)

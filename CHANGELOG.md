@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.5] - 2026-10-09
+
+### Fixed
+
+- A voice read keeps its turn's budget whatever the connection. The cold-connection allowance
+  (`Timeouts.connect`) took the first voice read of a new client to 1.2 s with a slow memory, past a
+  1 s voice turn; `context(view="voice")`, `search`, `timeline`, `open`, `object_state` and
+  `object_timeline` with `voice=True`, and the first read of a call (`begin`), now never grow past their
+  own budget (`Request.ceiling`). Chat and task reads keep the first-read budget and the allowance.
+
 ## [0.11.4] - 2026-10-08
 
 ### Changed
