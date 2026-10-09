@@ -1027,15 +1027,15 @@ wheels = [
 
 [[package]]
 name = "niadra"
-version = "0.7.0"
+version = "0.11.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b5/83/d5753350a1c1f7715d28b104381b397173dd5c6d9a5f7299bf8628e0998e/niadra-0.7.0.tar.gz", hash = "sha256:06a64f6fdea56bd40a89487cfe3bc7df50e10dd053f589ad7c0c48b8cd34f413", size = 1339733, upload-time = "2026-09-30T02:13:25.305Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/88/68/d4e22da2af846459a8e582abef3c085b20ad072ed80cba2c30b2b4904a55/niadra-0.11.4.tar.gz", hash = "sha256:7163ac854fa5cb4b3be9c01cdeaff1da69070cb8a7b909ae5420edb1cebf6ee1", size = 1412835, upload-time = "2026-10-08T21:30:24.312Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b0/c9/706470bfe2c4493bbf21e02a37495ee79d7a9b4f628520ea2c3e3f9ccea3/niadra-0.7.0-py3-none-any.whl", hash = "sha256:40d91a83dc821f13a72f23b3f123ea1c08823023b3504c13341b1803031fc1c3", size = 469907, upload-time = "2026-09-30T02:13:26.553Z" },
+    { url = "https://files.pythonhosted.org/packages/50/55/fec32593e809d76de765e131770d411ef11f5102ac56ad79b1ac80848c31/niadra-0.11.4-py3-none-any.whl", hash = "sha256:51dc93e85f5bf538f465bf34a6bf125768ab2de856b39fda60e1d73f4e5af35d", size = 489536, upload-time = "2026-10-08T21:30:22.426Z" },
 ]
 
 [[package]]
@@ -1076,7 +1076,7 @@ requires-dist = [
     { name = "en-core-web-sm", marker = "extra == 'mem0'", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" },
     { name = "httpx", specifier = ">=0.27,<1" },
     { name = "mem0ai", extras = ["nlp"], marker = "extra == 'mem0'", specifier = "==2.2.0" },
-    { name = "niadra", specifier = "==0.7.0" },
+    { name = "niadra", specifier = "==0.11.4" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'mem0'", specifier = ">=3.2.8,<4" },
     { name = "psycopg-pool", marker = "extra == 'mem0'", specifier = ">=3.2.6,<4" },
     { name = "pydantic", specifier = ">=2.6,<3" },
