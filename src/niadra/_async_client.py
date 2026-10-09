@@ -43,7 +43,7 @@ from niadra.claims.internal import InternalText
 from niadra.content import ContentResolver
 from niadra.conversation import AsyncConversation, AsyncTask
 from niadra.coordination.client import Coordinator
-from niadra.coordination.suppression import FAIL_OPEN, MAX_PAGES, SuppressionCopy
+from niadra.coordination.suppression import FAIL_OPEN, FIRST_READ_ROUNDS, MAX_PAGES, SuppressionCopy
 from niadra.coordination.token import AsyncContactGateway, SeenTokens
 from niadra.errors import APITimeoutError
 from niadra.models.admin import ContextUseReport, IngestStatus, KeyIdentity, Link, LinkMethod, LinkRequest
@@ -295,7 +295,7 @@ class AsyncNiadra:
             if self._suppressions.held:
                 self._keep_suppressions()
             else:
-                await self._read_suppressions(self._core.navigation_budget(False, None))
+                await self._read_suppressions_first(self._core.navigation_budget(False, None))
         return self._suppressions.may_contact(target, purpose, channel=channel, fail_open=fail_open)
 
     def _keep_suppressions(self) -> None:
@@ -306,17 +306,28 @@ class AsyncNiadra:
         if self._suppressions_task is None or self._suppressions_task.done():
             self._suppressions_task = self._spawn(self._read_suppressions(self._core.timeouts.write))
 
-    async def _read_suppressions(self, budget: float) -> None:
-        copy, deadline = self._suppressions, time.monotonic() + budget
+    async def _read_suppressions_first(self, budget: float) -> None:
+        """The first check's read: `FIRST_READ_ROUNDS` round trips, each within `budget`. A background read
+        under way holds the copy's cursor: the check waits for it as long as for those round trips. Whatever
+        is left goes on in the background."""
+        task = self._suppressions_task
+        if task is not None and not task.done():
+            await asyncio.wait({task}, timeout=budget * FIRST_READ_ROUNDS)
+        else:
+            await self._read_suppressions(budget, FIRST_READ_ROUNDS)
+        if not self._suppressions.held:
+            self._keep_suppressions()
+
+    async def _read_suppressions(self, budget: float, rounds: int = MAX_PAGES) -> None:
+        """Up to `rounds` round trips, each within `budget`: one budget for all of them ran out before the
+        first page on a new client far from the region."""
+        copy = self._suppressions
         try:
-            for _ in range(MAX_PAGES):
-                left = deadline - time.monotonic()
-                if left <= 0:
-                    return
+            for _ in range(rounds):
                 if copy.needs_salt():
-                    copy.take_salt(await self._transport.request(copy.salt_request(left)))
+                    copy.take_salt(await self._transport.request(copy.salt_request(budget)))
                     continue
-                if not copy.apply(await self._transport.request(copy.page_request(left))):
+                if not copy.apply(await self._transport.request(copy.page_request(budget))):
                     return
         except Exception as exc:
             copy.failed(exc)

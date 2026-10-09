@@ -3,9 +3,11 @@ and the contact token checked at the company's gateway."""
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import logging
-from collections.abc import Iterator
+import time
+from collections.abc import Iterator, MutableMapping
 from typing import Any
 
 import httpx
@@ -13,7 +15,7 @@ import pytest
 
 from niadra import AsyncNiadra, Niadra, UnprocessableEntityError, phone
 from niadra.coordination.token import ContactTokenError
-from niadra.options import CacheOptions, TurnOptions
+from niadra.options import CacheOptions, Timeouts, TurnOptions
 from niadra_mock import MOCK_KEY, MockApp
 from niadra_mock.coordinate import SPACE
 
@@ -126,6 +128,66 @@ def test_the_list_is_read_to_a_short_page_which_still_names_the_cursor_to_go_on_
     assert reads == ["limit=200"]
     niadra.close()
     http.close()
+
+
+def _slow_list(app: MockApp, seconds: float) -> Any:
+    """The mock with each read of the suppression list (its salt, each page) taking `seconds`."""
+
+    def wsgi(environ: dict[str, Any], start_response: Any) -> Any:
+        if environ["PATH_INFO"].startswith("/v1/suppressions"):
+            time.sleep(seconds)
+        return app.wsgi(environ, start_response)
+
+    return wsgi
+
+
+def _slow_client(app: MockApp, seconds: float) -> tuple[Niadra, httpx.Client]:
+    http = httpx.Client(transport=httpx.WSGITransport(app=_slow_list(app, seconds)))
+    timeouts = Timeouts(navigation=0.5, connect=0)
+    client = Niadra(MOCK_KEY, base_url="http://mock", channel="whatsapp", http_client=http, timeouts=timeouts)
+    return client, http
+
+
+def test_the_first_check_gives_each_round_trip_of_the_list_its_own_budget(app: MockApp) -> None:
+    # 09/10/2026, from Sao Paulo on a new client: the salt and the first page took about 1.1 s together, past
+    # the one 0.6 s budget of the whole read, and the first check of a purpose that fails closed said no on
+    # every channel, for a customer the list does not name.
+    app.cell.agent_features.suppress(CUSTOMER, "marketing")
+    niadra, http = _slow_client(app, 0.35)
+    assert niadra.may_contact(OTHER, "marketing", channel="voice")
+    assert not niadra.may_contact(CUSTOMER, "marketing", channel="voice")
+    niadra.close()
+    http.close()
+
+
+def test_a_first_check_that_runs_out_leaves_the_read_going_on_in_the_background(app: MockApp) -> None:
+    niadra, http = _slow_client(app, 0.6)
+    assert not niadra.may_contact(OTHER, "marketing")  # no copy yet, and marketing waits
+    deadline = time.monotonic() + 5
+    while not niadra._suppressions.held and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert niadra.may_contact(OTHER, "marketing")
+    niadra.close()
+    http.close()
+
+
+async def test_the_async_first_check_gives_each_round_trip_of_the_list_its_own_budget(app: MockApp) -> None:
+    app.cell.agent_features.suppress(CUSTOMER, "marketing")
+
+    async def asgi(scope: MutableMapping[str, Any], receive: Any, send: Any) -> None:
+        if scope["type"] == "http" and scope["path"].startswith("/v1/suppressions"):
+            await asyncio.sleep(0.35)
+        await app.asgi(scope, receive, send)
+
+    http = httpx.AsyncClient(transport=httpx.ASGITransport(app=asgi))
+    timeouts = Timeouts(navigation=0.5, connect=0)
+    client = AsyncNiadra(
+        MOCK_KEY, base_url="http://mock", channel="whatsapp", http_client=http, timeouts=timeouts
+    )
+    assert await client.may_contact(OTHER, "marketing", channel="voice")
+    assert not await client.may_contact(CUSTOMER, "marketing", channel="voice")
+    await client.close(timeout=1)
+    await http.aclose()
 
 
 def test_a_space_that_does_not_coordinate_holds_nothing_back(app: MockApp, niadra: Niadra) -> None:

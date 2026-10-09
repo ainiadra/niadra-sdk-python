@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `may_contact`'s first check gives each round trip of the suppression list its own budget: the salt and
+  the first page, each within `Timeouts.navigation`. One budget for both ran out on a new client far from
+  the region, and the first check of a purpose that fails closed (`marketing`, `client_contact`) said no on
+  every channel for customers the list does not name. When the first check runs out anyway, the read goes
+  on in the background, so the next check has the copy.
+
 ## [0.11.5] - 2026-10-09
 
 ### Added

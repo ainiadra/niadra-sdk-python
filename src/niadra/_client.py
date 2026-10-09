@@ -49,7 +49,7 @@ from niadra.claims.internal import InternalText
 from niadra.content import ContentResolver
 from niadra.conversation import Conversation, Task
 from niadra.coordination.client import Coordinator
-from niadra.coordination.suppression import FAIL_OPEN, MAX_PAGES, SuppressionCopy
+from niadra.coordination.suppression import FAIL_OPEN, FIRST_READ_ROUNDS, MAX_PAGES, SuppressionCopy
 from niadra.coordination.token import ContactGateway, SeenTokens
 from niadra.errors import APITimeoutError
 from niadra.models.admin import ContextUseReport, IngestStatus, KeyIdentity, Link, LinkMethod, LinkRequest
@@ -327,10 +327,11 @@ class Niadra:
         local copy of the space's suppression list: the opt-out holds with Niadra down, from the last copy
         read. Only messages the agent starts need it; an answer to the customer is never suppressed.
 
-        The copy is read on the first call (within `Timeouts.navigation`) and again in the background once a
-        minute. With no copy and Niadra out of reach, the purpose decides: `transactional` and `service`
-        go, every other purpose waits; `fail_open` overrides that. A space without a list suppresses
-        nothing. Never raises unless `strict`."""
+        The copy is read on the first call, the salt and the first page each within `Timeouts.navigation`,
+        and again in the background once a minute; a list longer than a page goes on in the background.
+        With no copy and Niadra out of reach, the purpose decides: `transactional` and `service` go, every
+        other purpose waits; `fail_open` overrides that. A space without a list suppresses nothing. Never
+        raises unless `strict`."""
         try:
             target = as_handle(handle).model_dump(mode="json")
         except (TypeError, ValueError) as exc:
@@ -341,7 +342,7 @@ class Niadra:
             if self._suppressions.held:
                 self._read_suppressions_later()
             else:
-                self._read_suppressions(self._core.navigation_budget(False, None))
+                self._read_suppressions_first(self._core.navigation_budget(False, None))
         return self._suppressions.may_contact(target, purpose, channel=channel, fail_open=fail_open)
 
     def _keep_suppressions(self) -> None:
@@ -350,33 +351,53 @@ class Niadra:
         if self._core.enabled and self._suppressions.due():
             self._read_suppressions_later()
 
-    def _read_suppressions(self, budget: float) -> None:
-        copy, deadline = self._suppressions, time.monotonic() + budget
+    def _read_suppressions_first(self, budget: float) -> None:
+        """The first check's read: `FIRST_READ_ROUNDS` round trips, each within `budget`, unless a background
+        read already holds the copy's cursor; whatever is left goes on in the background."""
+        if not self._claim_suppressions():
+            return
         try:
-            for _ in range(MAX_PAGES):
-                left = deadline - time.monotonic()
-                if left <= 0:
-                    return
+            self._read_suppressions(budget, FIRST_READ_ROUNDS)
+        finally:
+            self._release_suppressions()
+        if not self._suppressions.held:
+            self._read_suppressions_later()
+
+    def _read_suppressions(self, budget: float, rounds: int = MAX_PAGES) -> None:
+        """Up to `rounds` round trips, each within `budget`: one budget for all of them ran out before the
+        first page on a new client far from the region."""
+        copy = self._suppressions
+        try:
+            for _ in range(rounds):
                 if copy.needs_salt():
-                    copy.take_salt(self._transport.request(copy.salt_request(left)))
+                    copy.take_salt(self._transport.request(copy.salt_request(budget)))
                     continue
-                if not copy.apply(self._transport.request(copy.page_request(left))):
+                if not copy.apply(self._transport.request(copy.page_request(budget))):
                     return
         except Exception as exc:
             copy.failed(exc)
 
-    def _read_suppressions_later(self) -> None:
+    def _claim_suppressions(self) -> bool:
+        """One read of the copy at a time: two would apply pages from the same cursor."""
         with self._suppressions_lock:
             if self._suppressions_reading:
-                return
+                return False
             self._suppressions_reading = True
+            return True
+
+    def _release_suppressions(self) -> None:
+        with self._suppressions_lock:
+            self._suppressions_reading = False
+
+    def _read_suppressions_later(self) -> None:
+        if not self._claim_suppressions():
+            return
 
         def read() -> None:
             try:
                 self._read_suppressions(self._core.timeouts.write)
             finally:
-                with self._suppressions_lock:
-                    self._suppressions_reading = False
+                self._release_suppressions()
 
         threading.Thread(target=read, name="niadra-suppressions", daemon=True).start()
 
