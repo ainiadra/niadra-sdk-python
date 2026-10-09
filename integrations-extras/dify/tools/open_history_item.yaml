@@ -6,8 +6,9 @@ identity:
 description:
   human:
     en_US: Opens one conversation or business object from the customer's history.
-  llm: 'Open one conversation or business object returned by search_customer_history or get_customer_timeline:
-    what was asked, what was promised and by whom, the outcome and what memory came from it. Use it only
+  llm: 'Open one conversation (kind `episode`) or business object (kind `object`) returned by search_customer_history
+    or get_customer_timeline: what was asked, what was promised and by whom, the outcome and what memory
+    came from it. Actions, events, facts and promises are complete as listed and do not open. Use it only
     after a search or timeline pointed to the item.'
 parameters:
 - name: customer_id_type
@@ -69,7 +70,7 @@ parameters:
   human_description:
     en_US: The item's `id`, as search or the timeline listed it.
   form: llm
-  llm_description: The item's `id`, as search or the timeline listed it.
+  llm_description: The item's `id`, as listed.
 extra:
   python:
     source: tools/open_history_item.py
