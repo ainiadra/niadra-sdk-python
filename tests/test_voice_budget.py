@@ -35,8 +35,10 @@ def test_the_allowance_never_takes_a_request_past_its_ceiling() -> None:
     warmth = Warmth(keepalive_s=30.0, allowance=1.0)
     chat = Request("POST", "/v1/context", timeout=0.3, budget=0.3)
     voice = voiced(Request("POST", "/v1/context", timeout=0.2, budget=0.2), True)
-    assert warmth.budgeted(chat).budget == pytest.approx(1.3)
-    assert warmth.budgeted(voice).budget == pytest.approx(0.2)
+    for request, budget in ((chat, 1.3), (voice, 0.2)):
+        began = warmth.begin(request)
+        assert began.budget == pytest.approx(budget)
+        warmth.end(began)
     assert voiced(chat, False).ceiling is None
 
 

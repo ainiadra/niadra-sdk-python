@@ -9,6 +9,7 @@ import pytest
 import respx
 
 from niadra import HistoryFilters, Niadra, Verification, current_session, email, phone
+from niadra.options import QueueOptions, VoiceOptions
 from niadra.tools import BUILTIN_DEFINITIONS
 from tests.conftest import BASE, KEY, batch_ok, context_payload
 
@@ -104,7 +105,7 @@ def test_open_sends_the_bare_id_the_row_listed(respx_mock: respx.MockRouter, cli
     assert item is not None and (item.id, item.kind) == (episode, "episode")
 
 
-def test_navigation_budgets(respx_mock: respx.MockRouter, client: Niadra) -> None:
+def test_navigation_budgets(respx_mock: respx.MockRouter, quiet_queue: QueueOptions) -> None:
     budgets: list[float] = []
 
     def record(request: httpx.Request) -> httpx.Response:
@@ -112,11 +113,14 @@ def test_navigation_budgets(respx_mock: respx.MockRouter, client: Niadra) -> Non
         return httpx.Response(200, json=SEARCH)
 
     respx_mock.post(f"{BASE}/v1/history/search").mock(side_effect=record)
-    client._transport._warmth.answered()  # a connection is open: the budgets are exact
+    # No probe in flight beside the reads: it would hold the one open connection, and a read would open one.
+    client = Niadra(KEY, channel="whatsapp", queue=quiet_queue, strict=True, voice=VoiceOptions(probe=False))
+    client._transport._warmth.answered()  # a connection is open and idle: the budgets are exact
     client._core.rtt = 0.0  # measured, in the region: the defaults apply as they are
     client.search(MARINA, "x")
     client.search(MARINA, "x", voice=True)
     assert budgets == [pytest.approx(0.6, abs=0.01), pytest.approx(0.3, abs=0.01)]
+    client._closed = True
 
 
 def test_timeline_keeps_the_handle_out_of_the_url(respx_mock: respx.MockRouter, client: Niadra) -> None:

@@ -187,30 +187,77 @@ async def test_the_async_transport_gives_the_allowance_once(respx_mock: respx.Mo
     await transport.aclose()
 
 
+def alone(warmth: Warmth, request: Request) -> Request:
+    """`request` as `warmth` budgets it when nothing else is in flight."""
+    budgeted = warmth.begin(request)
+    warmth.end(budgeted)
+    return budgeted
+
+
 def test_the_allowance_comes_back_when_the_connection_was_idle_past_the_keepalive() -> None:
     warmth = Warmth(keepalive_s=0.05, allowance=0.5)
-    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.6)
-    assert warmth.budgeted(read(0.1)).timeout == pytest.approx(0.6)
+    assert alone(warmth, read(0.1)).budget == pytest.approx(0.6)
+    assert alone(warmth, read(0.1)).timeout == pytest.approx(0.6)
     warmth.answered()
-    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.1)
+    assert alone(warmth, read(0.1)).budget == pytest.approx(0.1)
     time.sleep(0.06)
-    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.6), "idle past the keepalive: cold again"
+    assert alone(warmth, read(0.1)).budget == pytest.approx(0.6), "idle past the keepalive: cold again"
     unbudgeted = Request("POST", "/v1/batch", json={}, timeout=5.0)
-    assert warmth.budgeted(unbudgeted) is unbudgeted, "a batch of the background queue keeps its timeouts"
-    assert Warmth(keepalive_s=120, allowance=0).budgeted(read(0.1)).budget == pytest.approx(0.1)
+    assert alone(warmth, unbudgeted) is unbudgeted, "a batch of the background queue keeps its timeouts"
+    assert alone(Warmth(keepalive_s=120, allowance=0), read(0.1)).budget == pytest.approx(0.1)
 
 
 def test_an_outage_spends_the_allowance_once_not_on_every_turn() -> None:
     warmth = Warmth(keepalive_s=120, allowance=0.05)
-    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.15)
-    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.15), "a call of the same moment gets it too"
+    assert alone(warmth, read(0.1)).budget == pytest.approx(0.15)
+    assert alone(warmth, read(0.1)).budget == pytest.approx(0.15), "a call of the same moment gets it too"
     time.sleep(0.06)
-    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.1), (
+    assert alone(warmth, read(0.1)).budget == pytest.approx(0.1), (
         "no answer came: later turns keep the budget"
     )
     warmth.answered()
     warmth.forget()
-    assert warmth.budgeted(read(0.1)).budget == pytest.approx(0.15), "a new connection gets it again"
+    assert alone(warmth, read(0.1)).budget == pytest.approx(0.15), "a new connection gets it again"
+
+
+def test_a_request_that_starts_while_every_open_connection_is_busy_gets_the_allowance() -> None:
+    # juridico-zero, 09/10/2026: the keep-warm ping kept one connection open; a turn read its context, notes
+    # and state at once, two of them opened a connection again from Sao Paulo, and the notes' 0.3 s ran out.
+    warmth = Warmth(keepalive_s=120, allowance=1.0)
+    ping = warmth.begin(read(0.3))
+    warmth.answered()  # the ping: one connection
+    warmth.end(ping)
+    turn = [warmth.begin(read(0.3)) for _ in range(3)]
+    assert [r.budget for r in turn] == pytest.approx([0.3, 1.3, 1.3])
+    for _ in turn:
+        warmth.answered()  # all three were out: three connections answered
+    for r in turn:
+        warmth.end(r)
+    again = [warmth.begin(read(0.3)) for _ in range(3)]
+    assert [r.budget for r in again] == pytest.approx([0.3, 0.3, 0.3]), "the pool keeps the three"
+    for r in again:
+        warmth.end(r)
+
+
+async def test_reads_that_open_connections_beside_a_warm_one_keep_their_answers(
+    respx_mock: respx.MockRouter,
+) -> None:
+    calls = 0
+
+    async def answer(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        n = calls
+        # The first of the turn's reads finds the warm connection; the others open one (TCP and TLS).
+        await asyncio.sleep(0.05 if n in (1, 2) else 0.5)
+        return httpx.Response(200, json={"ok": n})
+
+    respx_mock.post(f"{BASE}/v1/context").mock(side_effect=answer)
+    transport = AsyncTransport(BASE, KEY, cold_allowance=1.0)
+    assert await transport.request(read(0.3)) == {"ok": 1}  # the connection opens and answers
+    answers = await asyncio.gather(*(transport.request(read(0.3)) for _ in range(3)))
+    assert sorted(a["ok"] for a in answers) == [2, 3, 4]
+    await transport.aclose()
 
 
 def test_the_first_context_of_a_cold_client_arrives_and_the_next_keeps_the_budget(

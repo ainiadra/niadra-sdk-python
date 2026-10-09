@@ -8,6 +8,14 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- A read that starts while every open connection is busy gets the cold-connection allowance
+  (`Timeouts.connect`): the transport counts one connection for each request that was in flight at once.
+  One answer used to stand for every connection, so after the keep-warm ping held one open, a turn that read
+  its context, notes and state at once opened two more without the allowance, and from far from the region
+  the notes' 0.3 s budget ran out (`agent_memory` answered empty) while the API answered in under 50 ms.
+
+### Fixed
+
 - `may_contact`'s first check gives each round trip of the suppression list its own budget: the salt and
   the first page, each within `Timeouts.navigation`. One budget for both ran out on a new client far from
   the region, and the first check of a purpose that fails closed (`marketing`, `client_contact`) said no on
