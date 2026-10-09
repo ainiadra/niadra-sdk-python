@@ -99,6 +99,17 @@ async def test_track_outside_a_loop_waits_for_flush(respx_mock: respx.MockRouter
     await client.close()
 
 
+async def test_items_a_207_refuses_are_counted_as_dropped(respx_mock: respx.MockRouter) -> None:
+    errors = [{"index": 1, "code": "unknown_object"}]
+    respx_mock.post(f"{BASE}/v1/batch").respond(207, json={"accepted": 1, "duplicates": 0, "errors": errors})
+    client = AsyncNiadra(KEY, channel="chat", queue=QueueOptions(batch_size=100, interval=3600))
+    client.track({"speaker": {"role": "customer"}, "handles": [MARINA], "content": {"text": "a"}})
+    client.track({"speaker": {"role": "customer"}, "handles": [MARINA], "content": {"text": "b"}})
+    assert await client.flush()
+    assert (client.dropped, client.dropped_by_reason) == (1, {"unknown_object": 1})
+    await client.close()
+
+
 async def test_identify_verify_and_subject_token(respx_mock: respx.MockRouter) -> None:
     batch = respx_mock.post(f"{BASE}/v1/batch").respond(200, json=batch_ok())
     respx_mock.post(f"{BASE}/v1/subject-tokens").respond(
