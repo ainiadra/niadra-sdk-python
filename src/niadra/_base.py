@@ -616,7 +616,10 @@ class ClientCore:
     def enqueue(self, item: ItemLike) -> bool:
         model = as_item(item)
         payload = serialize(model)
-        return payload is not None and self.buffer.put(payload)
+        if payload is None:
+            self.buffer.drop(1, "unserializable")
+            return False
+        return self.buffer.put(payload)
 
     def default_channel(self, channel: str | None) -> str:
         chosen = channel or self.channel

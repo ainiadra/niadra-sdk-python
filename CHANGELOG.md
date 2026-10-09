@@ -8,7 +8,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [0.11.5] - 2026-10-09
 
+### Added
+
+- `dropped_by_reason` splits `dropped` by why each item will never reach memory: `queue_full`,
+  `unserializable`, or the code the API refused it with (`unknown_object`, say).
+
 ### Fixed
+
+- `dropped` counts the items the API refused one by one inside a 207, not only a whole batch it refused,
+  and the items that cannot be serialized, as it always said. A refused heartbeat is not an item.
 
 - A voice read keeps its turn's budget whatever the connection. The cold-connection allowance
   (`Timeouts.connect`) took the first voice read of a new client to 1.2 s with a slow memory, past a

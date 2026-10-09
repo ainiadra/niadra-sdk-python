@@ -3,7 +3,9 @@
 Items are serialized when they are queued, so a value that cannot become JSON is dropped
 right away, with a log line, instead of poisoning a batch later. A batch that fails with a
 retryable error after the transport's attempts goes back to the front of the queue and the
-flusher pauses; a batch rejected with any other 4xx is dropped.
+flusher pauses; a batch rejected with any other 4xx is dropped. Every item that will never reach
+memory is counted in `dropped`, by reason: `queue_full`, `unserializable`, or the code the API
+refused it with, for the whole batch or for the item alone in a 207 (`unknown_object`, say).
 
 One batch is in flight per client at a time. The background sender and `flush()` take the
 same send lock, so a flush waits for the batch already in flight and then sends the rest in
@@ -57,6 +59,10 @@ def is_retryable(error: Exception) -> bool:
     return isinstance(error, (APIConnectionError, ServerError, RateLimitError, WrongCellError))
 
 
+def is_heartbeat(payload: Payload) -> bool:
+    return payload.get("type") == "heartbeat"
+
+
 def is_turn(payload: Payload) -> bool:
     """A message of a conversation: what the other agents read in `live` while it goes on."""
     return (
@@ -80,11 +86,26 @@ class EventBuffer:
         self._first_at: float | None = None
         self._first_turn_at: float | None = None
         self.dropped = 0
+        self._dropped_by_reason: dict[str, int] = {}
+
+    def drop(self, count: int, reason: str) -> None:
+        """Counts `count` items that will never reach memory, under `reason`."""
+        with self._lock:
+            self._drop(count, reason)
+
+    def dropped_by_reason(self) -> dict[str, int]:
+        with self._lock:
+            return dict(self._dropped_by_reason)
+
+    def _drop(self, count: int, reason: str) -> None:
+        if count > 0:
+            self.dropped += count
+            self._dropped_by_reason[reason] = self._dropped_by_reason.get(reason, 0) + count
 
     def put(self, payload: Payload) -> bool:
         with self._lock:
             if len(self._items) >= self._options.capacity:
-                self.dropped += 1
+                self._drop(1, "queue_full")
                 if self.dropped == 1 or self.dropped % 1000 == 0:
                     logger.warning("niadra: event queue full, %d events dropped so far", self.dropped)
                 return False
@@ -101,7 +122,7 @@ class EventBuffer:
         with self._lock:
             room = self._options.capacity - len(self._items)
             keep = payloads[: max(room, 0)]
-            self.dropped += len(payloads) - len(keep)
+            self._drop(len(payloads) - len(keep), "queue_full")
             self._items.extendleft(reversed(keep))
             now = time.monotonic()
             if self._items and self._first_at is None:
@@ -178,14 +199,20 @@ class Heartbeat:
         return item.model_dump(mode="json")
 
 
-def _report(response: Any, size: int) -> None:
+def _report(buffer: EventBuffer, response: Any, batch: list[Payload]) -> None:
+    """Counts the items a 207 refused one by one as dropped, by the code the API gave each."""
     try:
         result = BatchResponse.model_validate(response)
     except ValueError:
         return
     if result.errors:
+        for error in result.errors:
+            if not (0 <= error.index < len(batch) and is_heartbeat(batch[error.index])):
+                buffer.drop(1, error.code)
         codes = sorted({error.code for error in result.errors})
-        logger.warning("niadra: %d of %d events rejected (%s)", len(result.errors), size, ", ".join(codes))
+        logger.warning(
+            "niadra: %d of %d events rejected (%s)", len(result.errors), len(batch), ", ".join(codes)
+        )
 
 
 class _Pacing:
@@ -238,8 +265,8 @@ def _settle(buffer: EventBuffer, batch: list[Payload], error: Exception, pacing:
             "niadra: could not deliver %d events, will retry (%s)", len(batch), type(error).__name__
         )
     else:
-        buffer.dropped += len(batch)
         code = getattr(error, "code", type(error).__name__)
+        buffer.drop(sum(1 for payload in batch if not is_heartbeat(payload)), code)
         logger.warning("niadra: dropped %d events rejected by the API (%s)", len(batch), code)
 
 
@@ -340,7 +367,7 @@ class SyncFlusher:
             return False
         self._pacing.succeeded()
         self._heartbeat.count(len(batch))
-        _report(response, len(batch))
+        _report(self._buffer, response, batch)
         return True
 
 
@@ -504,5 +531,5 @@ class AsyncFlusher:
             return False
         self._pacing.succeeded()
         self._heartbeat.count(len(batch))
-        _report(response, len(batch))
+        _report(self._buffer, response, batch)
         return True

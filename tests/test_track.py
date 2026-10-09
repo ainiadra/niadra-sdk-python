@@ -174,6 +174,7 @@ def test_client_errors_drop_the_batch_without_retry(respx_mock: respx.MockRouter
     assert route.call_count == 1
     assert lenient.pending == 0
     assert lenient.dropped == 1
+    assert lenient.dropped_by_reason == {"invalid_input": 1}
 
 
 def test_item_errors_in_a_207_are_logged_by_code(
@@ -189,6 +190,47 @@ def test_item_errors_in_a_207_are_logged_by_code(
     assert "secret text" not in niadra_logs.text
 
 
+def test_items_a_207_refuses_are_counted_as_dropped_by_code(
+    respx_mock: respx.MockRouter, lenient: Niadra
+) -> None:
+    respx_mock.post(URL).respond(
+        207,
+        json={
+            "accepted": 1,
+            "duplicates": 0,
+            "errors": [
+                {"index": 0, "code": "unknown_object", "detail": "no such object"},
+                {"index": 2, "code": "invalid_item"},
+            ],
+        },
+    )
+    for text in ("a", "b", "c"):
+        lenient.track(message(text))
+    assert lenient.flush()
+    assert lenient.dropped == 2
+    assert lenient.dropped_by_reason == {"unknown_object": 1, "invalid_item": 1}
+
+
+def test_a_refused_heartbeat_is_not_a_dropped_item(respx_mock: respx.MockRouter) -> None:
+    respx_mock.post(URL).mock(
+        side_effect=[
+            httpx.Response(200, json=batch_ok()),
+            httpx.Response(
+                207, json={"accepted": 1, "duplicates": 0, "errors": [{"index": 1, "code": "invalid_item"}]}
+            ),
+        ]
+    )
+    niadra = Niadra(
+        KEY, channel="chat", queue=QueueOptions(batch_size=100, interval=3600, heartbeat_interval=0)
+    )
+    niadra._closed = True
+    niadra.track(message("1"))
+    niadra.flush()
+    niadra.track(message("2"))
+    niadra.flush()
+    assert (niadra.dropped, niadra.dropped_by_reason) == (0, {})
+
+
 def test_unserializable_events_are_dropped_with_a_log(
     respx_mock: respx.MockRouter, lenient: Niadra, niadra_logs: pytest.LogCaptureFixture
 ) -> None:
@@ -196,6 +238,7 @@ def test_unserializable_events_are_dropped_with_a_log(
     assert not lenient.track(message(fields={"handle": threading.Lock()}))
     assert lenient.pending == 0
     assert "cannot be serialized" in niadra_logs.text
+    assert lenient.dropped_by_reason == {"unserializable": 1}
 
 
 def test_invalid_events_are_dropped_without_echoing_values(
@@ -213,6 +256,7 @@ def test_the_queue_is_bounded(respx_mock: respx.MockRouter) -> None:
     assert niadra.track(message("2"))
     assert not niadra.track(message("3"))
     assert (niadra.pending, niadra.dropped) == (2, 1)
+    assert niadra.dropped_by_reason == {"queue_full": 1}
 
 
 def test_close_flushes_what_is_queued(respx_mock: respx.MockRouter) -> None:

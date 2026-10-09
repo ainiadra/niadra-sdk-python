@@ -1139,8 +1139,14 @@ class AsyncNiadra:
 
     @property
     def dropped(self) -> int:
-        """Items dropped so far: queue full, rejected by the API, or unserializable."""
+        """Items dropped so far: queue full, unserializable, or refused by the API, the whole batch
+        or the item alone in a 207 (`unknown_object`, say)."""
         return self._core.buffer.dropped
+
+    @property
+    def dropped_by_reason(self) -> dict[str, int]:
+        """`dropped` by reason: `queue_full`, `unserializable`, or the code the API refused the item with."""
+        return self._core.buffer.dropped_by_reason()
 
     async def _fetch_context(self, request: ContextRequest, budget: float, known_etag: str | None) -> Context:
         started = time.monotonic()
