@@ -24,6 +24,8 @@ def slow(seconds: float) -> httpx.MockTransport:
         await asyncio.sleep(seconds)
         if request.url.path == "/healthz":
             return httpx.Response(200, json={"status": "ok"})
+        if request.url.path == "/v1/agent-memory/block":
+            return httpx.Response(200, json={"enabled": True, "text": ""})
         return httpx.Response(200, json={"system_block": "Marina prefere WhatsApp.", "turn_block": None})
 
     return httpx.MockTransport(handle)
@@ -64,6 +66,20 @@ async def test_a_voice_search_of_a_new_client_answers_within_the_voice_budget_wh
         await http.aclose()
     assert result.error is not None
     assert elapsed < 0.6, f"{elapsed:.3f} s: a voice search keeps `navigation_voice`"
+
+
+async def test_a_voice_agent_memory_read_of_a_new_client_answers_within_the_voice_budget() -> None:
+    http = httpx.AsyncClient(transport=slow(2.0))
+    niadra = AsyncNiadra(KEY, queue=QUIET, http_client=http)
+    try:
+        started = time.perf_counter()
+        block = await niadra.agent_memory(view="voice")
+        elapsed = time.perf_counter() - started
+    finally:
+        await niadra.close(timeout=0)
+        await http.aclose()
+    assert block.error is not None
+    assert elapsed < 0.5, f"{elapsed:.3f} s: the voice view keeps `context_voice`"
 
 
 async def test_a_chat_read_of_a_new_client_still_gets_the_first_read_and_connection_allowances() -> None:
