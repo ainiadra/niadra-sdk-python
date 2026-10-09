@@ -26,8 +26,9 @@ PIP_AUDIT_FLAGS = ("--no-deps", "--disable-pip", "--progress-spinner", "off", "-
 
 _CREWAI = "crewai 1.15 (the crewai extra, tested in CI only) pins it, and no fixed release exists"
 _WERKZEUG = (
-    "semantic-kernel 1.44.1, the latest, caps openapi-core below 0.20, which caps werkzeug below 3.1.2; "
-    "low severity (safe_join and Windows device names), test-only through the semantic-kernel extra"
+    "semantic-kernel 1.45.0, the latest, caps openapi-core below 0.20, whose last release caps werkzeug "
+    "below 3.1.2; low severity (safe_join and Windows device names), test-only through the semantic-kernel "
+    "extra"
 )
 IGNORED: dict[str, tuple[date, str]] = {
     "GHSA-f4j7-r4q5-qw2c": (date(2026, 10, 30), f"chromadb: {_CREWAI}"),
@@ -45,6 +46,7 @@ IGNORED: dict[str, tuple[date, str]] = {
     "GHSA-87hc-h4r5-73f7": (date(2026, 10, 30), _WERKZEUG),
     "GHSA-hgf8-39gv-g3f2": (date(2026, 10, 30), _WERKZEUG),
     "GHSA-29vq-49wr-vm6x": (date(2026, 10, 30), _WERKZEUG),
+    "GHSA-g6x2-hccm-hh4m": (date(2026, 10, 30), _WERKZEUG),
 }
 """Advisory id (or any of its aliases) -> (last day it is ignored, why it cannot be fixed yet)."""
 
