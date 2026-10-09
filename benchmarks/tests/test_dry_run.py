@@ -53,7 +53,9 @@ async def test_a_dry_run_against_niadra_mock_writes_a_complete_summary(
     assert privacy["leaks"]["median"] == 0  # the mock withholds the V2 session from a V0 read
     resilience = {r["fault"]: r for r in summary["metrics"]["resilience"]["results"]}
     assert resilience["delay_2000ms"]["raised_rate"]["median"] == 0.0
+    # Since SDK 0.11.5 a voice read keeps its turn's budget even on a cold connection.
     assert resilience["delay_2000ms"]["within_budget_rate"]["median"] == 1.0
+    assert resilience["delay_2000ms"]["memory_stage_p50_ms"]["median"] < 1000
     navigation = {r["operation"]: r for r in summary["metrics"]["history"]["results"]}
     assert set(navigation) == {"search", "open"}
     assert all(r["errors"] == 0 and r["sent"] > 0 and "skipped" not in r for r in navigation.values())
