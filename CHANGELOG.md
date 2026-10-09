@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.6] - 2026-10-09
+
 ### Fixed
 
 - A read that starts while every open connection is busy gets the cold-connection allowance
@@ -13,8 +15,6 @@ All notable changes to this project are documented here. The format follows
   One answer used to stand for every connection, so after the keep-warm ping held one open, a turn that read
   its context, notes and state at once opened two more without the allowance, and from far from the region
   the notes' 0.3 s budget ran out (`agent_memory` answered empty) while the API answered in under 50 ms.
-
-### Fixed
 
 - `may_contact`'s first check gives each round trip of the suppression list its own budget: the salt and
   the first page, each within `Timeouts.navigation`. One budget for both ran out on a new client far from
