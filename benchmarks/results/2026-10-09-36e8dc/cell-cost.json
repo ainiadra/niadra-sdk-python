@@ -1,0 +1,59 @@
+{
+  "what": "Niadra's own model spend for this run, measured on the cell (its extraction runs and its spend ledger), which the harness cannot see: Niadra's extraction runs in the cell, not through a harness gateway (on this temporary cell, on the benchmark's OpenRouter key). The same method the harness uses for an added system's models_only line: model spend from seeding until settled, over the exchanges written, times 10 exchanges, times 1,000 conversations.",
+  "window_utc": {
+    "from": "2026-10-09T20:24:53Z",
+    "to": "2026-10-09T20:49:33Z",
+    "note": "seeding start until settled (seeding ended 2026-10-09T20:48:02Z, settle 91.0 s)"
+  },
+  "exchanges_written": 2400,
+  "exchanges_per_conversation": 10,
+  "models_only": {
+    "source": "the cell's extraction_runs rows in the window",
+    "model": "openai/gpt-6-luna",
+    "runs": 1063,
+    "runs_without_a_model_call": 1253,
+    "tokens": {
+      "input": 1920108,
+      "cached_input": 1775634,
+      "output": 140790
+    },
+    "prices_usd_per_million": {
+      "input": 0.1,
+      "output": 0.5,
+      "cached_input": 0.01,
+      "source": "config/benchmark.toml, the prices every added system's models_only line uses"
+    },
+    "usd": 0.1026
+  },
+  "cell_ledger": {
+    "source": "the cell's own spend ledger, every purpose, snapshots 2026-10-09T20:11:04Z and 2026-10-09T20:51:29Z",
+    "usd": 0.1632,
+    "by_purpose_usd": {
+      "extraction": 0.1632
+    }
+  },
+  "until_drained": {
+    "from": "2026-10-09T20:24:18Z",
+    "to": "2026-10-09T21:15:59Z",
+    "ledger_usd": 0.2479,
+    "note": "from the run's start until the cell was drained (no queued work, nothing due, no open session left to close, no extraction for 5 minutes); includes the timed loops' own writes, not part of the method"
+  },
+  "repetitions": {
+    "1": [
+      {
+        "system": "niadra",
+        "variant": "models_only",
+        "memory_usd_per_1000": 0.4275,
+        "agent_prompt_usd_per_1000": 0.093,
+        "basis": "Niadra's extraction tokens (GPT-6 Luna) read from the cell over the run's window, at the harness's prices: the method of every added system's models_only line"
+      },
+      {
+        "system": "niadra",
+        "variant": "cell_ledger",
+        "memory_usd_per_1000": 0.68,
+        "agent_prompt_usd_per_1000": 0.093,
+        "basis": "the cell's own spend ledger over the run's window, every purpose (it books one purpose, extraction, which carries the decision model's calls too)"
+      }
+    ]
+  }
+}
