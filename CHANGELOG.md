@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.7] - 2026-10-10
+
 ### Added
 
 - `may_contact(..., at=...)` honors a person's own contact hours (`spec/suppression-list.md`, 6.4): a
