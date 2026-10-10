@@ -260,8 +260,11 @@ class Warmth:
     without the allowance, and the notes' 0.3 s budget ran out (juridico-zero, 09/10/2026, twice, after 4 and
     10 idle minutes). The server had answered every one of them in under 50 ms."""
 
-    def __init__(self, keepalive_s: float, allowance: float) -> None:
+    def __init__(
+        self, keepalive_s: float, allowance: float, clock: Callable[[], float] = time.monotonic
+    ) -> None:
         self._keepalive_s = keepalive_s
+        self._clock = clock
         self._allowance = allowance
         self._lock = threading.Lock()
         self._open: list[float] = []
@@ -282,7 +285,7 @@ class Warmth:
             self._in_flight += 1
             if self._allowance <= 0:
                 return request
-            now = time.monotonic()
+            now = self._clock()
             if len(self._live(now)) > busy:
                 return request
             if self._granted is None:
@@ -305,7 +308,7 @@ class Warmth:
         """An answer came while `_in_flight` requests a caller waits on were out: that many connections, one
         at least, answered just now."""
         with self._lock:
-            now = time.monotonic()
+            now = self._clock()
             live = self._live(now)
             fresh = max(self._in_flight, 1)
             self._open = [now] * fresh + live[fresh:]
@@ -314,7 +317,7 @@ class Warmth:
     def open(self) -> bool:
         """An answer came within the time the client keeps an idle connection: one is likely open."""
         with self._lock:
-            return bool(self._live(time.monotonic()))
+            return bool(self._live(self._clock()))
 
     def forget(self) -> None:
         with self._lock:
