@@ -21,7 +21,7 @@ What stands in for the cloud, the same on both sides of an A/B:
 
 The process environment picks the variant, as the read deployment's would:
 - `NIADRA_SEMANTIC_CHANNEL` off/models: `models` gives the read path the query encoder, here the hash
-  encoder above (`inprocess` needs the model files and is refused);
+  encoder above;
 - `NIADRA_SEMANTIC_DEADLINE_MS`: the semantic channel's deadline;
 - `NIADRA_BENCH_GUARD_TYPES` (comma list of value types, e.g. `amount,date,protocol`; empty by default):
   every customer's cell starts with one contradiction of each type measured today in
@@ -592,9 +592,7 @@ def build(
 ) -> tuple[Any, dict[str, Any]]:
     semantic = _flag("NIADRA_SEMANTIC_CHANNEL", "off")
     if semantic not in ("off", "models"):
-        raise SystemExit(
-            f"NIADRA_SEMANTIC_CHANNEL={semantic}: the local cell runs `off` or `models` (no model files here)"
-        )
+        raise SystemExit(f"NIADRA_SEMANTIC_CHANNEL={semantic}: the setting is `off` or `models`")
     deadline_ms = float(os.environ.get("NIADRA_SEMANTIC_DEADLINE_MS", "30"))
     config = StaticConfig(space_config(operations))
     clock = FixedClock(now)

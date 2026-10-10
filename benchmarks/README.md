@@ -791,8 +791,8 @@ Where the two sides run:
   each transaction; a cell per customer keeps a side of dataset v2 at about five minutes a repetition on
   a laptop). What a space learns across customers (the nightly retrieval weights) does not run here. The
   agent is `context` unless `--agent llm` (which needs `OPENROUTER_API_KEY`).
-  `NIADRA_SEMANTIC_CHANNEL=models` gives the read path the hash encoder; `inprocess` needs the model
-  files and is refused. Results go to `results/local/ab/`, which is not committed. These numbers compare
+  `NIADRA_SEMANTIC_CHANNEL=models` gives the read path the hash encoder. Results go to
+  `results/local/ab/`, which is not committed. These numbers compare
   two settings of the same code: they are never published, and no absolute figure of a local cell says
   what the region would measure. The customers' tag comes from `--now`, not from the A/B's id (every A/B
   starts fresh cells), so two A/Bs with the same `--now` seed the same customers.
