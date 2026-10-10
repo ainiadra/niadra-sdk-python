@@ -307,16 +307,19 @@ class AsyncNiadra:
             self._suppressions_task = self._spawn(self._read_suppressions(self._core.timeouts.write))
 
     async def _read_suppressions_first(self, budget: float) -> None:
-        """The first check's read: `FIRST_READ_ROUNDS` round trips, each within `budget`. A background read
-        under way holds the copy's cursor: the check waits for it as long as for those round trips. Whatever
-        is left goes on in the background."""
+        """The first check's read: `FIRST_READ_ROUNDS` round trips, each within `budget`, then the rest in
+        the background. One read holds the copy's cursor: a check that finds one under way (another check's,
+        or the background one) waits for it as long as for those round trips, and concurrent first checks
+        share one read instead of reading the list once each from the same cursor."""
         task = self._suppressions_task
-        if task is not None and not task.done():
-            await asyncio.wait({task}, timeout=budget * FIRST_READ_ROUNDS)
-        else:
-            await self._read_suppressions(budget, FIRST_READ_ROUNDS)
-        if not self._suppressions.held:
-            self._keep_suppressions()
+        if task is None or task.done():
+            task = self._suppressions_task = self._spawn(self._read_suppressions_then_rest(budget))
+        await asyncio.wait({task}, timeout=budget * FIRST_READ_ROUNDS)
+
+    async def _read_suppressions_then_rest(self, budget: float) -> None:
+        await self._read_suppressions(budget, FIRST_READ_ROUNDS)
+        if not self._suppressions.held and self._core.enabled:
+            await self._read_suppressions(self._core.timeouts.write)
 
     async def _read_suppressions(self, budget: float, rounds: int = MAX_PAGES) -> None:
         """Up to `rounds` round trips, each within `budget`: one budget for all of them ran out before the

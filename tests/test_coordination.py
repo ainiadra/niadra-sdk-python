@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import logging
+import threading
 import time
 from collections.abc import Iterator, MutableMapping
 from typing import Any
@@ -186,6 +187,74 @@ async def test_the_async_first_check_gives_each_round_trip_of_the_list_its_own_b
     )
     assert await client.may_contact(OTHER, "marketing", channel="voice")
     assert not await client.may_contact(CUSTOMER, "marketing", channel="voice")
+    await client.close(timeout=1)
+    await http.aclose()
+
+
+def test_a_first_check_beside_a_read_under_way_waits_for_it(app: MockApp) -> None:
+    # A first check that found the copy being read by another (a concurrent first check, or the background
+    # read an earlier check left) answered at once with no copy: a purpose that fails closed said no for a
+    # customer the list does not name, the bug the round trips' own budgets fixed for one check alone.
+    reading = threading.Event()
+
+    def wsgi(environ: dict[str, Any], start_response: Any) -> Any:
+        if environ["PATH_INFO"].startswith("/v1/suppressions"):
+            reading.set()
+            time.sleep(0.15)
+        return app.wsgi(environ, start_response)
+
+    http = httpx.Client(transport=httpx.WSGITransport(app=wsgi))
+    timeouts = Timeouts(navigation=0.5, connect=0)
+    niadra = Niadra(MOCK_KEY, base_url="http://mock", channel="whatsapp", http_client=http, timeouts=timeouts)
+    first: list[bool] = []
+    other = threading.Thread(target=lambda: first.append(niadra.may_contact(OTHER, "marketing")))
+    other.start()
+    assert reading.wait(5)
+    assert niadra.may_contact(OTHER, "marketing"), "the second check waits for the first one's read"
+    other.join(5)
+    assert first == [True]
+    niadra.close()
+    http.close()
+
+
+def test_a_first_check_waits_for_a_read_under_way_no_longer_than_its_own_round_trips(app: MockApp) -> None:
+    gate = threading.Event()
+
+    def wsgi(environ: dict[str, Any], start_response: Any) -> Any:
+        if environ["PATH_INFO"].startswith("/v1/suppressions"):
+            gate.wait(5)
+        return app.wsgi(environ, start_response)
+
+    http = httpx.Client(transport=httpx.WSGITransport(app=wsgi))
+    timeouts = Timeouts(navigation=0.1, connect=0, write=5)
+    niadra = Niadra(MOCK_KEY, base_url="http://mock", channel="whatsapp", http_client=http, timeouts=timeouts)
+    niadra._read_suppressions_later()  # a background read holds the copy's cursor
+    started = time.monotonic()
+    assert not niadra.may_contact(OTHER, "marketing")  # no copy yet, and marketing waits
+    assert time.monotonic() - started < 1.0, "two round trips of 0.1 s, never the background read's 5 s"
+    gate.set()
+    niadra.close()
+    http.close()
+
+
+async def test_concurrent_async_first_checks_share_one_read_of_the_list(app: MockApp) -> None:
+    salts = 0
+
+    async def asgi(scope: MutableMapping[str, Any], receive: Any, send: Any) -> None:
+        nonlocal salts
+        if scope["type"] == "http" and scope["path"] == "/v1/suppressions/salt":
+            salts += 1
+            await asyncio.sleep(0.1)
+        await app.asgi(scope, receive, send)
+
+    http = httpx.AsyncClient(transport=httpx.ASGITransport(app=asgi))
+    timeouts = Timeouts(navigation=0.5, connect=0)
+    client = AsyncNiadra(
+        MOCK_KEY, base_url="http://mock", channel="whatsapp", http_client=http, timeouts=timeouts
+    )
+    answers = await asyncio.gather(*(client.may_contact(OTHER, "marketing") for _ in range(3)))
+    assert answers == [True, True, True]
+    assert salts == 1, "one read from the copy's cursor, never one per check"
     await client.close(timeout=1)
     await http.aclose()
 

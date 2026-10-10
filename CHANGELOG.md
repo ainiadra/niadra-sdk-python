@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A first `may_contact` that finds the suppression list being read (another first check, or the background
+  read an earlier check left) waits for that read as long as for its own two round trips. The sync client
+  answered at once with no copy, so a purpose that fails closed said no for a customer the list does not
+  name; concurrent first checks of the async client read the list once each from the same cursor, and now
+  share one read.
+
 ## [0.11.6] - 2026-10-09
 
 ### Fixed
