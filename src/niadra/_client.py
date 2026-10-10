@@ -172,6 +172,9 @@ class Niadra:
         self._suppressions = SuppressionCopy()
         self._suppressions_lock = threading.Lock()
         self._suppressions_reading = False
+        self._suppressions_idle = threading.Event()
+        """Set while no read holds the copy's cursor: a first check waits on it for a read under way."""
+        self._suppressions_idle.set()
         self._outbox = SyncOutbox(self._transport.request)
         self._coordination = Coordinator(self._outbox, self._suppressions)
         self._agent_states = AgentStates(self._outbox)
@@ -327,8 +330,9 @@ class Niadra:
         local copy of the space's suppression list: the opt-out holds with Niadra down, from the last copy
         read. Only messages the agent starts need it; an answer to the customer is never suppressed.
 
-        The copy is read on the first call, the salt and the first page each within `Timeouts.navigation`,
-        and again in the background once a minute; a list longer than a page goes on in the background.
+        The copy is read on the first call, the salt and the first page each within `Timeouts.navigation` (a
+        call that finds a read under way waits for it as long), and again in the background once a minute; a
+        list longer than a page goes on in the background.
         With no copy and Niadra out of reach, the purpose decides: `transactional` and `service` go, every
         other purpose waits; `fail_open` overrides that. A space without a list suppresses nothing. Never
         raises unless `strict`."""
@@ -352,14 +356,17 @@ class Niadra:
             self._read_suppressions_later()
 
     def _read_suppressions_first(self, budget: float) -> None:
-        """The first check's read: `FIRST_READ_ROUNDS` round trips, each within `budget`, unless a background
-        read already holds the copy's cursor; whatever is left goes on in the background."""
-        if not self._claim_suppressions():
-            return
-        try:
-            self._read_suppressions(budget, FIRST_READ_ROUNDS)
-        finally:
-            self._release_suppressions()
+        """The first check's read: `FIRST_READ_ROUNDS` round trips, each within `budget`; the rest goes on in
+        the background. A check that finds a read under way (another check's, or the background one) waits
+        for it as long as for those round trips: it answered at once with no copy, and a purpose that fails
+        closed said no for a customer the list does not name."""
+        if self._claim_suppressions():
+            try:
+                self._read_suppressions(budget, FIRST_READ_ROUNDS)
+            finally:
+                self._release_suppressions()
+        else:
+            self._suppressions_idle.wait(budget * FIRST_READ_ROUNDS)
         if not self._suppressions.held:
             self._read_suppressions_later()
 
@@ -383,11 +390,13 @@ class Niadra:
             if self._suppressions_reading:
                 return False
             self._suppressions_reading = True
+            self._suppressions_idle.clear()
             return True
 
     def _release_suppressions(self) -> None:
         with self._suppressions_lock:
             self._suppressions_reading = False
+            self._suppressions_idle.set()
 
     def _read_suppressions_later(self) -> None:
         if not self._claim_suppressions():
