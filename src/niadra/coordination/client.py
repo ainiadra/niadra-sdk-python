@@ -34,13 +34,14 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
 
 from niadra._ids import new_key
 from niadra._outbox import Outbox, Write
 from niadra._transport import Request
-from niadra.coordination.suppression import SuppressionCopy
+from niadra.coordination.suppression import Blocking, SuppressionCopy
 from niadra.errors import APIError, NotFoundError
 from niadra.models.common import Handle
 from niadra.models.coordination import CheckRequest, CheckResult, ClaimRequest, OwnershipClaim
@@ -106,14 +107,23 @@ def fallback(
     suppressed: bool = False,
     fail_open: bool | None = None,
     reason: str = "unavailable",
+    window_until: datetime | None = None,
 ) -> CheckResult:
     """The decision when Niadra did not answer in time, by the purpose's direction. Nothing is reserved and
-    no token is issued."""
+    no token is issued. A contact inside the subject's own contact window waits until it ends."""
     decision: Literal["allow", "defer", "deny"]
     if direction == "inbound":
         decision, reasons = "allow", ["unchecked"]
     elif suppressed:
         decision, reasons = "deny", ["suppressed"]
+    elif window_until is not None:
+        return CheckResult(
+            decision="defer",
+            decision_id=uuid4(),
+            reasons=["contact_window"],
+            contact_window_until=window_until,
+            valid_for_s=0,
+        )
     elif effect_key is not None:
         decision, reasons = "defer", [reason]
     elif fail_open if fail_open is not None else purpose not in FAIL_CLOSED:
@@ -140,13 +150,14 @@ class Coordinator:
         self.outbox = outbox
         self.suppressions = suppressions
 
-    def suppressed(self, request: CheckRequest) -> bool:
+    def blocking(self, request: CheckRequest) -> Blocking:
+        """What the local copy says of the check's contact now: nothing for an inbound message, or without a
+        subject or a copy."""
         if request.subject is None or request.direction == "inbound":
-            return False
+            return Blocking()
         target = request.subject.model_dump(mode="json")
-        return not self.suppressions.may_contact(
-            target, request.purpose, channel=request.channel, fail_open=True
-        )
+        found = self.suppressions.blocking(target, request.purpose, channel=request.channel)
+        return found if found is not None else Blocking()
 
     def check_http(self, request: CheckRequest, budget: float) -> Request:
         body = request.model_dump(mode="json", exclude_none=True)
@@ -177,12 +188,14 @@ class Coordinator:
             return invalid
         if isinstance(error, NotFoundError):
             fail_open = True
+        blocking = self.blocking(request)
         result = fallback(
             direction=request.direction,
             purpose=request.purpose,
             effect_key=None if isinstance(error, NotFoundError) else request.effect_key,
-            suppressed=self.suppressed(request),
+            suppressed=blocking.suppressed,
             fail_open=fail_open,
+            window_until=blocking.window_until,
         )
         if "unchecked" in result.reasons:
             checked.unchecked[request.effect_key or request.intent] = str(result.decision_id)

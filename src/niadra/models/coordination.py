@@ -13,6 +13,7 @@ from pydantic import Field, StringConstraints
 
 from niadra.models._base import IdStr, Model, ResponseModel, ShortStr
 from niadra.models.common import Handle, ObjectRef
+from niadra.models.signals import ContactWindow
 from niadra.vocabulary import Verification
 
 TypeName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}$")]
@@ -161,6 +162,13 @@ class CheckResult(ResponseModel):
         ]
         | None
     ) = None
+    contact_window_until: datetime | None = Field(
+        default=None,
+        description=(
+            "With `contact_window`: when the subject's contact window on the channel ends, the first "
+            "moment the contact may go."
+        ),
+    )
     decision: Literal["allow", "defer", "deny", "handoff_to"]
     decision_id: UUID
     effect: EffectStatus | None = None
@@ -413,14 +421,16 @@ class LeaseDeclared(Model):
 
 
 class SuppressionAddedDetail(Model):
-    """The subject may not be contacted for `purpose`, on `channel` or on every channel. `until` defaults to
-    the reason's own interval, or to no end.
+    """The subject may not be contacted for `purpose` (`any`: every purpose), on `channel` or on every
+    channel. `until` defaults to the reason's own interval, or to no end. With `window`, only during those
+    local hours (the suppression-list spec, 6.1).
     """
 
     channel: TypeName | None = None
     purpose: TypeName
     reason: TypeName
     until: datetime | None = None
+    window: ContactWindow | None = None
 
 
 class SuppressionAdded(Model):
@@ -624,6 +634,7 @@ class Suppression(ResponseModel):
     removed: bool = False
     since: datetime
     until: datetime | None = None
+    window: ContactWindow | None = None
 
 
 class SuppressionPage(ResponseModel):

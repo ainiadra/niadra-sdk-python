@@ -39,6 +39,7 @@ from niadra.claims.anchor import distance
 from niadra.constraints.render import Binding, BindingArg, Call, honored, render
 from niadra.coordination.destination import DestinationError, canonical_destination, suppression_key
 from niadra.coordination.token import ContactTokenError, verify_contact_token
+from niadra.coordination.window import InvalidWindowError, window_until
 from niadra.exposure import ExposureTokenError, exposure_token, parse_exposure_token
 from niadra.introspect import DeriveError, changes, derive
 from niadra.models.signals import ConstraintsBlock
@@ -390,6 +391,18 @@ def _claim_anchor(case: dict[str, Any]) -> None:
     assert (got >= 0.90) == expect["holds"]
 
 
+def _contact_window(case: dict[str, Any]) -> None:
+    try:
+        end = window_until(case["window"], datetime.fromisoformat(case["at"].replace("Z", "+00:00")))
+        got: dict[str, Any] = {
+            "applies": end is not None,
+            "until": end.isoformat().replace("+00:00", "Z") if end is not None else None,
+        }
+    except InvalidWindowError as refused:
+        got = {"error": refused.code}
+    assert got == case["expect"]
+
+
 def _suppression_key(case: dict[str, Any]) -> None:
     try:
         text = canonical_destination(case["type"], case["value"])
@@ -590,6 +603,11 @@ EXPECTED: dict[str, Expected] = {
         frozenset({"verdict", "completed", "infrastructure_errors", "pin_mismatches", "needs_paraphrase"})
         | frozenset({"assertions"}),
         _regression_stats,
+    ),
+    "contact-window.v0": Expected(
+        frozenset({"id", "description", "window", "at", "expect"}),
+        frozenset({"applies", "until"}),
+        _contact_window,
     ),
     "suppression-key.v0": Expected(
         frozenset({"id", "description", "salt", "type", "value", "expect"}),

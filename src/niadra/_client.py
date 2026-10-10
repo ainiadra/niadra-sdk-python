@@ -324,6 +324,7 @@ class Niadra:
         purpose: str,
         *,
         channel: str | None = None,
+        at: datetime | None = None,
         fail_open: bool | None = None,
     ) -> bool:
         """Whether an outbound contact of `purpose` (`marketing`, `service`...) to `handle` may go, by the
@@ -335,7 +336,9 @@ class Niadra:
         list longer than a page goes on in the background.
         With no copy and Niadra out of reach, the purpose decides: `transactional` and `service` go, every
         other purpose waits; `fail_open` overrides that. A space without a list suppresses nothing. Never
-        raises unless `strict`."""
+        raises unless `strict`.
+        The person's own contact hours ("don't call before 9 am") hold as a window: `at` (now by default)
+        inside it says no, outside it yes, on the channel they named and for every purpose."""
         try:
             target = as_handle(handle).model_dump(mode="json")
         except (TypeError, ValueError) as exc:
@@ -347,7 +350,7 @@ class Niadra:
                 self._read_suppressions_later()
             else:
                 self._read_suppressions_first(self._core.navigation_budget(False, None))
-        return self._suppressions.may_contact(target, purpose, channel=channel, fail_open=fail_open)
+        return self._suppressions.may_contact(target, purpose, channel=channel, now=at, fail_open=fail_open)
 
     def _keep_suppressions(self) -> None:
         """Reads the local copy of the suppression list in the background when it is due: a check that Niadra

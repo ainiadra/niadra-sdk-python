@@ -5,7 +5,9 @@ changes for now, and its cursor is where the next read starts), with this reader
 `GET /v1/suppressions/salt`, and read again once it is `REFRESH` seconds old. Before an outbound contact the
 SDK computes the destination's key and looks it up here, in memory:
 
-- an entry with that key, the purpose, the channel (or every channel), in force now, forbids the contact;
+- an entry with that key, the purpose (or `any`), the channel (or every channel), in force now, forbids the
+  contact; one with a `window` (the person's own contact hours, section 6.4) forbids it only inside those
+  local hours, and the contact waits until the window ends;
 - when the list cannot be read, the last copy keeps applying, however old: an opt-out does not wait for
   Niadra;
 - with no copy at all and Niadra out of reach, the purpose decides: transactional and service contacts go
@@ -25,9 +27,12 @@ from typing import Any
 
 from niadra._transport import Request
 from niadra.coordination.destination import DestinationError, canonical_destination, suppression_key
+from niadra.coordination.window import InvalidWindowError, window_until
 from niadra.errors import NotFoundError
 from niadra.models.coordination import Suppression, SuppressionPage, SuppressionSalt
 
+ANY_PURPOSE = "any"
+"""An entry of `any` purpose holds for every purpose: a person's own contact hours."""
 REFRESH = 60.0
 """Seconds after which the copy is read again."""
 FAIL_OPEN = frozenset({"transactional", "service"})
@@ -130,25 +135,63 @@ class SuppressionCopy:
         now: datetime | None = None,
         fail_open: bool | None = None,
     ) -> bool:
-        """Whether an outbound contact of `purpose` to `handle` may go, by the local copy. `fail_open`
-        overrides the purpose's direction when there is no copy."""
+        """Whether an outbound contact of `purpose` to `handle` may go at `now`, by the local copy.
+        `fail_open` overrides the purpose's direction when there is no copy."""
+        found = self.blocking(handle, purpose, channel=channel, now=now)
+        if found is None:
+            return fail_open if fail_open is not None else purpose in FAIL_OPEN
+        return not found.suppressed and found.window_until is None
+
+    def blocking(
+        self,
+        handle: Mapping[str, Any],
+        purpose: str,
+        *,
+        channel: str | None = None,
+        now: datetime | None = None,
+    ) -> Blocking | None:
+        """What the copy says of a contact at `now`: suppressed at every hour, or inside a contact window
+        until when; None when there is no copy to say it."""
         with self._lock:
             if self._absent:
-                return True
+                return Blocking()
             salt, entries, held = self._salt, list(self._entries.values()), self._read_at is not None
         if salt is None or not held:
-            return fail_open if fail_open is not None else purpose in FAIL_OPEN
+            return None
         try:
             canonical = canonical_destination(str(handle["type"]), str(handle["value"]))
             key = suppression_key(salt.salt, canonical)
         except DestinationError:
-            return True  # not a destination the list covers
+            return Blocking()  # not a destination the list covers
         moment = now or datetime.now(timezone.utc)
-        return not any(
-            e.key == key
-            and e.purpose == purpose
+        live = [
+            e
+            for e in entries
+            if e.key == key
+            and e.purpose in (purpose, ANY_PURPOSE)
             and (e.channel is None or e.channel == channel)
             and e.since <= moment
             and (e.until is None or e.until > moment)
-            for e in entries
-        )
+        ]
+        ends = [end for e in live if e.window is not None and (end := _window_end(e, moment)) is not None]
+        return Blocking(any(e.window is None for e in live), max(ends) if ends else None)
+
+
+class Blocking:
+    """What the local copy says of one contact: `suppressed` at every hour, or inside a contact window until
+    `window_until`."""
+
+    __slots__ = ("suppressed", "window_until")
+
+    def __init__(self, suppressed: bool = False, window_until: datetime | None = None) -> None:
+        self.suppressed = suppressed
+        self.window_until = window_until
+
+
+def _window_end(entry: Suppression, at: datetime) -> datetime | None:
+    """When the entry's window `at` falls in ends. A window this machine cannot read (its time zone database
+    lacks the zone) is not applied, and is never taken as every hour (section 6.5)."""
+    try:
+        return window_until(entry.window, at)
+    except InvalidWindowError:
+        return None

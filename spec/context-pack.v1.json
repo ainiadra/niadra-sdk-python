@@ -725,6 +725,15 @@
           "title": "Ask",
           "type": "array"
         },
+        "contact_windows": {
+          "description": "The local hours the subject said they may not be contacted in, one per channel (null: every channel), the latest said: a contact of any purpose waits for the window's end.",
+          "items": {
+            "$ref": "#/$defs/ContactWindowEntry"
+          },
+          "maxItems": 10,
+          "title": "Contact Windows",
+          "type": "array"
+        },
         "text": {
           "description": "The block as lines for a model, in the space's language, each field by its label and each operator in words; an empty string when the block has nothing to say. Not part of `version`.",
           "title": "Text",
@@ -774,6 +783,88 @@
         "remaining"
       ],
       "title": "ContactBudget",
+      "type": "object"
+    },
+    "ContactWindow": {
+      "additionalProperties": false,
+      "description": "The local hours a suppression applies in (the suppression-list spec, 6.1): from `from` up to `to`, in the IANA zone `tz`, on the ISO weekdays `days` (1 is Monday; null for every day). A window whose `to` is not after its `from` crosses midnight and belongs to the day it starts on.",
+      "properties": {
+        "from": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "From",
+          "type": "string"
+        },
+        "to": {
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "To",
+          "type": "string"
+        },
+        "tz": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Tz",
+          "type": "string"
+        },
+        "days": {
+          "anyOf": [
+            {
+              "items": {
+                "maximum": 7,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "maxItems": 7,
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Days"
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "tz"
+      ],
+      "title": "ContactWindow",
+      "type": "object"
+    },
+    "ContactWindowEntry": {
+      "additionalProperties": false,
+      "description": "A contact window the subject said, in their own block (the suppression-list spec, 6.1).",
+      "properties": {
+        "channel": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Channel"
+        },
+        "window": {
+          "$ref": "#/$defs/ContactWindow"
+        },
+        "said_at": {
+          "format": "date-time",
+          "title": "Said At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "window",
+        "said_at"
+      ],
+      "title": "ContactWindowEntry",
       "type": "object"
     },
     "ContentMarker": {

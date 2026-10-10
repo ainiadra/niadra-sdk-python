@@ -179,6 +179,26 @@ class ConstraintOrigin(ResponseModel):
     turn_id: IdStr | None = None
 
 
+class ContactWindow(Model):
+    """The local hours a suppression applies in (the suppression-list spec, 6.1): from `from` up to `to`, in
+    the IANA zone `tz`, on the ISO weekdays `days` (1 is Monday; null for every day). A window whose `to`
+    is not after its `from` crosses midnight and belongs to the day it starts on.
+    """
+
+    days: Annotated[list[Annotated[int, Field(ge=1, le=7)]], Field(min_length=1, max_length=7)] | None = None
+    from_: Annotated[str, StringConstraints(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")] = Field(alias="from")
+    to: Annotated[str, StringConstraints(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")]
+    tz: Annotated[str, StringConstraints(min_length=1, max_length=64)]
+
+
+class ContactWindowEntry(ResponseModel):
+    """A contact window the subject said, in their own block (the suppression-list spec, 6.1)."""
+
+    channel: ShortStr | None = None
+    said_at: datetime
+    window: ContactWindow
+
+
 class HardConstraint(ResponseModel):
     """Only what the person said: an inference is never hard."""
 
@@ -305,6 +325,14 @@ class ConstraintsBlock(ResponseModel):
     )
     attributes: list[AttributeEntry] = Field(default_factory=list, max_length=50)
     conflicts: list[Conflict] = Field(default_factory=list, max_length=50)
+    contact_windows: list[ContactWindowEntry] = Field(
+        default_factory=list,
+        max_length=10,
+        description=(
+            "The local hours the subject said they may not be contacted in, one per channel (null: "
+            "every channel), the latest said: a contact of any purpose waits for the window's end."
+        ),
+    )
     exclude: list[ObjectKey] = Field(default_factory=list, max_length=200)
     hard: list[HardConstraint] = Field(default_factory=list, max_length=100)
     instructions: list[ObjectInstruction] = Field(
