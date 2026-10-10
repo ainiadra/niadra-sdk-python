@@ -26,7 +26,7 @@ from typing import Any
 from niadra.coordination.destination import canonical_destination, suppression_key
 from niadra.models.common import Handle
 from niadra.models.coordination import Suppression, SuppressionPage, SuppressionSalt
-from niadra.models.signals import ConstraintsBlock
+from niadra.models.signals import ConstraintsBlock, ContactWindow
 from niadra.models.state import ClaimContractSummary, SdkProfile, StateView
 from niadra_mock.state import StateError
 
@@ -137,8 +137,10 @@ class FeatureStore:
         *,
         channel: str | None = None,
         until: datetime | None = None,
+        window: dict[str, Any] | None = None,
     ) -> str:
-        """Adds a suppression of `handle` for `purpose`; returns the entry's id."""
+        """Adds a suppression of `handle` for `purpose` (`any` for every purpose), only in the local hours of
+        `window` when given (`from`, `to`, `tz`, `days`); returns the entry's id."""
         key = suppression_key(self._salt_b64(), canonical_destination(str(handle.type), handle.value))
         with self._lock:
             entry = Suppression(
@@ -148,12 +150,14 @@ class FeatureStore:
                 channel=channel,
                 since=datetime.now(timezone.utc),
                 until=until,
+                window=ContactWindow.model_validate(window) if window is not None else None,
             )
             self.suppressions.append(entry)
         return entry.id
 
     def suppressed(self, handle: Handle, purpose: str, channel: str | None) -> bool:
-        """Whether an entry of the list forbids contacting `handle` for `purpose` on `channel` now."""
+        """Whether an entry of the list forbids contacting `handle` for `purpose` on `channel` now, at every
+        hour: an entry with a window only defers."""
         try:
             key = suppression_key(self._salt_b64(), canonical_destination(str(handle.type), handle.value))
         except ValueError:
@@ -162,7 +166,8 @@ class FeatureStore:
         with self._lock:
             return any(
                 e.key == key
-                and e.purpose == purpose
+                and e.purpose in (purpose, "any")
+                and e.window is None
                 and e.channel in (None, channel)
                 and e.since <= now
                 and (e.until is None or e.until > now)

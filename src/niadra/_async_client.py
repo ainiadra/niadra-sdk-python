@@ -281,6 +281,7 @@ class AsyncNiadra:
         purpose: str,
         *,
         channel: str | None = None,
+        at: datetime | None = None,
         fail_open: bool | None = None,
     ) -> bool:
         """Whether an outbound contact of `purpose` to `handle` may go, by the local copy of the space's
@@ -296,7 +297,7 @@ class AsyncNiadra:
                 self._keep_suppressions()
             else:
                 await self._read_suppressions_first(self._core.navigation_budget(False, None))
-        return self._suppressions.may_contact(target, purpose, channel=channel, fail_open=fail_open)
+        return self._suppressions.may_contact(target, purpose, channel=channel, now=at, fail_open=fail_open)
 
     def _keep_suppressions(self) -> None:
         """Reads the local copy of the suppression list in the background when it is due: a check that Niadra

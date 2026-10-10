@@ -9,12 +9,14 @@ import logging
 import threading
 import time
 from collections.abc import Iterator, MutableMapping
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
 import pytest
 
 from niadra import AsyncNiadra, Niadra, UnprocessableEntityError, phone
+from niadra.coordination.client import fallback
 from niadra.coordination.token import ContactTokenError
 from niadra.options import CacheOptions, Timeouts, TurnOptions
 from niadra_mock import MOCK_KEY, MockApp
@@ -371,3 +373,54 @@ def test_strict_raises_a_check_the_api_refuses(app: MockApp) -> None:
     with pytest.raises(UnprocessableEntityError), strict.conversation("c-10", subject=CUSTOMER) as c:
         c.check("deadline_reminder", purpose="legal")
     strict.close()
+
+
+# A person's own contact hours (spec/suppression-list.md, 6.4).
+
+BEFORE_NINE = {"from": "00:00", "to": "09:00", "tz": "America/Sao_Paulo", "days": None}
+SEVEN = datetime(2026, 10, 10, 10, 0, tzinfo=timezone.utc)  # 07:00 in Sao Paulo
+NOON = datetime(2026, 10, 10, 15, 0, tzinfo=timezone.utc)
+
+
+def test_the_hours_a_person_said_hold_as_a_window_never_all_day(app: MockApp, niadra: Niadra) -> None:
+    # juridico-zero, 09/10/2026: "não liguem antes das 9h" said no to a call at any hour.
+    app.cell.agent_features.suppress(CUSTOMER, "any", channel="voice", window=BEFORE_NINE)
+    assert not niadra.may_contact(CUSTOMER, "service", channel="voice", at=SEVEN)
+    assert not niadra.may_contact(CUSTOMER, "marketing", channel="voice", at=SEVEN)
+    assert niadra.may_contact(CUSTOMER, "service", channel="voice", at=NOON)
+    assert niadra.may_contact(CUSTOMER, "service", channel="whatsapp", at=SEVEN)
+    assert niadra.may_contact(OTHER, "service", channel="voice", at=SEVEN)
+
+
+def test_with_niadra_down_a_check_inside_the_window_waits_for_its_end(app: MockApp, niadra: Niadra) -> None:
+    app.cell.agent_features.suppress(CUSTOMER, "any", channel="voice", window=BEFORE_NINE)
+    assert niadra.may_contact(CUSTOMER, "service", channel="voice", at=NOON)  # the copy is read
+    blocking = niadra._suppressions.blocking(
+        CUSTOMER.model_dump(mode="json"), "service", channel="voice", now=SEVEN
+    )
+    assert blocking is not None
+    assert (blocking.suppressed, blocking.window_until) == (
+        False,
+        datetime(2026, 10, 10, 12, 0, tzinfo=timezone.utc),
+    )
+    result = fallback(
+        direction="outbound",
+        purpose="service",
+        window_until=blocking.window_until,
+        suppressed=blocking.suppressed,
+    )
+    assert (result.decision, result.reasons, result.contact_window_until) == (
+        "defer",
+        ["contact_window"],
+        blocking.window_until,
+    )
+
+
+async def test_the_async_client_weighs_the_window_too(app: MockApp) -> None:
+    app.cell.agent_features.suppress(CUSTOMER, "any", channel="voice", window=BEFORE_NINE)
+    http = httpx.AsyncClient(transport=httpx.ASGITransport(app=app.asgi))
+    client = AsyncNiadra(MOCK_KEY, base_url="http://mock", channel="whatsapp", http_client=http)
+    assert not await client.may_contact(CUSTOMER, "service", channel="voice", at=SEVEN)
+    assert await client.may_contact(CUSTOMER, "service", channel="voice", at=NOON)
+    await client.close(timeout=1)
+    await http.aclose()

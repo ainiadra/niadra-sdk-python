@@ -1,0 +1,119 @@
+{
+  "vectors": "contact-window",
+  "version": "v0",
+  "spec": "spec/suppression-list.md",
+  "cases": [
+    {
+      "id": "window.before_nine_inside",
+      "description": "Not before 09:00 in Sao Paulo: at 07:00 local the entry applies until 09:00 local.",
+      "window": {"from": "00:00", "to": "09:00", "tz": "America/Sao_Paulo", "days": null},
+      "at": "2026-10-10T10:00:00Z",
+      "expect": {"applies": true, "until": "2026-10-10T12:00:00Z"}
+    },
+    {
+      "id": "window.before_nine_outside",
+      "description": "The same window at 14:00 local: a call may go.",
+      "window": {"from": "00:00", "to": "09:00", "tz": "America/Sao_Paulo", "days": null},
+      "at": "2026-10-10T17:00:00Z",
+      "expect": {"applies": false, "until": null}
+    },
+    {
+      "id": "window.end_is_open",
+      "description": "At exactly 09:00 local the window has ended.",
+      "window": {"from": "00:00", "to": "09:00", "tz": "America/Sao_Paulo", "days": null},
+      "at": "2026-10-10T12:00:00Z",
+      "expect": {"applies": false, "until": null}
+    },
+    {
+      "id": "window.start_is_closed",
+      "description": "At exactly 00:00 local the window has begun.",
+      "window": {"from": "00:00", "to": "09:00", "tz": "America/Sao_Paulo", "days": null},
+      "at": "2026-10-10T03:00:00Z",
+      "expect": {"applies": true, "until": "2026-10-10T12:00:00Z"}
+    },
+    {
+      "id": "window.afternoon_only_evening",
+      "description": "Only in the afternoon is a window from 18:00 to 12:00, across midnight: at 20:30 local it applies until 12:00 the next day.",
+      "window": {"from": "18:00", "to": "12:00", "tz": "America/Sao_Paulo", "days": null},
+      "at": "2026-10-10T23:30:00Z",
+      "expect": {"applies": true, "until": "2026-10-11T15:00:00Z"}
+    },
+    {
+      "id": "window.afternoon_only_morning",
+      "description": "The same window at 10:00 local applies until 12:00 that day.",
+      "window": {"from": "18:00", "to": "12:00", "tz": "America/Sao_Paulo", "days": null},
+      "at": "2026-10-11T13:00:00Z",
+      "expect": {"applies": true, "until": "2026-10-11T15:00:00Z"}
+    },
+    {
+      "id": "window.afternoon_only_afternoon",
+      "description": "The same window at 13:00 local: a message may go.",
+      "window": {"from": "18:00", "to": "12:00", "tz": "America/Sao_Paulo", "days": null},
+      "at": "2026-10-10T16:00:00Z",
+      "expect": {"applies": false, "until": null}
+    },
+    {
+      "id": "window.not_after_eight_pm",
+      "description": "Not after 20:00 is a window from 20:00 to 00:00, which ends at the next local midnight.",
+      "window": {"from": "20:00", "to": "00:00", "tz": "America/Sao_Paulo", "days": null},
+      "at": "2026-10-10T23:30:00Z",
+      "expect": {"applies": true, "until": "2026-10-11T03:00:00Z"}
+    },
+    {
+      "id": "window.weekend_mornings_sunday",
+      "description": "No mornings on weekends (days 6 and 7): Sunday 08:00 local applies until 12:00.",
+      "window": {"from": "00:00", "to": "12:00", "tz": "America/Sao_Paulo", "days": [6, 7]},
+      "at": "2026-10-11T11:00:00Z",
+      "expect": {"applies": true, "until": "2026-10-11T15:00:00Z"}
+    },
+    {
+      "id": "window.weekend_mornings_monday",
+      "description": "The same window on Monday 08:00 local does not apply.",
+      "window": {"from": "00:00", "to": "12:00", "tz": "America/Sao_Paulo", "days": [6, 7]},
+      "at": "2026-10-12T11:00:00Z",
+      "expect": {"applies": false, "until": null}
+    },
+    {
+      "id": "window.days_follow_the_start",
+      "description": "A window across midnight belongs to the day it starts: Friday 22:00 to 06:00 still applies at Saturday 01:00 local.",
+      "window": {"from": "22:00", "to": "06:00", "tz": "America/Sao_Paulo", "days": [5]},
+      "at": "2026-10-10T04:00:00Z",
+      "expect": {"applies": true, "until": "2026-10-10T09:00:00Z"}
+    },
+    {
+      "id": "window.days_follow_the_start_next",
+      "description": "The window that starts on Saturday 22:00 is not a Friday window: Sunday 01:00 local does not apply.",
+      "window": {"from": "22:00", "to": "06:00", "tz": "America/Sao_Paulo", "days": [5]},
+      "at": "2026-10-11T04:00:00Z",
+      "expect": {"applies": false, "until": null}
+    },
+    {
+      "id": "window.daylight_saving",
+      "description": "Local time follows the zone's rules: in New York on 1 November 2026, after the change to standard time, 12:30 UTC is 07:30 local.",
+      "window": {"from": "00:00", "to": "09:00", "tz": "America/New_York", "days": null},
+      "at": "2026-11-01T12:30:00Z",
+      "expect": {"applies": true, "until": "2026-11-01T14:00:00Z"}
+    },
+    {
+      "id": "window.invalid_empty",
+      "description": "A window that starts when it ends is not a window.",
+      "window": {"from": "09:00", "to": "09:00", "tz": "America/Sao_Paulo", "days": null},
+      "at": "2026-10-10T10:00:00Z",
+      "expect": {"error": "invalid_window"}
+    },
+    {
+      "id": "window.invalid_zone",
+      "description": "A time zone that is not an IANA zone name.",
+      "window": {"from": "00:00", "to": "09:00", "tz": "GMT-3", "days": null},
+      "at": "2026-10-10T10:00:00Z",
+      "expect": {"error": "invalid_window"}
+    },
+    {
+      "id": "window.invalid_day",
+      "description": "Days are ISO weekdays, 1 (Monday) to 7 (Sunday).",
+      "window": {"from": "00:00", "to": "09:00", "tz": "America/Sao_Paulo", "days": [0]},
+      "at": "2026-10-10T10:00:00Z",
+      "expect": {"error": "invalid_window"}
+    }
+  ]
+}
