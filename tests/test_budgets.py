@@ -194,13 +194,25 @@ def alone(warmth: Warmth, request: Request) -> Request:
     return budgeted
 
 
+class Ticks:
+    """A clock the test moves: `Warmth`'s windows are 50 ms here, and a loaded machine can take that between
+    two statements, so the tests read no wall clock."""
+
+    def __init__(self) -> None:
+        self.now = 1_000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
 def test_the_allowance_comes_back_when_the_connection_was_idle_past_the_keepalive() -> None:
-    warmth = Warmth(keepalive_s=0.05, allowance=0.5)
+    ticks = Ticks()
+    warmth = Warmth(keepalive_s=0.05, allowance=0.5, clock=ticks)
     assert alone(warmth, read(0.1)).budget == pytest.approx(0.6)
     assert alone(warmth, read(0.1)).timeout == pytest.approx(0.6)
     warmth.answered()
     assert alone(warmth, read(0.1)).budget == pytest.approx(0.1)
-    time.sleep(0.06)
+    ticks.now += 0.06
     assert alone(warmth, read(0.1)).budget == pytest.approx(0.6), "idle past the keepalive: cold again"
     unbudgeted = Request("POST", "/v1/batch", json={}, timeout=5.0)
     assert alone(warmth, unbudgeted) is unbudgeted, "a batch of the background queue keeps its timeouts"
@@ -208,10 +220,11 @@ def test_the_allowance_comes_back_when_the_connection_was_idle_past_the_keepaliv
 
 
 def test_an_outage_spends_the_allowance_once_not_on_every_turn() -> None:
-    warmth = Warmth(keepalive_s=120, allowance=0.05)
+    ticks = Ticks()
+    warmth = Warmth(keepalive_s=120, allowance=0.05, clock=ticks)
     assert alone(warmth, read(0.1)).budget == pytest.approx(0.15)
     assert alone(warmth, read(0.1)).budget == pytest.approx(0.15), "a call of the same moment gets it too"
-    time.sleep(0.06)
+    ticks.now += 0.06
     assert alone(warmth, read(0.1)).budget == pytest.approx(0.1), (
         "no answer came: later turns keep the budget"
     )
