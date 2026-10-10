@@ -1027,15 +1027,16 @@ wheels = [
 
 [[package]]
 name = "niadra"
-version = "0.11.6"
+version = "0.11.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e7/ad/9894b37970f83c4237888f26aede6eaefc6fd111b8efeeba85ef410e1d40/niadra-0.11.6.tar.gz", hash = "sha256:30926e24bf0b01e455d6b662d552430195fda8a9085beb48d847ce4e9c427f44", size = 1418523, upload-time = "2026-10-09T18:12:05.596Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b9/d6/5d865f0e028071e400e7fbd559fcd1e76450c71d200854fd482d26f9e1d0/niadra-0.11.7.tar.gz", hash = "sha256:890c80ddccfd9353ec37d9df942b40b5a3644ef9d0cbd07207894192284e24be", size = 1425232, upload-time = "2026-10-10T04:18:32.638Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fc/ea/f1451d033c5372bba82c57840bef50cf4e101432d83ea705b0db98273ff8/niadra-0.11.6-py3-none-any.whl", hash = "sha256:6c8ae88d7fed235029274fd40c34f4cafb298f7235c71cbea2ec3a3fdbe59f73", size = 491910, upload-time = "2026-10-09T18:12:03.922Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/e9/35bad73d0a0d9066501b2c572ed41718d4704dd5f455a5f177d586c4b22a/niadra-0.11.7-py3-none-any.whl", hash = "sha256:007865c44af8bb750e2df367da54fee12141dcadf81b64eeed33ebe9b09fcac7", size = 495280, upload-time = "2026-10-10T04:18:30.484Z" },
 ]
 
 [[package]]
@@ -1076,7 +1077,7 @@ requires-dist = [
     { name = "en-core-web-sm", marker = "extra == 'mem0'", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" },
     { name = "httpx", specifier = ">=0.27,<1" },
     { name = "mem0ai", extras = ["nlp"], marker = "extra == 'mem0'", specifier = "==2.2.0" },
-    { name = "niadra", specifier = "==0.11.6" },
+    { name = "niadra", specifier = "==0.11.7" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'mem0'", specifier = ">=3.2.8,<4" },
     { name = "psycopg-pool", marker = "extra == 'mem0'", specifier = ">=3.2.6,<4" },
     { name = "pydantic", specifier = ">=2.6,<3" },
