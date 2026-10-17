@@ -99,8 +99,8 @@ def test_object_shorthand_keeps_colons_in_the_id() -> None:
 
 
 def test_target_shorthand_splits_on_the_first_slash() -> None:
-    target = TargetModel.parse("openrouter/anthropic/claude")
-    assert (target.provider, target.model) == ("openrouter", "anthropic/claude")
+    target = TargetModel.parse("bedrock/anthropic/claude")
+    assert (target.provider, target.model) == ("bedrock", "anthropic/claude")
 
 
 def test_staff_is_a_system_id_of_kind_staff() -> None:

@@ -3,6 +3,7 @@
 [![PyPI](https://img.shields.io/pypi/v/niadra)](https://pypi.org/project/niadra/)
 [![Python](https://img.shields.io/pypi/pyversions/niadra)](https://pypi.org/project/niadra/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+[![GitHub](https://img.shields.io/badge/server-ainiadra%2Fniadra-a3d600?logo=github)](https://github.com/ainiadra/niadra)
 
 **Niadra is the omnichannel memory layer for a company's AI agents.** It takes the events from
 every channel, platform and system, builds one memory of each customer and delivers it to any AI
@@ -11,7 +12,11 @@ inside the ERP and the human team read the same memory before they act and write
 said and did. This package connects a Python agent to it.
 
 [Website](https://niadra.com/en) · [Documentation](https://docs.niadra.com/en) ·
+[Server, Console and deployment (open source)](https://github.com/ainiadra/niadra) ·
 [Talk to us](https://niadra.com/en/enterprise) · [TypeScript SDK](https://github.com/ainiadra/niadra-sdk-ts)
+
+Niadra is open source under Apache 2.0. The server, the Console and everything that deploys them are in
+[ainiadra/niadra](https://github.com/ainiadra/niadra): run your own and point `base_url` (or `NIADRA_BASE_URL`) at it.
 
 ```
 pip install niadra
